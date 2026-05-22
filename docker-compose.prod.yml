@@ -1,0 +1,11 @@
+services:
+  api:
+    restart: always
+    environment:
+      - ENV=production
+  worker:
+    restart: always
+  web:
+    restart: always
+  nginx:
+    restart: always

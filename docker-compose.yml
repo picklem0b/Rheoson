@@ -1,0 +1,41 @@
+services:
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    env_file: ./api/.env
+    volumes:
+      - ./music:/music
+      - ./downloads:/downloads
+    depends_on:
+      - redis
+
+  worker:
+    build: ./api
+    command: celery -A app.tasks worker --loglevel=info --concurrency=4
+    env_file: ./api/.env
+    volumes:
+      - ./music:/music
+      - ./downloads:/downloads
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  web:
+    build: ./web
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+      - web

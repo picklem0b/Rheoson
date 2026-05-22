@@ -1,0 +1,3 @@
+# Auto-generated from pyproject.toml — do not edit manually.
+# Run: pip install -e ".[dev]"
+# Placeholder for environments that need a flat requirements file.
