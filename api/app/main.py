@@ -61,6 +61,18 @@ app = FastAPI(
     redoc_url=None,
 )
 
+from fastapi.responses import JSONResponse
+
+@app.get("/api/health", tags=["health"])
+async def health():
+    return JSONResponse({
+        "status":        "ok",
+        "version":       "1.0.0-alpha",
+        "env":           settings.ENV,
+        "music_dir":     settings.MUSIC_DIR,
+        "downloads_dir": settings.DOWNLOADS_DIR,
+    })
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

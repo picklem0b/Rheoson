@@ -3,9 +3,9 @@ name = "shulker-api"
 version = "1.0.0"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi==0.111.0",
-    "uvicorn[standard]==0.30.1",
-    "pydantic==2.7.4",
+    "fastapi>=0.103.2,<0.112",
+    "uvicorn[standard]>=0.23.2",
+    "pydantic==2.13.4",
     "pydantic-settings==2.3.0",
     "httpx==0.27.0",
     "python-multipart==0.0.9",
@@ -17,7 +17,6 @@ dependencies = [
     "python-socketio==5.11.2",
     "structlog==24.2.0",
     "rich>=13.9.4,<14",
-    "spotdl==4.5.0",
     "yt-dlp",
     "spotipy",
     "beautifulsoup4",
@@ -39,6 +38,9 @@ dev = [
     "pyflakes",
     "mypy==1.10.0",
 ]
+
+[project.scripts]
+shulker = "app.cli:main"
 
 [tool.black]
 line-length = 100
