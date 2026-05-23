@@ -1,41 +1,41 @@
 export const API_BASE = '/api'
-export const WS_URL = 'ws://localhost:8000'
+export const WS_URL   = 'http://127.0.0.1:8000'
 
 export const ENDPOINTS = {
-  // Search
-  search:          (q: string) => `${API_BASE}/search?q=${encodeURIComponent(q)}`,
-  searchYT:        (q: string) => `${API_BASE}/search/youtube?q=${encodeURIComponent(q)}`,
-
-  // Tracks
+  health:          `${API_BASE}/health`,
+  search:          (q: string, filter?: string) =>
+    `${API_BASE}/search?q=${encodeURIComponent(q)}${filter ? `&filter=${filter}` : ''}`,
+  resolve:         `${API_BASE}/search/resolve`,
+  tracks:          `${API_BASE}/tracks`,
   track:           (id: string) => `${API_BASE}/tracks/${id}`,
-  stream:          (id: string) => `${API_BASE}/stream/${id}`,
+  stream:          (id: string) => `${API_BASE}/stream/${id}/audio`,
+  artwork:         (id: string) => `${API_BASE}/stream/${id}/artwork`,
   like:            (id: string) => `${API_BASE}/tracks/${id}/like`,
-
-  // Downloads
-  download:        `${API_BASE}/downloads`,
-  downloadStatus:  (id: string) => `${API_BASE}/downloads/${id}`,
+  play:            (id: string) => `${API_BASE}/tracks/${id}/play`,
+  liked:           `${API_BASE}/tracks/liked`,
+  recentlyPlayed:  `${API_BASE}/tracks/recently-played`,
+  downloads:       `${API_BASE}/downloads`,
+  download:        (id: string) => `${API_BASE}/downloads/${id}`,
   downloadCancel:  (id: string) => `${API_BASE}/downloads/${id}/cancel`,
   downloadRetry:   (id: string) => `${API_BASE}/downloads/${id}/retry`,
-
-  // Playlists
   playlists:       `${API_BASE}/playlists`,
   playlist:        (id: string) => `${API_BASE}/playlists/${id}`,
   playlistTracks:  (id: string) => `${API_BASE}/playlists/${id}/tracks`,
-
-  // Lyrics
-  lyrics:          (id: string) => `${API_BASE}/lyrics/${id}`,
+  importPlaylist:  (id: string) => `${API_BASE}/playlists/${id}/import`,
+  lyrics:          (id: string, title?: string, artist?: string) =>
+    `${API_BASE}/lyrics/${id}?title=${encodeURIComponent(title||'')}&artist=${encodeURIComponent(artist||'')}`,
 } as const
 
 export const PLAYER_DEFAULTS = {
   volume:   0.8,
-  seekStep: 10,    // seconds
+  seekStep: 10,
 } as const
 
 export const DOWNLOAD_DEFAULTS = {
-  format:        'mp3'  as const,
-  quality:       '320'  as const,
-  embedArtwork:  true,
-  embedLyrics:   true,
+  format:       'mp3'  as const,
+  quality:      '320'  as const,
+  embedArtwork: true,
+  embedLyrics:  true,
 } as const
 
 export const BREAKPOINTS = {
@@ -50,7 +50,8 @@ export const STORAGE_KEYS = {
   volume:   'shulker-volume',
   queue:    'shulker-queue',
   liked:    'shulker-liked',
+  user:     'shulker-user',
 } as const
 
-export const APP_NAME = 'Shulker'
+export const APP_NAME    = 'Shulker'
 export const APP_VERSION = '1.0.0-alpha'

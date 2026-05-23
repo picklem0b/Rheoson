@@ -5,6 +5,7 @@ import socketio
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.config import settings
 from app.core.logging import configure_logging
@@ -20,70 +21,66 @@ from app.routers import search, tracks, downloads, stream, lyrics, playlists
 configure_logging()
 log = structlog.get_logger()
 
-
 # ── Socket.IO ─────────────────────────────────────────────────
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=settings.CORS_ORIGINS,
+    cors_allowed_origins="*",
     logger=False,
     engineio_logger=False,
 )
 
-# Inject sio into the ws_manager singleton so services can emit
 ws_manager.init(sio)
-
-# Register connect/disconnect/ping handlers
 register_events(sio)
 
 
-# ── Lifespan ──────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("shulker.api.starting", env=settings.ENV, port=settings.API_PORT)
-
-    # Ensure dirs exist
     Path(settings.MUSIC_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.DOWNLOADS_DIR).mkdir(parents=True, exist_ok=True)
-
     log.info("shulker.api.ready",
              music_dir=settings.MUSIC_DIR,
-             downloads_dir=settings.DOWNLOADS_DIR)
+             downloads_dir=settings.DOWNLOADS_DIR,
+             extra_dirs=settings.EXTRA_MUSIC_DIRS)
     yield
     log.info("shulker.api.shutdown")
 
 
-# ── FastAPI ───────────────────────────────────────────────────
 app = FastAPI(
     title="Shulker API",
     version="1.0.0-alpha",
     lifespan=lifespan,
-    docs_url="/api/docs" if settings.is_dev else None,
+    docs_url="/api/docs",
     redoc_url=None,
 )
 
-from fastapi.responses import JSONResponse
-
-@app.get("/api/health", tags=["health"])
-async def health():
-    return JSONResponse({
-        "status":        "ok",
-        "version":       "1.0.0-alpha",
-        "env":           settings.ENV,
-        "music_dir":     settings.MUSIC_DIR,
-        "downloads_dir": settings.DOWNLOADS_DIR,
-    })
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── Exception handlers ────────────────────────────────────────
 app.add_exception_handler(ShulkerException, shulker_exception_handler)
 app.add_exception_handler(Exception,        generic_exception_handler)
+
+# ── Health + root ─────────────────────────────────────────────
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse("/api/docs")
+
+
+@app.get("/api/health", tags=["health"])
+async def health():
+    return JSONResponse({
+        "status":       "ok",
+        "version":      "1.0.0-alpha",
+        "env":          settings.ENV,
+        "music_dir":    settings.MUSIC_DIR,
+        "downloads_dir":settings.DOWNLOADS_DIR,
+        "extra_dirs":   settings.all_music_dirs,
+    })
 
 # ── Routers ───────────────────────────────────────────────────
 app.include_router(search.router,    prefix="/api/search",    tags=["search"])
@@ -94,7 +91,6 @@ app.include_router(lyrics.router,    prefix="/api/lyrics",    tags=["lyrics"])
 app.include_router(playlists.router, prefix="/api/playlists", tags=["playlists"])
 
 # ── Mount Socket.IO ───────────────────────────────────────────
-# Wraps the FastAPI app — Socket.IO handles WS, FastAPI handles HTTP
 socket_app = socketio.ASGIApp(
     socketio_server=sio,
     other_asgi_app=app,
