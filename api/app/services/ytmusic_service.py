@@ -107,11 +107,15 @@ def _parse_artist(r: dict) -> dict:
 
 
 def _parse_playlist(r: dict) -> dict:
+    item_count = r.get("itemCount", 0)
+    
+    if not isinstance(item_count, (str, int)):
+        item_count = 0
     return {
         "id":         r.get("browseId", ""),
         "title":      r.get("title", ""),
         "artworkUrl": _thumb(r.get("thumbnails", [])),
-        "trackCount": r.get("itemCount", 0),
+        "trackCount": str(r.get("itemCount", 0)),
         "source":     "youtube",
     }
 

@@ -9,6 +9,11 @@ from app.services.metadata_service import read_track_metadata
 
 log = structlog.get_logger()
 
+def safe_str(v, fallback=""):
+    if v is None:
+        return fallback
+    return str(v)
+
 # ── URL detection ─────────────────────────────────────────────
 _YOUTUBE_RE  = re.compile(r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/shorts/)')
 _SPOTIFY_RE  = re.compile(r'open\.spotify\.com/')

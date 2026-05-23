@@ -2,15 +2,15 @@ from __future__ import annotations
 from pydantic import BaseModel
 from typing import Optional
 from app.schemas.track import TrackSchema
-
+from pydantic import Field
 
 class PlaylistSchema(BaseModel):
     id:          str
     title:       str
     description: Optional[str] = None
     artworkUrl:  Optional[str] = None
-    tracks:      list[TrackSchema] = []
-    trackCount:  int               = 0
+    tracks:      list[TrackSchema] = Field(default_factory = list)
+    trackCount:  str | int
     isLocal:     bool              = True
     spotifyId:   Optional[str]     = None
     createdAt:   str               = ""

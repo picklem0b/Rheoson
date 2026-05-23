@@ -21,5 +21,5 @@ export const tracksApi = {
     api.post<void>(`/tracks/${id}/play`),
 
   getStreamUrl: (id: string) =>
-    `/api/stream/${id}`,
+  `${import.meta.env.VITE_API_URL}/api/stream/${id}`,
 }

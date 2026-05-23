@@ -6,7 +6,7 @@ from app.schemas.search import SearchResultsSchema, ResolveResponseSchema
 router = APIRouter()
 
 
-@router.get("/", response_model=SearchResultsSchema)
+@router.get("", response_model=SearchResultsSchema)
 async def search_endpoint(
     q:      str         = Query(..., min_length=1),
     filter: str | None  = Query(None, regex="^(tracks|albums|artists|playlists)$"),
