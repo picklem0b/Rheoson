@@ -1,36 +1,38 @@
+const RENDER_API_URL = 'https://shulker-api-vnny.onrender.com'
+
 const isProd = import.meta.env.PROD
+
 export const API_BASE = isProd
-  ? `${import.meta.env.VITE_API_URL}/api`
+  ? `${RENDER_API_URL}/api`
   : '/api'
+
 export const WS_URL = isProd
-  ? import.meta.env.VITE_API_URL
+  ? RENDER_API_URL
   : 'http://127.0.0.1:8000'
 
-export const API_URL = 'https://shulker-api-vnny.onrender.com'
-
 export const ENDPOINTS = {
-  health:          `${API_BASE}/health`,
-  search:          (q: string, filter?: string) =>
+  health:         `${API_BASE}/health`,
+  search:         (q: string, filter?: string) =>
     `${API_BASE}/search?q=${encodeURIComponent(q)}${filter ? `&filter=${filter}` : ''}`,
-  resolve:         `${API_BASE}/search/resolve`,
-  tracks:          `${API_BASE}/tracks`,
-  track:           (id: string) => `${API_BASE}/tracks/${id}`,
-  stream:          (id: string) => `${API_BASE}/stream/${id}/audio`,
-  artwork:         (id: string) => `${API_BASE}/stream/${id}/artwork`,
-  like:            (id: string) => `${API_BASE}/tracks/${id}/like`,
-  play:            (id: string) => `${API_BASE}/tracks/${id}/play`,
-  liked:           `${API_BASE}/tracks/liked`,
-  recentlyPlayed:  `${API_BASE}/tracks/recently-played`,
-  downloads:       `${API_BASE}/downloads`,
-  download:        (id: string) => `${API_BASE}/downloads/${id}`,
-  downloadCancel:  (id: string) => `${API_BASE}/downloads/${id}/cancel`,
-  downloadRetry:   (id: string) => `${API_BASE}/downloads/${id}/retry`,
-  playlists:       `${API_BASE}/playlists`,
-  playlist:        (id: string) => `${API_BASE}/playlists/${id}`,
-  playlistTracks:  (id: string) => `${API_BASE}/playlists/${id}/tracks`,
-  importPlaylist:  (id: string) => `${API_BASE}/playlists/${id}/import`,
-  lyrics:          (id: string, title?: string, artist?: string) =>
-    `${API_BASE}/lyrics/${id}?title=${encodeURIComponent(title||'')}&artist=${encodeURIComponent(artist||'')}`,
+  resolve:        `${API_BASE}/search/resolve`,
+  tracks:         `${API_BASE}/tracks`,
+  track:          (id: string) => `${API_BASE}/tracks/${id}`,
+  stream:         (id: string) => `${API_BASE}/stream/${id}/audio`,
+  artwork:        (id: string) => `${API_BASE}/stream/${id}/artwork`,
+  like:           (id: string) => `${API_BASE}/tracks/${id}/like`,
+  play:           (id: string) => `${API_BASE}/tracks/${id}/play`,
+  liked:          `${API_BASE}/tracks/liked`,
+  recentlyPlayed: `${API_BASE}/tracks/recently-played`,
+  downloads:      `${API_BASE}/downloads`,
+  download:       (id: string) => `${API_BASE}/downloads/${id}`,
+  downloadCancel: (id: string) => `${API_BASE}/downloads/${id}/cancel`,
+  downloadRetry:  (id: string) => `${API_BASE}/downloads/${id}/retry`,
+  playlists:      `${API_BASE}/playlists`,
+  playlist:       (id: string) => `${API_BASE}/playlists/${id}`,
+  playlistTracks: (id: string) => `${API_BASE}/playlists/${id}/tracks`,
+  importPlaylist: (id: string) => `${API_BASE}/playlists/${id}/import`,
+  lyrics:         (id: string, title?: string, artist?: string) =>
+    `${API_BASE}/lyrics/${id}?title=${encodeURIComponent(title || '')}&artist=${encodeURIComponent(artist || '')}`,
 } as const
 
 export const PLAYER_DEFAULTS = {
@@ -53,12 +55,12 @@ export const BREAKPOINTS = {
 } as const
 
 export const STORAGE_KEYS = {
-  theme:    'shulker-theme',
-  volume:   'shulker-volume',
-  queue:    'shulker-queue',
-  liked:    'shulker-liked',
-  user:     'shulker-user',
+  theme:  'shulker-theme',
+  volume: 'shulker-volume',
+  queue:  'shulker-queue',
+  liked:  'shulker-liked',
+  user:   'shulker-user',
 } as const
 
 export const APP_NAME    = 'Shulker'
-export const APP_VERSION = '1.0.0-alpha'
+export const APP_VERSION = '1.2.2'
