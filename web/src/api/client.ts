@@ -1,4 +1,6 @@
-const BASE = '/api'
+import { API_BASE } from '@/lib/constants'
+
+const BASE = API_BASE
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>
