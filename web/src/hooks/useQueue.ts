@@ -5,17 +5,27 @@ import type { Track } from '@/types/track'
 
 export function useQueue() {
   const store = useQueueStore()
-  const { setTrack } = usePlayerStore()
+  const { setTrack, currentTrack } = usePlayerStore()
 
   const playTrack = useCallback((track: Track, context: Track[] = []) => {
-    const idx = context.findIndex((t) => t.id === track.id)
+    // Set queue context first
     if (context.length > 0) {
+      const idx = context.findIndex((t) => t.id === track.id)
       store.setQueue(context, idx >= 0 ? idx : 0)
     }
+
+    // Same track clicked → restart from beginning, don't create new Howl
+    if (currentTrack?.id === track.id) {
+      window.dispatchEvent(new CustomEvent('shulker:restart-track'))
+      return
+    }
+
+    // Different track → load it
     setTrack(track)
-  }, [store, setTrack])
+  }, [store, setTrack, currentTrack])
 
   const playAll = useCallback((tracks: Track[], startIndex = 0) => {
+    if (!tracks.length) return
     store.setQueue(tracks, startIndex)
     setTrack(tracks[startIndex])
   }, [store, setTrack])

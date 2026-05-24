@@ -20,6 +20,6 @@ export const tracksApi = {
   recordPlay: (id: string) =>
     api.post<void>(`/tracks/${id}/play`),
 
-  // Always use the vite proxy — no env var needed
+  // Uses Vite proxy — no hardcoded host, works in dev and prod
   getStreamUrl: (id: string) => `/api/stream/${id}/audio`,
 }

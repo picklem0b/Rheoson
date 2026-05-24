@@ -35,10 +35,11 @@ const CATEGORIES = [
 
 export default function Search() {
   const inputRef = useRef<HTMLInputElement>(null)
-  const { query, setQuery, filter, setFilter, results, isLoading, error, clear } = useSearch()
+  const { query, setQuery, filter, setFilter, results, isLoading, error, clear, suggestions, selectSuggestion } = useSearch()
   const { playTrack } = useQueue()
   const { openDownloadModal } = useUIStore()
-
+  const [suggOpen, setSuggOpen] = useState(false)
+  
   const inputType = query ? detectInputType(query) : 'query'
   const hasResults = results && (
     results.tracks.length > 0 ||
@@ -49,79 +50,119 @@ export default function Search() {
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Search bar ──────────────────────────────────────── */}
-      <div className="px-4 lg:px-8 pt-6 pb-4 space-y-3 flex-shrink-0">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Search</h1>
+      {/* Search bar + suggestions */}
+<div className="px-4 lg:px-8 pt-6 pb-4 space-y-3 flex-shrink-0">
+  <h1 className="text-2xl font-bold text-[var(--text-primary)]">Search</h1>
 
-        <div className="relative">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-            {isLoading
-              ? <Loader2 className="w-4 h-4 text-[var(--accent)] animate-spin" />
-              : inputType === 'spotify' || inputType === 'youtube'
-                ? <Link className="w-4 h-4 text-[var(--accent)]" />
-                : <SearchIcon className="w-4 h-4 text-[var(--text-muted)]" />
-            }
-          </div>
+  <div className="relative">
+    {/* Input */}
+    <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+      {isLoading
+        ? <Loader2 className="w-4 h-4 text-[var(--accent)] animate-spin" />
+        : inputType === 'spotify' || inputType === 'youtube'
+          ? <Link className="w-4 h-4 text-[var(--accent)]" />
+          : <SearchIcon className="w-4 h-4 text-[var(--text-muted)]" />
+      }
+    </div>
 
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search songs, artists, or paste a Spotify / YouTube link…"
-            className={cn(
-              'w-full h-12 pl-11 pr-11 text-sm rounded-2xl outline-none transition-all duration-200',
-              'bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)]',
-              'placeholder:text-[var(--text-muted)]',
-              'focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-subtle)]',
-            )}
-          />
+    <input
+      ref={inputRef}
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { setSuggOpen(false); inputRef.current?.blur() }
+        if (e.key === 'Escape') { clear(); setSuggOpen(false) }
+      }}
+      onFocus={() => setSuggOpen(true)}
+      placeholder="Songs, artists, albums or paste a link…"
+      className={cn(
+        'w-full h-12 pl-11 pr-11 text-sm rounded-2xl outline-none transition-all duration-200',
+        'bg-[var(--bg-elevated)] border border-[var(--border)]',
+        'text-[var(--text-primary)] placeholder:text-[var(--text-muted)]',
+        'focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-subtle)]',
+      )}
+    />
 
-          <AnimatePresence>
-            {query && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{   opacity: 0, scale: 0.8 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-              >
-                <IconButton size="xs" variant="ghost" onClick={clear}>
-                  <X />
-                </IconButton>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+    {query && (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-10"
+      >
+        <IconButton size="xs" variant="ghost" onClick={() => { clear(); setSuggOpen(false) }}>
+          <X />
+        </IconButton>
+      </motion.div>
+    )}
 
-        {/* Filter pills */}
-        <AnimatePresence>
-          {query && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{   opacity: 0, height: 0 }}
-              className="flex gap-2 overflow-x-auto no-scrollbar"
-            >
-              {FILTERS.map((f) => (
-                <motion.button
-                  key={f.id}
-                  whileTap={{ scale: 0.93 }}
-                  onClick={() => setFilter(f.id)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0',
-                    'border transition-all duration-200',
-                    filter === f.id
-                      ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
-                      : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]'
-                  )}
-                >
-                  {f.icon}
-                  {f.label}
-                </motion.button>
-              ))}
-            </motion.div>
+    {/* Suggestions dropdown */}
+    <AnimatePresence>
+      {suggOpen && suggestions.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0,  scale: 1 }}
+          exit={{   opacity: 0, y: -8,  scale: 0.98 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+          className={cn(
+            'absolute top-full left-0 right-0 mt-2 z-50',
+            'glass-strong rounded-2xl border border-[var(--border)]',
+            'overflow-hidden shadow-2xl',
           )}
-        </AnimatePresence>
-      </div>
+        >
+          {suggestions.map((s, i) => (
+            <motion.button
+              key={s}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.03 }}
+              onClick={() => {
+                selectSuggestion(s)
+                setSuggOpen(false)
+              }}
+              className={cn(
+                'w-full flex items-center gap-3 px-4 py-3 text-left',
+                'hover:bg-[var(--bg-elevated)] transition-colors',
+                'border-b border-[var(--border)] last:border-0',
+              )}
+            >
+              <SearchIcon className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
+              <span className="text-sm text-[var(--text-primary)]">{s}</span>
+            </motion.button>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+
+  {/* Filter pills */}
+  <AnimatePresence>
+    {query && (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: 'auto' }}
+        exit={{   opacity: 0, height: 0 }}
+        className="flex gap-2 overflow-x-auto no-scrollbar"
+      >
+        {FILTERS.map((f) => (
+          <motion.button
+            key={f.id}
+            whileTap={{ scale: 0.93 }}
+            onClick={() => setFilter(f.id)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0',
+              'border transition-all duration-200',
+              filter === f.id
+                ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
+                : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)]',
+            )}
+          >
+            {f.icon}{f.label}
+          </motion.button>
+        ))}
+      </motion.div>
+    )}
+  </AnimatePresence>
+</div>
 
       <ScrollArea className="flex-1 px-4 lg:px-8">
         <AnimatePresence mode="wait">

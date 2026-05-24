@@ -11,8 +11,8 @@ from app.services.metadata_service import _file_id
 log = structlog.get_logger()
 router = APIRouter()
 
-AUDIO_EXTS = ("mp3", "flac", "m4a", "ogg", "opus", "wav")
-MIME_MAP   = {
+AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
+MIME_MAP = {
     ".mp3":  "audio/mpeg",
     ".flac": "audio/flac",
     ".m4a":  "audio/mp4",
@@ -21,16 +21,20 @@ MIME_MAP   = {
     ".wav":  "audio/wav",
 }
 
+# Chunk size: 512KB — large enough to avoid constant requests, small enough to start fast
+CHUNK_SIZE = 524_288
+
 
 def _find_local(track_id: str) -> Path | None:
-    """Find a local file by its MD5-based ID."""
-    music_dir = Path(settings.MUSIC_DIR)
-    if not music_dir.exists():
-        return None
-    for path in music_dir.rglob("*"):
-        if path.suffix.lstrip(".") in AUDIO_EXTS:
-            if _file_id(path) == track_id:
-                return path
+    """Find a downloaded local file by its MD5 ID."""
+    for music_dir in settings.all_music_dirs:
+        d = Path(music_dir)
+        if not d.exists():
+            continue
+        for path in d.rglob("*"):
+            if path.suffix.lstrip(".") in AUDIO_EXTS:
+                if _file_id(path) == track_id:
+                    return path
     return None
 
 
@@ -38,146 +42,185 @@ def _find_local(track_id: str) -> Path | None:
 async def stream_audio(track_id: str, request: Request):
     """
     Stream audio for a track.
-    - If the track is downloaded locally → serve with range support
-    - Otherwise → pipe from yt-dlp in real time
+    Priority:
+      1. Local downloaded file (range-supported)
+      2. Live yt-dlp stream (proxied from YouTube CDN)
     """
-    # ── Local file ────────────────────────────────────────────
     local = _find_local(track_id)
     if local:
-        return _range_response(local, request)
+        return _serve_local(local, request)
 
-    # ── yt-dlp live stream ────────────────────────────────────
-    return await _ytdlp_stream(track_id, request)
+    return await _serve_ytdlp(track_id, request)
 
 
 @router.get("/{track_id}/artwork")
 async def get_artwork(track_id: str):
-    """Extract embedded artwork from a local file."""
+    """Return embedded artwork from a local file."""
     local = _find_local(track_id)
     if not local:
-        raise HTTPException(status_code=404, detail="Track not found locally")
+        raise HTTPException(status_code=404, detail="Track not downloaded locally")
     art = extract_artwork(local)
     if art:
         return art
     return Response(status_code=204)
 
 
-# ── Local file streaming with range support ───────────────────
+# ── Local file: full range support ────────────────────────────
 
-def _range_response(path: Path, request: Request) -> StreamingResponse | Response:
+def _serve_local(path: Path, request: Request) -> Response:
     suffix    = path.suffix.lower()
     mime      = MIME_MAP.get(suffix, "audio/mpeg")
     file_size = path.stat().st_size
+    range_hdr = request.headers.get("range")
 
-    range_header = request.headers.get("range")
-
-    if not range_header:
-        # Full file
-        def iterfile():
+    if not range_hdr:
+        # No range — stream the full file
+        def _full():
             with open(path, "rb") as f:
-                while chunk := f.read(65536):
+                while True:
+                    chunk = f.read(CHUNK_SIZE)
+                    if not chunk:
+                        break
                     yield chunk
+
         return StreamingResponse(
-            iterfile(),
+            _full(),
             media_type=mime,
             headers={
                 "Accept-Ranges":  "bytes",
                 "Content-Length": str(file_size),
+                "Cache-Control":  "no-cache",
             },
         )
 
-    # Parse range header — "bytes=start-end"
+    # Parse "bytes=start-end"
     try:
-        range_val  = range_header.replace("bytes=", "")
-        start, end = range_val.split("-")
-        start      = int(start)
-        end        = int(end) if end else file_size - 1
+        raw        = range_hdr.replace("bytes=", "").strip()
+        s, e       = raw.split("-")
+        start      = int(s)
+        end        = int(e) if e else file_size - 1
         end        = min(end, file_size - 1)
-        length     = end - start + 1
+        chunk_len  = end - start + 1
     except Exception:
-        raise HTTPException(status_code=416, detail="Invalid range")
+        raise HTTPException(status_code=416, detail="Invalid Range header")
 
-    def iter_range():
+    def _range():
         with open(path, "rb") as f:
             f.seek(start)
-            remaining = length
+            remaining = chunk_len
             while remaining > 0:
-                chunk = f.read(min(65536, remaining))
-                if not chunk:
+                data = f.read(min(CHUNK_SIZE, remaining))
+                if not data:
                     break
-                remaining -= len(chunk)
-                yield chunk
+                remaining -= len(data)
+                yield data
 
     return StreamingResponse(
-        iter_range(),
+        _range(),
         status_code=206,
         media_type=mime,
         headers={
             "Content-Range":  f"bytes {start}-{end}/{file_size}",
             "Accept-Ranges":  "bytes",
-            "Content-Length": str(length),
+            "Content-Length": str(chunk_len),
+            "Cache-Control":  "no-cache",
         },
     )
 
 
-# ── yt-dlp live pipe stream ───────────────────────────────────
+# ── yt-dlp live stream ────────────────────────────────────────
 
-async def _ytdlp_stream(track_id: str, request: Request) -> StreamingResponse:
+async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
     """
-    Pipe audio directly from yt-dlp without downloading.
-    Uses best audio format, converts to mp3 on the fly via ffmpeg pipe.
+    Extract the direct CDN audio URL via yt-dlp (no download),
+    then proxy it to the browser. Howler.js html5=true handles
+    the streaming natively — no buffering issues.
     """
     import yt_dlp
+    import httpx
 
-    url = f"https://www.youtube.com/watch?v={track_id}"
+    yt_url = f"https://www.youtube.com/watch?v={track_id}"
+    loop   = asyncio.get_event_loop()
 
-    # Get the direct audio URL from yt-dlp (no download)
-    loop = asyncio.get_event_loop()
-
-    def _get_url():
-        ydl_opts = {
-            "format":        "bestaudio[ext=m4a]/bestaudio/best",
+    def _extract():
+        opts = {
+            "format":        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
             "quiet":         True,
             "no_warnings":   True,
             "skip_download": True,
+            # Cookies help avoid bot detection on Termux
+            "extractor_args": {"youtube": {"skip": ["hls", "dash"]}},
         }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(yt_url, download=False)
             if not info:
-                return None
-            # For playlists, take first entry
+                return None, None
             if info.get("_type") == "playlist":
-                entries = info.get("entries", [])
+                entries = info.get("entries") or []
                 info    = entries[0] if entries else None
             if not info:
-                return None
+                return None, None
+
+            # Prefer a format with a direct URL
+            fmts = info.get("formats") or []
+            # Pick best audio-only format
+            audio_fmts = [
+                f for f in fmts
+                if f.get("url") and f.get("vcodec") == "none"
+            ]
+            if audio_fmts:
+                best = max(audio_fmts, key=lambda f: f.get("abr") or 0)
+                return best["url"], best.get("ext", "m4a")
+
+            # Fallback to top-level URL
             return info.get("url"), info.get("ext", "m4a")
 
     try:
-        result = await loop.run_in_executor(None, _get_url)
+        direct_url, ext = await loop.run_in_executor(None, _extract)
     except Exception as e:
-        log.error("stream.ytdlp.extract.failed", track_id=track_id, error=str(e))
-        raise HTTPException(status_code=502, detail=f"Could not extract stream: {e}")
+        log.error("stream.extract.failed", track_id=track_id, error=str(e))
+        raise HTTPException(status_code=502, detail=f"Stream extraction failed: {e}")
 
-    if not result or not result[0]:
-        raise HTTPException(status_code=404, detail="Stream URL not found")
+    if not direct_url:
+        raise HTTPException(status_code=404, detail=f"No stream found for: {track_id}")
 
-    direct_url, ext = result
     mime = MIME_MAP.get(f".{ext}", "audio/mp4")
 
-    # Proxy the stream from the CDN URL
-    import httpx
+    # Forward any Range header the browser sends
+    forward_headers: dict = {}
+    if "range" in request.headers:
+        forward_headers["Range"] = request.headers["range"]
 
-    async def proxy():
-        async with httpx.AsyncClient(timeout=None) as client:
-            async with client.stream("GET", direct_url) as r:
-                async for chunk in r.aiter_bytes(65536):
-                    if await request.is_disconnected():
-                        break
-                    yield chunk
+    async def _proxy():
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(10.0, read=None),
+                follow_redirects=True,
+            ) as client:
+                async with client.stream(
+                    "GET",
+                    direct_url,
+                    headers=forward_headers,
+                ) as resp:
+                    async for chunk in resp.aiter_bytes(CHUNK_SIZE):
+                        if await request.is_disconnected():
+                            break
+                        yield chunk
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            log.warning("stream.proxy.error", track_id=track_id, error=str(e))
+            return
+
+    # If client sent Range, respond 206
+    status = 206 if "range" in request.headers else 200
 
     return StreamingResponse(
-        proxy(),
+        _proxy(),
+        status_code=status,
         media_type=mime,
-        headers={"Accept-Ranges": "bytes"},
+        headers={
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "no-cache",
+        },
     )
