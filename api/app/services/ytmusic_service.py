@@ -1,12 +1,11 @@
 from __future__ import annotations
+import asyncio
 import structlog
 from ytmusicapi import YTMusic
 from app.core.exceptions import SearchError
 
 log = structlog.get_logger()
 
-# ── Init ──────────────────────────────────────────────────────
-# Unauthenticated — no OAuth needed for search
 _ytm: YTMusic | None = None
 
 
@@ -22,14 +21,15 @@ def _get_ytm() -> YTMusic:
 def _thumb(thumbnails: list[dict]) -> str:
     if not thumbnails:
         return ""
-    # ytmusicapi gives smallest → largest, take last
     best = thumbnails[-1].get("url", "")
-    # Strip size params for full-res
     return best.split("=w")[0] if "=w" in best else best
 
 
+def _safe(v, fallback="") -> str:
+    return str(v) if v is not None else fallback
+
+
 def _duration_to_secs(d: str | None) -> float:
-    """'3:45' or '1:02:30' → seconds."""
     if not d:
         return 0.0
     parts = d.split(":")
@@ -46,11 +46,14 @@ def _duration_to_secs(d: str | None) -> float:
 def _parse_track(r: dict) -> dict:
     artists = r.get("artists") or []
     album   = r.get("album") or {}
-    vid_id  = r.get("videoId", "")
+    vid_id  = _safe(r.get("videoId"))
+
+    artist_id   = _safe(artists[0].get("id"))   if artists else ""
+    artist_name = _safe(artists[0].get("name")) if artists else "Unknown Artist"
 
     return {
         "id":           vid_id,
-        "title":        r.get("title", "Unknown"),
+        "title":        _safe(r.get("title"), "Unknown"),
         "duration":     _duration_to_secs(r.get("duration")),
         "artworkUrl":   _thumb(r.get("thumbnails", [])),
         "youtubeId":    vid_id,
@@ -59,20 +62,20 @@ def _parse_track(r: dict) -> dict:
         "isLiked":      False,
         "streamUrl":    f"/api/stream/{vid_id}/audio" if vid_id else None,
         "artist": {
-            "id":       artists[0].get("id", "")   if artists else "",
-            "name":     artists[0].get("name", "") if artists else "Unknown Artist",
+            "id":       artist_id,
+            "name":     artist_name,
             "imageUrl": None,
             "genres":   [],
         },
         "album": {
-            "id":          album.get("id", ""),
-            "title":       album.get("name", ""),
+            "id":          _safe(album.get("id")),
+            "title":       _safe(album.get("name")),
             "artworkUrl":  _thumb(r.get("thumbnails", [])),
             "releaseYear": 0,
             "trackCount":  0,
             "artist": {
-                "id":       artists[0].get("id", "")   if artists else "",
-                "name":     artists[0].get("name", "") if artists else "",
+                "id":       artist_id,
+                "name":     artist_name,
                 "imageUrl": None,
                 "genres":   [],
             },
@@ -83,14 +86,14 @@ def _parse_track(r: dict) -> dict:
 def _parse_album(r: dict) -> dict:
     artists = r.get("artists") or []
     return {
-        "id":          r.get("browseId", ""),
-        "title":       r.get("title", ""),
+        "id":          _safe(r.get("browseId")),
+        "title":       _safe(r.get("title")),
         "artworkUrl":  _thumb(r.get("thumbnails", [])),
-        "releaseYear": int(r.get("year", 0) or 0),
+        "releaseYear": int(r.get("year") or 0),
         "trackCount":  0,
         "artist": {
-            "id":       artists[0].get("id", "")   if artists else "",
-            "name":     artists[0].get("name", "") if artists else "",
+            "id":       _safe(artists[0].get("id"))   if artists else "",
+            "name":     _safe(artists[0].get("name")) if artists else "",
             "imageUrl": None,
             "genres":   [],
         },
@@ -99,23 +102,24 @@ def _parse_album(r: dict) -> dict:
 
 def _parse_artist(r: dict) -> dict:
     return {
-        "id":       r.get("browseId", ""),
-        "name":     r.get("artist", r.get("name", "")),
+        "id":       _safe(r.get("browseId")),
+        "name":     _safe(r.get("artist", r.get("name"))),
         "imageUrl": _thumb(r.get("thumbnails", [])),
         "genres":   [],
     }
 
 
 def _parse_playlist(r: dict) -> dict:
-    item_count = r.get("itemCount", 0)
-    
-    if not isinstance(item_count, (str, int)):
-        item_count = 0
+    raw_count = r.get("itemCount", 0)
+    try:
+        count = int(str(raw_count).replace("K", "000").split(".")[0]) if raw_count else 0
+    except Exception:
+        count = 0
     return {
-        "id":         r.get("browseId", ""),
-        "title":      r.get("title", ""),
+        "id":         _safe(r.get("browseId")),
+        "title":      _safe(r.get("title")),
         "artworkUrl": _thumb(r.get("thumbnails", [])),
-        "trackCount": str(r.get("itemCount", 0)),
+        "trackCount": count,
         "source":     "youtube",
     }
 
@@ -128,27 +132,42 @@ async def search(
     limit: int = 20,
 ) -> dict:
     """
-    Search YouTube Music.
-    filter: None | 'songs' | 'albums' | 'artists' | 'playlists'
-    Returns dict matching SearchResultsSchema.
+    Non-blocking search using run_in_executor + asyncio.gather.
+    All 4 category searches run concurrently.
     """
-    try:
-        ytm = _get_ytm()
+    loop = asyncio.get_event_loop()
 
+    def _search_songs():
+        return _get_ytm().search(query, filter="songs", limit=limit)
+
+    def _search_albums():
+        return _get_ytm().search(query, filter="albums", limit=8)
+
+    def _search_artists():
+        return _get_ytm().search(query, filter="artists", limit=8)
+
+    def _search_playlists():
+        return _get_ytm().search(query, filter="playlists", limit=6)
+
+    try:
         if filter in ("songs", "tracks", None):
-            # Search all categories when no filter
-            songs     = ytm.search(query, filter="songs",     limit=limit)
-            albums    = ytm.search(query, filter="albums",    limit=8)
-            artists   = ytm.search(query, filter="artists",   limit=8)
-            playlists = ytm.search(query, filter="playlists", limit=6)
+            songs, albums, artists, playlists = await asyncio.gather(
+                loop.run_in_executor(None, _search_songs),
+                loop.run_in_executor(None, _search_albums),
+                loop.run_in_executor(None, _search_artists),
+                loop.run_in_executor(None, _search_playlists),
+            )
         elif filter == "albums":
-            songs, albums, artists, playlists = [], ytm.search(query, filter="albums", limit=limit), [], []
+            albums  = await loop.run_in_executor(None, _search_albums)
+            songs, artists, playlists = [], [], []
         elif filter == "artists":
-            songs, albums, artists, playlists = [], [], ytm.search(query, filter="artists", limit=limit), []
+            artists = await loop.run_in_executor(None, _search_artists)
+            songs, albums, playlists = [], [], []
         elif filter == "playlists":
-            songs, albums, artists, playlists = [], [], [], ytm.search(query, filter="playlists", limit=limit)
+            playlists = await loop.run_in_executor(None, _search_playlists)
+            songs, albums, artists = [], [], []
         else:
-            songs     = ytm.search(query, filter="songs",  limit=limit)
+            songs   = await loop.run_in_executor(None, _search_songs)
             albums, artists, playlists = [], [], []
 
         return {
@@ -164,26 +183,45 @@ async def search(
         raise SearchError(f"YouTube Music search failed: {e}")
 
 
-async def get_track(video_id: str) -> dict:
-    """Get a single track by YouTube video ID."""
+async def get_suggestions(query: str) -> list[str]:
+    """
+    Fast autocomplete suggestions — hits ytmusicapi's suggest endpoint.
+    Returns in ~80ms, perfect for instant search dropdown.
+    """
+    loop = asyncio.get_event_loop()
     try:
-        ytm  = _get_ytm()
-        data = ytm.get_song(video_id)
-        vd   = data.get("videoDetails", {})
+        def _suggest():
+            return _get_ytm().get_search_suggestions(query)
+        results = await loop.run_in_executor(None, _suggest)
+        # Returns list of strings
+        return [r for r in results if isinstance(r, str)][:8]
+    except Exception as e:
+        log.warning("ytmusic.suggestions.failed", query=query, error=str(e))
+        return []
+
+
+async def get_track(video_id: str) -> dict:
+    loop = asyncio.get_event_loop()
+    try:
+        def _get():
+            return _get_ytm().get_song(video_id)
+        data  = await loop.run_in_executor(None, _get)
+        vd    = data.get("videoDetails", {})
         thumb = vd.get("thumbnail", {}).get("thumbnails", [])
+        vid   = _safe(vd.get("videoId", video_id))
         return {
-            "id":           video_id,
-            "title":        vd.get("title", ""),
-            "duration":     float(vd.get("lengthSeconds", 0)),
+            "id":           vid,
+            "title":        _safe(vd.get("title")),
+            "duration":     float(vd.get("lengthSeconds") or 0),
             "artworkUrl":   _thumb(thumb),
-            "youtubeId":    video_id,
+            "youtubeId":    vid,
             "spotifyId":    None,
             "isDownloaded": False,
             "isLiked":      False,
-            "streamUrl":    f"/api/stream/{video_id}/audio",
+            "streamUrl":    f"/api/stream/{vid}/audio",
             "artist": {
-                "id":       vd.get("channelId", ""),
-                "name":     vd.get("author", ""),
+                "id":       _safe(vd.get("channelId")),
+                "name":     _safe(vd.get("author")),
                 "imageUrl": None,
                 "genres":   [],
             },
@@ -194,8 +232,8 @@ async def get_track(video_id: str) -> dict:
                 "releaseYear": 0,
                 "trackCount":  0,
                 "artist": {
-                    "id":       vd.get("channelId", ""),
-                    "name":     vd.get("author", ""),
+                    "id":       _safe(vd.get("channelId")),
+                    "name":     _safe(vd.get("author")),
                     "imageUrl": None,
                     "genres":   [],
                 },
@@ -207,24 +245,19 @@ async def get_track(video_id: str) -> dict:
 
 
 async def search_one(query: str) -> dict | None:
-    """Return the single best matching track for a query string."""
+    loop = asyncio.get_event_loop()
     try:
-        ytm     = _get_ytm()
-        results = ytm.search(query, filter="songs", limit=5)
+        def _s():
+            return _get_ytm().search(query, filter="songs", limit=5)
+        results = await loop.run_in_executor(None, _s)
         tracks  = [r for r in results if r.get("videoId")]
-        if not tracks:
-            return None
-        return _parse_track(tracks[0])
+        return _parse_track(tracks[0]) if tracks else None
     except Exception as e:
         log.error("ytmusic.search_one.failed", query=query, error=str(e))
         return None
 
 
 async def resolve_youtube_url(url: str) -> dict | None:
-    """
-    Extract video ID from a YouTube URL and fetch the track.
-    Handles youtu.be and youtube.com/watch?v= formats.
-    """
     import re
     patterns = [
         r'(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})',

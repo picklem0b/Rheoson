@@ -3,116 +3,177 @@ import { Howl } from 'howler'
 import { usePlayerStore } from '@/store/playerStore'
 import { useQueueStore } from '@/store/queueStore'
 import { tracksApi } from '@/api/tracks'
-import { PLAYER_DEFAULTS } from '@/lib/constants'
 
 export function usePlayer() {
-  const howl = useRef<Howl | null>(null)
-  const progressTimer = useRef<number | null>(null)
+  const howlRef         = useRef<Howl | null>(null)
+  const progressTimer   = useRef<number | null>(null)
+  const currentTrackId  = useRef<string | null>(null)
 
   const {
-    currentTrack, isPlaying, volume, isMuted, repeatMode, isShuffled,
+    currentTrack, isPlaying, volume, isMuted,
+    repeatMode, isShuffled,
     setPlaying, setLoading, setProgress, setDuration, setTrack,
   } = usePlayerStore()
 
   const { next, prev } = useQueueStore()
 
-  const clearTimer = () => {
+  // ── Timer ────────────────────────────────────────────────
+  const clearTimer = useCallback(() => {
     if (progressTimer.current) {
       clearInterval(progressTimer.current)
       progressTimer.current = null
     }
-  }
+  }, [])
 
   const startTimer = useCallback(() => {
     clearTimer()
     progressTimer.current = window.setInterval(() => {
-      if (howl.current?.playing()) {
-        setProgress(howl.current.seek() as number)
+      const h = howlRef.current
+      if (h?.playing()) {
+        setProgress(h.seek() as number)
       }
-    }, 500)
-  }, [setProgress])
+    }, 250)   // 250ms — smoother progress bar
+  }, [clearTimer, setProgress])
 
-  const loadTrack = useCallback((streamUrl: string) => {
-    howl.current?.unload()
+  // ── Load track ────────────────────────────────────────────
+  useEffect(() => {
+    if (!currentTrack) return
+    // Prevent double-load for same track
+    if (currentTrackId.current === currentTrack.id) return
+    currentTrackId.current = currentTrack.id
+
+    const streamUrl = tracksApi.getStreamUrl(currentTrack.id)
+
+    // Unload previous
+    howlRef.current?.unload()
     clearTimer()
+    setLoading(true)
+    setProgress(0)
 
-    howl.current = new Howl({
-      src: [streamUrl],
-      html5: true,
+    const howl = new Howl({
+      src:   [streamUrl],
+      html5: true,           // required for streaming
+      format: ['mp3', 'flac', 'm4a', 'ogg', 'opus'],
       volume: isMuted ? 0 : volume,
+
       onload: () => {
-        setDuration(howl.current?.duration() ?? 0)
+        setDuration(howl.duration())
         setLoading(false)
-        howl.current?.play()
+        howl.play()
         setPlaying(true)
         startTimer()
       },
+
+      onplay: () => {
+        setPlaying(true)
+        startTimer()
+      },
+
+      onpause: () => {
+        setPlaying(false)
+        clearTimer()
+      },
+
+      onstop: () => {
+        setPlaying(false)
+        clearTimer()
+        setProgress(0)
+      },
+
       onend: () => {
         clearTimer()
         setPlaying(false)
+
+        const { repeatMode, isShuffled } = usePlayerStore.getState()
+
         if (repeatMode === 'one') {
-          howl.current?.seek(0)
-          howl.current?.play()
+          howl.seek(0)
+          howl.play()
           setPlaying(true)
           startTimer()
-        } else {
-          const nextTrack = next(isShuffled)
-          if (nextTrack) setTrack(nextTrack)
+          return
+        }
+
+        const nextTrack = next(isShuffled)
+        if (nextTrack) {
+          currentTrackId.current = null   // allow reload
+          setTrack(nextTrack)
+        } else if (repeatMode === 'all') {
+          // Restart queue — handled by queueStore
+          const nextT = next(false)
+          if (nextT) {
+            currentTrackId.current = null
+            setTrack(nextT)
+          }
         }
       },
-      onloaderror: () => setLoading(false),
+
+      onloaderror: (_id, err) => {
+        console.error('[Howler] load error', err)
+        setLoading(false)
+        setPlaying(false)
+      },
+
+      onplayerror: (_id, err) => {
+        console.error('[Howler] play error', err)
+        // Howler quirk — unlock audio context then retry
+        howl.once('unlock', () => howl.play())
+      },
     })
-  }, [volume, isMuted, repeatMode, isShuffled, setDuration, setLoading, setPlaying, startTimer, next, setTrack])
 
-  // Load when track changes
-  useEffect(() => {
-    if (!currentTrack) return
-    const url = tracksApi.getStreamUrl(currentTrack.id)
-    loadTrack(url)
+    howlRef.current = howl
+
+    // Record play
     tracksApi.recordPlay(currentTrack.id).catch(() => {})
-    return () => { howl.current?.unload(); clearTimer() }
-  }, [currentTrack?.id])
 
-  // Sync volume
+    return () => {
+      howl.unload()
+      clearTimer()
+    }
+  }, [currentTrack?.id])   // ONLY re-run when track ID changes
+
+  // ── Volume sync ───────────────────────────────────────────
   useEffect(() => {
-    howl.current?.volume(isMuted ? 0 : volume)
+    howlRef.current?.volume(isMuted ? 0 : volume)
   }, [volume, isMuted])
 
+  // ── Controls ──────────────────────────────────────────────
   const play = useCallback(() => {
-    howl.current?.play()
+    howlRef.current?.play()
     setPlaying(true)
     startTimer()
   }, [setPlaying, startTimer])
 
   const pause = useCallback(() => {
-    howl.current?.pause()
+    howlRef.current?.pause()
     setPlaying(false)
     clearTimer()
-  }, [setPlaying])
+  }, [setPlaying, clearTimer])
 
   const togglePlay = useCallback(() => {
+    const { isPlaying } = usePlayerStore.getState()
     isPlaying ? pause() : play()
-  }, [isPlaying, play, pause])
+  }, [play, pause])
 
   const seek = useCallback((seconds: number) => {
-    howl.current?.seek(seconds)
+    howlRef.current?.seek(seconds)
     setProgress(seconds)
   }, [setProgress])
 
   const skipNext = useCallback(() => {
+    const { isShuffled } = usePlayerStore.getState()
+    currentTrackId.current = null
     const nextTrack = next(isShuffled)
     if (nextTrack) setTrack(nextTrack)
-  }, [next, isShuffled, setTrack])
+  }, [next, setTrack])
 
   const skipPrev = useCallback(() => {
-    const progress = usePlayerStore.getState().progress
-    if (progress > 3) {
-      seek(0)
-      return
-    }
+    const { progress } = usePlayerStore.getState()
+    if (progress > 3) { seek(0); return }
+    currentTrackId.current = null
     const prevTrack = prev()
     if (prevTrack) setTrack(prevTrack)
-  }, [prev, setTrack, seek])
+  }, [prev, seek, setTrack])
 
   return { play, pause, togglePlay, seek, skipNext, skipPrev }
 }

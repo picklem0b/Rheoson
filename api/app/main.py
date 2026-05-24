@@ -16,7 +16,7 @@ from app.core.exceptions import (
 )
 from app.websocket.manager import ws_manager
 from app.websocket.events import register_events
-from app.routers import search, tracks, downloads, stream, lyrics, playlists
+from app.routers import search, tracks, downloads, stream, lyrics, playlists, settings as settings_router
 
 configure_logging()
 log = structlog.get_logger()
@@ -89,6 +89,7 @@ app.include_router(downloads.router, prefix="/api/downloads", tags=["downloads"]
 app.include_router(stream.router,    prefix="/api/stream",    tags=["stream"])
 app.include_router(lyrics.router,    prefix="/api/lyrics",    tags=["lyrics"])
 app.include_router(playlists.router, prefix="/api/playlists", tags=["playlists"])
+app.include_router(settings_router.router, prefix="/api/settings", tags=["settings"])
 
 # ── Mount Socket.IO ───────────────────────────────────────────
 socket_app = socketio.ASGIApp(

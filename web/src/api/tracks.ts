@@ -20,6 +20,6 @@ export const tracksApi = {
   recordPlay: (id: string) =>
     api.post<void>(`/tracks/${id}/play`),
 
-  getStreamUrl: (id: string) =>
-  `${import.meta.env.VITE_API_URL}/api/stream/${id}`,
+  // Always use the vite proxy — no env var needed
+  getStreamUrl: (id: string) => `/api/stream/${id}/audio`,
 }
