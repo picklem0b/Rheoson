@@ -1,0 +1,36 @@
+services:
+  # ── Backend ─────────────────────────────────────────────
+  - type: web
+    name: shulker-api
+    env: python
+    region: oregon
+    plan: free
+    rootDir: api
+    buildCommand: pip install -e . --break-system-packages
+    startCommand: uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENV
+        value: production
+      - key: MUSIC_DIR
+        value: /tmp/shulker/music
+      - key: DOWNLOADS_DIR
+        value: /tmp/shulker/downloads
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://shulker-web.onrender.com","http://localhost:3000"]'
+
+  # ── Frontend ─────────────────────────────────────────────
+  - type: web
+    name: shulker-web
+    env: node
+    region: oregon
+    plan: free
+    rootDir: web
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://shulker-api.onrender.com

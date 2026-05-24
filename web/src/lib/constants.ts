@@ -1,5 +1,10 @@
-export const API_BASE = '/api'
-export const WS_URL   = 'http://127.0.0.1:8000'
+const isProd = import.meta.env.PROD
+export const API_BASE = isProd
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api'
+export const WS_URL = isProd
+  ? import.meta.env.VITE_API_URL
+  : 'http://127.0.0.1:8000'
 
 export const ENDPOINTS = {
   health:          `${API_BASE}/health`,

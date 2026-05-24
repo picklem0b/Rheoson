@@ -160,12 +160,12 @@ export function usePlayer() {
 
   // ── React when track changes ────────────────────────────────
   useEffect(() => {
-    if (!currentTrack?.id) return
-    loadAndPlay(currentTrack.id)
-    tracksApi.recordPlay(currentTrack.id).catch(() => {})
-    // Cleanup: stop timer when track changes (new Howl takes over)
-    return () => _stopTimer()
-  }, [currentTrack?.id, loadAndPlay])
+  if (!currentTrack?.id) return
+  loadAndPlay(currentTrack.id)
+  tracksApi.recordPlay(currentTrack.id).catch(() => {})
+  // Cleanup: stop timer when track changes (new Howl takes over)
+  return () => _stopTimer()
+}, [currentTrack?.id, loadAndPlay])
 
   // ── Same-track restart via custom event ────────────────────
   useEffect(() => {

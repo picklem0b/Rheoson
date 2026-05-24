@@ -9,16 +9,31 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: true,         // exposes on 0.0.0.0 — all IPs on network
+    host: true,
     proxy: {
       '/api': {
-        target:      'http://127.0.0.1:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
       '/socket.io': {
-        target:      'http://127.0.0.1:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
-        ws:          true,
+        ws: true,
+      },
+    },
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor:  ['react', 'react-dom', 'react-router-dom'],
+          player:  ['howler'],
+          motion:  ['framer-motion'],
+          query:   ['@tanstack/react-query'],
+          ui:      ['lucide-react'],
+        },
       },
     },
   },
