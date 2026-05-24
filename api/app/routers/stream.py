@@ -38,7 +38,7 @@ def _find_local(track_id: str) -> Path | None:
     return None
 
 
-@router.get("/{track_id}/audio")
+@router.api_route("/{track_id}/audio", methods=["GET", "HEAD"])
 async def stream_audio(track_id: str, request: Request):
     """
     Stream audio for a track.
@@ -142,38 +142,38 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
     loop   = asyncio.get_event_loop()
 
-    def _extract():
-        opts = {
-            "format":        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
-            "quiet":         True,
-            "no_warnings":   True,
-            "skip_download": True,
-            # Cookies help avoid bot detection on Termux
-            "extractor_args": {"youtube": {"skip": ["hls", "dash"]}},
-        }
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(yt_url, download=False)
-            if not info:
-                return None, None
-            if info.get("_type") == "playlist":
-                entries = info.get("entries") or []
-                info    = entries[0] if entries else None
-            if not info:
-                return None, None
+    # In _serve_ytdlp, replace the format selection block:
+def _extract():
+    opts = {
+        "format":        "bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio/best",
+        "quiet":         True,
+        "no_warnings":   True,
+        "skip_download": True,
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        if not info:
+            return None, None
+        if info.get("_type") == "playlist":
+            entries = info.get("entries") or []
+            info    = entries[0] if entries else None
+        if not info:
+            return None, None
 
-            # Prefer a format with a direct URL
-            fmts = info.get("formats") or []
-            # Pick best audio-only format
-            audio_fmts = [
-                f for f in fmts
-                if f.get("url") and f.get("vcodec") == "none"
-            ]
-            if audio_fmts:
-                best = max(audio_fmts, key=lambda f: f.get("abr") or 0)
-                return best["url"], best.get("ext", "m4a")
+        fmts = info.get("formats") or []
+        # Prefer m4a, then mp3, then anything audio-only
+        audio_fmts = [
+            f for f in fmts
+            if f.get("url") and f.get("vcodec") in ("none", None)
+            and f.get("acodec") not in ("none", None)
+        ]
+        if audio_fmts:
+            # Prefer m4a/mp3 over webm
+            preferred = [f for f in audio_fmts if f.get("ext") in ("m4a", "mp3")]
+            best = max(preferred or audio_fmts, key=lambda f: f.get("abr") or 0)
+            return best["url"], best.get("ext", "m4a")
 
-            # Fallback to top-level URL
-            return info.get("url"), info.get("ext", "m4a")
+        return info.get("url"), info.get("ext", "m4a")
 
     try:
         direct_url, ext = await loop.run_in_executor(None, _extract)

@@ -84,17 +84,13 @@ export function usePlayer() {
 
   // ── Core: load and play a track ────────────────────────────
   const loadAndPlay = useCallback((trackId: string, forceRestart = false) => {
-    // Same track, no force → seek to 0 and play if paused
     if (_loadedId === trackId && _howl && !forceRestart) {
       _howl.seek(0)
       setProgress(0)
-      if (!_howl.playing()) {
-        _howl.play()
-      }
+      if (!_howl.playing()) _howl.play()
       return
     }
 
-    // New track or force restart
     _destroy()
     setLoading(true)
     setProgress(0)
@@ -106,11 +102,12 @@ export function usePlayer() {
 
     _howl = new Howl({
       src:      [streamUrl],
-      html5:    true,          // MUST be true for HTTP streaming — false = full download before play
-      format:   ['mp3', 'm4a', 'flac', 'ogg', 'opus', 'wav'],
+      html5:    true,
+      // Don't hint format — let the browser sniff from Content-Type
+      // Hinting wrong format causes decode failure
       volume:   volumeRef.current,
       preload:  true,
-      autoplay: false,         // we call play() manually in onload
+      autoplay: false,
 
       onload() {
         const dur = _howl?.duration() ?? 0
@@ -118,54 +115,45 @@ export function usePlayer() {
         setLoading(false)
         _howl?.play()
       },
-
       onplay() {
         setPlaying(true)
         _startTimer((s) => onTickRef.current(s))
       },
-
       onpause() {
         setPlaying(false)
         _stopTimer()
       },
-
       onstop() {
         setPlaying(false)
         _stopTimer()
         setProgress(0)
       },
-
       onend() {
         onEndRef.current()
       },
-
       onloaderror(_id, err) {
-        console.error('[Shulker] Stream load error:', err, 'URL:', streamUrl)
+        console.error('[Shulker] load error', err, streamUrl)
         setLoading(false)
         setPlaying(false)
         _loadedId = null
       },
-
       onplayerror(_id, err) {
-        console.error('[Shulker] Play error:', err)
-        // Mobile browsers need audio context unlocked
-        if (Howler.ctx && Howler.ctx.state === 'suspended') {
-          Howler.ctx.resume().then(() => {
-            _howl?.play()
-          })
+        console.error('[Shulker] play error', err)
+        if (Howler.ctx?.state === 'suspended') {
+          Howler.ctx.resume().then(() => _howl?.play())
         }
       },
     })
-  }, [setLoading, setPlaying, setProgress, setDuration])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])  // ← EMPTY deps — loadAndPlay never changes, uses refs for callbacks
 
-  // ── React when track changes ────────────────────────────────
+  // ── React when track changes ───────────────────────────────
   useEffect(() => {
-  if (!currentTrack?.id) return
-  loadAndPlay(currentTrack.id)
-  tracksApi.recordPlay(currentTrack.id).catch(() => {})
-  // Cleanup: stop timer when track changes (new Howl takes over)
-  return () => _stopTimer()
-}, [currentTrack?.id, loadAndPlay])
+    if (!currentTrack?.id) return
+    loadAndPlay(currentTrack.id)
+    tracksApi.recordPlay(currentTrack.id).catch(() => {})
+    return () => _stopTimer()
+  }, [currentTrack?.id])  // ← only track ID, loadAndPlay is stable
 
   // ── Same-track restart via custom event ────────────────────
   useEffect(() => {
