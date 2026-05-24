@@ -6,6 +6,8 @@ export const WS_URL = isProd
   ? import.meta.env.VITE_API_URL
   : 'http://127.0.0.1:8000'
 
+export const API_URL = 'https://shulker-api-vnny.onrender.com'
+
 export const ENDPOINTS = {
   health:          `${API_BASE}/health`,
   search:          (q: string, filter?: string) =>
