@@ -2,16 +2,17 @@ import { cn } from '@/lib/utils'
 
 interface SkeletonProps {
   className?: string
-  rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  rounded?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
 }
 
 export function Skeleton({ className, rounded = 'lg' }: SkeletonProps) {
   const radii = {
-    sm:   'rounded-xl',
-    md:   'rounded-2xl',
-    lg:   'rounded-2xl',
-    xl:   'rounded-3xl',
-    full: 'rounded-full',
+  sm:   'rounded-xl',
+  md:   'rounded-2xl',
+  lg:   'rounded-2xl',
+  xl:   'rounded-3xl',
+  '2xl': 'rounded-[1.75rem]',
+  full: 'rounded-full',
   }
   return (
     <div className={cn('shimmer', radii[rounded], className)} />

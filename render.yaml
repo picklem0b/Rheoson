@@ -25,7 +25,7 @@ services:
   # ── Frontend ─────────────────────────────────────────────
   - type: web
     name: shulker-web
-    env: node
+    env: web
     region: oregon
     plan: free
     rootDir: web

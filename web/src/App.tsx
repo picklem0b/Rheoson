@@ -6,7 +6,7 @@ import { useThemeStore } from '@/store/themeStore'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useMediaSession } from '@/hooks/useMediaSession'
 import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
-import { howler } from 'howler'
+import { Howler } from 'howler'
 
 function AppInner() {
   useKeyboardShortcuts()
