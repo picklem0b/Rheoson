@@ -27,7 +27,7 @@ services:
     name: shulker-web
     env: static
 #    region: oregon
-    plan: free
+#    plan: free
     rootDir: web
     buildCommand: npm install && npm run build
     staticPublishPath: dist
