@@ -4,85 +4,55 @@ import { usePlayerStore } from '@/store/playerStore'
 import { useQueueStore } from '@/store/queueStore'
 import { tracksApi } from '@/api/tracks'
 
-// ── Single global Howl — module level, never recreated on render ──
-let _howl: Howl | null = null
+// ── Module-level singleton ────────────────────────────────────
+let _howl:     Howl   | null = null
 let _loadedId: string | null = null
-let _timer: number | null = null
+let _timer:    number | null = null
 
 function _stopTimer() {
-  if (_timer !== null) {
-    clearInterval(_timer)
-    _timer = null
-  }
+  if (_timer !== null) { clearInterval(_timer); _timer = null }
 }
 
-function _startTimer(onTick: (s: number) => void) {
+function _startTimer(cb: (s: number) => void) {
   _stopTimer()
   _timer = window.setInterval(() => {
-    if (_howl?.playing()) {
-      onTick(_howl.seek() as number)
-    }
+    if (_howl?.playing()) cb(_howl.seek() as number)
   }, 250)
 }
 
 function _destroy() {
   _stopTimer()
-  if (_howl) {
-    _howl.off()
-    _howl.stop()
-    _howl.unload()
-    _howl = null
-  }
+  if (_howl) { _howl.off(); _howl.stop(); _howl.unload(); _howl = null }
   _loadedId = null
 }
 
 export function usePlayer() {
   const {
-    currentTrack,
-    volume,
-    isMuted,
-    setPlaying,
-    setLoading,
-    setProgress,
-    setDuration,
-    setTrack,
+    currentTrack, volume, isMuted,
+    setPlaying, setLoading, setProgress, setDuration, setTrack,
   } = usePlayerStore()
-
   const { next, prev } = useQueueStore()
 
-  // Keep stable refs to callbacks so Howl closures stay fresh
-  const onTickRef     = useRef((s: number) => setProgress(s))
-  const onEndRef      = useRef(() => {})
-  const volumeRef     = useRef(isMuted ? 0 : volume)
+  const tickRef  = useRef((s: number) => setProgress(s))
+  const volRef   = useRef(isMuted ? 0 : volume)
+  const onEndRef = useRef(() => {})
 
-  useEffect(() => { onTickRef.current = (s) => setProgress(s) }, [setProgress])
-  useEffect(() => { volumeRef.current = isMuted ? 0 : volume }, [volume, isMuted])
+  useEffect(() => { tickRef.current = (s) => setProgress(s) }, [setProgress])
+  useEffect(() => { volRef.current  = isMuted ? 0 : volume  }, [volume, isMuted])
 
-  // ── onEnd logic lives in a ref so Howl closure always gets latest ──
   useEffect(() => {
     onEndRef.current = () => {
       _stopTimer()
       setPlaying(false)
-
       const { repeatMode, isShuffled } = usePlayerStore.getState()
-
-      if (repeatMode === 'one') {
-        _howl?.seek(0)
-        _howl?.play()
-        return
-      }
-
-      const nextTrack = next(isShuffled)
-      if (nextTrack) {
-        setTrack(nextTrack)
-      } else if (repeatMode === 'all') {
-        const first = next(false)
-        if (first) setTrack(first)
-      }
+      if (repeatMode === 'one') { _howl?.seek(0); _howl?.play(); return }
+      const nt = next(isShuffled)
+      if (nt) { setTrack(nt); return }
+      if (repeatMode === 'all') { const f = next(false); if (f) setTrack(f) }
     }
   }, [next, setTrack, setPlaying])
 
-  // ── Core: load and play a track ────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadAndPlay = useCallback((trackId: string, forceRestart = false) => {
     if (_loadedId === trackId && _howl && !forceRestart) {
       _howl.seek(0)
@@ -98,108 +68,103 @@ export function usePlayer() {
     setDuration(0)
     _loadedId = trackId
 
-    const streamUrl = tracksApi.getStreamUrl(trackId)
+    const url = tracksApi.getStreamUrl(trackId)
 
     _howl = new Howl({
-      src:      [streamUrl],
-      html5:    true,
-      // Don't hint format — let the browser sniff from Content-Type
-      // Hinting wrong format causes decode failure
-      volume:   volumeRef.current,
+      src:      [url],
+      html5:    true,      // REQUIRED for streaming
+      format:   ['mp3'],   // we always serve mp3 from stream.py
+      volume:   volRef.current,
       preload:  true,
-      autoplay: false,
+      autoplay: true,      // start as soon as enough data is buffered
 
       onload() {
+        // html5 streams may not fire onload until fully buffered
+        // duration may be 0 for live streams — that's ok
         const dur = _howl?.duration() ?? 0
-        setDuration(dur)
+        if (dur > 0) setDuration(dur)
         setLoading(false)
-        _howl?.play()
       },
+
       onplay() {
+        // Fires as soon as audio actually starts playing
         setPlaying(true)
-        _startTimer((s) => onTickRef.current(s))
+        setLoading(false)
+        const dur = _howl?.duration() ?? 0
+        if (dur > 0) setDuration(dur)
+        _startTimer((s) => tickRef.current(s))
       },
+
       onpause() {
         setPlaying(false)
         _stopTimer()
       },
+
       onstop() {
         setPlaying(false)
         _stopTimer()
         setProgress(0)
       },
+
       onend() {
         onEndRef.current()
       },
+
       onloaderror(_id, err) {
-        console.error('[Shulker] load error', err, streamUrl)
+        console.error('[Shulker] load error:', err, url)
         setLoading(false)
         setPlaying(false)
         _loadedId = null
       },
+
       onplayerror(_id, err) {
-        console.error('[Shulker] play error', err)
+        console.error('[Shulker] play error:', err)
         if (Howler.ctx?.state === 'suspended') {
-          Howler.ctx.resume().then(() => _howl?.play())
+          Howler.ctx.resume()
+            .then(() => _howl?.play())
+            .catch(() => {})
         }
       },
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])  // ← EMPTY deps — loadAndPlay never changes, uses refs for callbacks
+  }, []) // stable — uses refs only
 
-  // ── React when track changes ───────────────────────────────
+  // React to track changes
   useEffect(() => {
     if (!currentTrack?.id) return
     loadAndPlay(currentTrack.id)
     tracksApi.recordPlay(currentTrack.id).catch(() => {})
     return () => _stopTimer()
-  }, [currentTrack?.id])  // ← only track ID, loadAndPlay is stable
+  }, [currentTrack?.id])
 
-  // ── Same-track restart via custom event ────────────────────
+  // Same-track restart
   useEffect(() => {
-    const handler = () => {
-      if (currentTrack) loadAndPlay(currentTrack.id, true)
-    }
-    window.addEventListener('shulker:restart-track', handler)
-    return () => window.removeEventListener('shulker:restart-track', handler)
+    const h = () => { if (currentTrack) loadAndPlay(currentTrack.id, true) }
+    window.addEventListener('shulker:restart-track', h)
+    return () => window.removeEventListener('shulker:restart-track', h)
   }, [currentTrack, loadAndPlay])
 
-  // ── Volume/mute sync ───────────────────────────────────────
-  useEffect(() => {
-    _howl?.volume(isMuted ? 0 : volume)
-  }, [volume, isMuted])
+  // Volume sync
+  useEffect(() => { _howl?.volume(isMuted ? 0 : volume) }, [volume, isMuted])
 
-  // ── Stop timer on unmount ──────────────────────────────────
+  // Cleanup
   useEffect(() => () => _stopTimer(), [])
 
-  // ── Controls ───────────────────────────────────────────────
   const play = useCallback(() => {
-    if (_howl) {
-      _howl.play()
-    } else if (currentTrack) {
-      loadAndPlay(currentTrack.id)
-    }
+    if (_howl) _howl.play()
+    else if (currentTrack) loadAndPlay(currentTrack.id)
   }, [currentTrack, loadAndPlay])
 
-  const pause = useCallback(() => {
-    _howl?.pause()
-  }, [])
+  const pause = useCallback(() => { _howl?.pause() }, [])
 
   const togglePlay = useCallback(() => {
-    if (_howl?.playing()) {
-      _howl.pause()
-    } else if (_howl) {
-      _howl.play()
-    } else if (currentTrack) {
-      loadAndPlay(currentTrack.id)
-    }
+    if (_howl?.playing()) _howl.pause()
+    else if (_howl) _howl.play()
+    else if (currentTrack) loadAndPlay(currentTrack.id)
   }, [currentTrack, loadAndPlay])
 
-  const seek = useCallback((seconds: number) => {
-    if (_howl) {
-      _howl.seek(seconds)
-      setProgress(seconds)
-    }
+  const seek = useCallback((s: number) => {
+    _howl?.seek(s)
+    setProgress(s)
   }, [setProgress])
 
   const restartCurrent = useCallback(() => {
@@ -208,18 +173,15 @@ export function usePlayer() {
 
   const skipNext = useCallback(() => {
     const { isShuffled } = usePlayerStore.getState()
-    const nextTrack = next(isShuffled)
-    if (nextTrack) setTrack(nextTrack)
+    const t = next(isShuffled)
+    if (t) setTrack(t)
   }, [next, setTrack])
 
   const skipPrev = useCallback(() => {
     const { progress } = usePlayerStore.getState()
-    if (progress > 3) {
-      seek(0)
-      return
-    }
-    const prevTrack = prev()
-    if (prevTrack) setTrack(prevTrack)
+    if (progress > 3) { seek(0); return }
+    const t = prev()
+    if (t) setTrack(t)
   }, [prev, seek])
 
   return { play, pause, togglePlay, seek, skipNext, skipPrev, restartCurrent }

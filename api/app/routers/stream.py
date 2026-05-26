@@ -8,11 +8,11 @@ from app.core.config import settings
 from app.services.artwork_service import extract_artwork
 from app.services.metadata_service import _file_id
 
-log = structlog.get_logger()
+log    = structlog.get_logger()
 router = APIRouter()
 
 AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
-MIME_MAP = {
+MIME_MAP   = {
     ".mp3":  "audio/mpeg",
     ".flac": "audio/flac",
     ".m4a":  "audio/mp4",
@@ -20,207 +20,191 @@ MIME_MAP = {
     ".opus": "audio/ogg; codecs=opus",
     ".wav":  "audio/wav",
 }
-
-# Chunk size: 512KB — large enough to avoid constant requests, small enough to start fast
-CHUNK_SIZE = 524_288
+CHUNK = 65_536  # 64KB
 
 
 def _find_local(track_id: str) -> Path | None:
-    """Find a downloaded local file by its MD5 ID."""
-    for music_dir in settings.all_music_dirs:
-        d = Path(music_dir)
-        if not d.exists():
+    for d in settings.all_music_dirs:
+        base = Path(d)
+        if not base.exists():
             continue
-        for path in d.rglob("*"):
-            if path.suffix.lstrip(".") in AUDIO_EXTS:
-                if _file_id(path) == track_id:
-                    return path
+        for p in base.rglob("*"):
+            if p.suffix.lstrip(".") in AUDIO_EXTS and _file_id(p) == track_id:
+                return p
     return None
 
 
 @router.api_route("/{track_id}/audio", methods=["GET", "HEAD"])
 async def stream_audio(track_id: str, request: Request):
-    """
-    Stream audio for a track.
-    Priority:
-      1. Local downloaded file (range-supported)
-      2. Live yt-dlp stream (proxied from YouTube CDN)
-    """
+    # Local downloaded file — fast path
     local = _find_local(track_id)
     if local:
         return _serve_local(local, request)
+
+    # HEAD — just confirm it's a valid YouTube ID
+    if request.method == "HEAD":
+        if len(track_id) != 11:
+            raise HTTPException(status_code=404, detail="Invalid track ID")
+        return Response(headers={
+            "Accept-Ranges": "bytes",
+            "Content-Type":  "audio/mpeg",
+        })
 
     return await _serve_ytdlp(track_id, request)
 
 
 @router.get("/{track_id}/artwork")
 async def get_artwork(track_id: str):
-    """Return embedded artwork from a local file."""
     local = _find_local(track_id)
     if not local:
-        raise HTTPException(status_code=404, detail="Track not downloaded locally")
+        raise HTTPException(status_code=404, detail="Not downloaded locally")
     art = extract_artwork(local)
-    if art:
-        return art
-    return Response(status_code=204)
+    return art if art else Response(status_code=204)
 
 
-# ── Local file: full range support ────────────────────────────
-
+# ── Local file streaming with range support ───────────────────
 def _serve_local(path: Path, request: Request) -> Response:
-    suffix    = path.suffix.lower()
-    mime      = MIME_MAP.get(suffix, "audio/mpeg")
+    mime      = MIME_MAP.get(path.suffix.lower(), "audio/mpeg")
     file_size = path.stat().st_size
-    range_hdr = request.headers.get("range")
+    rng       = request.headers.get("range")
 
-    if not range_hdr:
-        # No range — stream the full file
+    if request.method == "HEAD":
+        return Response(headers={
+            "Accept-Ranges":  "bytes",
+            "Content-Length": str(file_size),
+            "Content-Type":   mime,
+        })
+
+    if not rng:
         def _full():
             with open(path, "rb") as f:
-                while True:
-                    chunk = f.read(CHUNK_SIZE)
-                    if not chunk:
-                        break
+                while chunk := f.read(CHUNK):
                     yield chunk
+        return StreamingResponse(_full(), media_type=mime, headers={
+            "Accept-Ranges":  "bytes",
+            "Content-Length": str(file_size),
+            "Cache-Control":  "no-cache",
+        })
 
-        return StreamingResponse(
-            _full(),
-            media_type=mime,
-            headers={
-                "Accept-Ranges":  "bytes",
-                "Content-Length": str(file_size),
-                "Cache-Control":  "no-cache",
-            },
-        )
-
-    # Parse "bytes=start-end"
     try:
-        raw        = range_hdr.replace("bytes=", "").strip()
-        s, e       = raw.split("-")
-        start      = int(s)
-        end        = int(e) if e else file_size - 1
-        end        = min(end, file_size - 1)
-        chunk_len  = end - start + 1
+        s, e  = rng.replace("bytes=", "").split("-")
+        start = int(s)
+        end   = int(e) if e else file_size - 1
+        end   = min(end, file_size - 1)
+        clen  = end - start + 1
     except Exception:
-        raise HTTPException(status_code=416, detail="Invalid Range header")
+        raise HTTPException(status_code=416, detail="Bad Range")
 
     def _range():
         with open(path, "rb") as f:
             f.seek(start)
-            remaining = chunk_len
-            while remaining > 0:
-                data = f.read(min(CHUNK_SIZE, remaining))
+            rem = clen
+            while rem > 0:
+                data = f.read(min(CHUNK, rem))
                 if not data:
                     break
-                remaining -= len(data)
+                rem -= len(data)
                 yield data
 
-    return StreamingResponse(
-        _range(),
-        status_code=206,
-        media_type=mime,
-        headers={
-            "Content-Range":  f"bytes {start}-{end}/{file_size}",
-            "Accept-Ranges":  "bytes",
-            "Content-Length": str(chunk_len),
-            "Cache-Control":  "no-cache",
-        },
-    )
+    return StreamingResponse(_range(), status_code=206, media_type=mime, headers={
+        "Content-Range":  f"bytes {start}-{end}/{file_size}",
+        "Accept-Ranges":  "bytes",
+        "Content-Length": str(clen),
+        "Cache-Control":  "no-cache",
+    })
 
 
-# ── yt-dlp live stream ────────────────────────────────────────
-
+# ── yt-dlp direct pipe — no URL extraction step ───────────────
 async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
     """
-    Extract the direct CDN audio URL via yt-dlp (no download),
-    then proxy it to the browser. Howler.js html5=true handles
-    the streaming natively — no buffering issues.
+    Pipe audio directly using yt-dlp's subprocess output.
+
+    Key insight: instead of:
+      1. yt-dlp extract URL  (blocks, often returns nothing on Termux)
+      2. ffmpeg fetch URL    (second network round trip)
+
+    We do:
+      yt-dlp -x --audio-format mp3 -o - URL
+      → yt-dlp handles extraction + download + conversion internally
+      → Streams mp3 bytes directly to stdout
+      → We pipe those bytes straight to the browser
+      → First audio bytes arrive in ~2-3 seconds instead of 15+
     """
-    import yt_dlp
-    import httpx
-
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
-    loop   = asyncio.get_event_loop()
 
-    # In _serve_ytdlp, replace the format selection block:
-def _extract():
-    opts = {
-        "format":        "bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio/best",
-        "quiet":         True,
-        "no_warnings":   True,
-        "skip_download": True,
-    }
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        if not info:
-            return None, None
-        if info.get("_type") == "playlist":
-            entries = info.get("entries") or []
-            info    = entries[0] if entries else None
-        if not info:
-            return None, None
+    # yt-dlp command — pipe to stdout as mp3
+    # Using mweb client which is least rate-limited on mobile IPs
+    cmd = [
+        "yt-dlp",
+        "--quiet",
+        "--no-warnings",
+        "--no-playlist",
+        "-x",                          # extract audio only
+        "--audio-format",   "mp3",     # convert to mp3
+        "--audio-quality",  "192K",    # 192kbps
+        "--extractor-args", "youtube:player_client=mweb,android,web",
+        "--add-header",     "User-Agent:Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        "-o",               "-",       # output to stdout
+        yt_url,
+    ]
 
-        fmts = info.get("formats") or []
-        # Prefer m4a, then mp3, then anything audio-only
-        audio_fmts = [
-            f for f in fmts
-            if f.get("url") and f.get("vcodec") in ("none", None)
-            and f.get("acodec") not in ("none", None)
-        ]
-        if audio_fmts:
-            # Prefer m4a/mp3 over webm
-            preferred = [f for f in audio_fmts if f.get("ext") in ("m4a", "mp3")]
-            best = max(preferred or audio_fmts, key=lambda f: f.get("abr") or 0)
-            return best["url"], best.get("ext", "m4a")
-
-        return info.get("url"), info.get("ext", "m4a")
+    log.info("stream.ytdlp.pipe.start", track_id=track_id)
 
     try:
-        direct_url, ext = await loop.run_in_executor(None, _extract)
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
     except Exception as e:
-        log.error("stream.extract.failed", track_id=track_id, error=str(e))
-        raise HTTPException(status_code=502, detail=f"Stream extraction failed: {e}")
+        log.error("stream.ytdlp.spawn.failed", error=str(e))
+        raise HTTPException(status_code=502, detail="Stream process failed to start")
 
-    if not direct_url:
-        raise HTTPException(status_code=404, detail=f"No stream found for: {track_id}")
+    # Read first chunk to confirm we're getting audio
+    # If first chunk is empty, yt-dlp failed
+    first_chunk = await proc.stdout.read(CHUNK)
+    if not first_chunk:
+        stderr = await proc.stderr.read(2048)
+        log.error("stream.ytdlp.no_output",
+                  track_id=track_id,
+                  stderr=stderr.decode(errors="ignore"))
+        proc.kill()
+        raise HTTPException(status_code=502,
+                            detail="Could not stream this track. YouTube may be blocking requests.")
 
-    mime = MIME_MAP.get(f".{ext}", "audio/mp4")
+    log.info("stream.ytdlp.pipe.first_chunk",
+             track_id=track_id,
+             bytes=len(first_chunk))
 
-    # Forward any Range header the browser sends
-    forward_headers: dict = {}
-    if "range" in request.headers:
-        forward_headers["Range"] = request.headers["range"]
+    async def _pipe():
+        # Yield the first chunk we already read
+        yield first_chunk
 
-    async def _proxy():
         try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(10.0, read=None),
-                follow_redirects=True,
-            ) as client:
-                async with client.stream(
-                    "GET",
-                    direct_url,
-                    headers=forward_headers,
-                ) as resp:
-                    async for chunk in resp.aiter_bytes(CHUNK_SIZE):
-                        if await request.is_disconnected():
-                            break
-                        yield chunk
+            while True:
+                if await request.is_disconnected():
+                    log.info("stream.client.disconnected", track_id=track_id)
+                    break
+                chunk = await proc.stdout.read(CHUNK)
+                if not chunk:
+                    break
+                yield chunk
         except asyncio.CancelledError:
-            return
-        except Exception as e:
-            log.warning("stream.proxy.error", track_id=track_id, error=str(e))
-            return
-
-    # If client sent Range, respond 206
-    status = 206 if "range" in request.headers else 200
+            pass
+        finally:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            await proc.wait()
+            log.info("stream.ytdlp.pipe.done", track_id=track_id)
 
     return StreamingResponse(
-        _proxy(),
-        status_code=status,
-        media_type=mime,
+        _pipe(),
+        media_type="audio/mpeg",
         headers={
-            "Accept-Ranges": "bytes",
-            "Cache-Control": "no-cache",
+            "Accept-Ranges":          "bytes",
+            "Cache-Control":          "no-cache",
+            "X-Content-Type-Options": "nosniff",
         },
     )
