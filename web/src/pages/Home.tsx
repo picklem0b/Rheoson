@@ -42,9 +42,10 @@ export default function Home() {
   }
 
   return (
-    <TopBar showLogo transparent />
-    <ScrollArea className="h-full">
-      <div className="px-4 lg:px-8 pt-8 pb-4 space-y-10">
+    <>
+      <TopBar showLogo transparent />
+      <ScrollArea className="h-full">
+        <div className="px-4 lg:px-8 pt-8 pb-4 space-y-10">
 
         {/* ── Header ──────────────────────────────────────── */}
         <motion.div
@@ -118,6 +119,7 @@ export default function Home() {
 
       </div>
     </ScrollArea>
+  </>
   )
 }
 
