@@ -33,3 +33,17 @@ export const playlistsApi = {
   getTracks: (playlistId: string) =>
     api.get<Track[]>(`/playlists/${playlistId}/tracks`),
 }
+
+// Named re-exports so pages can do:
+//   import { getPlaylists, getPlaylist } from '@/api/playlists'
+export const {
+  getPlaylists,
+  getPlaylist,
+  createPlaylist,
+  updatePlaylist,
+  deletePlaylist,
+  addTrack,
+  removeTrack,
+  reorderTracks,
+  importSpotify,
+} = playlistsApi

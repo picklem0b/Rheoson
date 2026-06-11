@@ -1,5 +1,9 @@
 import { useEffect, useCallback, useRef } from 'react'
-import { useDownloadStore } from '@/store/downloadStore'
+import {
+  useDownloadStore,
+  selectActiveJobs,
+  selectCompletedJobs,
+} from '@/store/downloadStore'
 import { downloadsApi } from '@/api/downloads'
 import { ws } from '@/lib/websocket'
 import type { DownloadJob, DownloadOptions } from '@/types/download'
@@ -8,36 +12,35 @@ import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
 
 // ── Notification sound ────────────────────────────────────────
-const _audio = typeof window !== 'undefined'
-  ? new Audio('/assets/rhea.mp3')
+// Singleton audio element — created once at module level so there's
+// no latency when the first download completes.
+
+const _notifAudio = typeof window !== 'undefined'
+  ? Object.assign(new Audio('/assets/rhea.mp3'), { volume: 0.6, preload: 'auto' as const })
   : null
 
-if (_audio) {
-  _audio.volume = 0.6
-  _audio.preload = 'auto'
-}
-
 function playDoneSound() {
-  if (!_audio) return
-  _audio.currentTime = 0
-  _audio.play().catch(() => {})   // ignore autoplay policy errors
+  if (!_notifAudio) return
+  _notifAudio.currentTime = 0
+  _notifAudio.play().catch(() => {}) // autoplay policy may block; that's fine
 }
 
 // ── Hook ──────────────────────────────────────────────────────
+
 export function useDownloads() {
-  const {
-    jobs,
-    addJob,
-    updateJob,
-    removeJob,
-    clearDone,
-    activeJobs,
-    completedJobs,
-  } = useDownloadStore()
+  const jobs        = useDownloadStore((s) => s.jobs)
+  const activeJobs  = useDownloadStore(selectActiveJobs)
+  const completedJobs = useDownloadStore(selectCompletedJobs)
+  const { addJob, updateJob, removeJob, clearDone } = useDownloadStore()
 
-  const prevJobStatuses = useRef<Record<string, string>>({})
+  // Track previous statuses so we can detect done transitions locally
+  // (fallback for when the WebSocket isn't connected).
+  const prevStatuses = useRef<Map<string, string>>(new Map())
 
-  // WebSocket progress updates
+  // ── WebSocket progress ────────────────────────────────────
+  // WS is the primary path. The local fallback below handles the case
+  // where the WS connection dropped mid-download.
+
   useEffect(() => {
     ws.connect()
 
@@ -45,18 +48,23 @@ export function useDownloads() {
       const d = data as Partial<DownloadJob>
       if (!d.id) return
       updateJob(d.id, d)
+      // Don't play sound here — wait for the explicit 'done' event
     }
 
     const onDone = (data: unknown) => {
       const d = data as Partial<DownloadJob>
       if (!d.id) return
       updateJob(d.id, { ...d, status: 'done', progress: 100 })
+      // Mark as handled so the local watcher below doesn't double-fire
+      prevStatuses.current.set(d.id, 'done')
       playDoneSound()
     }
 
     const onError = (data: unknown) => {
       const d = data as Partial<DownloadJob>
-      if (d.id) updateJob(d.id, { ...d, status: 'error' })
+      if (!d.id) return
+      updateJob(d.id, { ...d, status: 'error' })
+      prevStatuses.current.set(d.id, 'error')
     }
 
     ws.on('download:progress', onProgress)
@@ -70,17 +78,21 @@ export function useDownloads() {
     }
   }, [updateJob])
 
-  // Also watch job status transitions locally for sound
-  // (in case WS is not connected)
+  // ── Local transition watcher (WS fallback) ────────────────
+  // Only fires if the WS handler didn't already set prevStatuses to 'done'.
+
   useEffect(() => {
-    jobs.forEach((job) => {
-      const prev = prevJobStatuses.current[job.id]
-      if (prev && prev !== 'done' && job.status === 'done') {
+    for (const job of jobs) {
+      const prev = prevStatuses.current.get(job.id)
+      // Transition to done that the WS handler didn't already handle
+      if (prev !== undefined && prev !== 'done' && job.status === 'done') {
         playDoneSound()
       }
-      prevJobStatuses.current[job.id] = job.status
-    })
+      prevStatuses.current.set(job.id, job.status)
+    }
   }, [jobs])
+
+  // ── Actions ───────────────────────────────────────────────
 
   const download = useCallback(async (
     track: Track,
@@ -88,7 +100,8 @@ export function useDownloads() {
   ) => {
     const tempId = uid('dl')
 
-    const optimistic: DownloadJob = {
+    // Optimistic job shown immediately in the UI
+    addJob({
       id:         tempId,
       trackId:    track.id,
       title:      track.title,
@@ -99,16 +112,12 @@ export function useDownloads() {
       format:     options.format,
       quality:    options.quality,
       createdAt:  new Date().toISOString(),
-    }
-
-    addJob(optimistic)
+    })
 
     try {
-      const job = await downloadsApi.startDownload({
-        trackId: track.id,
-        ...options,
-      })
-      updateJob(tempId, { ...job })
+      const job = await downloadsApi.startDownload({ trackId: track.id, ...options })
+      // Replace temp ID with the real job from the server
+      updateJob(tempId, job)
     } catch (e) {
       updateJob(tempId, {
         status: 'error',
@@ -123,6 +132,8 @@ export function useDownloads() {
   }, [removeJob])
 
   const retry = useCallback(async (id: string) => {
+    // Optimistically reset to queued while the retry request is in-flight
+    updateJob(id, { status: 'queued', progress: 0, error: undefined })
     try {
       const job = await downloadsApi.retryDownload(id)
       updateJob(id, job)
@@ -136,8 +147,8 @@ export function useDownloads() {
 
   return {
     jobs,
-    activeJobs:    activeJobs(),
-    completedJobs: completedJobs(),
+    activeJobs,
+    completedJobs,
     download,
     cancel,
     retry,

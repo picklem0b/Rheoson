@@ -1,8 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import {
-  Home, Search, Library, Download,
-  Settings, Heart,
-} from 'lucide-react'
+import { Home, Search, Library, Download, Settings, Heart } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/settings',  icon: Settings, label: 'Settings'    },
 ]
 
+/** Desktop-only sidebar. Hidden on mobile via RootLayout's `hidden lg:flex`. */
 export default function Sidebar() {
   return (
     <motion.div
@@ -25,20 +23,14 @@ export default function Sidebar() {
     >
       {/* ── Logo ─────────────────────────────────────────── */}
       <NavLink to="/" className="flex items-center gap-2.5 px-3 mb-6 group">
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2.5"
-        >
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2.5">
           <img
             src="/assets/logo.png"
             alt="Shulker"
             className="w-9 h-9 rounded-2xl object-cover shadow-lg"
             style={{ boxShadow: '0 0 12px var(--accent-subtle)' }}
           />
-          <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
-            Shulker
-          </span>
+          <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight">Shulker</span>
         </motion.div>
       </NavLink>
 
@@ -55,16 +47,8 @@ export default function Sidebar() {
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]',
               )}
             >
-              <Icon
-                className={cn(
-                  'w-5 h-5 flex-shrink-0',
-                  isActive ? 'stroke-[2.5]' : 'stroke-2',
-                )}
-              />
-              <span className={cn(
-                'text-sm font-semibold',
-                isActive && 'text-[var(--accent)]',
-              )}>
+              <Icon className={cn('w-5 h-5 flex-shrink-0', isActive ? 'stroke-[2.5]' : 'stroke-2')} />
+              <span className={cn('text-sm font-semibold', isActive && 'text-[var(--accent)]')}>
                 {label}
               </span>
               {isActive && (

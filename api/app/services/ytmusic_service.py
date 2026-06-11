@@ -6,13 +6,49 @@ from app.core.exceptions import SearchError
 
 log = structlog.get_logger()
 
-_ytm: YTMusic | None = None
+# ── Singleton ─────────────────────────────────────────────────
+# YTMusic() constructor hits the network on first call.
+# Guard with a lock so concurrent requests don't each try to init.
+# If init fails, _ytm_error is set and we raise immediately on all
+# subsequent calls rather than retrying the failing constructor each time.
+
+_ytm:        YTMusic | None  = None
+_ytm_error:  Exception | None = None
+_ytm_lock    = asyncio.Lock()
+
+
+async def _get_ytm_async() -> YTMusic:
+    """Thread-safe singleton getter. Raises if YTMusic can't initialise."""
+    global _ytm, _ytm_error
+
+    if _ytm is not None:
+        return _ytm
+    if _ytm_error is not None:
+        raise SearchError(f"YTMusic unavailable: {_ytm_error}") from _ytm_error
+
+    async with _ytm_lock:
+        # Double-check inside lock
+        if _ytm is not None:
+            return _ytm
+        if _ytm_error is not None:
+            raise SearchError(f"YTMusic unavailable: {_ytm_error}") from _ytm_error
+
+        loop = asyncio.get_event_loop()
+        try:
+            _ytm = await loop.run_in_executor(None, YTMusic)
+            log.info("ytmusic.init.ok")
+        except Exception as e:
+            _ytm_error = e
+            log.error("ytmusic.init.failed", error=str(e))
+            raise SearchError(f"YTMusic failed to initialise: {e}") from e
+
+    return _ytm
 
 
 def _get_ytm() -> YTMusic:
-    global _ytm
+    """Sync getter — only safe to call from executor threads."""
     if _ytm is None:
-        _ytm = YTMusic()
+        raise SearchError("YTMusic not yet initialised")
     return _ytm
 
 
@@ -22,6 +58,7 @@ def _thumb(thumbnails: list[dict]) -> str:
     if not thumbnails:
         return ""
     best = thumbnails[-1].get("url", "")
+    # Strip YouTube size suffix to get the largest available
     return best.split("=w")[0] if "=w" in best else best
 
 
@@ -132,42 +169,44 @@ async def search(
     limit: int = 20,
 ) -> dict:
     """
-    Non-blocking search using run_in_executor + asyncio.gather.
-    All 4 category searches run concurrently.
+    Concurrent search across all categories using run_in_executor + gather.
+    Ensures YTMusic is initialised before spawning threads.
     """
+    # Ensure singleton is ready before any executor threads try to use it
+    await _get_ytm_async()
     loop = asyncio.get_event_loop()
 
-    def _search_songs():
+    def _songs():
         return _get_ytm().search(query, filter="songs", limit=limit)
 
-    def _search_albums():
+    def _albums():
         return _get_ytm().search(query, filter="albums", limit=8)
 
-    def _search_artists():
+    def _artists():
         return _get_ytm().search(query, filter="artists", limit=8)
 
-    def _search_playlists():
+    def _playlists():
         return _get_ytm().search(query, filter="playlists", limit=6)
 
     try:
         if filter in ("songs", "tracks", None):
             songs, albums, artists, playlists = await asyncio.gather(
-                loop.run_in_executor(None, _search_songs),
-                loop.run_in_executor(None, _search_albums),
-                loop.run_in_executor(None, _search_artists),
-                loop.run_in_executor(None, _search_playlists),
+                loop.run_in_executor(None, _songs),
+                loop.run_in_executor(None, _albums),
+                loop.run_in_executor(None, _artists),
+                loop.run_in_executor(None, _playlists),
             )
         elif filter == "albums":
-            albums  = await loop.run_in_executor(None, _search_albums)
+            albums = await loop.run_in_executor(None, _albums)
             songs, artists, playlists = [], [], []
         elif filter == "artists":
-            artists = await loop.run_in_executor(None, _search_artists)
+            artists = await loop.run_in_executor(None, _artists)
             songs, albums, playlists = [], [], []
         elif filter == "playlists":
-            playlists = await loop.run_in_executor(None, _search_playlists)
+            playlists = await loop.run_in_executor(None, _playlists)
             songs, albums, artists = [], [], []
         else:
-            songs   = await loop.run_in_executor(None, _search_songs)
+            songs = await loop.run_in_executor(None, _songs)
             albums, artists, playlists = [], [], []
 
         return {
@@ -184,16 +223,10 @@ async def search(
 
 
 async def get_suggestions(query: str) -> list[str]:
-    """
-    Fast autocomplete suggestions — hits ytmusicapi's suggest endpoint.
-    Returns in ~80ms, perfect for instant search dropdown.
-    """
+    await _get_ytm_async()
     loop = asyncio.get_event_loop()
     try:
-        def _suggest():
-            return _get_ytm().get_search_suggestions(query)
-        results = await loop.run_in_executor(None, _suggest)
-        # Returns list of strings
+        results = await loop.run_in_executor(None, lambda: _get_ytm().get_search_suggestions(query))
         return [r for r in results if isinstance(r, str)][:8]
     except Exception as e:
         log.warning("ytmusic.suggestions.failed", query=query, error=str(e))
@@ -201,12 +234,11 @@ async def get_suggestions(query: str) -> list[str]:
 
 
 async def get_track(video_id: str) -> dict:
+    await _get_ytm_async()
     loop = asyncio.get_event_loop()
     try:
-        def _get():
-            return _get_ytm().get_song(video_id)
-        data  = await loop.run_in_executor(None, _get)
-        vd    = data.get("videoDetails", {})
+        data = await loop.run_in_executor(None, lambda: _get_ytm().get_song(video_id))
+        vd   = data.get("videoDetails", {})
         thumb = vd.get("thumbnail", {}).get("thumbnails", [])
         vid   = _safe(vd.get("videoId", video_id))
         return {
@@ -245,12 +277,14 @@ async def get_track(video_id: str) -> dict:
 
 
 async def search_one(query: str) -> dict | None:
+    await _get_ytm_async()
     loop = asyncio.get_event_loop()
     try:
-        def _s():
-            return _get_ytm().search(query, filter="songs", limit=5)
-        results = await loop.run_in_executor(None, _s)
-        tracks  = [r for r in results if r.get("videoId")]
+        results = await loop.run_in_executor(
+            None,
+            lambda: _get_ytm().search(query, filter="songs", limit=5),
+        )
+        tracks = [r for r in results if r.get("videoId")]
         return _parse_track(tracks[0]) if tracks else None
     except Exception as e:
         log.error("ytmusic.search_one.failed", query=query, error=str(e))
@@ -268,3 +302,20 @@ async def resolve_youtube_url(url: str) -> dict | None:
         if m:
             return await get_track(m.group(1))
     return None
+
+
+async def get_trending(limit: int = 20) -> list[dict]:
+    """
+    Fetch trending/charts tracks from YouTube Music.
+    Returns empty list on failure — caller handles gracefully.
+    """
+    await _get_ytm_async()
+    loop = asyncio.get_event_loop()
+    try:
+        # get_charts returns a rich object; we extract the trending songs
+        charts = await loop.run_in_executor(None, lambda: _get_ytm().get_charts())
+        trending = charts.get("songs", {}).get("items", [])
+        return [_parse_track(r) for r in trending[:limit] if r.get("videoId")]
+    except Exception as e:
+        log.warning("ytmusic.trending.failed", error=str(e))
+        return []

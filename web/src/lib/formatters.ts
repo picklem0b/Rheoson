@@ -1,3 +1,16 @@
+export function formatTotalDuration(seconds: number): string {
+  if (!seconds || isNaN(seconds)) return '0 min'
+
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+
+  if (hours > 0) {
+    return `${hours} hr ${minutes} min`
+  }
+
+  return `${minutes} min`
+}
+
 // Format seconds to mm:ss or h:mm:ss
 export function formatDuration(seconds: number): string {
   if (!seconds || isNaN(seconds)) return '0:00'

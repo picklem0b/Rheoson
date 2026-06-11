@@ -19,7 +19,11 @@ from app.services.ytmusic_service import search_one
 log = structlog.get_logger()
 
 # ── In-memory job store ───────────────────────────────────────
+# Maps job_id → job dict
 _jobs: dict[str, dict] = {}
+
+# Maps job_id → asyncio.Task (so we can cancel it)
+_tasks: dict[str, asyncio.Task] = {}
 
 # Semaphore — cap concurrent yt-dlp processes
 _sem: asyncio.Semaphore | None = None
@@ -41,9 +45,10 @@ def _new_job(
     artwork_url: str,
     fmt:         str,
     quality:     str,
+    job_id:      str | None = None,
 ) -> dict:
     return {
-        "id":         str(uuid.uuid4()),
+        "id":         job_id or str(uuid.uuid4()),
         "trackId":    track_id,
         "title":      title,
         "artist":     artist,
@@ -79,9 +84,9 @@ async def _resolve_to_yt_url(
 ) -> tuple[str, str, str, str]:
     """
     Returns (yt_url, title, artist, artwork_url).
-    Handles: YouTube video ID, Spotify track URL, any yt-dlp URL.
+    Handles: YouTube video ID, Spotify track URL, any yt-dlp-compatible URL.
     """
-    # Direct YouTube video ID (11 chars, no http)
+    # YouTube video ID (11 chars, no protocol)
     if track_id and not track_id.startswith("http"):
         from app.services.ytmusic_service import get_track as yt_get
         try:
@@ -93,10 +98,9 @@ async def _resolve_to_yt_url(
                 t.get("artworkUrl", ""),
             )
         except Exception:
-            return (
-                f"https://www.youtube.com/watch?v={track_id}",
-                track_id, "", "",
-            )
+            # Metadata fetch failed — URL is still valid, just no metadata
+            log.warning("download.resolve.metadata_failed", track_id=track_id)
+            return (f"https://www.youtube.com/watch?v={track_id}", track_id, "", "")
 
     if not url:
         raise ValueError("Either trackId or url must be provided")
@@ -117,11 +121,11 @@ async def _resolve_to_yt_url(
                     sp.get("artworkUrl", ""),
                 )
         raise ValueError(
-            "Only Spotify track URLs can be downloaded directly. "
-            "For albums/playlists, download tracks individually."
+            "Only Spotify track URLs are supported for direct download. "
+            "Download tracks individually from albums or playlists."
         )
 
-    # Any other URL — pass to yt-dlp info extractor
+    # Any other URL — extract info with yt-dlp (no download)
     loop = asyncio.get_event_loop()
 
     def _info():
@@ -146,7 +150,8 @@ def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
         if status == "downloading":
             total      = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
             downloaded = d.get("downloaded_bytes", 0)
-            progress   = (downloaded / total * 80) if total else 0  # 0–80% during download
+            # 0–80% during download phase
+            progress   = (downloaded / total * 80) if total else 0.0
             _update(job_id, status="downloading", progress=round(progress, 1))
             asyncio.run_coroutine_threadsafe(
                 ws_manager.emit_download_progress(
@@ -157,6 +162,7 @@ def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
             )
 
         elif status == "finished":
+            # yt-dlp finished download; ffmpeg post-processing starts
             _update(job_id, status="converting", progress=82.0)
             asyncio.run_coroutine_threadsafe(
                 ws_manager.emit_download_progress(
@@ -171,50 +177,71 @@ def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
 
 # ── Core yt-dlp download ──────────────────────────────────────
 
-async def _run_download(job_id: str, yt_url: str, fmt: str, quality: str) -> Optional[Path]:
+async def _run_download(
+    job_id:       str,
+    yt_url:       str,
+    fmt:          str,
+    quality:      str,
+    embed_artwork: bool,
+) -> Optional[Path]:
     out_dir   = Path(settings.DOWNLOADS_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
     loop      = asyncio.get_event_loop()
     quality_q = "0" if quality == "best" else quality
 
+    # Use a unique temp filename to avoid collisions between concurrent jobs
+    safe_id   = job_id[:8]
+    out_tmpl  = str(out_dir / f"%(title)s [{safe_id}].%(ext)s")
+
+    postprocessors = [
+        {
+            "key":              "FFmpegExtractAudio",
+            "preferredcodec":   fmt,
+            "preferredquality": quality_q,
+        },
+        {"key": "FFmpegMetadata"},
+    ]
+    if embed_artwork:
+        postprocessors.append({"key": "EmbedThumbnail"})
+
     ydl_opts = {
-        "format":      "bestaudio/best",
-        "outtmpl":     str(out_dir / "%(title)s.%(ext)s"),
-        "quiet":       True,
-        "no_warnings": True,
-        "noplaylist":  True,
-        "progress_hooks": [_make_hook(job_id, loop)],
-        "postprocessors": [
-            {
-                "key":              "FFmpegExtractAudio",
-                "preferredcodec":   fmt,
-                "preferredquality": quality_q,
-            },
-            {"key": "FFmpegMetadata"},
-            {"key": "EmbedThumbnail"},
-        ],
-        "writethumbnail": True,
-        "embedthumbnail": True,
-        "addmetadata":    True,
+        "format":           "bestaudio/best",
+        "outtmpl":          out_tmpl,
+        "quiet":            True,
+        "no_warnings":      True,
+        "noplaylist":       True,
+        "progress_hooks":   [_make_hook(job_id, loop)],
+        "postprocessors":   postprocessors,
+        "writethumbnail":   embed_artwork,
+        "embedthumbnail":   embed_artwork,
+        "addmetadata":      True,
+        # Retry on transient errors
+        "retries":          3,
+        "fragment_retries": 3,
     }
 
     def _do() -> Optional[Path]:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info  = ydl.extract_info(yt_url, download=True)
-            title = info.get("title", "")
+            ydl.extract_info(yt_url, download=True)
 
-            # Find the output file by matching title prefix
-            for p in out_dir.glob(f"*.{fmt}"):
-                if title[:20].lower() in p.stem.lower():
-                    return p
+        # Find the output file by the unique job suffix we injected into the template
+        # This is reliable even when the title contains special chars / is very long.
+        matches = list(out_dir.glob(f"*[{safe_id}].{fmt}"))
+        if matches:
+            # Most recently modified in case of duplicates
+            return max(matches, key=lambda p: p.stat().st_mtime)
 
-            # Fallback — most recently modified file
-            files = sorted(
-                out_dir.glob(f"*.{fmt}"),
-                key=lambda x: x.stat().st_mtime,
-                reverse=True,
-            )
-            return files[0] if files else None
+        # Fallback: most recently modified file of the right format
+        files = sorted(
+            out_dir.glob(f"*.{fmt}"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        if files:
+            log.warning("download.output.fallback", job_id=job_id)
+            return files[0]
+
+        return None
 
     async with _get_sem():
         return await loop.run_in_executor(None, _do)
@@ -246,8 +273,8 @@ async def _tag_and_finish(
                 lyrics_text = await get_lyrics_text(
                     _jobs[job_id].get("trackId", ""), title, artist
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                log.warning("download.lyrics.failed", job_id=job_id, error=str(e))
 
         write_tags(
             file_path,
@@ -264,17 +291,18 @@ async def _tag_and_finish(
 # ── Background download task ──────────────────────────────────
 
 async def _download_task(
-    job_id:       str,
-    yt_url:       str,
-    fmt:          str,
-    quality:      str,
-    embed_lyrics: bool,
+    job_id:        str,
+    yt_url:        str,
+    fmt:           str,
+    quality:       str,
+    embed_lyrics:  bool,
+    embed_artwork: bool,
 ) -> None:
     try:
         _update(job_id, status="downloading", progress=0.0)
         await ws_manager.emit_download_progress(job_id, 0.0, "downloading")
 
-        file_path = await _run_download(job_id, yt_url, fmt, quality)
+        file_path = await _run_download(job_id, yt_url, fmt, quality, embed_artwork)
 
         if not file_path or not file_path.exists():
             raise RuntimeError("Output file not found after download")
@@ -293,10 +321,25 @@ async def _download_task(
         await ws_manager.emit_download_done(job_id, str(file_path))
         log.info("download.done", job_id=job_id, path=str(file_path))
 
+        # Invalidate the stream cache so the new file is served immediately
+        try:
+            from app.routers.stream import invalidate_stream_cache
+            invalidate_stream_cache()
+        except Exception:
+            pass
+
+    except asyncio.CancelledError:
+        log.info("download.cancelled", job_id=job_id)
+        _update(job_id, status="error", error="Cancelled")
+        await ws_manager.emit_download_error(job_id, "Cancelled")
+
     except Exception as e:
         log.error("download.failed", job_id=job_id, error=str(e))
         _update(job_id, status="error", error=str(e))
         await ws_manager.emit_download_error(job_id, str(e))
+
+    finally:
+        _tasks.pop(job_id, None)
 
 
 # ── Public API ────────────────────────────────────────────────
@@ -308,42 +351,70 @@ async def enqueue_download(
     quality:       str           = "320",
     embed_artwork: bool          = True,
     embed_lyrics:  bool          = True,
+    job_id:        Optional[str] = None,  # allow retry to reuse same ID
 ) -> dict:
     """
     Enqueue a download. Returns immediately with job metadata.
-    Download runs in background, progress sent over WebSocket.
+    Progress is delivered over WebSocket (download:progress / download:done / download:error).
     """
     try:
         yt_url, title, artist, artwork_url = await _resolve_to_yt_url(track_id, url)
     except Exception as e:
-        job              = _new_job(track_id or "", url or "", "", "", fmt, quality)
+        job              = _new_job(track_id or "", url or "", "", "", fmt, quality, job_id)
         job["status"]    = "error"
         job["error"]     = str(e)
         _jobs[job["id"]] = job
+        log.error("download.resolve.failed", error=str(e))
         return job
 
-    job              = _new_job(track_id or "", title, artist, artwork_url, fmt, quality)
+    job              = _new_job(track_id or "", title, artist, artwork_url, fmt, quality, job_id)
     _jobs[job["id"]] = job
 
-    asyncio.create_task(_download_task(job["id"], yt_url, fmt, quality, embed_lyrics))
+    task = asyncio.create_task(
+        _download_task(job["id"], yt_url, fmt, quality, embed_lyrics, embed_artwork)
+    )
+    _tasks[job["id"]] = task
 
+    log.info("download.enqueued", job_id=job["id"], title=title, fmt=fmt, quality=quality)
     return job
 
 
 async def cancel_job(job_id: str) -> bool:
     if job_id not in _jobs:
         return False
+
+    # Cancel the running asyncio task — this triggers CancelledError inside _download_task
+    task = _tasks.pop(job_id, None)
+    if task and not task.done():
+        task.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=2.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
+
     _update(job_id, status="error", error="Cancelled by user")
+    log.info("download.cancel", job_id=job_id)
     return True
 
 
 async def retry_job(job_id: str) -> Optional[dict]:
+    """
+    Retry a failed job, reusing the SAME job_id so the frontend's
+    updateJob(id, job) call updates the existing row instead of creating a new one.
+    """
     job = _jobs.get(job_id)
     if not job:
         return None
+
+    # Reset status optimistically (frontend already did this)
+    _update(job_id, status="queued", progress=0.0, error=None)
+
     return await enqueue_download(
         track_id=job.get("trackId") or None,
         url=None,
         fmt=job.get("format", "mp3"),
         quality=job.get("quality", "320"),
+        embed_artwork=True,
+        embed_lyrics=True,
+        job_id=job_id,   # ← reuse same ID
     )

@@ -1,22 +1,23 @@
 import { create } from 'zustand'
 import type { Track } from '@/types/track'
-import { shuffle } from '@/lib/utils'
+import { shuffle as shuffleArray } from '@/lib/utils'
+
+// ── Store ─────────────────────────────────────────────────────
 
 interface QueueStore {
-  queue:          Track[]
-  history:        Track[]
-  originalQueue:  Track[]
+  queue:         Track[]
+  history:       Track[]
+  originalQueue: Track[]
 
-  // Actions
-  setQueue:       (tracks: Track[], startIndex?: number) => void
-  addToQueue:     (track: Track) => void
-  removeFromQueue:(index: number) => void
-  clearQueue:     () => void
-  next:           (isShuffled: boolean) => Track | null
-  prev:           () => Track | null
-  shuffleQueue:   () => void
-  restoreQueue:   () => void
-  moveItem:       (from: number, to: number) => void
+  setQueue:        (tracks: Track[], startIndex?: number) => void
+  addToQueue:      (track: Track) => void
+  removeFromQueue: (index: number) => void
+  clearQueue:      () => void
+  next:            (isShuffled: boolean) => Track | null
+  prev:            () => Track | null
+  shuffleQueue:    () => void
+  restoreQueue:    () => void
+  moveItem:        (from: number, to: number) => void
 }
 
 export const useQueueStore = create<QueueStore>((set, get) => ({
@@ -25,9 +26,14 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   originalQueue: [],
 
   setQueue: (tracks, startIndex = 0) => {
-    const queue = tracks.slice(startIndex)
-    const history = tracks.slice(0, startIndex)
-    set({ queue, history, originalQueue: tracks })
+    const safeIndex = Math.max(0, Math.min(startIndex, tracks.length - 1))
+    set({
+      // Tracks after the start index are the upcoming queue
+      queue:         tracks.slice(safeIndex + 1),
+      // Tracks before (and including) start index go into history
+      history:       tracks.slice(0, safeIndex + 1),
+      originalQueue: tracks,
+    })
   },
 
   addToQueue: (track) =>
@@ -42,39 +48,53 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     const { queue, history } = get()
     if (queue.length === 0) return null
 
-    let nextIndex = 0
-    if (isShuffled) {
-      nextIndex = Math.floor(Math.random() * queue.length)
-    }
+    // Pick index: random for shuffle, always 0 for sequential
+    const idx = isShuffled ? Math.floor(Math.random() * queue.length) : 0
 
-    const [next, ...rest] = isShuffled
-      ? [queue[nextIndex], ...queue.filter((_, i) => i !== nextIndex)]
-      : queue
+    const nextTrack = queue[idx]
+    const remaining = queue.filter((_, i) => i !== idx)
 
-    const prev = history[history.length - 1]
     set({
-      queue: rest,
-      history: prev ? [...history, next] : [next],
+      queue:   remaining,
+      // Always push to history — the previous conditional was dropping history
+      // when the last history entry was falsy (e.g. empty string id)
+      history: [...history, nextTrack],
     })
-    return next
+
+    return nextTrack
   },
 
   prev: () => {
     const { history, queue } = get()
     if (history.length === 0) return null
-    const prev = history[history.length - 1]
+
+    // The current track is the last item in history
+    const current = history[history.length - 1]
+    const target  = history[history.length - 2] ?? null
+
+    if (!target) return null   // already at the very beginning
+
     set({
-      history: history.slice(0, -1),
-      queue: [prev, ...queue],
+      // Remove both current and target from history;
+      // target will become current, current goes back on the front of queue
+      history: history.slice(0, -2),
+      queue:   [current, ...queue],
     })
-    return prev
+
+    return target
   },
 
   shuffleQueue: () =>
-    set((s) => ({ queue: shuffle(s.queue) })),
+    set((s) => ({ queue: shuffleArray([...s.queue]) })),
 
   restoreQueue: () =>
-    set((s) => ({ queue: s.originalQueue })),
+    set((s) => {
+      // Restore from the current position: everything after history stays
+      const historyLen = s.history.length
+      return {
+        queue: s.originalQueue.slice(historyLen),
+      }
+    }),
 
   moveItem: (from, to) =>
     set((s) => {
