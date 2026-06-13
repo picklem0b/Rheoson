@@ -1,23 +1,19 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { usePersisted } from '@/hooks/usePersisted'
 import { SettingsGroup, SettingsRow, Toggle, RadioGroup } from '../components/SettingsPrimitives'
 
-type AudioFormat  = 'mp3' | 'flac' | 'opus' | 'm4a' | 'wav'
-type AudioQuality = '128' | '192' | '256' | '320' | 'best'
-
 export default function DownloadsSection() {
-  const [fmt,      setFmt]     = useState<AudioFormat>('mp3')
-  const [quality,  setQuality] = useState<AudioQuality>('320')
-  const [artwork,  setArtwork] = useState(true)
-  const [lyrics,   setLyrics]  = useState(true)
-  const [wifiOnly, setWifi]    = useState(false)
-  const [maxConc,  setMaxConc] = useState(4)
+  const [fmt,      setFmt]     = usePersisted<string>('dl-format', 'mp3')
+  const [quality,  setQuality] = usePersisted<string>('dl-quality', '320')
+  const [artwork,  setArtwork] = usePersisted('dl-artwork', true)
+  const [lyrics,   setLyrics]  = usePersisted('dl-lyrics', true)
+  const [wifiOnly, setWifi]    = usePersisted('dl-wifi-only', false)
+  const [maxConc,  setMaxConc] = usePersisted('dl-concurrent', 4)
 
   return (
     <div className="pb-2">
       <SettingsGroup title="Default format">
         <RadioGroup
-          value={fmt}
+          value={fmt as any}
           onChange={setFmt}
           options={[
             { value: 'mp3',  label: 'MP3',  sub: 'Universal — works everywhere'           },
@@ -31,7 +27,7 @@ export default function DownloadsSection() {
 
       <SettingsGroup title="Default quality">
         <RadioGroup
-          value={quality}
+          value={quality as any}
           onChange={setQuality}
           options={[
             { value: '128',  label: '128 kbps',       sub: 'Small files, acceptable quality' },
@@ -44,32 +40,41 @@ export default function DownloadsSection() {
       </SettingsGroup>
 
       <SettingsGroup title="Options">
-        <SettingsRow label="Embed artwork" description="Save album cover art inside the downloaded file">
+        <SettingsRow
+          label="Embed artwork"
+          description="Save album cover art inside the downloaded file"
+        >
           <Toggle value={artwork} onChange={setArtwork} />
         </SettingsRow>
-        <SettingsRow label="Embed lyrics" description="Save synced lyrics inside the downloaded file">
+        <SettingsRow
+          label="Embed lyrics"
+          description="Save synced lyrics inside the downloaded file"
+        >
           <Toggle value={lyrics} onChange={setLyrics} />
         </SettingsRow>
-        <SettingsRow label="Wi-Fi only" description="Pause downloads when on mobile data">
+        <SettingsRow
+          label="Wi-Fi only"
+          description="Pause downloads when on mobile data"
+        >
           <Toggle value={wifiOnly} onChange={setWifi} />
         </SettingsRow>
-        <SettingsRow label="Concurrent downloads" value={String(maxConc)} onClick={() => {}}>
+        <SettingsRow label="Concurrent downloads">
           <div className="flex items-center gap-2">
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={(e) => { e.stopPropagation(); setMaxConc(Math.max(1, maxConc - 1)) }}
+            <button
+              onClick={() => setMaxConc(Math.max(1, maxConc - 1))}
               className="w-7 h-7 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-primary)] font-bold text-sm"
             >
               −
-            </motion.button>
-            <span className="text-sm font-bold text-[var(--text-primary)] w-4 text-center">{maxConc}</span>
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={(e) => { e.stopPropagation(); setMaxConc(Math.min(8, maxConc + 1)) }}
+            </button>
+            <span className="text-sm font-bold text-[var(--text-primary)] w-4 text-center">
+              {maxConc}
+            </span>
+            <button
+              onClick={() => setMaxConc(Math.min(8, maxConc + 1))}
               className="w-7 h-7 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-primary)] font-bold text-sm"
             >
               +
-            </motion.button>
+            </button>
           </div>
         </SettingsRow>
       </SettingsGroup>

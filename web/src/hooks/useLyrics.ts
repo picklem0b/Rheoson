@@ -1,40 +1,43 @@
-import { useState, useEffect, useRef } from 'react'
-import { lyricsApi, type LyricsLine } from '@/api/lyrics'
+import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { lyricsApi } from '@/api/lyrics'
 import { usePlayerStore } from '@/store/playerStore'
 
+interface LyricsLine {
+  text:       string
+  startTime?: number
+}
+
 export function useLyrics(trackId: string | undefined) {
-  const [lines, setLines]           = useState<LyricsLine[]>([])
+  const { progress, currentTrack } = usePlayerStore()
   const [activeLine, setActiveLine] = useState(0)
-  const [isLoading, setLoading]     = useState(false)
-  const [synced, setSynced]         = useState(false)
-  const progress                    = usePlayerStore((s) => s.progress)
 
-  useEffect(() => {
-    if (!trackId) return
-    setLoading(true)
-    setLines([])
-    setActiveLine(0)
+  const { data, isLoading } = useQuery({
+    queryKey:  ['lyrics', trackId],
+    queryFn:   () => lyricsApi.getLyrics(
+      trackId!,
+      currentTrack?.title,
+      currentTrack?.artist?.name,
+    ),
+    enabled:   !!trackId,
+    staleTime: 30 * 60 * 1000,
+    gcTime:    60 * 60 * 1000,
+    retry:     false,
+  })
 
-    lyricsApi.getLyrics(trackId)
-      .then((data) => {
-        setLines(data.lines)
-        setSynced(data.synced)
-      })
-      .catch(() => setLines([]))
-      .finally(() => setLoading(false))
-  }, [trackId])
+  const lines  = data?.lines  ?? []
+  const synced = data?.synced ?? false
 
-  // Sync active line to playback progress
   useEffect(() => {
     if (!synced || lines.length === 0) return
-    const ms = progress * 1000
+    const progressMs = progress * 1000
     let idx = 0
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].time <= ms) idx = i
-      else break
+      const t = lines[i].startTime
+      if (t !== undefined && t <= progressMs) idx = i
     }
     setActiveLine(idx)
   }, [progress, lines, synced])
 
-  return { lines, activeLine, isLoading, synced }
+  return { lines, activeLine, synced, isLoading }
 }

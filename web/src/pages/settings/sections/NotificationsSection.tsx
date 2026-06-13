@@ -1,18 +1,18 @@
-import { useState } from 'react'
+import { usePersisted } from '@/hooks/usePersisted'
 import { SettingsGroup, SettingsRow, Toggle } from '../components/SettingsPrimitives'
 
 export default function NotificationsSection() {
-  const [dlDone,  setDlDone]  = useState(true)
-  const [dlFail,  setDlFail]  = useState(true)
-  const [sound,   setSound]   = useState(true)
-  const [updates, setUpdates] = useState(false)
+  const [dlDone,  setDlDone]  = usePersisted('notif-dl-done', true)
+  const [dlFail,  setDlFail]  = usePersisted('notif-dl-fail', true)
+  const [sound,   setSound]   = usePersisted('notif-sound', true)
+  const [updates, setUpdates] = usePersisted('notif-updates', false)
 
   return (
     <div className="pb-2">
       <SettingsGroup title="Downloads">
         <SettingsRow
           label="Download complete"
-          description="Play a sound and show a notification when a track finishes downloading"
+          description="Play a sound and show a notification when a track finishes"
         >
           <Toggle value={dlDone} onChange={setDlDone} />
         </SettingsRow>

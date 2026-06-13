@@ -1,30 +1,33 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FolderOpen, RefreshCw, ExternalLink, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { usePersisted } from '@/hooks/usePersisted'
 import { SettingsGroup, SettingsRow, Toggle } from '../components/SettingsPrimitives'
 
-interface MusicDir {
-  path: string
-  active: boolean
-}
-
-const DEFAULT_DIRS: MusicDir[] = [
+const DEFAULT_DIRS = [
   { path: '/data/data/com.termux/files/home/shulker/music', active: true  },
   { path: '/storage/emulated/0/Music',                      active: true  },
   { path: '/storage/emulated/0/Download',                   active: false },
 ]
 
 export default function StorageSection() {
-  const [dirs,      setDirs]      = useState<MusicDir[]>(DEFAULT_DIRS)
+  const [dirs,      setDirs]      = usePersisted('music-dirs', DEFAULT_DIRS)
   const [customDir, setCustomDir] = useState('')
   const [adding,    setAdding]    = useState(false)
+  const [rescanning, setRescanning] = useState(false)
 
   const addDir = () => {
     if (!customDir.trim()) return
-    setDirs((d) => [...d, { path: customDir.trim(), active: true }])
+    setDirs([...dirs, { path: customDir.trim(), active: true }])
     setCustomDir('')
     setAdding(false)
+  }
+
+  const rescan = async () => {
+    setRescanning(true)
+    try { await fetch('/api/library/rescan', { method: 'POST' }) } catch {}
+    setTimeout(() => setRescanning(false), 1500)
   }
 
   return (
@@ -40,7 +43,9 @@ export default function StorageSection() {
             </div>
             <Toggle
               value={d.active}
-              onChange={(v) => setDirs(dirs.map((x, j) => (j === i ? { ...x, active: v } : x)))}
+              onChange={(v) =>
+                setDirs(dirs.map((x, j) => (j === i ? { ...x, active: v } : x)))
+              }
             />
           </div>
         ))}
@@ -60,9 +65,7 @@ export default function StorageSection() {
                   placeholder="/path/to/music"
                   className="flex-1 h-9 px-3 text-sm rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)]"
                 />
-                <Button size="sm" variant="primary" onClick={addDir}>
-                  Add
-                </Button>
+                <Button size="sm" variant="primary" onClick={addDir}>Add</Button>
               </div>
             </motion.div>
           )}
@@ -81,12 +84,10 @@ export default function StorageSection() {
         <SettingsRow
           label="Rescan library"
           description="Re-index all music directories"
-          onClick={() => {}}
+          onClick={rescan}
         >
-          <RefreshCw className="w-4 h-4 text-[var(--text-muted)]" />
+          <RefreshCw className={rescanning ? 'w-4 h-4 text-[var(--accent)] animate-spin' : 'w-4 h-4 text-[var(--text-muted)]'} />
         </SettingsRow>
-        {/* value comes from API: GET /api/tracks count */}
-        <SettingsRow label="Library size" value="—" />
         <SettingsRow
           label="Export library"
           description="Save your library as JSON"
@@ -97,10 +98,16 @@ export default function StorageSection() {
       </SettingsGroup>
 
       <SettingsGroup title="Cache">
-        {/* values come from GET /api/health */}
-        <SettingsRow label="Stream cache"  value="—" />
-        <SettingsRow label="Artwork cache" value="—" />
-        <SettingsRow label="Clear all cache" danger onClick={() => {}}>
+        <SettingsRow
+          label="Clear stream cache"
+          danger
+          onClick={async () => {
+            try { await fetch('/api/stream/cache/clear', { method: 'POST' }) } catch {}
+          }}
+        >
+          <Trash2 className="w-4 h-4 text-red-400" />
+        </SettingsRow>
+        <SettingsRow label="Clear artwork cache" danger onClick={() => {}}>
           <Trash2 className="w-4 h-4 text-red-400" />
         </SettingsRow>
       </SettingsGroup>

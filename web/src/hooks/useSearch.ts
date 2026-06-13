@@ -4,44 +4,75 @@ import { isAbortError } from '@/api/client'
 import type { SearchResults, SearchFilter } from '@/types/search'
 import { detectInputType } from '@/lib/utils'
 
-const DEBOUNCE_MS  = 200  // full search debounce
-const SUGGEST_MS   =  80  // suggestion debounce (near-instant)
+const DEBOUNCE_MS = 200
+const SUGGEST_MS  = 80
+
+// Persist last query so Search page restores state when you navigate back
+const SESSION_KEY = 'shulker-last-search'
+
+function readSession(): { query: string; filter: SearchFilter } {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    return raw ? JSON.parse(raw) : { query: '', filter: 'all' }
+  } catch {
+    return { query: '', filter: 'all' }
+  }
+}
+
+function writeSession(query: string, filter: SearchFilter) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ query, filter }))
+  } catch {}
+}
 
 export function useSearch() {
-  const [query,        setQuery]        = useState('')
-  const [filter,       setFilter]       = useState<SearchFilter>('all')
-  const [results,      setResults]      = useState<SearchResults | null>(null)
-  const [suggestions,  setSuggestions]  = useState<string[]>([])
-  const [isLoading,    setLoading]      = useState(false)
-  const [isSuggesting, setSuggesting]   = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
+  const saved = readSession()
 
-  // AbortControllers to cancel in-flight requests on new keystrokes
+  const [query,        setQueryState]  = useState(saved.query)
+  const [filter,       setFilterState] = useState<SearchFilter>(saved.filter)
+  const [results,      setResults]     = useState<SearchResults | null>(null)
+  const [suggestions,  setSuggestions] = useState<string[]>([])
+  const [isLoading,    setLoading]     = useState(false)
+  const [isSuggesting, setSuggesting]  = useState(false)
+  const [error,        setError]       = useState<string | null>(null)
+
   const searchAbort  = useRef<AbortController | null>(null)
   const suggestAbort = useRef<AbortController | null>(null)
-
   const searchTimer  = useRef<number | null>(null)
   const suggestTimer = useRef<number | null>(null)
 
-  // ── Suggestions (near-instant, no filter) ────────────────
+  const setQuery = useCallback((q: string) => {
+    setQueryState(q)
+    // Clear suggestions immediately when query changes —
+    // prevents stale suggestions showing over new results
+    if (!q) setSuggestions([])
+  }, [])
 
+  const setFilter = useCallback((f: SearchFilter) => {
+    setFilterState(f)
+  }, [])
+
+  // ── Suggestions ───────────────────────────────────────────
   useEffect(() => {
     if (suggestTimer.current) clearTimeout(suggestTimer.current)
     suggestAbort.current?.abort()
 
     const q = query.trim()
-    if (!q || q.length < 2 || detectInputType(q) !== 'query') {
+
+    // Suppress suggestions when results are already shown —
+    // this was the "still suggesting" bug: results arrived but
+    // suggestions stayed open because we never cleared them.
+    if (!q || q.length < 2 || detectInputType(q) !== 'query' || results) {
       setSuggestions([])
       return
     }
 
     suggestTimer.current = window.setTimeout(async () => {
-      const controller = new AbortController()
-      suggestAbort.current = controller
-
+      const ctrl = new AbortController()
+      suggestAbort.current = ctrl
       setSuggesting(true)
       try {
-        const data = await searchApi.getSuggestions(q, controller.signal)
+        const data = await searchApi.getSuggestions(q, ctrl.signal)
         setSuggestions(data)
       } catch (e) {
         if (!isAbortError(e)) setSuggestions([])
@@ -54,43 +85,49 @@ export function useSearch() {
       if (suggestTimer.current) clearTimeout(suggestTimer.current)
       suggestAbort.current?.abort()
     }
-  }, [query])
+  }, [query, results])
 
-  // ── Full search (debounced) ───────────────────────────────
-  // doSearch is NOT memoised with useCallback + deps because that
-  // causes the effect below to re-run when doSearch identity changes,
-  // creating a double-search on filter change.  Instead we read query
-  // and filter directly inside the effect.
-
+  // ── Full search ───────────────────────────────────────────
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current)
     searchAbort.current?.abort()
 
     const q = query.trim()
-    if (!q) { setResults(null); setError(null); return }
+
+    if (!q) {
+      setResults(null)
+      setError(null)
+      writeSession('', filter)
+      return
+    }
 
     searchTimer.current = window.setTimeout(async () => {
-      const controller = new AbortController()
-      searchAbort.current = controller
+      const ctrl = new AbortController()
+      searchAbort.current = ctrl
 
       setLoading(true)
       setError(null)
 
       try {
         const type = detectInputType(q)
+        let data: SearchResults
 
         if (type === 'spotify' || type === 'youtube') {
-          const resolved = await searchApi.resolve(q, controller.signal)
+          const resolved = await searchApi.resolve(q, ctrl.signal)
           const tracks   = resolveToTracks(resolved)
-          setResults({ tracks, albums: [], artists: [], playlists: [], query: q })
+          data = { tracks, albums: [], artists: [], playlists: [], query: q }
         } else {
-          const data = await searchApi.search(
+          data = await searchApi.search(
             q,
             filter !== 'all' ? filter : undefined,
-            controller.signal,
+            ctrl.signal,
           )
-          setResults(data)
         }
+
+        setResults(data)
+        // Clear suggestions once real results land
+        setSuggestions([])
+        writeSession(q, filter)
       } catch (e) {
         if (!isAbortError(e)) {
           setError(e instanceof Error ? e.message : 'Search failed')
@@ -105,21 +142,20 @@ export function useSearch() {
       if (searchTimer.current) clearTimeout(searchTimer.current)
       searchAbort.current?.abort()
     }
-  }, [query, filter]) // both tracked — filter change fires a new search correctly
-
-  // ── Actions ───────────────────────────────────────────────
+  }, [query, filter])
 
   const clear = useCallback(() => {
     searchAbort.current?.abort()
     suggestAbort.current?.abort()
-    setQuery('')
+    setQueryState('')
     setResults(null)
     setSuggestions([])
     setError(null)
+    writeSession('', 'all')
   }, [])
 
-  const selectSuggestion = useCallback((suggestion: string) => {
-    setQuery(suggestion)
+  const selectSuggestion = useCallback((s: string) => {
+    setQueryState(s)
     setSuggestions([])
   }, [])
 

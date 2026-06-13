@@ -9,8 +9,8 @@ export function SettingsGroup({
   children,
   className,
 }: {
-  title?: string
-  children: React.ReactNode
+  title?:    string
+  children:  React.ReactNode
   className?: string
 }) {
   return (
@@ -32,40 +32,40 @@ export function SettingsGroup({
 export function SettingsRow({
   label,
   description,
-  value,
   onClick,
   children,
   danger,
 }: {
-  label: string
+  label:        string
   description?: string
-  value?: string
-  onClick?: () => void
-  children?: React.ReactNode
-  danger?: boolean
+  onClick?:     () => void
+  children?:    React.ReactNode
+  danger?:      boolean
 }) {
   const Tag = onClick ? motion.button : ('div' as any)
   return (
     <Tag
       whileHover={onClick ? { backgroundColor: 'var(--bg-elevated)' } : undefined}
-      whileTap={onClick ? { scale: 0.99 } : undefined}
+      whileTap={onClick   ? { scale: 0.99 }                           : undefined}
       onClick={onClick}
       className="w-full flex items-center justify-between gap-4 px-4 py-3.5 text-left transition-colors"
     >
       <div className="min-w-0 flex-1">
-        <p className={cn('text-sm font-semibold', danger ? 'text-red-400' : 'text-[var(--text-primary)]')}>
+        <p className={cn(
+          'text-sm font-semibold',
+          danger ? 'text-red-400' : 'text-[var(--text-primary)]',
+        )}>
           {label}
         </p>
         {description && (
-          <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{description}</p>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">
+            {description}
+          </p>
         )}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         {children ?? (
-          <>
-            {value && <span className="text-xs text-[var(--text-muted)] font-medium">{value}</span>}
-            {onClick && <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />}
-          </>
+          onClick && <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
         )}
       </div>
     </Tag>
@@ -78,7 +78,7 @@ export function Toggle({
   value,
   onChange,
 }: {
-  value: boolean
+  value:    boolean
   onChange: (v: boolean) => void
 }) {
   return (
@@ -105,26 +105,85 @@ export function RadioGroup<T extends string>({
   value,
   onChange,
 }: {
-  options: { value: T; label: string; sub?: string }[]
-  value: T
+  options:  { value: T; label: string; sub?: string }[]
+  value:    T
   onChange: (v: T) => void
 }) {
   return (
     <>
       {options.map((o) => (
-        <SettingsRow key={o.value} label={o.label} description={o.sub} onClick={() => onChange(o.value)}>
-          <div
-            className={cn(
-              'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors',
-              value === o.value
-                ? 'border-[var(--accent)] bg-[var(--accent)]'
-                : 'border-[var(--border-strong)]',
+        <SettingsRow
+          key={o.value}
+          label={o.label}
+          description={o.sub}
+          onClick={() => onChange(o.value)}
+        >
+          <div className={cn(
+            'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors',
+            value === o.value
+              ? 'border-[var(--accent)] bg-[var(--accent)]'
+              : 'border-[var(--border-strong)]',
+          )}>
+            {value === o.value && (
+              <div className="w-2 h-2 rounded-full bg-white" />
             )}
-          >
-            {value === o.value && <div className="w-2 h-2 rounded-full bg-white" />}
           </div>
         </SettingsRow>
       ))}
     </>
+  )
+}
+
+// ── Slider ────────────────────────────────────────────────────
+
+export function Slider({
+  value,
+  onChange,
+  min   = 0,
+  max   = 1,
+  step  = 0.01,
+  label,
+  formatValue,
+}: {
+  value:         number
+  onChange:      (v: number) => void
+  min?:          number
+  max?:          number
+  step?:         number
+  label?:        string
+  formatValue?:  (v: number) => string
+}) {
+  const pct = ((value - min) / (max - min)) * 100
+
+  return (
+    <div className="px-4 py-3">
+      {label && (
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-xs text-[var(--text-muted)]">{label}</span>
+          <span className="text-xs font-bold text-[var(--text-primary)]">
+            {formatValue ? formatValue(value) : `${Math.round(pct)}%`}
+          </span>
+        </div>
+      )}
+      <div className="relative flex items-center h-5">
+        <div className="w-full h-1.5 rounded-full bg-[var(--bg-overlay)] overflow-hidden">
+          <div
+            className="h-full bg-[var(--accent)] rounded-full transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <input
+          type="range"
+          min={min} max={max} step={step}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          className="absolute inset-0 w-full opacity-0 cursor-pointer h-5"
+        />
+        <div
+          className="absolute w-4 h-4 rounded-full bg-white shadow-md border border-[var(--border)] pointer-events-none"
+          style={{ left: `calc(${pct}% - 8px)` }}
+        />
+      </div>
+    </div>
   )
 }

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette, Volume2, Download, Keyboard, Info,
-  ChevronRight, ChevronLeft, HardDrive, Bell, Shield, User,
+  ChevronRight, ChevronLeft, User,
+  Bell, Shield, HardDrive,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { IconButton } from '@/components/ui/IconButton'
@@ -19,21 +20,28 @@ import NotificationsSection from './sections/NotificationsSection'
 import ShortcutsSection     from './sections/ShortcutsSection'
 import AboutSection         from './sections/AboutSection'
 
+// ── Section registry ──────────────────────────────────────────
+
 type Section =
   | 'appearance' | 'audio'    | 'downloads' | 'storage'
   | 'account'    | 'privacy'  | 'notifications'
   | 'shortcuts'  | 'about'
 
-const SECTIONS: { id: Section; label: string; icon: React.ReactNode; description: string }[] = [
-  { id: 'appearance',    label: 'Appearance',    icon: <Palette   className="w-4 h-4" />, description: 'Theme, colours, display'         },
-  { id: 'audio',         label: 'Audio',         icon: <Volume2   className="w-4 h-4" />, description: 'Quality, equalizer, crossfade'   },
-  { id: 'downloads',     label: 'Downloads',     icon: <Download  className="w-4 h-4" />, description: 'Format, quality, location'       },
-  { id: 'storage',       label: 'Storage',       icon: <HardDrive className="w-4 h-4" />, description: 'Music dirs, cache, library'      },
-  { id: 'account',       label: 'Account',       icon: <User      className="w-4 h-4" />, description: 'Profile, Spotify credentials'    },
-  { id: 'privacy',       label: 'Privacy',       icon: <Shield    className="w-4 h-4" />, description: 'History, data, permissions'      },
-  { id: 'notifications', label: 'Notifications', icon: <Bell      className="w-4 h-4" />, description: 'Download alerts, updates'        },
-  { id: 'shortcuts',     label: 'Shortcuts',     icon: <Keyboard  className="w-4 h-4" />, description: 'Keyboard controls'              },
-  { id: 'about',         label: 'About',         icon: <Info      className="w-4 h-4" />, description: 'Version, credits, terms'        },
+const SECTIONS: {
+  id:          Section
+  label:       string
+  icon:        React.ReactNode
+  description: string
+}[] = [
+  { id: 'appearance',    label: 'Appearance',    icon: <Palette   className="w-4 h-4" />, description: 'Theme, colours, transparency'   },
+  { id: 'audio',         label: 'Audio',         icon: <Volume2   className="w-4 h-4" />, description: 'Quality, crossfade, gapless'    },
+  { id: 'downloads',     label: 'Downloads',     icon: <Download  className="w-4 h-4" />, description: 'Format, quality, embed options' },
+  { id: 'storage',       label: 'Storage',       icon: <HardDrive className="w-4 h-4" />, description: 'Music dirs, cache, library'     },
+  { id: 'account',       label: 'Account',       icon: <User      className="w-4 h-4" />, description: 'Profile, Spotify credentials'   },
+  { id: 'privacy',       label: 'Privacy',       icon: <Shield    className="w-4 h-4" />, description: 'History, data, permissions'     },
+  { id: 'notifications', label: 'Notifications', icon: <Bell      className="w-4 h-4" />, description: 'Download alerts, updates'       },
+  { id: 'shortcuts',     label: 'Shortcuts',     icon: <Keyboard  className="w-4 h-4" />, description: 'Keyboard controls'             },
+  { id: 'about',         label: 'About',         icon: <Info      className="w-4 h-4" />, description: `v${APP_VERSION} · Credits`      },
 ]
 
 function SectionContent({ section }: { section: Section }) {
@@ -47,11 +55,15 @@ function SectionContent({ section }: { section: Section }) {
     case 'notifications': return <NotificationsSection />
     case 'shortcuts':     return <ShortcutsSection />
     case 'about':         return <AboutSection />
+    default:              return null
   }
 }
 
+// ── Root ──────────────────────────────────────────────────────
+
 export default function Settings() {
   const [active, setActive] = useState<Section | null>(null)
+  const meta = SECTIONS.find((s) => s.id === active)
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -61,22 +73,22 @@ export default function Settings() {
         'flex-shrink-0 w-full lg:w-72 border-r border-[var(--border)] flex flex-col',
         active ? 'hidden lg:flex' : 'flex',
       )}>
-        <div className="px-4 lg:px-6 pt-6 pb-4 flex-shrink-0">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Settings</h1>
-          <p className="text-xs text-[var(--text-muted)] mt-1">v{APP_VERSION}</p>
+        <div className="px-4 lg:px-5 pt-6 pb-5 flex-shrink-0 border-b border-[var(--border)]">
+          <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">Settings</h1>
+          <p className="text-xs text-[var(--text-muted)] mt-1">Shulker v{APP_VERSION}</p>
         </div>
 
-        <ScrollArea className="flex-1 px-2 pb-6">
+        <ScrollArea className="flex-1 px-2 py-3">
           {SECTIONS.map((s, i) => (
             <motion.button
               key={s.id}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.04 }}
+              transition={{ delay: i * 0.035 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => setActive(s.id)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-3 rounded-2xl mb-1',
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl mb-0.5',
                 'transition-all duration-200 text-left',
                 active === s.id
                   ? 'bg-[var(--accent-subtle)] border border-[var(--accent-border)]'
@@ -93,14 +105,17 @@ export default function Settings() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className={cn(
-                  'text-sm font-semibold truncate',
+                  'text-sm font-bold truncate',
                   active === s.id ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
                 )}>
                   {s.label}
                 </p>
-                <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">{s.description}</p>
+                <p className="text-[11px] text-[var(--text-muted)] truncate">{s.description}</p>
               </div>
-              <ChevronRight className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+              <ChevronRight className={cn(
+                'w-4 h-4 flex-shrink-0 transition-colors',
+                active === s.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
+              )} />
             </motion.button>
           ))}
         </ScrollArea>
@@ -117,25 +132,34 @@ export default function Settings() {
               key={active}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0  }}
-              exit={{   opacity: 0, x: -10 }}
+              exit={{ opacity: 0, x: -10   }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="flex flex-col h-full"
             >
-              <div className="flex items-center gap-3 px-4 lg:px-6 pt-5 pb-4 flex-shrink-0 border-b border-[var(--border)]">
-                <IconButton size="sm" variant="ghost" className="lg:hidden" onClick={() => setActive(null)}>
+              {/* Sub-header */}
+              <div className="flex items-center gap-3 px-4 lg:px-5 pt-5 pb-4 flex-shrink-0 border-b border-[var(--border)]">
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  className="lg:hidden"
+                  onClick={() => setActive(null)}
+                >
                   <ChevronLeft />
                 </IconButton>
-                <div>
-                  <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                    {SECTIONS.find((s) => s.id === active)?.label}
-                  </h2>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    {SECTIONS.find((s) => s.id === active)?.description}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--accent)] text-white flex items-center justify-center">
+                    {meta?.icon}
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-[var(--text-primary)] leading-tight">
+                      {meta?.label}
+                    </h2>
+                    <p className="text-xs text-[var(--text-muted)]">{meta?.description}</p>
+                  </div>
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 px-4 lg:px-6 py-5">
+              <ScrollArea className="flex-1 px-4 lg:px-5 py-5">
                 <SectionContent section={active} />
               </ScrollArea>
             </motion.div>
@@ -144,14 +168,14 @@ export default function Settings() {
               key="placeholder"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="hidden lg:flex flex-1 items-center justify-center flex-col gap-4"
+              className="hidden lg:flex flex-1 items-center justify-center flex-col gap-5"
             >
               <div className="w-20 h-20 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]">
                 <ChevronRight className="w-8 h-8 text-[var(--text-muted)]" />
               </div>
               <div className="text-center">
-                <p className="text-[var(--text-secondary)] font-semibold">Select a section</p>
-                <p className="text-[var(--text-muted)] text-sm mt-1">Choose from the left to configure Shulker</p>
+                <p className="text-[var(--text-primary)] font-bold">Select a section</p>
+                <p className="text-[var(--text-muted)] text-sm mt-1">Configure Shulker from the left</p>
               </div>
             </motion.div>
           )}

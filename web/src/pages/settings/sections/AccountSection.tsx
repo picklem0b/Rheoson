@@ -1,10 +1,39 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Check, Key, Trash2 } from 'lucide-react'
+import React, { useState } from 'react'
+import { Key, Check, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { useSpotifyCredentials } from '@/hooks/useSpotifyCredentials'
 import { SettingsGroup, SettingsRow } from '../components/SettingsPrimitives'
 import { cn } from '@/lib/utils'
+import { json } from 'react-router-dom';
+
+const SP_ID_KEY     = 'shulker-spotify-client-id'
+const SP_SECRET_KEY = 'shulker-spotify-client-secret'
+
+function useSpotifyCredentials() {
+  const [clientId,     setClientId]     = useState(() => localStorage.getItem(SP_ID_KEY)     || '')
+  const [clientSecret, setClientSecret] = useState(() => localStorage.getItem(SP_SECRET_KEY) || '')
+  const hasCredentials = Boolean(clientId && clientSecret)
+
+  const save = (id: string, secret: string) => {
+    localStorage.setItem(SP_ID_KEY, id)
+    localStorage.setItem(SP_SECRET_KEY, secret)
+    setClientId(id)
+    setClientSecret(secret)
+    fetch('/api/settings/spotify', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ clientId: id, clientSecret: secret }),
+    }).catch(() => {})
+  }
+
+  const clear = () => {
+    localStorage.removeItem(SP_ID_KEY)
+    localStorage.removeItem(SP_SECRET_KEY)
+    setClientId('')
+    setClientSecret('')
+  }
+
+  return { clientId, clientSecret, hasCredentials, save, clear }
+}
 
 export default function AccountSection() {
   const { clientId, clientSecret, hasCredentials, save, clear } = useSpotifyCredentials()
@@ -26,83 +55,79 @@ export default function AccountSection() {
 
   return (
     <div className="pb-2">
-      <SettingsGroup title="Profile">
-        <div className="px-4 py-5 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-bright)] flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+      {/* Profile hero */}
+      <div className="mb-5 rounded-3xl overflow-hidden bg-gradient-to-br from-[var(--accent)]/20 via-[var(--bg-surface)] to-[var(--bg-surface)] border border-[var(--border)]">
+        <div className="px-5 py-6 flex items-center gap-4">
+          <div className="w-[72px] h-[72px] rounded-3xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-bright)] flex items-center justify-center text-3xl font-black text-white shadow-xl">
             L
           </div>
           <div>
-            <p className="font-bold text-[var(--text-primary)] text-lg">LethaboK</p>
+            <p className="font-black text-[var(--text-primary)] text-xl tracking-tight">LethaboK</p>
             <p className="text-sm text-[var(--text-muted)]">lethabokhedama-png</p>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">Self-hosted · Local</p>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              <span className="text-xs text-green-400 font-semibold">Self-hosted · Local</span>
+            </div>
           </div>
         </div>
-        <SettingsRow label="Edit display name" onClick={() => {}} />
-        <SettingsRow label="Change avatar"     onClick={() => {}} />
-      </SettingsGroup>
+        <div className="border-t border-[var(--border)] divide-y divide-[var(--border)]">
+          <SettingsRow label="Edit display name" onClick={() => {}} />
+          <SettingsRow label="Change avatar"     onClick={() => {}} />
+        </div>
+      </div>
 
       <SettingsGroup title="Spotify credentials">
         <div className="px-4 py-4 space-y-3">
-          <div
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold',
-              hasCredentials
-                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                : 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
-            )}
-          >
+          <div className={cn(
+            'flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold',
+            hasCredentials
+              ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+              : 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
+          )}>
             <Key className="w-3.5 h-3.5" />
             {hasCredentials
-              ? '✓ Spotify connected — search, playlists and trending are unlocked'
+              ? '✓ Spotify connected — metadata, artwork and link resolution unlocked'
               : '⚠ No credentials — add your Spotify Client ID and Secret below'}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-              Client ID
-            </label>
-            <input
-              value={editId}
-              onChange={(e) => setEditId(e.target.value)}
-              placeholder="e.g. c6081b467a154fd69ba432261b973cd5"
-              className="w-full h-10 px-3 text-sm rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] font-mono"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-              Client Secret
-            </label>
-            <div className="relative">
-              <input
-                type={showSecret ? 'text' : 'password'}
-                value={editSecret}
-                onChange={(e) => setEditSecret(e.target.value)}
-                placeholder="e.g. 82ec996a6dba4218965bfea6483bd9c5"
-                className="w-full h-10 px-3 pr-10 text-sm rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] font-mono"
-              />
-              <button
-                onClick={() => setShowSecret(!showSecret)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors text-xs"
-              >
-                {showSecret ? 'hide' : 'show'}
-              </button>
+          {(['Client ID', 'Client Secret'] as const).map((label, i) => (
+            <div key={label} className="space-y-1.5">
+              <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                {label}
+              </label>
+              <div className="relative">
+                <input
+                  type={i === 1 && !showSecret ? 'password' : 'text'}
+                  value={i === 0 ? editId : editSecret}
+                  onChange={(e) => i === 0 ? setEditId(e.target.value) : setEditSecret(e.target.value)}
+                  placeholder={i === 0
+                    ? 'c6081b467a154fd69ba432261b973cd5'
+                    : '82ec996a6dba4218965bfea6483bd9c5'}
+                  className="w-full h-10 px-3 pr-12 text-sm rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] font-mono"
+                />
+                {i === 1 && (
+                  <button
+                    onClick={() => setShowSecret(!showSecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  >
+                    {showSecret ? 'hide' : 'show'}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          ))}
 
           <div className="flex gap-2 pt-1">
             <Button variant="primary" size="sm" loading={saving} onClick={handleSave} className="flex-1">
               {saved ? <><Check className="w-4 h-4" /> Saved</> : 'Save credentials'}
             </Button>
             {hasCredentials && (
-              <Button variant="danger" size="sm" onClick={clear}>
-                Disconnect
-              </Button>
+              <Button variant="danger" size="sm" onClick={clear}>Disconnect</Button>
             )}
           </div>
 
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed pt-1">
-            Get your credentials at{' '}
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+            Get credentials at{' '}
             <a
               href="https://developer.spotify.com/dashboard"
               target="_blank"
@@ -111,8 +136,7 @@ export default function AccountSection() {
             >
               developer.spotify.com/dashboard
             </a>
-            . Create an app, copy the Client ID and Client Secret. These are stored locally and only
-            used for metadata — Shulker never streams from Spotify.
+            . Stored locally only — Shulker never streams from Spotify.
           </p>
         </div>
       </SettingsGroup>

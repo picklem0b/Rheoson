@@ -1,15 +1,15 @@
-import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check } from 'lucide-react'
 import { useThemeStore } from '@/store/themeStore'
 import { ACCENT_THEMES } from '@/themes'
-import { SettingsGroup, SettingsRow, Toggle } from '../components/SettingsPrimitives'
+import { usePersisted } from '@/hooks/usePersisted'
+import { SettingsGroup, SettingsRow, Toggle, Slider } from '../components/SettingsPrimitives'
 
 export default function AppearanceSection() {
-  const { theme, setAccent, setSurface } = useThemeStore()
-  const [compact, setCompact] = useState(false)
-  const [showArt, setShowArt] = useState(true)
-  const [animations, setAnimations] = useState(true)
+  const { theme, setAccent, setSurface, glassOpacity, setGlassOpacity } = useThemeStore()
+  const [compact,    setCompact]    = usePersisted('compact-mode', false)
+  const [showArt,    setShowArt]    = usePersisted('show-artwork', true)
+  const [animations, setAnimations] = usePersisted('animations', true)
 
   return (
     <div className="pb-2">
@@ -25,9 +25,9 @@ export default function AppearanceSection() {
                 title={t.label}
                 className="relative w-10 h-10 rounded-full border-2 transition-all duration-200 shadow-md"
                 style={{
-                  background: `linear-gradient(135deg, ${t.color}, ${t.bright})`,
+                  background:  `linear-gradient(135deg, ${t.color}, ${t.bright})`,
                   borderColor: theme.accent === t.id ? 'white' : 'transparent',
-                  boxShadow: theme.accent === t.id ? `0 0 0 3px ${t.color}44` : undefined,
+                  boxShadow:   theme.accent === t.id ? `0 0 0 3px ${t.color}44` : undefined,
                 }}
               >
                 <AnimatePresence>
@@ -47,7 +47,9 @@ export default function AppearanceSection() {
           </div>
           <p className="text-xs text-[var(--text-muted)] mt-3">
             Currently:{' '}
-            <span className="text-[var(--accent)] font-semibold capitalize">{theme.accent}</span>
+            <span className="text-[var(--accent)] font-semibold capitalize">
+              {theme.accent}
+            </span>
           </p>
         </div>
       </SettingsGroup>
@@ -61,14 +63,42 @@ export default function AppearanceSection() {
         </SettingsRow>
       </SettingsGroup>
 
+      <SettingsGroup title="Transparency">
+        <div>
+          <div className="px-4 pt-3.5 pb-1">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Glass opacity</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Controls how opaque the sidebar, player bar, and overlays appear
+            </p>
+          </div>
+          <Slider
+            value={glassOpacity}
+            onChange={setGlassOpacity}
+            min={0.1}
+            max={1.0}
+            step={0.05}
+            label="Opacity"
+          />
+        </div>
+      </SettingsGroup>
+
       <SettingsGroup title="Display">
-        <SettingsRow label="Compact mode" description="Smaller track rows and tighter spacing">
+        <SettingsRow
+          label="Compact mode"
+          description="Smaller track rows and tighter spacing"
+        >
           <Toggle value={compact} onChange={setCompact} />
         </SettingsRow>
-        <SettingsRow label="Show album art" description="Display artwork in track lists">
+        <SettingsRow
+          label="Show album art"
+          description="Display artwork in track lists"
+        >
           <Toggle value={showArt} onChange={setShowArt} />
         </SettingsRow>
-        <SettingsRow label="Animations" description="Motion and transitions throughout the app">
+        <SettingsRow
+          label="Animations"
+          description="Motion and transitions throughout the app"
+        >
           <Toggle value={animations} onChange={setAnimations} />
         </SettingsRow>
       </SettingsGroup>
