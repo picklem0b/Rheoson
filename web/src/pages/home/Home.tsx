@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { Play, TrendingUp, Clock, Sparkles } from 'lucide-react'
+import { TrendingUp, Clock, Sparkles, Play } from 'lucide-react'
 import { useQueue } from '@/hooks/useQueue'
 import { usePlayerStore } from '@/store/playerStore'
 import { tracksApi } from '@/api/tracks'
@@ -16,25 +16,17 @@ import type { Track } from '@/types/track'
 
 function greeting() {
   const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
-  return 'Good evening'
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 }
 
 // ── Section header ────────────────────────────────────────────
 
-function SectionHeader({
-  icon: Icon,
-  title,
-  subtitle,
-}: {
-  icon: React.ElementType
-  title: string
-  subtitle?: string
+function SectionHeader({ icon: Icon, title, subtitle }: {
+  icon: React.ElementType; title: string; subtitle?: string
 }) {
   return (
     <div className="flex items-center gap-2.5 mb-4">
-      <div className="w-7 h-7 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center">
+      <div className="w-7 h-7 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center flex-shrink-0">
         <Icon className="w-3.5 h-3.5 text-[var(--accent)]" />
       </div>
       <div>
@@ -45,21 +37,12 @@ function SectionHeader({
   )
 }
 
-// ── Quick picks — 2-col pill grid ─────────────────────────────
-
-function QuickPicksSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <Skeleton key={i} className="h-16 rounded-2xl" />
-      ))}
-    </div>
-  )
-}
+// ── Quick picks — 2-col grid ──────────────────────────────────
 
 function QuickPicks({ tracks }: { tracks: Track[] }) {
-  const { playTrack }    = useQueue()
-  const { currentTrack, isPlaying } = usePlayerStore()
+  const { playTrack }               = useQueue()
+  const currentTrack                = usePlayerStore((s) => s.currentTrack)
+  const isPlaying                   = usePlayerStore((s) => s.isPlaying)
 
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -74,7 +57,7 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
             whileTap={{ scale: 0.97 }}
             onClick={() => playTrack(track, tracks)}
             className={cn(
-              'group flex items-center gap-3 rounded-2xl overflow-hidden text-left transition-colors',
+              'group flex items-center gap-0 rounded-2xl overflow-hidden text-left transition-colors',
               active
                 ? 'bg-[var(--accent-subtle)] border border-[var(--accent-border)]'
                 : 'bg-[var(--bg-surface)] border border-[var(--border)] hover:bg-[var(--bg-elevated)]',
@@ -88,11 +71,11 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
               }
               {active && isPlaying && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <div className="flex gap-0.5 items-end h-3">
+                  <div className="flex gap-[2px] items-end h-3">
                     {[0, 1, 2].map((j) => (
                       <motion.div
                         key={j}
-                        className="w-0.5 bg-white rounded-full"
+                        className="w-[2px] bg-white rounded-full"
                         animate={{ height: ['40%', '100%', '60%'] }}
                         transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
                       />
@@ -101,9 +84,8 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
                 </div>
               )}
             </div>
-
             {/* Info */}
-            <div className="flex-1 min-w-0 pr-2">
+            <div className="flex-1 min-w-0 px-2.5">
               <p className={cn(
                 'text-xs font-bold truncate leading-tight',
                 active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
@@ -123,32 +105,18 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
 
 // ── Featured carousel ─────────────────────────────────────────
 
-function FeaturedSkeleton() {
-  return (
-    <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-4 px-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="w-44 h-56 rounded-3xl flex-shrink-0" />
-      ))}
-    </div>
-  )
-}
+const GRADIENTS = [
+  'from-violet-900 to-purple-700',
+  'from-rose-900 to-pink-700',
+  'from-cyan-900 to-blue-700',
+  'from-amber-900 to-orange-700',
+  'from-emerald-900 to-green-700',
+]
 
-function FeaturedCarousel({
-  items,
-}: {
+function FeaturedCarousel({ items }: {
   items: { id: string; title: string; subtitle?: string; artworkUrl?: string; type: 'playlist' | 'album' }[]
 }) {
   const navigate = useNavigate()
-
-  const GRADIENTS = [
-    'from-violet-900 to-purple-700',
-    'from-rose-900 to-pink-700',
-    'from-cyan-900 to-blue-700',
-    'from-amber-900 to-orange-700',
-    'from-emerald-900 to-green-700',
-    'from-red-900 to-rose-700',
-  ]
-
   return (
     <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
       {items.map((item, i) => (
@@ -156,19 +124,17 @@ function FeaturedCarousel({
           key={item.id}
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: i * 0.06 }}
-          whileHover={{ scale: 1.03, y: -2 }}
+          transition={{ delay: i * 0.05 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate(`/${item.type}/${item.id}`)}
           className="flex-shrink-0 w-44 text-left group"
         >
-          <div className="relative w-44 h-44 rounded-3xl overflow-hidden mb-3 shadow-lg">
+          <div className="relative w-44 h-44 rounded-3xl overflow-hidden mb-2.5 shadow-lg">
             {item.artworkUrl
               ? <img src={item.artworkUrl} alt={item.title} className="w-full h-full object-cover" />
               : <div className={cn('w-full h-full bg-gradient-to-br', GRADIENTS[i % GRADIENTS.length])} />
             }
-            {/* Play button on hover */}
-            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
               <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg ml-auto">
                 <Play className="w-4 h-4 text-black fill-current ml-0.5" />
               </div>
@@ -186,19 +152,10 @@ function FeaturedCarousel({
 
 // ── Trending list ─────────────────────────────────────────────
 
-function TrendingSkeleton() {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Skeleton key={i} className="h-14 rounded-2xl" />
-      ))}
-    </div>
-  )
-}
-
 function TrendingList({ tracks }: { tracks: Track[] }) {
-  const { playTrack }    = useQueue()
-  const { currentTrack, isPlaying } = usePlayerStore()
+  const { playTrack }   = useQueue()
+  const currentTrack    = usePlayerStore((s) => s.currentTrack)
+  const isPlaying       = usePlayerStore((s) => s.isPlaying)
 
   return (
     <div className="space-y-1">
@@ -213,19 +170,16 @@ function TrendingList({ tracks }: { tracks: Track[] }) {
             whileTap={{ scale: 0.98 }}
             onClick={() => playTrack(track, tracks)}
             className={cn(
-              'w-full group flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
               active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',
             )}
           >
-            {/* Rank */}
             <span className={cn(
               'text-sm tabular-nums w-5 text-center font-bold flex-shrink-0',
               active ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
             )}>
               {i + 1}
             </span>
-
-            {/* Artwork */}
             <div className="relative flex-shrink-0">
               {track.artworkUrl
                 ? <img src={track.artworkUrl} alt={track.title} className="w-11 h-11 rounded-xl object-cover" />
@@ -233,11 +187,11 @@ function TrendingList({ tracks }: { tracks: Track[] }) {
               }
               {active && isPlaying && (
                 <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center">
-                  <div className="flex gap-0.5 items-end h-3">
+                  <div className="flex gap-[2px] items-end h-3">
                     {[0, 1, 2].map((j) => (
                       <motion.div
                         key={j}
-                        className="w-0.5 bg-white rounded-full"
+                        className="w-[2px] bg-white rounded-full"
                         animate={{ height: ['40%', '100%', '60%'] }}
                         transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
                       />
@@ -246,8 +200,6 @@ function TrendingList({ tracks }: { tracks: Track[] }) {
                 </div>
               )}
             </div>
-
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <p className={cn(
                 'text-sm font-semibold truncate',
@@ -257,7 +209,6 @@ function TrendingList({ tracks }: { tracks: Track[] }) {
               </p>
               <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist.name}</p>
             </div>
-
             <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
               {formatDuration(track.duration)}
             </span>
@@ -304,78 +255,77 @@ function EmptyHome() {
 export default function Home() {
   const { playTrack } = useQueue()
 
-  const { data: recent,   isLoading: loadingRecent   } = useQuery({
-    queryKey: ['recently-played'],
-    queryFn:  () => tracksApi.getRecentlyPlayed(16),
+  const { data: recent, isLoading: loadingRecent } = useQuery({
+    queryKey:  ['recently-played'],
+    queryFn:   () => tracksApi.getRecentlyPlayed(16),
     staleTime: 30_000,
+    retry:     1,
   })
 
   const { data: trending, isLoading: loadingTrending } = useQuery({
-    queryKey: ['trending'],
-    queryFn:  () => tracksApi.getTrending(20),
+    queryKey:  ['trending'],
+    queryFn:   () => tracksApi.getTrending(20),
     staleTime: 5 * 60_000,
+    retry:     1,
+    // Don't keep showing skeleton if endpoint doesn't exist — treat error as empty
   })
 
   const { data: featured, isLoading: loadingFeatured } = useQuery({
-    queryKey: ['featured'],
-    queryFn:  () => libraryApi.getFeatured(10),
+    queryKey:  ['featured'],
+    queryFn:   () => libraryApi.getFeatured(10),
     staleTime: 5 * 60_000,
+    retry:     0,   // 0 retries — if it 404s, fail fast and show nothing
   })
 
-  const hasAnything = (recent?.length ?? 0) > 0
-    || (trending?.length ?? 0) > 0
-    || (featured?.length ?? 0) > 0
-
-  const isLoading = loadingRecent && loadingTrending && loadingFeatured
+  const hasRecent   = (recent?.length   ?? 0) > 0
+  const hasTrending = (trending?.length ?? 0) > 0
+  const hasFeatured = (featured?.length ?? 0) > 0
+  const hasAnything = hasRecent || hasTrending || hasFeatured
+  const allDone     = !loadingRecent && !loadingTrending && !loadingFeatured
 
   return (
     <ScrollArea className="h-full">
       <div className="px-4 lg:px-8 pt-6 pb-10 space-y-8">
 
         {/* Greeting */}
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">{greeting()}</h1>
           <p className="text-sm text-[var(--text-muted)] mt-0.5">What do you want to hear?</p>
         </motion.div>
 
-        {/* Empty state */}
-        {!isLoading && !hasAnything && <EmptyHome />}
+        {/* Empty state — only show when all queries finished and nothing returned */}
+        {allDone && !hasAnything && <EmptyHome />}
 
-        {/* Quick picks — recently played */}
-        {(loadingRecent || (recent?.length ?? 0) > 0) && (
+        {/* Quick picks */}
+        {(loadingRecent || hasRecent) && (
           <section>
             <SectionHeader icon={Clock} title="Quick picks" subtitle="Recently played" />
             {loadingRecent
-              ? <QuickPicksSkeleton />
+              ? <div className="grid grid-cols-2 gap-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
               : <QuickPicks tracks={recent!} />
             }
           </section>
         )}
 
-        {/* Featured */}
-        {(loadingFeatured || (featured?.length ?? 0) > 0) && (
+        {/* Featured — only show section if data actually arrived */}
+        {hasFeatured && (
           <section>
             <SectionHeader icon={Sparkles} title="Featured" subtitle="Curated for you" />
-            {loadingFeatured
-              ? <FeaturedSkeleton />
-              : <FeaturedCarousel items={featured!} />
-            }
+            <FeaturedCarousel items={featured!} />
           </section>
         )}
 
-        {/* Trending */}
-        {(loadingTrending || (trending?.length ?? 0) > 0) && (
+        {/* Trending — only show section if data actually arrived */}
+        {(loadingTrending || hasTrending) && (
           <section>
             <SectionHeader icon={TrendingUp} title="Trending" subtitle="Popular right now" />
             {loadingTrending
-              ? <TrendingSkeleton />
+              ? <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
               : <TrendingList tracks={trending!} />
             }
           </section>
         )}
+
       </div>
     </ScrollArea>
   )
