@@ -5,13 +5,12 @@ import { useQueueStore } from '@/store/queueStore'
 import { tracksApi } from '@/api/tracks'
 
 // ── Module-level singleton ────────────────────────────────────
-// One Howl at a time. Lives outside React so it survives re-renders.
 
 let _howl:     Howl   | null = null
 let _loadedId: string | null = null
 let _timer:    number | null = null
 
-// Guard: don't call recordPlay more than once per track per session
+// Tracks which IDs we've called recordPlay for this session
 const _playedThisSession = new Set<string>()
 
 // ── Timer helpers ─────────────────────────────────────────────
@@ -23,7 +22,6 @@ function _stopTimer() {
 function _startTimer(cb: (s: number) => void) {
   _stopTimer()
   _timer = window.setInterval(() => {
-    // Guard: only read seek if actually playing
     if (_howl?.playing()) cb(_howl.seek() as number)
   }, 250)
 }
@@ -40,11 +38,10 @@ export function usePlayer() {
   const {
     currentTrack, volume, isMuted,
     setPlaying, setLoading, setProgress, setDuration, setTrack,
+    saveProgress,
   } = usePlayerStore()
   const { next, prev } = useQueueStore()
 
-  // Refs so Howl callbacks always see the latest values without
-  // needing to recreate the Howl instance.
   const tickRef  = useRef((s: number) => setProgress(s))
   const volRef   = useRef(isMuted ? 0 : volume)
   const onEndRef = useRef<() => void>(() => {})
@@ -52,58 +49,54 @@ export function usePlayer() {
   useEffect(() => { tickRef.current = (s) => setProgress(s) }, [setProgress])
   useEffect(() => { volRef.current  = isMuted ? 0 : volume  }, [volume, isMuted])
 
-  // Keep onEnd up to date with latest queue/repeat state without
-  // touching the Howl instance.
+  // ── onEnd handler — kept up to date via ref ────────────────
   useEffect(() => {
     onEndRef.current = () => {
       _stopTimer()
       setPlaying(false)
       setProgress(0)
+      saveProgress(0)
 
       const { repeatMode, isShuffled } = usePlayerStore.getState()
 
       if (repeatMode === 'one') {
-        // Repeat current: seek back and play same Howl
         _howl?.seek(0)
         _howl?.play()
         return
       }
 
       const nextTrack = next(isShuffled)
-
-      if (nextTrack) {
-        setTrack(nextTrack)
-        return
-      }
+      if (nextTrack) { setTrack(nextTrack); return }
 
       if (repeatMode === 'all') {
-        // Queue exhausted — restart from the full original queue
         const { originalQueue } = useQueueStore.getState()
         if (originalQueue.length > 0) {
-          // Re-populate the queue and start from the top
           useQueueStore.getState().setQueue(originalQueue, 0)
           setTrack(originalQueue[0])
         }
       }
-      // repeatMode === 'off' and no next → playback stops naturally
     }
-  }, [next, setTrack, setPlaying, setProgress])
+  }, [next, setTrack, setPlaying, setProgress, saveProgress])
 
-  // ── Load and play a track ──────────────────────────────────
+  // ── loadAndPlay ────────────────────────────────────────────
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const loadAndPlay = useCallback((trackId: string, forceRestart = false) => {
-    // Same track, already loaded — just seek to start and play
+  const loadAndPlay = useCallback((
+    trackId:      string,
+    forceRestart: boolean = false,
+    autoplay:     boolean = true,
+    seekTo:       number  = 0,
+  ) => {
+    // Same track already loaded — just seek/play
     if (_loadedId === trackId && _howl && !forceRestart) {
-      _howl.seek(0)
-      setProgress(0)
-      if (!_howl.playing()) _howl.play()
+      if (seekTo > 0) { _howl.seek(seekTo); setProgress(seekTo) }
+      else            { _howl.seek(0);      setProgress(0) }
+      if (autoplay && !_howl.playing()) _howl.play()
       return
     }
 
     _destroy()
     setLoading(true)
-    setProgress(0)
+    setProgress(seekTo)
     setPlaying(false)
     setDuration(0)
     _loadedId = trackId
@@ -116,13 +109,22 @@ export function usePlayer() {
       format:   ['mp3'],
       volume:   volRef.current,
       preload:  true,
-      autoplay: true,
+      autoplay: false, // we control play manually so we can seek first
 
       onload() {
         const dur = _howl?.duration() ?? 0
         if (dur > 0) setDuration(dur)
         setLoading(false)
+
+        // Seek to saved position before playing
+        if (seekTo > 0) {
+          _howl?.seek(seekTo)
+          setProgress(seekTo)
+        }
+
+        if (autoplay) _howl?.play()
       },
+
       onplay() {
         setPlaying(true)
         setLoading(false)
@@ -130,50 +132,64 @@ export function usePlayer() {
         if (dur > 0) setDuration(dur)
         _startTimer((s) => tickRef.current(s))
       },
-      onpause() { setPlaying(false); _stopTimer()              },
-      onstop()  { setPlaying(false); _stopTimer(); setProgress(0) },
-      onend()   { onEndRef.current()                           },
+
+      onpause() {
+        setPlaying(false)
+        _stopTimer()
+        // Save position so resume after reload works
+        const pos = _howl?.seek() as number | undefined
+        if (pos != null && pos > 0) saveProgress(pos)
+      },
+
+      onstop() {
+        setPlaying(false)
+        _stopTimer()
+        setProgress(0)
+        saveProgress(0)
+      },
+
+      onend() { onEndRef.current() },
 
       onloaderror(_id, err) {
-        console.error('[Shulker] stream load error', { trackId, url, err })
+        console.error('[Shulker] load error', { trackId, url, err })
         setLoading(false)
         setPlaying(false)
         _loadedId = null
       },
+
       onplayerror(_id, err) {
-        console.error('[Shulker] playback error', err)
-        // iOS / Chrome may suspend AudioContext until user gesture
+        console.error('[Shulker] play error', err)
         if (Howler.ctx?.state === 'suspended') {
           Howler.ctx.resume().then(() => _howl?.play()).catch(() => {})
         }
       },
     })
-  }, []) // intentionally empty — all values accessed via refs
+  }, []) // stable — all state accessed via refs or store getState()
 
-  // ── Trigger load when currentTrack changes ─────────────────
+  // ── Resume after page reload ───────────────────────────────
+  // On first mount: if currentTrack is rehydrated from localStorage but
+  // _howl is null, reconstruct the Howl without autoplaying.
+  // The user sees the PlayerBar with the last track; pressing play resumes.
 
   useEffect(() => {
     if (!currentTrack?.id) return
 
-    loadAndPlay(currentTrack.id)
+    if (_loadedId === currentTrack.id) return // already loaded this session
 
-    // recordPlay: once per track per page session
-    if (!_playedThisSession.has(currentTrack.id)) {
-      _playedThisSession.add(currentTrack.id)
-      tracksApi.recordPlay(currentTrack.id).catch(() => {})
-    }
+    const { savedProgress } = usePlayerStore.getState()
+
+    // Reload scenario — reconstruct without autoplay, seek to saved position
+    loadAndPlay(currentTrack.id, false, false, savedProgress)
 
     return () => _stopTimer()
-  // loadAndPlay is stable (empty deps), safe to omit per exhaustive-deps
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTrack?.id])
 
-  // ── Same-track restart via custom event ────────────────────
-  // useQueue dispatches this when the user taps the already-playing track.
+  // ── Same-track restart ─────────────────────────────────────
 
   useEffect(() => {
     const handler = () => {
-      if (currentTrack?.id) loadAndPlay(currentTrack.id, true)
+      if (currentTrack?.id) loadAndPlay(currentTrack.id, true, true, 0)
     }
     window.addEventListener('shulker:restart-track', handler)
     return () => window.removeEventListener('shulker:restart-track', handler)
@@ -185,7 +201,7 @@ export function usePlayer() {
     _howl?.volume(isMuted ? 0 : volume)
   }, [volume, isMuted])
 
-  // ── Cleanup on unmount ─────────────────────────────────────
+  // ── Cleanup ────────────────────────────────────────────────
 
   useEffect(() => () => _stopTimer(), [])
 
@@ -193,24 +209,51 @@ export function usePlayer() {
 
   const play = useCallback(() => {
     if (_howl) _howl.play()
-    else if (currentTrack) loadAndPlay(currentTrack.id)
+    else if (currentTrack) {
+      const { savedProgress } = usePlayerStore.getState()
+      loadAndPlay(currentTrack.id, false, true, savedProgress)
+    }
   }, [currentTrack, loadAndPlay])
 
   const pause = useCallback(() => { _howl?.pause() }, [])
 
   const togglePlay = useCallback(() => {
-    if (_howl?.playing()) _howl.pause()
-    else if (_howl)        _howl.play()
-    else if (currentTrack) loadAndPlay(currentTrack.id)
+    if (_howl?.playing()) {
+      _howl.pause()
+    } else if (_howl) {
+      _howl.play()
+    } else if (currentTrack) {
+      const { savedProgress } = usePlayerStore.getState()
+      loadAndPlay(currentTrack.id, false, true, savedProgress)
+    }
   }, [currentTrack, loadAndPlay])
 
   const seek = useCallback((s: number) => {
     _howl?.seek(s)
     setProgress(s)
-  }, [setProgress])
+    saveProgress(s)
+  }, [setProgress, saveProgress])
+
+  /**
+   * resume — explicitly reconstructs the Howl at the saved position
+   * and starts playing. Call this from a "Resume" button or on app focus.
+   */
+  const resume = useCallback(() => {
+    if (!currentTrack) return
+    const { savedProgress } = usePlayerStore.getState()
+
+    if (_howl && _loadedId === currentTrack.id) {
+      // Howl already loaded — just seek and play
+      if (savedProgress > 0) { _howl.seek(savedProgress); setProgress(savedProgress) }
+      _howl.play()
+    } else {
+      // Need to reconstruct
+      loadAndPlay(currentTrack.id, false, true, savedProgress)
+    }
+  }, [currentTrack, loadAndPlay, setProgress])
 
   const restartCurrent = useCallback(() => {
-    if (currentTrack) loadAndPlay(currentTrack.id, true)
+    if (currentTrack) loadAndPlay(currentTrack.id, true, true, 0)
   }, [currentTrack, loadAndPlay])
 
   const skipNext = useCallback(() => {
@@ -221,11 +264,10 @@ export function usePlayer() {
 
   const skipPrev = useCallback(() => {
     const { progress } = usePlayerStore.getState()
-    // Within first 3 seconds → restart; otherwise go to previous
     if (progress > 3) { seek(0); return }
     const t = prev()
     if (t) setTrack(t)
   }, [prev, seek, setTrack])
 
-  return { play, pause, togglePlay, seek, skipNext, skipPrev, restartCurrent }
+  return { play, pause, togglePlay, seek, resume, skipNext, skipPrev, restartCurrent }
 }

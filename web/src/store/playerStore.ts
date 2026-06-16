@@ -4,8 +4,6 @@ import type { Track } from '@/types/track'
 import type { RepeatMode } from '@/types/player'
 import { PLAYER_DEFAULTS } from '@/lib/constants'
 
-// ── Types ─────────────────────────────────────────────────────
-
 interface PlayerStore {
   currentTrack:  Track | null
   isPlaying:     boolean
@@ -17,6 +15,13 @@ interface PlayerStore {
   repeatMode:    RepeatMode
   isShuffled:    boolean
 
+  /**
+   * savedProgress: the last known progress position (seconds).
+   * Persisted to localStorage so resume knows where to seek after reload.
+   * Distinct from `progress` which is ephemeral (updates 4x/sec).
+   */
+  savedProgress: number
+
   setTrack:      (track: Track) => void
   setPlaying:    (v: boolean) => void
   setLoading:    (v: boolean) => void
@@ -24,40 +29,45 @@ interface PlayerStore {
   toggleMute:    () => void
   setProgress:   (v: number) => void
   setDuration:   (v: number) => void
+  saveProgress:  (v: number) => void
   cycleRepeat:   () => void
   toggleShuffle: () => void
   reset:         () => void
 }
 
-// ── Constants ─────────────────────────────────────────────────
-
 const REPEAT_CYCLE: RepeatMode[] = ['off', 'all', 'one']
-
-// ── Store ─────────────────────────────────────────────────────
 
 export const usePlayerStore = create<PlayerStore>()(
   persist(
     (set, get) => ({
-      currentTrack: null,
-      isPlaying:    false,
-      isLoading:    false,
-      volume:       PLAYER_DEFAULTS.volume,
-      isMuted:      false,
-      progress:     0,
-      duration:     0,
-      repeatMode:   'off',
-      isShuffled:   false,
+      currentTrack:  null,
+      isPlaying:     false,
+      isLoading:     false,
+      volume:        PLAYER_DEFAULTS.volume,
+      isMuted:       false,
+      progress:      0,
+      duration:      0,
+      repeatMode:    'off',
+      isShuffled:    false,
+      savedProgress: 0,
 
-      setTrack:    (track) => set({ currentTrack: track, progress: 0, duration: 0, isLoading: true }),
-      setPlaying:  (v)     => set({ isPlaying: v }),
-      setLoading:  (v)     => set({ isLoading: v }),
+      setTrack: (track) => set({
+        currentTrack:  track,
+        progress:      0,
+        duration:      0,
+        isLoading:     true,
+        savedProgress: 0,
+      }),
 
-      // Clamp volume to [0, 1] here so callers don't have to
-      setVolume:   (v)     => set({ volume: Math.max(0, Math.min(1, v)), isMuted: v === 0 }),
-      toggleMute:  ()      => set((s) => ({ isMuted: !s.isMuted })),
+      setPlaying:  (v) => set({ isPlaying: v }),
+      setLoading:  (v) => set({ isLoading: v }),
+      setVolume:   (v) => set({ volume: Math.max(0, Math.min(1, v)), isMuted: v === 0 }),
+      toggleMute:  ()  => set((s) => ({ isMuted: !s.isMuted })),
+      setProgress: (v) => set({ progress: v }),
+      setDuration: (v) => set({ duration: v }),
 
-      setProgress: (v)     => set({ progress: v }),
-      setDuration: (v)     => set({ duration: v }),
+      // Called on pause/unload so the position survives a reload
+      saveProgress: (v) => set({ savedProgress: v }),
 
       cycleRepeat: () => {
         const idx = REPEAT_CYCLE.indexOf(get().repeatMode)
@@ -67,24 +77,24 @@ export const usePlayerStore = create<PlayerStore>()(
       toggleShuffle: () => set((s) => ({ isShuffled: !s.isShuffled })),
 
       reset: () => set({
-        currentTrack: null,
-        isPlaying:    false,
-        isLoading:    false,
-        progress:     0,
-        duration:     0,
+        currentTrack:  null,
+        isPlaying:     false,
+        isLoading:     false,
+        progress:      0,
+        duration:      0,
+        savedProgress: 0,
       }),
     }),
     {
       name: 'shulker-player',
       partialize: (s) => ({
-        // Rehydrate these on reload so PlayerBar and volume survive tab closes
-        currentTrack: s.currentTrack,
-        volume:       s.volume,
-        isMuted:      s.isMuted,
-        repeatMode:   s.repeatMode,
-        isShuffled:   s.isShuffled,
-        // Do NOT persist isPlaying/isLoading/progress/duration:
-        // they're ephemeral and should always start fresh.
+        currentTrack:  s.currentTrack,
+        volume:        s.volume,
+        isMuted:       s.isMuted,
+        repeatMode:    s.repeatMode,
+        isShuffled:    s.isShuffled,
+        savedProgress: s.savedProgress,
+        // isPlaying / isLoading / progress / duration are ephemeral — not persisted
       }),
     },
   ),

@@ -25,24 +25,27 @@ import { cn } from '@/lib/utils'
  *  Sidebar on left, no BottomNav, PlayerBar pinned at bottom of content column.
  */
  
-const SWIPE_UP_THRESHOLD   = -40
-const SWIPE_DOWN_THRESHOLD =  40
-const NAV_HIDE_DELAY_MS    = 3000
+const SWIPE_UP_THRESHOLD   = -36
+const SWIPE_DOWN_THRESHOLD =  36
+const NAV_AUTO_HIDE_MS     = 3000
 
 export default function RootLayout() {
-  // Only subscribe to the field we need — avoids re-render on every progress tick
   const hasTrack = usePlayerStore((s) => s.currentTrack !== null)
 
   const [navVisible, setNavVisible] = useState(true)
   const touchStartY = useRef<number | null>(null)
   const hideTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const scheduleHide = () => {
+    hideTimer.current && clearTimeout(hideTimer.current)
+    hideTimer.current = setTimeout(() => setNavVisible(false), NAV_AUTO_HIDE_MS)
+  }
+
   useEffect(() => {
     if (hasTrack) {
-      hideTimer.current && clearTimeout(hideTimer.current)
-      hideTimer.current = setTimeout(() => setNavVisible(false), NAV_HIDE_DELAY_MS)
+      scheduleHide()
     } else {
-      // No track — always show nav
+      hideTimer.current && clearTimeout(hideTimer.current)
       setNavVisible(true)
     }
     return () => { hideTimer.current && clearTimeout(hideTimer.current) }
@@ -54,47 +57,42 @@ export default function RootLayout() {
 
   const onTouchEnd = (e: React.TouchEvent) => {
     if (touchStartY.current === null) return
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
     touchStartY.current = null
 
-    if (deltaY < SWIPE_UP_THRESHOLD) {
+    if (dy < SWIPE_UP_THRESHOLD) {
+      // Swipe up → reveal nav
       setNavVisible(true)
-      if (hasTrack) {
-        hideTimer.current && clearTimeout(hideTimer.current)
-        hideTimer.current = setTimeout(() => setNavVisible(false), NAV_HIDE_DELAY_MS)
-      }
-    } else if (deltaY > SWIPE_DOWN_THRESHOLD) {
+      if (hasTrack) scheduleHide()
+    } else if (dy > SWIPE_DOWN_THRESHOLD) {
+      // Swipe down → hide nav
       setNavVisible(false)
     }
   }
-
-  // Nav height: ~72px. PlayerBar height: var(--player-height, 72px).
-  // We only add bottom padding for components that are actually rendered.
-  const mobilePb = hasTrack
-    ? navVisible
-      ? 'pb-[calc(var(--player-height,72px)+72px+env(safe-area-inset-bottom,0px)+0.5rem)]'
-      : 'pb-[calc(var(--player-height,72px)+env(safe-area-inset-bottom,0px)+0.5rem)]'
-    : 'pb-[calc(72px+env(safe-area-inset-bottom,0px)+0.5rem)]'
 
   return (
     <Toaster>
       <div className="flex h-full w-full overflow-hidden bg-[var(--bg-base)]">
 
-        {/* ── Sidebar — desktop only ────────────────────── */}
+        {/* ── Desktop sidebar ───────────────────────────── */}
         <aside className="hidden lg:flex flex-shrink-0">
           <Sidebar />
         </aside>
 
-        {/* ── Main content column ───────────────────────── */}
+        {/* ── Content column ────────────────────────────── */}
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-
           <main
             className={cn(
               'flex-1 overflow-y-auto overflow-x-hidden no-scrollbar',
-              // Mobile bottom padding accounts for what's actually rendered
-              mobilePb,
-              // Desktop: only PlayerBar
-              'lg:pb-[calc(var(--player-height,72px)+1rem)]',
+              // Desktop — only player bar below
+              'lg:pb-[var(--player-height)]',
+              // Mobile — player bar + nav (when both visible)
+              // Using CSS variable approach avoids Tailwind purging dynamic strings
+              hasTrack && navVisible  && 'pb-[calc(var(--player-height)+var(--nav-height)+8px)]',
+              hasTrack && !navVisible && 'pb-[calc(var(--player-height)+8px)]',
+              !hasTrack               && 'pb-[calc(var(--nav-height)+8px)]',
+              // Remove mobile padding on desktop
+              'lg:!pb-[var(--player-height)]',
             )}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
@@ -104,34 +102,33 @@ export default function RootLayout() {
             </div>
           </main>
 
-          {/* PlayerBar desktop — inside column */}
+          {/* Desktop PlayerBar — inside column flow */}
           <div className="hidden lg:block flex-shrink-0">
             <PlayerBar />
           </div>
         </div>
 
-        {/* ── Mobile fixed bottom stack ─────────────────── */}
+        {/* ── Mobile fixed overlay stack ─────────────────── */}
         <div className="lg:hidden">
 
-          {/* PlayerBar — only rendered + positioned when a track exists */}
+          {/* PlayerBar — only in DOM when track exists */}
           <AnimatePresence>
             {hasTrack && (
               <motion.div
-                key="mobile-player"
+                key="player-bar"
                 initial={{ y: 80, opacity: 0 }}
                 animate={{ y: 0,  opacity: 1 }}
                 exit={{   y: 80, opacity: 0  }}
                 transition={{ type: 'spring', damping: 28, stiffness: 300 }}
                 className="fixed inset-x-0 z-50"
                 style={{
+                  // Sits on top of nav when nav visible, at bottom when hidden
                   bottom: navVisible
-                    ? 'calc(72px + env(safe-area-inset-bottom, 0px))'
-                    : 'env(safe-area-inset-bottom, 0px)',
-                  transition: 'bottom 0.35s cubic-bezier(0.32,0,0.67,0)',
+                    ? `var(--nav-height)`
+                    : '0px',
+                  transition: 'bottom 0.3s var(--ease-ios)',
                 }}
               >
-                {/* PlayerBar already returns null if no track, but hasTrack
-                    gate here prevents the wrapper div from taking up space */}
                 <PlayerBar />
               </motion.div>
             )}
@@ -145,29 +142,27 @@ export default function RootLayout() {
                 initial={{ y: 100, opacity: 0 }}
                 animate={{ y: 0,   opacity: 1 }}
                 exit={{   y: 100, opacity: 0  }}
-                transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-                className="fixed inset-x-0 bottom-0 z-40 px-3"
-                style={{
-                  paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
-                }}
+                transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+                className="fixed inset-x-0 bottom-0 z-40 flex items-end"
+                style={{ height: 'var(--nav-height)' }}
               >
                 <BottomNav />
               </motion.nav>
             )}
           </AnimatePresence>
 
-          {/* Swipe hint pill when nav is hidden */}
+          {/* Swipe-up hint when nav hidden */}
           <AnimatePresence>
             {!navVisible && hasTrack && (
               <motion.div
-                key="swipe-hint"
+                key="hint"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ delay: 0.6 }}
-                className="fixed bottom-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+                transition={{ delay: 0.8 }}
+                className="fixed bottom-1.5 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
               >
-                <div className="w-10 h-1 rounded-full bg-[var(--text-muted)]/30" />
+                <div className="w-8 h-1 rounded-full bg-white/20" />
               </motion.div>
             )}
           </AnimatePresence>

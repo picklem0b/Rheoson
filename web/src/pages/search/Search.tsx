@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search as SearchIcon, X, User } from 'lucide-react'
+import { Search as SearchIcon, X, User, Download } from 'lucide-react'
 import { useSearch } from '@/hooks/useSearch'
 import { useQueue } from '@/hooks/useQueue'
 import { useUIStore } from '@/store/uiStore'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Badge } from '@/components/ui/Badge'
+import { Spinner } from '@/components/ui/Spinner'
 import { formatDuration, truncate } from '@/lib/formatters'
 import { detectInputType, cn } from '@/lib/utils'
 import { SearchBar } from './components/SearchBar'
@@ -21,11 +21,16 @@ const FILTERS: { id: SearchFilter; label: string }[] = [
 ]
 
 export default function Search() {
-  const { query, setQuery, filter, setFilter, results, isLoading, error, clear, suggestions, selectSuggestion } = useSearch()
-  const { playTrack }       = useQueue()
+  const {
+    query, setQuery, filter, setFilter,
+    results, isLoading, error,
+    clear, suggestions, selectSuggestion,
+  } = useSearch()
+
+  const { playTrack }         = useQueue()
   const { openDownloadModal } = useUIStore()
 
-  const inputType = query ? detectInputType(query) : 'query'
+  const inputType  = query ? detectInputType(query) : 'query'
   const hasResults = results && (
     results.tracks.length  > 0 ||
     results.albums.length  > 0 ||
@@ -35,8 +40,8 @@ export default function Search() {
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Search bar ──────────────────────────────────────── */}
-      <div className="px-4 lg:px-8 pt-6 pb-4 space-y-3 flex-shrink-0">
+      {/* ── Header ──────────────────────────────────────── */}
+      <div className="px-4 pt-6 pb-3 space-y-3 flex-shrink-0">
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Search</h1>
 
         <SearchBar
@@ -49,14 +54,14 @@ export default function Search() {
           onSelectSuggestion={selectSuggestion}
         />
 
-        {/* Filter pills */}
+        {/* Filter pills — show when typing */}
         <AnimatePresence>
           {query && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{   opacity: 0, height: 0       }}
-              className="flex gap-2 overflow-x-auto no-scrollbar"
+              className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4"
             >
               {FILTERS.map((f) => (
                 <motion.button
@@ -64,8 +69,10 @@ export default function Search() {
                   whileTap={{ scale: 0.93 }}
                   onClick={() => setFilter(f.id)}
                   className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0',
+                    'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold',
                     'border transition-all duration-200',
+                    // min touch target
+                    'min-h-[36px]',
                     filter === f.id
                       ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
                       : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)]',
@@ -79,18 +86,36 @@ export default function Search() {
         </AnimatePresence>
       </div>
 
-      <ScrollArea className="flex-1 px-4 lg:px-8">
+      {/* ── Content ─────────────────────────────────────── */}
+      <ScrollArea className="flex-1 px-4 pb-4">
         <AnimatePresence mode="wait">
 
-          {/* ── No query: categories ────────────────────────── */}
-          {!query && (
-            <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          {/* Categories (no query) */}
+          {!query && !isLoading && (
+            <motion.div
+              key="categories"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
               <CategoryGrid onSelect={(cat) => setQuery(cat)} />
             </motion.div>
           )}
 
-          {/* ── Error ───────────────────────────────────────── */}
-          {error && (
+          {/* Loading */}
+          {isLoading && (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-center py-16"
+            >
+              <Spinner size="lg" />
+            </motion.div>
+          )}
+
+          {/* Error */}
+          {!isLoading && error && (
             <motion.div
               key="error"
               initial={{ opacity: 0, y: 10 }}
@@ -104,23 +129,20 @@ export default function Search() {
             </motion.div>
           )}
 
-          {/* ── Results ─────────────────────────────────────── */}
-          {!error && results && (
+          {/* Results */}
+          {!isLoading && !error && results && (
             <motion.div
               key="results"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="space-y-6 pb-6"
+              className="space-y-6 pb-4"
             >
-              {/* URL badge */}
+              {/* Link type badge */}
               {(inputType === 'spotify' || inputType === 'youtube') && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="accent">
-                    {inputType === 'spotify' ? '🎵 Spotify link' : '▶ YouTube link'}
-                  </Badge>
-                  <span className="text-xs text-[var(--text-muted)]">Resolving…</span>
-                </div>
+                <Badge variant="accent">
+                  {inputType === 'spotify' ? '🎵 Spotify link' : '▶ YouTube link'}
+                </Badge>
               )}
 
               {/* Tracks */}
@@ -130,37 +152,43 @@ export default function Search() {
                     {results.tracks.map((track, i) => (
                       <motion.div
                         key={track.id}
-                        initial={{ opacity: 0, x: -10 }}
+                        initial={{ opacity: 0, x: -8 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.04 }}
-                        className="group flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+                        transition={{ delay: i * 0.03 }}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-2xl active:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
                         onClick={() => playTrack(track, results.tracks)}
                       >
-                        <img
-                          src={track.artworkUrl}
-                          alt={track.title}
-                          className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
-                        />
+                        {/* Artwork */}
+                        {track.artworkUrl
+                          ? <img src={track.artworkUrl} alt={track.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                          : <div className="w-12 h-12 rounded-xl bg-[var(--bg-elevated)] flex-shrink-0" />
+                        }
+
+                        {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{track.title}</p>
-                          <p className="text-xs text-[var(--text-secondary)] truncate">
-                            {track.artist.name} · {track.album.title}
+                          <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                            {track.title}
+                          </p>
+                          <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
+                            {track.artist.name}
+                            {track.album?.title ? ` · ${track.album.title}` : ''}
                           </p>
                         </div>
+
+                        {/* Duration + Download — always visible on mobile */}
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="text-xs text-[var(--text-muted)] tabular-nums">
                             {formatDuration(track.duration)}
                           </span>
                           <motion.button
-                            whileTap={{ scale: 0.9 }}
-                            onClick={(e) => { e.stopPropagation(); openDownloadModal(track.id) }}
-                            className={cn(
-                              'opacity-0 group-hover:opacity-100 transition-opacity',
-                              'text-xs font-semibold px-3 py-1 rounded-full',
-                              'bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]',
-                            )}
+                            whileTap={{ scale: 0.88 }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openDownloadModal(track.id)
+                            }}
+                            className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-[var(--text-muted)] active:bg-[var(--accent-subtle)] active:text-[var(--accent)] transition-colors"
                           >
-                            Save
+                            <Download className="w-3.5 h-3.5" />
                           </motion.button>
                         </div>
                       </motion.div>
@@ -172,24 +200,23 @@ export default function Search() {
               {/* Artists */}
               {results.artists.length > 0 && (
                 <ResultSection title="Artists" count={results.artists.length}>
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
                     {results.artists.map((artist, i) => (
                       <motion.button
-                        key={artist.id}
+                        key={artist.id || i}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: i * 0.05 }}
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.96 }}
-                        className="flex-shrink-0 flex flex-col items-center gap-2 w-24"
+                        whileTap={{ scale: 0.95 }}
+                        className="flex-shrink-0 flex flex-col items-center gap-2 w-20"
                       >
-                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[var(--border)] bg-[var(--bg-elevated)] flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[var(--border)] bg-[var(--bg-elevated)] flex items-center justify-center">
                           {artist.imageUrl
                             ? <img src={artist.imageUrl} alt={artist.name} className="w-full h-full object-cover" />
-                            : <User className="w-8 h-8 text-[var(--text-muted)]" />
+                            : <User className="w-7 h-7 text-[var(--text-muted)]" />
                           }
                         </div>
-                        <p className="text-xs font-semibold text-[var(--text-primary)] text-center truncate w-full">
+                        <p className="text-[10px] font-semibold text-[var(--text-primary)] text-center truncate w-full leading-tight">
                           {artist.name}
                         </p>
                       </motion.button>
@@ -201,24 +228,29 @@ export default function Search() {
               {/* Albums */}
               {results.albums.length > 0 && (
                 <ResultSection title="Albums" count={results.albums.length}>
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
                     {results.albums.map((album, i) => (
                       <motion.button
-                        key={album.id}
+                        key={album.id || i}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: i * 0.05 }}
-                        whileHover={{ scale: 1.03, y: -2 }}
                         whileTap={{ scale: 0.97 }}
-                        className="flex-shrink-0 w-36 text-left"
+                        className="flex-shrink-0 w-32 text-left"
                       >
-                        <img
-                          src={album.artworkUrl}
-                          alt={album.title}
-                          className="w-36 h-36 rounded-2xl object-cover border border-[var(--border)] mb-2 shadow-md"
-                        />
-                        <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{album.title}</p>
-                        <p className="text-[10px] text-[var(--text-muted)] truncate">{album.artist.name}</p>
+                        {album.artworkUrl
+                          ? <img src={album.artworkUrl} alt={album.title} className="w-32 h-32 rounded-2xl object-cover border border-[var(--border)] mb-2 shadow-md" />
+                          : <div className="w-32 h-32 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] mb-2" />
+                        }
+                        <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                          {album.title}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
+                          {/* album.artist may be a string or object depending on API response */}
+                          {typeof album.artist === 'string'
+                            ? album.artist
+                            : album.artist?.name ?? ''}
+                        </p>
                       </motion.button>
                     ))}
                   </div>
@@ -226,14 +258,14 @@ export default function Search() {
               )}
 
               {/* Empty */}
-              {!hasResults && query && !isLoading && (
-                <div className="flex flex-col items-center py-20 gap-4">
+              {!hasResults && !isLoading && (
+                <div className="flex flex-col items-center py-16 gap-4">
                   <div className="w-16 h-16 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center">
                     <SearchIcon className="w-7 h-7 text-[var(--text-muted)]" />
                   </div>
                   <div className="text-center">
                     <p className="text-[var(--text-primary)] font-semibold">
-                      No results for "{truncate(query, 24)}"
+                      No results for "{truncate(query, 22)}"
                     </p>
                     <p className="text-[var(--text-muted)] text-sm mt-1">
                       Try a different search or paste a link
@@ -243,6 +275,7 @@ export default function Search() {
               )}
             </motion.div>
           )}
+
         </AnimatePresence>
       </ScrollArea>
     </div>

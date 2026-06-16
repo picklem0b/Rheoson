@@ -31,20 +31,13 @@ export default function BottomNav() {
           {({ isActive }) => (
             <motion.div
               whileTap={{ scale: 0.88 }}
+              animate={ isActive ? { scale:1.1 } : { scale:1 }}
               className={cn(
-                'relative flex flex-col items-center justify-center gap-0.5',
-                'py-2.5 rounded-[1.25rem] transition-all duration-300',
-                // No horizontal padding — let flex-1 distribute width
-                isActive ? 'bg-[var(--accent-subtle)]' : '',
+              'relative flex flex-col items-center justify-center gap-0.5',
+              'py-2.5 transition-colors duration-300',
+              isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
               )}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="nav-pill"
-                  className="absolute inset-0 bg-[var(--accent-subtle)] rounded-[1.25rem]"
-                  transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-                />
-              )}
               <Icon
                 className={cn(
                   'relative z-10 w-5 h-5 transition-all duration-300',

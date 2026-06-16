@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion'
 import { Plus, Grid3X3, List, Music2, Disc3, User, Heart } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -7,8 +7,7 @@ import { ScrollArea } from '@/components/ui/ScrollArea'
 import { IconButton } from '@/components/ui/IconButton'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { getPlaylists } from '@/api/playlists'
-import { getAlbums } from '@/api/library'
-import { getArtists } from '@/api/library'
+import { getAlbums, getArtists } from '@/api/library'
 import { tracksApi } from '@/api/tracks'
 import { GridView, ListView } from './components/GridListViews'
 import { ArtistView } from './components/ArtistView'
@@ -31,19 +30,24 @@ export default function Library() {
     queryKey: ['playlists'],
     queryFn:  getPlaylists,
   })
+
   const { data: albums, isLoading: loadingAlbums } = useQuery({
     queryKey: ['library-albums'],
     queryFn:  getAlbums,
     enabled:  tab === 'albums',
   })
+
   const { data: artists, isLoading: loadingArtists } = useQuery({
     queryKey: ['library-artists'],
     queryFn:  getArtists,
     enabled:  tab === 'artists',
   })
+
   const { data: likedCount } = useQuery({
     queryKey: ['liked-count'],
-    queryFn:  tracksApi.getLikedCount,
+    // BUG FIX: was `tracksApi.getLikedCount` (function reference, never called)
+    // which made likedCount the function object → rendered as "[object Object]"
+    queryFn:  () => tracksApi.getLikedCount(),
   })
 
   const isLoading =
@@ -107,7 +111,8 @@ export default function Library() {
           <div className="text-left">
             <p className="font-bold text-[var(--text-primary)]">Liked Songs</p>
             <p className="text-sm text-[var(--text-secondary)]">
-              {likedCount != null ? `${likedCount} songs` : '—'}
+              {/* likedCount is now a number, not a function or object */}
+              {typeof likedCount === 'number' ? `${likedCount} songs` : '—'}
             </p>
           </div>
         </motion.button>

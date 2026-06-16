@@ -63,4 +63,4 @@ export const STORAGE_KEYS = {
 } as const
 
 export const APP_NAME    = 'Shulker'
-export const APP_VERSION = '1.2.2'
+export const APP_VERSION = '1.3.0-rc'

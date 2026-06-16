@@ -1,4 +1,5 @@
 import { api } from './client'
+import { API_BASE } from '@/lib/constants'
 import type { Track } from '@/types/track'
 
 export const tracksApi = {
@@ -14,7 +15,6 @@ export const tracksApi = {
   getLiked: () =>
     api.get<Track[]>('/tracks/liked'),
 
-  /** Returns just the count — cheap call for the Library pinned card. */
   getLikedCount: () =>
     api.get<{ count: number }>('/tracks/liked/count').then((r) => r.count),
 
@@ -28,9 +28,11 @@ export const tracksApi = {
     api.post<void>(`/tracks/${id}/play`),
 
   /**
-   * Audio stream URL.
-   * Uses the Vite proxy path so it works in dev (proxy → localhost:8000)
-   * and in prod (same origin or Render URL from env).
+   * Full absolute stream URL — works both in dev (Vite proxy) and prod (Render).
+   * In dev: /api/stream/{id}/audio → proxied to localhost:8000
+   * In prod: https://shulker-api.onrender.com/api/stream/{id}/audio
+   * Using API_BASE directly so there's no relative-URL mismatch when the
+   * frontend and API are on different origins in production.
    */
-  getStreamUrl: (id: string) => `/api/stream/${id}/audio`,
+  getStreamUrl: (id: string) => `${API_BASE}/stream/${id}/audio`,
 }
