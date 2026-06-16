@@ -3,7 +3,7 @@ from pathlib import Path
 
 import socketio
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
@@ -46,11 +46,8 @@ register_events(sio)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("shulker.api.starting", env=settings.ENV, port=settings.API_PORT)
-
-    # Ensure required directories exist
     Path(settings.MUSIC_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.DOWNLOADS_DIR).mkdir(parents=True, exist_ok=True)
-
     log.info(
         "shulker.api.ready",
         music_dir=settings.MUSIC_DIR,
@@ -64,7 +61,7 @@ async def lifespan(app: FastAPI):
 # ── App ───────────────────────────────────────────────────────
 app = FastAPI(
     title="Shulker API",
-    version="1.2.0",
+    version="1.3.0",
     lifespan=lifespan,
     docs_url="/api/docs",
     redoc_url=None,
@@ -92,13 +89,99 @@ async def root():
 async def health():
     return JSONResponse({
         "status":        "ok",
-        "version":       "1.2.0",
+        "version":       "1.3.0",
         "env":           settings.ENV,
         "music_dir":     settings.MUSIC_DIR,
         "downloads_dir": settings.DOWNLOADS_DIR,
         "extra_dirs":    settings.all_music_dirs,
         "spotify":       settings.has_spotify,
     })
+
+
+# ── Library endpoints ─────────────────────────────────────────
+# These were missing entirely — Home page was 404ing on /library/featured.
+# Kept here in main.py for now; can be moved to a library router later.
+
+AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
+
+
+@app.get("/api/library/featured", tags=["library"])
+async def library_featured(limit: int = Query(10, ge=1, le=50)):
+    """
+    Featured playlists for the Home page hero carousel.
+    Returns user's local playlists immediately — no external API call.
+    Falls back to empty list if none exist yet.
+    """
+    from app.routers.playlists import _load
+    playlists_data = list(_load().values())[:limit]
+
+    return [
+        {
+            "id":         pl["id"],
+            "title":      pl["title"],
+            "subtitle":   f"{pl.get('trackCount', len(pl.get('tracks', [])))} songs",
+            "artworkUrl": pl.get("artworkUrl"),
+            "type":       "playlist",
+        }
+        for pl in playlists_data
+    ]
+
+
+@app.get("/api/library/albums", tags=["library"])
+async def library_albums():
+    """Albums derived from local music library scan."""
+    from app.services.metadata_service import read_track_metadata
+    seen: dict[str, dict] = {}
+    music_dir = Path(settings.MUSIC_DIR)
+    if not music_dir.exists():
+        return []
+    for path in music_dir.rglob("*"):
+        if path.suffix.lstrip(".") in AUDIO_EXTS:
+            try:
+                t         = read_track_metadata(path)
+                album_key = t["album"]["title"] or ""
+                if not album_key:
+                    continue
+                if album_key not in seen:
+                    seen[album_key] = {
+                        "id":          t["album"]["id"] or album_key,
+                        "title":       t["album"]["title"],
+                        "artworkUrl":  t.get("artworkUrl"),
+                        "releaseYear": t["album"].get("releaseYear", 0),
+                        "trackCount":  0,
+                        "artist":      t["artist"],
+                    }
+                seen[album_key]["trackCount"] += 1
+            except Exception:
+                continue
+    return list(seen.values())
+
+
+@app.get("/api/library/artists", tags=["library"])
+async def library_artists():
+    """Artists derived from local music library scan."""
+    from app.services.metadata_service import read_track_metadata
+    seen: dict[str, dict] = {}
+    music_dir = Path(settings.MUSIC_DIR)
+    if not music_dir.exists():
+        return []
+    for path in music_dir.rglob("*"):
+        if path.suffix.lstrip(".") in AUDIO_EXTS:
+            try:
+                t    = read_track_metadata(path)
+                name = t["artist"]["name"] or ""
+                if not name:
+                    continue
+                if name not in seen:
+                    seen[name] = {
+                        "id":       t["artist"]["id"] or name,
+                        "name":     name,
+                        "imageUrl": t["artist"].get("imageUrl"),
+                        "genres":   [],
+                    }
+            except Exception:
+                continue
+    return list(seen.values())
 
 
 # ── Routers ───────────────────────────────────────────────────

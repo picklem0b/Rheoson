@@ -31,14 +31,10 @@ def _detect_url_type(url: str) -> str:
     return "unknown"
 
 # ── Prewarm ───────────────────────────────────────────────────
-# Uses stdlib urllib — no aiohttp dependency required.
-# Fires a HEAD request to the stream endpoint so yt-dlp resolves
-# the video URL in the background before the user taps play.
 
 _PREWARM_N = 3
 
 async def _prewarm_tracks(track_ids: list[str]) -> None:
-    targets = track_ids[:_PREWARM_N]
     loop    = asyncio.get_event_loop()
 
     def _head(track_id: str) -> None:
@@ -51,18 +47,17 @@ async def _prewarm_tracks(track_ids: list[str]) -> None:
         except Exception as e:
             log.debug("search.prewarm.skip", track_id=track_id, error=str(e))
 
-    # Run each HEAD in a thread so we don't block the event loop
     await asyncio.gather(
-        *[loop.run_in_executor(None, _head, tid) for tid in targets],
+        *[loop.run_in_executor(None, _head, tid) for tid in track_ids],
         return_exceptions=True,
     )
 
 def _schedule_prewarm(tracks: list[dict]) -> None:
-    ids = [t["id"] for t in tracks if t.get("id") and not t.get("isDownloaded")]
+    ids = [t["id"] for t in tracks if t.get("id") and not t.get("isDownloaded")][:_PREWARM_N]
     if not ids:
         return
     asyncio.create_task(_prewarm_tracks(ids))
-    log.debug("search.prewarm.scheduled", count=min(len(ids), _PREWARM_N))
+    log.debug("search.prewarm.scheduled", count=len(ids))
 
 # ── Main search ───────────────────────────────────────────────
 
@@ -79,13 +74,26 @@ async def search(query: str, filter: str | None = None) -> dict:
 
 async def resolve_url(url: str) -> dict:
     kind = _detect_url_type(url)
-    if kind == "spotify": return await _resolve_spotify(url)
+
+    if kind == "spotify":
+        # Give a clear error when Spotify credentials aren't configured
+        # instead of crashing with a 502 that looks like a server bug.
+        if not settings.has_spotify:
+            raise SearchError(
+                "Spotify links require credentials. "
+                "Go to Settings → Account and add your Spotify Client ID and Secret."
+            )
+        return await _resolve_spotify(url)
+
     if kind == "youtube":
         track  = await ytmusic_service.resolve_youtube_url(url)
         result = {"query": url, "tracks": [track] if track else [], "albums": [], "artists": [], "playlists": []}
         _schedule_prewarm(result["tracks"])
         return result
-    if kind == "ytdlp": return await _resolve_ytdlp(url)
+
+    if kind == "ytdlp":
+        return await _resolve_ytdlp(url)
+
     raise UnsupportedURLError(url)
 
 # ── Spotify ───────────────────────────────────────────────────

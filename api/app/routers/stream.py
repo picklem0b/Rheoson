@@ -25,14 +25,17 @@ CHUNK = 65_536  # 64 KB
 
 # ── Local file cache ──────────────────────────────────────────
 # Maps track_id → absolute Path.
-# Built lazily on first request, rebuilt on cache miss (file may have appeared).
-# A full rglob on every stream request was the primary audio stutter cause.
+# _cache_lock prevents two concurrent requests both seeing _cache_built=False
+# and running _build_cache() simultaneously — which caused the
+# "stream.cache.built count=0" appearing 2-3 times in the logs.
 
 _local_cache: dict[str, Path] = {}
 _cache_built  = False
+_cache_lock   = asyncio.Lock()
 
 
-def _build_cache() -> None:
+def _build_cache_sync() -> None:
+    """Sync build — called from inside the async lock."""
     global _cache_built
     _local_cache.clear()
     for d in settings.all_music_dirs:
@@ -49,27 +52,36 @@ def _build_cache() -> None:
     log.info("stream.cache.built", count=len(_local_cache))
 
 
-def _find_local(track_id: str) -> Optional[Path]:
-    """Return cached path or None. Rebuilds cache once on miss."""
+async def _ensure_cache() -> None:
+    """Build cache exactly once. Lock prevents concurrent rebuilds."""
     global _cache_built
+    if _cache_built:
+        return
+    async with _cache_lock:
+        # Double-check inside lock — another coroutine may have built it
+        # while we were waiting for the lock
+        if _cache_built:
+            return
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _build_cache_sync)
 
-    if not _cache_built:
-        _build_cache()
 
+def _find_local(track_id: str) -> Optional[Path]:
+    """
+    Synchronous cache lookup — only call after _ensure_cache() has run.
+    Returns path if found and still exists, None otherwise.
+    """
     if track_id in _local_cache:
         p = _local_cache[track_id]
         if p.exists():
             return p
-        # File was deleted — remove stale entry and fall through
+        # Stale entry — file was deleted
         del _local_cache[track_id]
-
-    # Cache miss — maybe a new download just landed; do one targeted rebuild
-    _build_cache()
-    return _local_cache.get(track_id)
+    return None
 
 
 def invalidate_stream_cache() -> None:
-    """Call this after a download completes so the new file is found immediately."""
+    """Call after a download completes so the new file is found immediately."""
     global _cache_built
     _cache_built = False
     log.debug("stream.cache.invalidated")
@@ -79,12 +91,15 @@ def invalidate_stream_cache() -> None:
 
 @router.api_route("/{track_id}/audio", methods=["GET", "HEAD"])
 async def stream_audio(track_id: str, request: Request):
+    await _ensure_cache()
     local = _find_local(track_id)
+
     if local:
         log.debug("stream.local", track_id=track_id, path=str(local))
         return _serve_local(local, request)
 
     if request.method == "HEAD":
+        # Can't verify without downloading — return optimistic headers
         if len(track_id) != 11:
             raise HTTPException(status_code=404, detail="Invalid track ID")
         return Response(headers={
@@ -92,11 +107,21 @@ async def stream_audio(track_id: str, request: Request):
             "Content-Type":  "audio/mpeg",
         })
 
+    # Cache miss on GET — try rebuilding once in case a download just finished
+    if not _find_local(track_id):
+        global _cache_built
+        _cache_built = False
+        await _ensure_cache()
+        local = _find_local(track_id)
+        if local:
+            return _serve_local(local, request)
+
     return await _serve_ytdlp(track_id, request)
 
 
 @router.get("/{track_id}/artwork")
 async def get_artwork(track_id: str):
+    await _ensure_cache()
     local = _find_local(track_id)
     if not local:
         raise HTTPException(status_code=404, detail="Not downloaded locally")
@@ -104,7 +129,7 @@ async def get_artwork(track_id: str):
     return art if art else Response(status_code=204)
 
 
-# ── Local file streaming with range support ───────────────────
+# ── Local file serving with range support ─────────────────────
 
 def _serve_local(path: Path, request: Request) -> Response:
     mime      = MIME_MAP.get(path.suffix.lower(), "audio/mpeg")
@@ -136,7 +161,7 @@ def _serve_local(path: Path, request: Request) -> Response:
         end   = min(end, file_size - 1)
         clen  = end - start + 1
     except Exception:
-        raise HTTPException(status_code=416, detail="Bad Range")
+        raise HTTPException(status_code=416, detail="Bad Range header")
 
     def _range():
         with open(path, "rb") as f:
@@ -161,22 +186,21 @@ def _serve_local(path: Path, request: Request) -> Response:
 
 async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
     """
-    Pipe audio directly from yt-dlp stdout → browser with no temp file.
-    First audio bytes arrive in ~2-3 s.
-    Uses mweb client which is least rate-limited on mobile IPs.
+    Pipe audio from yt-dlp stdout → browser in real time.
+    First bytes arrive in ~2-3 s. Uses mweb client to reduce rate-limiting.
     """
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
 
     cmd = [
         "yt-dlp",
-        "--quiet",
-        "--no-warnings",
-        "--no-playlist",
-        "-x",
-        "--audio-format",   "mp3",
-        "--audio-quality",  "192K",
+        "--quiet", "--no-warnings", "--no-playlist",
+        "-x", "--audio-format", "mp3", "--audio-quality", "192K",
         "--extractor-args", "youtube:player_client=mweb,android,web",
-        "--add-header",     "User-Agent:Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        "--add-header", (
+            "User-Agent:Mozilla/5.0 (Linux; Android 13; Pixel 7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Mobile Safari/537.36"
+        ),
         "-o", "-",
         yt_url,
     ]
@@ -193,7 +217,6 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
         log.error("stream.ytdlp.spawn.failed", error=str(e))
         raise HTTPException(status_code=502, detail="Stream process failed to start")
 
-    # Read first chunk — confirms yt-dlp is producing output
     first_chunk = await proc.stdout.read(CHUNK)
     if not first_chunk:
         stderr = await proc.stderr.read(2048)
