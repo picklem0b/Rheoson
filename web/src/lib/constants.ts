@@ -8,7 +8,7 @@ export const API_BASE = isProd
 
 export const WS_URL = isProd
   ? RENDER_API_URL
-  : 'https://shulker-api-vnny.onrender.com'
+  : 'http://0.0.0.0:8000'
 
 export const ENDPOINTS = {
   health:         `${API_BASE}/health`,
