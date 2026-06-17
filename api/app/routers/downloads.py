@@ -6,10 +6,14 @@ from app.services.download_service import (
     cancel_job, retry_job,
 )
 
-router = APIRouter()
+# redirect_slashes=False prevents FastAPI from doing a 307 redirect from
+# POST /api/downloads → POST /api/downloads/ which causes the client to
+# follow with GET and lose the POST body.
+router = APIRouter(redirect_slashes=False)
 
 
-@router.post("/", response_model=DownloadJobSchema, status_code=202)
+@router.post("", response_model=DownloadJobSchema, status_code=202)
+@router.post("/", response_model=DownloadJobSchema, status_code=202, include_in_schema=False)
 async def start_download(req: DownloadRequestSchema):
     if not req.trackId and not req.url:
         raise HTTPException(status_code=400, detail="trackId or url is required")
@@ -25,7 +29,8 @@ async def start_download(req: DownloadRequestSchema):
     return job
 
 
-@router.get("/", response_model=list[DownloadJobSchema])
+@router.get("", response_model=list[DownloadJobSchema])
+@router.get("/", response_model=list[DownloadJobSchema], include_in_schema=False)
 async def list_downloads():
     return get_all_jobs()
 

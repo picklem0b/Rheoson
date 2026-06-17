@@ -20,9 +20,7 @@ AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
 def _liked_file()   -> Path: return Path(settings.MUSIC_DIR) / ".liked.json"
 def _history_file() -> Path: return Path(settings.MUSIC_DIR) / ".history.json"
 
-
 # ── Async JSON helpers ────────────────────────────────────────
-# Using run_in_executor so JSON file writes don't block the event loop.
 
 async def _read_json(path: Path, default):
     def _r():
@@ -41,14 +39,9 @@ async def _write_json(path: Path, data) -> None:
         path.write_text(json.dumps(data))
     await asyncio.get_event_loop().run_in_executor(None, _w)
 
-
 # ── Track hydration ───────────────────────────────────────────
 
 async def _hydrate_track(track_id: str) -> dict | None:
-    """
-    Given a YouTube video ID, return a full TrackSchema dict.
-    Checks local library first, falls back to YouTube Music API.
-    """
     music_dir = Path(settings.MUSIC_DIR)
     if music_dir.exists():
         for path in music_dir.rglob("*"):
@@ -65,16 +58,16 @@ async def _hydrate_track(track_id: str) -> dict | None:
         log.warning("tracks.hydrate.failed", track_id=track_id)
         return None
 
-
-# ── Routes ────────────────────────────────────────────────────
+# ── STATIC ROUTES FIRST — must be before /{track_id} ─────────
+# FastAPI matches routes in registration order.
+# If /{track_id} is registered first, GET /liked matches it as
+# track_id="liked" and returns 404 "Track not found: liked".
 
 @router.get("/", response_model=list[TrackSchema])
 async def list_tracks():
-    """List all locally downloaded tracks."""
     music_dir = Path(settings.MUSIC_DIR)
     if not music_dir.exists():
         return []
-
     tracks = []
     for path in sorted(music_dir.rglob("*")):
         if path.suffix.lstrip(".") in AUDIO_EXTS:
@@ -94,53 +87,33 @@ async def get_liked_count():
 
 @router.get("/liked", response_model=list[TrackSchema])
 async def get_liked():
-    """
-    Return full track objects for liked tracks.
-    Liked IDs are stored; hydrated on read so metadata is always fresh.
-    """
     ids: list[str] = await _read_json(_liked_file(), [])
     if not ids:
         return []
-
-    # Hydrate concurrently — cap at 10 parallel requests
     sem = asyncio.Semaphore(10)
-
-    async def _safe(track_id: str):
+    async def _safe(tid: str):
         async with sem:
-            return await _hydrate_track(track_id)
-
+            return await _hydrate_track(tid)
     results = await asyncio.gather(*[_safe(tid) for tid in ids])
     return [r for r in results if r is not None]
 
 
 @router.get("/recently-played", response_model=list[TrackSchema])
 async def get_recently_played():
-    """
-    Return recently played tracks as full TrackSchema objects.
-    History stores {id, playedAt} — hydrated on read.
-    """
     history: list[dict] = await _read_json(_history_file(), [])
     if not history:
         return []
-
-    ids = [h["id"] for h in history[:50]]  # cap at 50
-
+    ids = [h["id"] for h in history[:50]]
     sem = asyncio.Semaphore(10)
-
-    async def _safe(track_id: str):
+    async def _safe(tid: str):
         async with sem:
-            return await _hydrate_track(track_id)
-
+            return await _hydrate_track(tid)
     results = await asyncio.gather(*[_safe(tid) for tid in ids])
     return [r for r in results if r is not None]
 
 
 @router.get("/trending", response_model=list[TrackSchema])
 async def get_trending():
-    """
-    Trending tracks — proxied from YouTube Music charts.
-    Falls back to empty list if ytmusicapi fails.
-    """
     try:
         from app.services.ytmusic_service import get_trending as yt_trending
         return await yt_trending()
@@ -148,6 +121,14 @@ async def get_trending():
         log.warning("tracks.trending.failed", error=str(e))
         return []
 
+
+@router.delete("/history")
+async def clear_history():
+    await _write_json(_history_file(), [])
+    return {"ok": True}
+
+
+# ── VARIABLE ROUTES LAST ──────────────────────────────────────
 
 @router.get("/{track_id}", response_model=TrackSchema)
 async def get_track(track_id: str):
@@ -176,7 +157,6 @@ async def unlike_track(track_id: str):
 
 @router.post("/{track_id}/play")
 async def record_play(track_id: str):
-    """Record a play event. Dedupes and keeps last 200 entries."""
     history: list[dict] = await _read_json(_history_file(), [])
     history = [h for h in history if h.get("id") != track_id]
     history.insert(0, {"id": track_id, "playedAt": datetime.utcnow().isoformat()})
