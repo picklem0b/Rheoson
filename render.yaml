@@ -20,7 +20,7 @@ services:
       - key: SPOTIFY_CLIENT_SECRET
         sync: false
       - key: CORS_ORIGINS
-        value: '["https://shulker-web.onrender.com","http://localhost:3000"]'
+        value: '["https://shulker-web.onrender.com","http://localhost:3000","https://shulker-web.onrender.com/"]'
 
   # ── Frontend ─────────────────────────────────────────────
   - type: web
@@ -33,4 +33,4 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://shulker-api.onrender.com
+        value: https://shulker-api-vnny.onrender.com
