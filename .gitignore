@@ -22,6 +22,7 @@ dump.rdb
 
 # Logs
 *.log
+music/*.json
 
 # OS
 .DS_Store
