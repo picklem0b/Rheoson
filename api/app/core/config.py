@@ -5,8 +5,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     ENV:       str = "development"
-    API_HOST:  str = "0.0.0.0"
-    API_PORT:  int = 8000
+    API_HOST:  str = "https://shulker-api-vnny.onrender.com"
+    API_PORT:  int = 
 
     MUSIC_DIR:      str = "/data/data/com.termux/files/home/shulker/music"
     DOWNLOADS_DIR:  str = "/data/data/com.termux/files/home/shulker/downloads"
