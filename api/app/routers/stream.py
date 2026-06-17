@@ -186,81 +186,120 @@ def _serve_local(path: Path, request: Request) -> Response:
 
 async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
     """
-    Pipe audio from yt-dlp stdout → browser in real time.
-    First bytes arrive in ~2-3 s. Uses mweb client to reduce rate-limiting.
+    Pipe audio from yt-dlp stdout → browser in real time with simple retry logic.
+    Tries a few extractor-client/user-agent combinations to reduce rate-limit failures.
     """
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
 
-    cmd = [
+    # Variants to try when spawning yt-dlp (prefer mweb first as before).
+    extractor_args_variants = [
+        "youtube:player_client=mweb,android,web",
+        "youtube:player_client=web",
+        "youtube:player_client=android",
+    ]
+
+    user_agents = [
+        # mobile-like UA (kept from original)
+        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        # desktop-like UA
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    ]
+
+    base_cmd = [
         "yt-dlp",
         "--quiet", "--no-warnings", "--no-playlist",
         "-x", "--audio-format", "mp3", "--audio-quality", "192K",
-        "--extractor-args", "youtube:player_client=mweb,android,web",
-        "--add-header", (
-            "User-Agent:Mozilla/5.0 (Linux; Android 13; Pixel 7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Mobile Safari/537.36"
-        ),
         "-o", "-",
-        yt_url,
     ]
 
-    log.info("stream.ytdlp.start", track_id=track_id)
+    max_attempts = 3
 
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-    except Exception as e:
-        log.error("stream.ytdlp.spawn.failed", error=str(e))
-        raise HTTPException(status_code=502, detail="Stream process failed to start")
+    last_stderr = None
 
-    first_chunk = await proc.stdout.read(CHUNK)
-    if not first_chunk:
-        stderr = await proc.stderr.read(2048)
-        log.error("stream.ytdlp.no_output",
-                  track_id=track_id,
-                  stderr=stderr.decode(errors="ignore"))
+    for attempt in range(max_attempts):
+        extractor_args = extractor_args_variants[min(attempt, len(extractor_args_variants) - 1)]
+        ua = user_agents[attempt % len(user_agents)]
+
+        cmd = [
+            *base_cmd,
+            "--extractor-args", extractor_args,
+            "--add-header", f"User-Agent:{ua}",
+            yt_url,
+        ]
+
+        log.info("stream.ytdlp.spawn_attempt", track_id=track_id, attempt=attempt + 1, cmd_variant=extractor_args)
+
         try:
-            proc.kill()
-        except Exception:
-            pass
-        raise HTTPException(
-            status_code=502,
-            detail="Could not stream this track. YouTube may be rate-limiting.",
-        )
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except Exception as e:
+            log.error("stream.ytdlp.spawn.failed", error=str(e), track_id=track_id, attempt=attempt + 1)
+            last_stderr = str(e).encode()
+            # small backoff then retry
+            await asyncio.sleep(0.8 + attempt)
+            continue
 
-    log.info("stream.ytdlp.first_chunk", track_id=track_id, bytes=len(first_chunk))
-
-    async def _pipe():
-        yield first_chunk
-        try:
-            while True:
-                if await request.is_disconnected():
-                    log.info("stream.client.disconnected", track_id=track_id)
-                    break
-                chunk = await proc.stdout.read(CHUNK)
-                if not chunk:
-                    break
-                yield chunk
-        except asyncio.CancelledError:
-            pass
-        finally:
+        # Wait for the first chunk to arrive (non-blocking)
+        first_chunk = await proc.stdout.read(CHUNK)
+        if not first_chunk:
+            # capture some stderr for debugging, kill process and retry
+            try:
+                stderr = await proc.stderr.read(4096)
+            except Exception:
+                stderr = b""
+            last_stderr = stderr
+            log.warning("stream.ytdlp.no_output", track_id=track_id, attempt=attempt + 1,
+                        stderr=(stderr.decode(errors="ignore") if stderr else "<empty>"))
             try:
                 proc.kill()
             except Exception:
                 pass
-            await proc.wait()
-            log.info("stream.ytdlp.done", track_id=track_id)
+            # backoff before retrying
+            await asyncio.sleep(0.8 + attempt * 0.5)
+            continue
 
-    return StreamingResponse(
-        _pipe(),
-        media_type="audio/mpeg",
-        headers={
-            "Accept-Ranges":          "bytes",
-            "Cache-Control":          "no-cache",
-            "X-Content-Type-Options": "nosniff",
-        },
+        # Success — we have the first chunk; stream to client and pipe the rest
+        log.info("stream.ytdlp.first_chunk", track_id=track_id, bytes=len(first_chunk), attempt=attempt + 1)
+
+        async def _pipe():
+            yield first_chunk
+            try:
+                while True:
+                    if await request.is_disconnected():
+                        log.info("stream.client.disconnected", track_id=track_id)
+                        break
+                    chunk = await proc.stdout.read(CHUNK)
+                    if not chunk:
+                        break
+                    yield chunk
+            except asyncio.CancelledError:
+                pass
+            finally:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+                await proc.wait()
+                log.info("stream.ytdlp.done", track_id=track_id)
+
+        return StreamingResponse(
+            _pipe(),
+            media_type="audio/mpeg",
+            headers={
+                "Accept-Ranges":          "bytes",
+                "Cache-Control":          "no-cache",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    # If we get here, all attempts failed
+    stderr_text = (last_stderr.decode(errors="ignore") if last_stderr else "")
+    log.error("stream.ytdlp.failed_all_attempts", track_id=track_id, stderr=stderr_text)
+    # Give a helpful message to the client — same status code used before
+    raise HTTPException(
+        status_code=502,
+        detail="Could not stream this track. YouTube may be rate-limiting or the server failed to fetch audio. Try again in a few seconds or download the track instead."
     )
