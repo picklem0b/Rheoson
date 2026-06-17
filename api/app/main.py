@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+import json
 
 import socketio
 import structlog
@@ -30,10 +31,30 @@ configure_logging()
 log = structlog.get_logger()
 
 
+# ── Helper to parse CORS origins from env (support JSON string or list)
+def _parse_cors_origins(val):
+    if isinstance(val, list):
+        return val
+    if not val:
+        return ["*"]
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            # not JSON — maybe comma-separated
+            return [v.strip() for v in val.split(",") if v.strip()]
+    return ["*"]
+
+# Evaluate allowed origins once at startup
+_ALLOWED_ORIGINS = _parse_cors_origins(settings.CORS_ORIGINS)
+
+
 # ── Socket.IO ─────────────────────────────────────────────────
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins="*",
+    cors_allowed_origins=_ALLOWED_ORIGINS,
     logger=False,
     engineio_logger=False,
 )
@@ -69,7 +90,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

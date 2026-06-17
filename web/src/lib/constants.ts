@@ -1,4 +1,4 @@
-const RENDER_API_URL = import.meta.env.VITE_API_URL ?? 'https://shulker-api.onrender.com'
+const RENDER_API_URL = import.meta.env.VITE_API_URL ?? 'https://shulker-api-vnny.onrender.com'
 
 const isProd = import.meta.env.PROD
 
