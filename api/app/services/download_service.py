@@ -41,7 +41,7 @@ def _new_job(
         "title":      title,
         "artist":     artist,
         "artworkUrl": artwork_url,
-        "status":     "queued",
+        "status":     "downloading",
         "progress":   0.0,
         "format":     fmt,
         "quality":    quality,
@@ -150,7 +150,7 @@ async def _run_download(
     loop      = asyncio.get_event_loop()
     quality_q = "0" if quality == "best" else quality
     safe_id   = job_id[:8]
-    out_tmpl  = str(out_dir / f"%(title)s [{safe_id}].%(ext)s")
+    out_tmpl  = str(out_dir / f"%(title)s.%(ext)s")
 
     postprocessors = [
         {"key": "FFmpegExtractAudio", "preferredcodec": fmt, "preferredquality": quality_q},
