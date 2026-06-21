@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { TrendingUp, Clock, Sparkles, Play } from 'lucide-react'
+import { TrendingUp, Clock, Sparkles, Play, ChevronRight } from 'lucide-react'
 import { useQueue } from '@/hooks/useQueue'
 import { usePlayerStore } from '@/store/playerStore'
 import { tracksApi } from '@/api/tracks'
@@ -12,27 +12,51 @@ import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { Track } from '@/types/track'
 
-// ── Greeting ──────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────
 
 function greeting() {
   const h = new Date().getHours()
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 }
 
+// Filters out junk/placeholder records (e.g. Swagger "string" test entries
+// with no real title or zero tracks) so they never reach the UI.
+function isRealFeaturedItem(item: { title?: string; subtitle?: string }): boolean {
+  const title = (item.title ?? '').trim().toLowerCase()
+  if (!title || title === 'string') return false
+  return true
+}
+
 // ── Section header ────────────────────────────────────────────
 
-function SectionHeader({ icon: Icon, title, subtitle }: {
-  icon: React.ElementType; title: string; subtitle?: string
+function SectionHeader({ icon: Icon, title, subtitle, onSeeAll }: {
+  icon:      React.ElementType
+  title:     string
+  subtitle?: string
+  onSeeAll?: () => void
 }) {
   return (
-    <div className="flex items-center gap-2.5 mb-4">
-      <div className="w-7 h-7 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center flex-shrink-0">
-        <Icon className="w-3.5 h-3.5 text-[var(--accent)]" />
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2.5">
+        <div className="w-7 h-7 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center flex-shrink-0">
+          <Icon className="w-3.5 h-3.5 text-[var(--accent)]" />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-[var(--text-primary)] leading-none">{title}</h2>
+          {subtitle && <p className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</p>}
+        </div>
       </div>
-      <div>
-        <h2 className="text-base font-bold text-[var(--text-primary)] leading-none">{title}</h2>
-        {subtitle && <p className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</p>}
-      </div>
+
+      {onSeeAll && (
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={onSeeAll}
+          className="flex items-center gap-0.5 text-xs font-semibold text-[var(--text-muted)] active:text-[var(--accent)] transition-colors px-2 py-1"
+        >
+          See all
+          <ChevronRight className="w-3.5 h-3.5" />
+        </motion.button>
+      )}
     </div>
   )
 }
@@ -40,9 +64,9 @@ function SectionHeader({ icon: Icon, title, subtitle }: {
 // ── Quick picks — 2-col grid ──────────────────────────────────
 
 function QuickPicks({ tracks }: { tracks: Track[] }) {
-  const { playTrack }               = useQueue()
-  const currentTrack                = usePlayerStore((s) => s.currentTrack)
-  const isPlaying                   = usePlayerStore((s) => s.isPlaying)
+  const { playTrack }  = useQueue()
+  const currentTrack   = usePlayerStore((s) => s.currentTrack)
+  const isPlaying      = usePlayerStore((s) => s.isPlaying)
 
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -63,7 +87,6 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
                 : 'bg-[var(--bg-surface)] border border-[var(--border)] hover:bg-[var(--bg-elevated)]',
             )}
           >
-            {/* Artwork */}
             <div className="relative flex-shrink-0 w-14 h-14">
               {track.artworkUrl
                 ? <img src={track.artworkUrl} alt={track.title} className="w-full h-full object-cover" />
@@ -84,7 +107,6 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
                 </div>
               )}
             </div>
-            {/* Info */}
             <div className="flex-1 min-w-0 px-2.5">
               <p className={cn(
                 'text-xs font-bold truncate leading-tight',
@@ -153,9 +175,9 @@ function FeaturedCarousel({ items }: {
 // ── Trending list ─────────────────────────────────────────────
 
 function TrendingList({ tracks }: { tracks: Track[] }) {
-  const { playTrack }   = useQueue()
-  const currentTrack    = usePlayerStore((s) => s.currentTrack)
-  const isPlaying       = usePlayerStore((s) => s.isPlaying)
+  const { playTrack }  = useQueue()
+  const currentTrack   = usePlayerStore((s) => s.currentTrack)
+  const isPlaying      = usePlayerStore((s) => s.isPlaying)
 
   return (
     <div className="space-y-1">
@@ -253,7 +275,7 @@ function EmptyHome() {
 // ── Page ──────────────────────────────────────────────────────
 
 export default function Home() {
-  const { playTrack } = useQueue()
+  const navigate = useNavigate()
 
   const { data: recent, isLoading: loadingRecent } = useQuery({
     queryKey:  ['recently-played'],
@@ -267,19 +289,21 @@ export default function Home() {
     queryFn:   () => tracksApi.getTrending(20),
     staleTime: 5 * 60_000,
     retry:     1,
-    // Don't keep showing skeleton if endpoint doesn't exist — treat error as empty
   })
 
-  const { data: featured, isLoading: loadingFeatured } = useQuery({
+  const { data: featuredRaw, isLoading: loadingFeatured } = useQuery({
     queryKey:  ['featured'],
     queryFn:   () => libraryApi.getFeatured(10),
     staleTime: 5 * 60_000,
-    retry:     0,   // 0 retries — if it 404s, fail fast and show nothing
+    retry:     0,
   })
+
+  // Strip out placeholder/junk entries before they ever reach the UI
+  const featured = (featuredRaw ?? []).filter(isRealFeaturedItem)
 
   const hasRecent   = (recent?.length   ?? 0) > 0
   const hasTrending = (trending?.length ?? 0) > 0
-  const hasFeatured = (featured?.length ?? 0) > 0
+  const hasFeatured = featured.length > 0
   const hasAnything = hasRecent || hasTrending || hasFeatured
   const allDone     = !loadingRecent && !loadingTrending && !loadingFeatured
 
@@ -287,19 +311,21 @@ export default function Home() {
     <ScrollArea className="h-full">
       <div className="px-4 lg:px-8 pt-6 pb-10 space-y-8">
 
-        {/* Greeting */}
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">{greeting()}</h1>
           <p className="text-sm text-[var(--text-muted)] mt-0.5">What do you want to hear?</p>
         </motion.div>
 
-        {/* Empty state — only show when all queries finished and nothing returned */}
         {allDone && !hasAnything && <EmptyHome />}
 
-        {/* Quick picks */}
         {(loadingRecent || hasRecent) && (
           <section>
-            <SectionHeader icon={Clock} title="Quick picks" subtitle="Recently played" />
+            <SectionHeader
+              icon={Clock}
+              title="Quick picks"
+              subtitle="Recently played"
+              onSeeAll={hasRecent ? () => navigate('/recently-played') : undefined}
+            />
             {loadingRecent
               ? <div className="grid grid-cols-2 gap-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
               : <QuickPicks tracks={recent!} />
@@ -307,18 +333,29 @@ export default function Home() {
           </section>
         )}
 
-        {/* Featured — only show section if data actually arrived */}
-        {hasFeatured && (
+        {(loadingFeatured || hasFeatured) && (
           <section>
-            <SectionHeader icon={Sparkles} title="Featured" subtitle="Curated for you" />
-            <FeaturedCarousel items={featured!} />
+            <SectionHeader
+              icon={Sparkles}
+              title="Featured"
+              subtitle="Curated for you"
+              onSeeAll={hasFeatured ? () => navigate('/featured') : undefined}
+            />
+            {loadingFeatured
+              ? <div className="flex gap-4 -mx-4 px-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="w-44 h-44 rounded-3xl flex-shrink-0" />)}</div>
+              : <FeaturedCarousel items={featured} />
+            }
           </section>
         )}
 
-        {/* Trending — only show section if data actually arrived */}
         {(loadingTrending || hasTrending) && (
           <section>
-            <SectionHeader icon={TrendingUp} title="Trending" subtitle="Popular right now" />
+            <SectionHeader
+              icon={TrendingUp}
+              title="Trending"
+              subtitle="Popular right now"
+              onSeeAll={hasTrending ? () => navigate('/trending') : undefined}
+            />
             {loadingTrending
               ? <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
               : <TrendingList tracks={trending!} />

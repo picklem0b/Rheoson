@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import re
 import uuid
 import yt_dlp
 import structlog
@@ -24,6 +25,12 @@ def _get_sem() -> asyncio.Semaphore:
     if _sem is None:
         _sem = asyncio.Semaphore(settings.MAX_CONCURRENT_DOWNLOADS)
     return _sem
+
+
+def _sanitize(name: str) -> str:
+    """Strip characters that break folder/file names on Android/Termux."""
+    name = re.sub(r'[<>:"/\\|?*]', "", name).strip()
+    return name or "Unknown"
 
 
 def _new_job(
@@ -137,6 +144,13 @@ def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
     return hook
 
 # ── yt-dlp download ───────────────────────────────────────────
+# CRITICAL FIX: files now land in settings.MUSIC_DIR (the directory the
+# library scanner actually reads) instead of settings.DOWNLOADS_DIR, which
+# was an orphaned write-only folder nothing ever looked at.
+#
+# Folder layout produced:
+#   MUSIC_DIR/<playlist_name>/<Artist>/<Title>.<ext>   (when playlist_name given)
+#   MUSIC_DIR/<Artist>/<Title>.<ext>                   (single track / search)
 
 async def _run_download(
     job_id:        str,
@@ -144,13 +158,22 @@ async def _run_download(
     fmt:           str,
     quality:       str,
     embed_artwork: bool,
+    artist:        str,
+    playlist_name: Optional[str] = None,
 ) -> Optional[Path]:
-    out_dir   = Path(settings.DOWNLOADS_DIR)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    music_dir = Path(settings.MUSIC_DIR)
+
+    if playlist_name:
+        base_dir = music_dir / _sanitize(playlist_name)
+    else:
+        base_dir = music_dir
+
+    artist_dir = base_dir / _sanitize(artist or "Unknown Artist")
+    artist_dir.mkdir(parents=True, exist_ok=True)
+
     loop      = asyncio.get_event_loop()
     quality_q = "0" if quality == "best" else quality
-    safe_id   = job_id[:8]
-    out_tmpl  = str(out_dir / f"%(title)s.%(ext)s")
+    out_tmpl  = str(artist_dir / "%(title)s.%(ext)s")
 
     postprocessors = [
         {"key": "FFmpegExtractAudio", "preferredcodec": fmt, "preferredquality": quality_q},
@@ -160,27 +183,30 @@ async def _run_download(
         postprocessors.append({"key": "EmbedThumbnail"})
 
     ydl_opts = {
-        "format":          "bestaudio/best",
-        "outtmpl":         out_tmpl,
-        "quiet":           True,
-        "no_warnings":     True,
-        "noplaylist":      True,
-        "progress_hooks":  [_make_hook(job_id, loop)],
-        "postprocessors":  postprocessors,
-        "writethumbnail":  embed_artwork,
-        "embedthumbnail":  embed_artwork,
-        "addmetadata":     True,
-        "retries":         3,
-        "fragment_retries":3,
+        "format":           "bestaudio/best",
+        "outtmpl":          out_tmpl,
+        "quiet":            True,
+        "no_warnings":      True,
+        "noplaylist":       True,
+        "progress_hooks":   [_make_hook(job_id, loop)],
+        "postprocessors":   postprocessors,
+        "writethumbnail":   embed_artwork,
+        "embedthumbnail":   embed_artwork,
+        "addmetadata":      True,
+        "retries":          3,
+        "fragment_retries": 3,
     }
 
     def _do() -> Optional[Path]:
+        before = {p for p in artist_dir.glob(f"*.{fmt}")}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(yt_url, download=True)
-        matches = list(out_dir.glob(f"*[{safe_id}].{fmt}"))
-        if matches:
-            return max(matches, key=lambda p: p.stat().st_mtime)
-        files = sorted(out_dir.glob(f"*.{fmt}"), key=lambda p: p.stat().st_mtime, reverse=True)
+        after = {p for p in artist_dir.glob(f"*.{fmt}")}
+        new_files = after - before
+        if new_files:
+            return max(new_files, key=lambda p: p.stat().st_mtime)
+        # fallback — most recently modified file of the right format
+        files = sorted(artist_dir.glob(f"*.{fmt}"), key=lambda p: p.stat().st_mtime, reverse=True)
         return files[0] if files else None
 
     async with _get_sem():
@@ -224,12 +250,16 @@ async def _download_task(
     quality:       str,
     embed_lyrics:  bool,
     embed_artwork: bool,
+    artist:        str,
+    playlist_name: Optional[str] = None,
 ) -> None:
     try:
         _update(job_id, status="downloading", progress=0.0)
         await ws_manager.emit_download_progress(job_id, 0.0, "downloading")
 
-        file_path = await _run_download(job_id, yt_url, fmt, quality, embed_artwork)
+        file_path = await _run_download(
+            job_id, yt_url, fmt, quality, embed_artwork, artist, playlist_name
+        )
         if not file_path or not file_path.exists():
             raise RuntimeError("Output file not found after download")
 
@@ -278,6 +308,7 @@ async def enqueue_download(
     embed_artwork: bool          = True,
     embed_lyrics:  bool          = True,
     job_id:        Optional[str] = None,
+    playlist_name: Optional[str] = None,
 ) -> dict:
     try:
         yt_url, title, artist, artwork_url = await _resolve_to_yt_url(track_id, url)
@@ -293,10 +324,13 @@ async def enqueue_download(
     _jobs[job["id"]] = job
 
     task = asyncio.create_task(
-        _download_task(job["id"], yt_url, fmt, quality, embed_lyrics, embed_artwork)
+        _download_task(
+            job["id"], yt_url, fmt, quality, embed_lyrics, embed_artwork,
+            artist, playlist_name,
+        )
     )
     _tasks[job["id"]] = task
-    log.info("download.enqueued", job_id=job["id"], title=title)
+    log.info("download.enqueued", job_id=job["id"], title=title, playlist=playlist_name)
     return job
 
 
