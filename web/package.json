@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@tanstack/react-query": "^5.28.0",
     "@tanstack/react-query-devtools": "^5.28.0",
     "clsx": "^2.1.0",
@@ -25,6 +27,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@types/howler": "^2.2.11",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
