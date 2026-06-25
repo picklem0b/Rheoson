@@ -20,7 +20,7 @@ jobs:
 
       - name: Install web dependencies
         working-directory: web
-        run: npm install --include=dev --include=dev --include=dev
+        run: npm install --include=dev
 
       - name: Build Vite app
         working-directory: web
@@ -44,17 +44,26 @@ jobs:
       - name: Install SDK platform
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ~/shulker-release.keystore }}"
+
       - name: Make gradlew executable
         working-directory: web/android
         run: chmod +x gradlew
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: web/android
-        run: ./gradlew assembleDebug
+        env:
+          KEYSTORE_PATH: /home/runner/shulker-release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }} }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }} }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }} }}
+        run: ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: shulker-debug
-          path: web/android/app/build/outputs/apk/debug/app-debug.apk
+          name: shulker-release
+          path: web/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
