@@ -20,7 +20,7 @@ jobs:
 
       - name: Install web dependencies
         working-directory: web
-        run: npm install --include=dev --include=dev
+        run: npm install --include=dev --include=dev --include=dev
 
       - name: Build Vite app
         working-directory: web
