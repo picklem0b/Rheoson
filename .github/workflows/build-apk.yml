@@ -45,8 +45,9 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Decode keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ~/shulker-release.keystore }}"
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }} }}
+        run: echo "$KEYSTORE_BASE64" | base64 --decode > /home/runner/shulker-release.keystore
 
       - name: Make gradlew executable
         working-directory: web/android
