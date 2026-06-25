@@ -3,7 +3,7 @@ name: Build Shulker APK
 on:
   push:
     branches: [main]
-  workflow_dispatch:  # lets you trigger manually from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,9 +16,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+          node-version: 24
 
       - name: Install web dependencies
         working-directory: web
@@ -27,7 +25,7 @@ jobs:
       - name: Build Vite app
         working-directory: web
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }} }}
         run: npm run build
 
       - name: Sync Capacitor
