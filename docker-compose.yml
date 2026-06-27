@@ -1,41 +1,64 @@
 services:
+
+  # ── FastAPI + Socket.IO backend ───────────────────────────
   api:
     build: ./api
     ports:
       - "8000:8000"
     env_file: ./api/.env
+    environment:
+      - ENV=development
     volumes:
+      # Mount music and downloads dirs from the host so files survive
+      # container restarts without needing to rebuild the image.
       - ./music:/music
       - ./downloads:/downloads
-    depends_on:
-      - redis
+      # Mount source code for hot-reload in development.
+      # uvicorn --reload watches /app/app/ for changes.
+      - ./api/app:/app/app
+    command: >
+      uvicorn app.main:socket_app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level debug
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
-  worker:
-    build: ./api
-    command: celery -A app.tasks worker --loglevel=info --concurrency=4
-    env_file: ./api/.env
-    volumes:
-      - ./music:/music
-      - ./downloads:/downloads
-    depends_on:
-      - redis
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
+  # ── React frontend dev server ─────────────────────────────
+  # In development we run `npm run dev` directly (with HMR) rather
+  # than serving a pre-built dist — much faster iteration.
   web:
     build: ./web
     ports:
-      - "3000:80"
-    depends_on:
-      - api
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./web/src:/app/src
+    command: npm run dev -- --host 0.0.0.0
 
+  # ── nginx reverse proxy ───────────────────────────────────
+  # Unifies the API and frontend behind a single :80 port.
+  # In development this is optional — you can hit :8000 and :3000
+  # directly. In production (see docker-compose.prod.yml) this is
+  # the only public-facing service.
   nginx:
     build: ./nginx
     ports:
       - "80:80"
     depends_on:
-      - api
-      - web
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+# NOTE: The Celery worker that was here has been removed.
+# Shulker uses asyncio + Semaphore for concurrent downloads — there is
+# no Celery integration in the codebase. Running a dead worker wastes
+# memory and adds confusion. If task queuing is added later, re-introduce
+# it here alongside the Redis service.

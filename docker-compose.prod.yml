@@ -1,11 +1,44 @@
+# Production overrides — apply with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# This file is intentionally minimal. It only overrides what differs
+# between dev and prod — everything else inherits from docker-compose.yml.
+
 services:
+
   api:
     restart: always
+    # Remove the dev source-code volume mount — use only the compiled
+    # image, not a live bind-mount of the host filesystem.
+    volumes:
+      - music_data:/music
+      - downloads_data:/downloads
+    # No --reload in production. See api/Dockerfile CMD for the full
+    # explanation, but briefly: --reload wastes CPU, makes the server
+    # unstable under load, and can restart mid-request.
+    command: >
+      uvicorn app.main:socket_app
+      --host 0.0.0.0
+      --port 8000
+      --workers 1
+      --log-level info
+      --access-log
     environment:
       - ENV=production
-  worker:
-    restart: always
+
   web:
     restart: always
+    # In production the web container serves the pre-built static dist/
+    # via nginx:alpine, not the Vite dev server.
+    # The web/Dockerfile should have a multi-stage build that ends with
+    # `FROM nginx:alpine COPY dist/ /usr/share/nginx/html`.
+    command: ""  # use the Dockerfile CMD (nginx -g 'daemon off;')
+    volumes: []  # no source mounts in production
+
   nginx:
     restart: always
+
+# Named volumes persist data across container restarts and upgrades.
+volumes:
+  music_data:
+  downloads_data:
