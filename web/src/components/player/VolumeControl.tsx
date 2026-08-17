@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { Volume, Volume1, Volume2, VolumeX } from 'lucide-react'
-import { usePlayerStore } from '@/store/playerStore'
+import { usePlayerStore } from '@/store/player.store'
 import { Slider } from '@/components/ui/Slider'
 import { IconButton } from '@/components/ui/IconButton'
 import { clamp } from '@/lib/utils'

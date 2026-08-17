@@ -13,22 +13,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.config import settings
-from app.core.logging import configure_logging
+from app.core.logging_config import configure_logging
 from app.core.exceptions import (
     ShulkerException,
     shulker_exception_handler,
     generic_exception_handler,
 )
-from app.websocket.manager import ws_manager
-from app.websocket.events import register_events
+from app.websocket.ws_manager import ws_manager
+from app.websocket.ws_events import register_events
 from app.routers import (
-    search,
-    tracks,
-    downloads,
-    stream,
-    lyrics,
-    playlists,
-    settings as settings_router,
+    search_router as search,
+    track_router as tracks,
+    download_router as downloads,
+    stream_router as stream,
+    lyrics_router as lyrics,
+    playlist_router as playlists,
+    settings_router,
 )
 
 configure_logging()

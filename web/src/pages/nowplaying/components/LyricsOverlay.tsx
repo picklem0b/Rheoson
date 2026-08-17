@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Mic2, ChevronDown } from 'lucide-react'
-import { usePlayer } from '@/hooks/usePlayer'
+import { usePlayer } from '@/hooks/player.hook'
 import { IconButton } from '@/components/ui/IconButton'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { cn } from '@/lib/utils'

@@ -1,7 +1,7 @@
-import { api } from './client'
-import type { SearchResults, SearchFilter } from '@/types/search'
-import type { Track } from '@/types/track'
-import type { Playlist } from '@/types/playlist'
+import { api } from './client.api'
+import type { SearchResults, SearchFilter } from '@/types/search.types'
+import type { Track } from '@/types/track.types'
+import type { Playlist } from '@/types/playlist.types'
 
 // ── Resolve response ──────────────────────────────────────────
 // The /search/resolve endpoint returns different shapes depending on what

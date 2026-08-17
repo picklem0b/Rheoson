@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Howl, Howler } from 'howler';
-import { usePlayerStore } from '@/store/playerStore';
-import { useQueueStore } from '@/store/queueStore';
-import { tracksApi } from '@/api/tracks';
+import { usePlayerStore } from '@/store/player.store';
+import { useQueueStore } from '@/store/queue.store';
+import { tracksApi } from '@/api/tracks.api';
 
 // ── Singleton Howl ────────────────────────────────────────────
 // One instance shared across every component that calls usePlayer().

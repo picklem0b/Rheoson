@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
-import { usePlayerStore } from '@/store/playerStore'
-import { usePlayer } from '@/hooks/usePlayer'
+import { usePlayerStore } from '@/store/player.store'
+import { usePlayer } from '@/hooks/player.hook'
 import { Slider } from '@/components/ui/Slider'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'

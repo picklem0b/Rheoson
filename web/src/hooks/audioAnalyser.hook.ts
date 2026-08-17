@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { usePlayerStore } from '@/store/playerStore'
+import { usePlayerStore } from '@/store/player.store'
 
 // fftSize must be a power of 2. We want at least barCount * 2 buckets.
 function nearestPow2(n: number): number {

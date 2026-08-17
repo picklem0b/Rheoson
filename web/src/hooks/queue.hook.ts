@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
-import { useQueueStore } from '@/store/queueStore'
-import { usePlayerStore } from '@/store/playerStore'
-import type { Track } from '@/types/track'
+import { useQueueStore } from '@/store/queue.store'
+import { usePlayerStore } from '@/store/player.store'
+import type { Track } from '@/types/track.types'
 
 interface PlayAllOptions {
   /** Start from a specific index in the tracks array. Default 0. */

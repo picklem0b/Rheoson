@@ -9,9 +9,9 @@ import {
     Link2,
     TrendingUp
 } from "lucide-react";
-import { useSearch } from "@/hooks/useSearch";
-import { useQueue } from "@/hooks/useQueue";
-import { useUIStore } from "@/store/uiStore";
+import { useSearch } from "@/hooks/search.hook";
+import { useQueue } from "@/hooks/queue.hook";
+import { useUIStore } from "@/store/ui.store";
 import { useToast } from "@/components/ui/Toaster";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Badge } from "@/components/ui/Badge";
@@ -20,8 +20,8 @@ import { SearchBar } from "./components/SearchBar";
 import { CategoryGrid, ResultSection } from "./components/CategoryGrid";
 import { formatDuration, truncate } from "@/lib/formatters";
 import { detectInputType, cn } from "@/lib/utils";
-import type { SearchFilter } from "@/types/search";
-import type { Track } from "@/types/track";
+import type { SearchFilter } from "@/types/search.types";
+import type { Track } from "@/types/track.types";
 
 const FILTERS: { id: SearchFilter; label: string }[] = [
     { id: "all", label: "All" },

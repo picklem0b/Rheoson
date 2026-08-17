@@ -21,18 +21,18 @@ import {
     X,
     WifiOff
 } from 'lucide-react';
-import { usePlayerStore } from '@/store/playerStore';
-import { useUIStore } from '@/store/uiStore';
-import { useQueue } from '@/hooks/useQueue';
-import { useLyrics } from '@/hooks/useLyrics';
-import { tracksApi } from '@/api/tracks';
+import { usePlayerStore } from '@/store/player.store';
+import { useUIStore } from '@/store/ui.store';
+import { useQueue } from '@/hooks/queue.hook';
+import { useLyrics } from '@/hooks/lyrics.hook';
+import { tracksApi } from '@/api/tracks.api';
 import PlayerControls from '@/components/player/PlayerControls';
 import ProgressBar from '@/components/player/ProgressBar';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { Spinner } from '@/components/ui/Spinner';
 import { truncate, formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import type { Track } from '@/types/track';
+import type { Track } from '@/types/track.types';
 
 type Tab = 'playlist' | 'lyric' | 'related';
 

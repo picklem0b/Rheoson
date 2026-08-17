@@ -1,5 +1,5 @@
-import { api } from './client'
-import type { Track } from '@/types/track'
+import { api } from './client.api'
+import type { Track } from '@/types/track.types'
 import type { Album } from '@/types/album'
 import type { Artist } from '@/types/artist'
 

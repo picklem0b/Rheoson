@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Play, UserPlus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { useQueue } from '@/hooks/useQueue'
-import { getArtist } from '@/api/library'
+import { useQueue } from '@/hooks/queue.hook'
+import { getArtist } from '@/api/library.api'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Button } from '@/components/ui/Button'
 import { TrackRowSkeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track'
+import type { Track } from '@/types/track.types'
 
 const GRADIENTS = [
   'from-rose-900 to-pink-700',

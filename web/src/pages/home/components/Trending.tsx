@@ -10,16 +10,16 @@
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { TrendingUp, Play, Shuffle } from 'lucide-react'
-import { useQueue } from '@/hooks/useQueue'
-import { usePlayerStore } from '@/store/playerStore'
-import { tracksApi } from '@/api/tracks'
+import { useQueue } from '@/hooks/queue.hook'
+import { usePlayerStore } from '@/store/player.store'
+import { tracksApi } from '@/api/tracks.api'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track'
+import type { Track } from '@/types/track.types'
 
 // ── Numbered track row ────────────────────────────────────────
 

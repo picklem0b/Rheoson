@@ -1,4 +1,4 @@
-import { usePersisted } from '@/hooks/usePersisted'
+import { usePersisted } from '@/hooks/persisted.hook'
 import { SettingsGroup, SettingsRow, Toggle, RadioGroup } from '../components/SettingsPrimitives'
 
 export default function DownloadsSection() {

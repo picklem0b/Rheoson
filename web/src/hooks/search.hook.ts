@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { searchApi, resolveToTracks } from "@/api/search";
-import { isAbortError } from "@/api/client";
+import { searchApi, resolveToTracks } from "@/api/search.api";
+import { isAbortError } from "@/api/client.api";
 import { API_BASE } from "@/lib/constants";
-import type { SearchResults, SearchFilter } from "@/types/search";
-import type { Track } from "@/types/track";
+import type { SearchResults, SearchFilter } from "@/types/search.types";
+import type { Track } from "@/types/track.types";
 import { detectInputType } from "@/lib/utils";
 
 // ── Debounce timings ──────────────────────────────────────────

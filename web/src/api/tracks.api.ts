@@ -1,6 +1,6 @@
-import { api } from './client'
+import { api } from './client.api'
 import { API_BASE } from '@/lib/constants'
-import type { Track } from '@/types/track'
+import type { Track } from '@/types/track.types'
 
 /**
  * Tracks API

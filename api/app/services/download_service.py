@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.core.config import settings
-from app.websocket.manager import ws_manager
+from app.websocket.ws_manager import ws_manager
 
 log = structlog.get_logger()
 

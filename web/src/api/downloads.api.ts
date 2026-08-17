@@ -1,5 +1,5 @@
-import { api } from './client'
-import type { DownloadJob, DownloadOptions } from '@/types/download'
+import { api } from './client.api'
+import type { DownloadJob, DownloadOptions } from '@/types/download.types'
 
 export const downloadsApi = {
   /** Start a download by track ID or arbitrary URL. */

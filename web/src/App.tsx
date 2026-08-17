@@ -3,9 +3,9 @@ import { RouterProvider } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { Howler } from 'howler'
 import { router } from './router'
-import { useThemeStore } from '@/store/themeStore'
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
-import { useMediaSession } from '@/hooks/useMediaSession'
+import { useThemeStore } from '@/store/theme.store'
+import { useKeyboardShortcuts } from '@/hooks/keyboardShortcuts.hook'
+import { useMediaSession } from '@/hooks/mediaSession.hook'
 import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
 
 // ── Inner app — hooks that need router context ────────────────

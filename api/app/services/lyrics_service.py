@@ -3,7 +3,7 @@ import re
 import asyncio
 import structlog
 import syncedlyrics
-from app.schemas.lyrics import LyricsSchema, LyricsLineSchema
+from app.schemas.lyrics_schema import LyricsSchema, LyricsLineSchema
 
 log = structlog.get_logger()
 

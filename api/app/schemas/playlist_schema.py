@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pydantic import BaseModel
 from typing import Optional
-from app.schemas.track import TrackSchema
+from app.schemas.track_schema import TrackSchema
 from pydantic import Field
 
 class PlaylistSchema(BaseModel):
