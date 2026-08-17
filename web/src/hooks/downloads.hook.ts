@@ -3,11 +3,11 @@ import {
   useDownloadStore,
   selectActiveJobs,
   selectCompletedJobs,
-} from '@/store/downloadStore'
-import { downloadsApi } from '@/api/downloads'
-import { ws } from '@/lib/websocket'
-import type { DownloadJob, DownloadOptions } from '@/types/download'
-import type { Track } from '@/types/track'
+} from '@/store/download.store'
+import { downloadsApi } from '@/api/downloads.api'
+import { ws } from '@/lib/websocket.lib'
+import type { DownloadJob, DownloadOptions } from '@/types/download.types'
+import type { Track } from '@/types/track.types'
 import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
 

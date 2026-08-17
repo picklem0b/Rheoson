@@ -9,10 +9,10 @@ import {
     Download,
     WifiOff
 } from 'lucide-react';
-import { usePlayerStore } from '@/store/playerStore';
-import { useUIStore } from '@/store/uiStore';
-import { usePlayer } from '@/hooks/usePlayer';
-import { tracksApi } from '@/api/tracks';
+import { usePlayerStore } from '@/store/player.store';
+import { useUIStore } from '@/store/ui.store';
+import { usePlayer } from '@/hooks/player.hook';
+import { tracksApi } from '@/api/tracks.api';
 import PlayerControls from './PlayerControls';
 import ProgressBar from './ProgressBar';
 import VolumeControl from './VolumeControl';

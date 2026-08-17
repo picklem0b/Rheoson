@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
-import { usePlayerStore } from '@/store/playerStore'
-import { usePlayer } from './usePlayer'
+import { usePlayerStore } from '@/store/player.store'
+import { usePlayer } from './player.hook'
 
 export function useMediaSession() {
   const { currentTrack, isPlaying, progress, duration } = usePlayerStore()

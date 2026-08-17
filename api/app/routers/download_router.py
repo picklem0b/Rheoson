@@ -1,6 +1,6 @@
 from __future__ import annotations
 from fastapi import APIRouter, HTTPException
-from app.schemas.download import DownloadRequestSchema, DownloadJobSchema
+from app.schemas.download_schema import DownloadRequestSchema, DownloadJobSchema
 from app.services.download_service import (
     enqueue_download, get_all_jobs, get_job,
     cancel_job, retry_job,

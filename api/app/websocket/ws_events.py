@@ -1,5 +1,5 @@
 import structlog
-from app.websocket.manager import ws_manager
+from app.websocket.ws_manager import ws_manager
 
 log = structlog.get_logger()
 

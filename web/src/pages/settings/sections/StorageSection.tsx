@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FolderOpen, RefreshCw, ExternalLink, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { usePersisted } from '@/hooks/usePersisted'
+import { usePersisted } from '@/hooks/persisted.hook'
 import { SettingsGroup, SettingsRow, Toggle } from '../components/SettingsPrimitives'
 
 const DEFAULT_DIRS = [

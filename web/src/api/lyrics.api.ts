@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api } from './client.api'
 
 export interface LyricsLine {
   time: number   // milliseconds from track start

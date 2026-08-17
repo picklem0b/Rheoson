@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from app.core.config import settings
 from app.services.metadata_service import read_track_metadata
 from app.services.ytmusic_service import get_track as yt_get_track
-from app.schemas.track import TrackSchema
+from app.schemas.track_schema import TrackSchema
 
 log    = structlog.get_logger()
 router = APIRouter()

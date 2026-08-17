@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from app.core.config import settings
-from app.schemas.playlist import PlaylistSchema, CreatePlaylistSchema, UpdatePlaylistSchema
+from app.schemas.playlist_schema import PlaylistSchema, CreatePlaylistSchema, UpdatePlaylistSchema
 
 router = APIRouter()
 

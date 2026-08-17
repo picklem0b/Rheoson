@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Track } from '@/types/track';
-import type { RepeatMode } from '@/types/player';
+import type { Track } from '@/types/track.types';
+import type { RepeatMode } from '@/types/player.types';
 
 interface PlayerStore {
     // Playback state

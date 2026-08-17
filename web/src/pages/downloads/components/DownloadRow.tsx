@@ -4,7 +4,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Badge } from '@/components/ui/Badge'
 import { truncate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { DownloadJob, DownloadStatus } from '@/types/download'
+import type { DownloadJob, DownloadStatus } from '@/types/download.types'
 
 const STATUS_CONFIG: Record<DownloadStatus, { label: string; color: string; icon: React.ReactNode }> = {
   queued:      { label: 'Queued',      color: 'surface', icon: <Download    className="w-3.5 h-3.5" /> },

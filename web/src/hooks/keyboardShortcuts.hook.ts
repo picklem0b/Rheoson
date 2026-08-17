@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { usePlayer } from './usePlayer'
-import { usePlayerStore } from '@/store/playerStore'
-import { useUIStore } from '@/store/uiStore'
+import { usePlayer } from './player.hook'
+import { usePlayerStore } from '@/store/player.store'
+import { useUIStore } from '@/store/ui.store'
 import { clamp } from '@/lib/utils'
 import { PLAYER_DEFAULTS } from '@/lib/constants'
 

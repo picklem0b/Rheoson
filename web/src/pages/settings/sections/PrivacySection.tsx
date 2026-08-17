@@ -1,5 +1,5 @@
 import { ExternalLink, Trash2 } from 'lucide-react';
-import { usePersisted } from '@/hooks/usePersisted';
+import { usePersisted } from '@/hooks/persisted.hook';
 import {
 	SettingsGroup,
 	SettingsRow,

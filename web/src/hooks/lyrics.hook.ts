@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { lyricsApi } from '@/api/lyrics'
-import { usePlayerStore } from '@/store/playerStore'
+import { lyricsApi } from '@/api/lyrics.api'
+import { usePlayerStore } from '@/store/player.store'
 
 interface LyricsLine {
   text:       string

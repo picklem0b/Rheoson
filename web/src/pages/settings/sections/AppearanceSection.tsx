@@ -1,8 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check } from 'lucide-react'
-import { useThemeStore } from '@/store/themeStore'
+import { useThemeStore } from '@/store/theme.store'
 import { ACCENT_THEMES } from '@/themes'
-import { usePersisted } from '@/hooks/usePersisted'
+import { usePersisted } from '@/hooks/persisted.hook'
 import { SettingsGroup, SettingsRow, Toggle, Slider } from '../components/SettingsPrimitives'
 
 export default function AppearanceSection() {

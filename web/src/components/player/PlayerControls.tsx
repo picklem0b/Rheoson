@@ -3,8 +3,8 @@ import {
   Play, Pause, SkipBack, SkipForward,
   Shuffle, Repeat, Repeat1,
 } from 'lucide-react'
-import { usePlayerStore } from '@/store/playerStore'
-import { usePlayer } from '@/hooks/usePlayer'
+import { usePlayerStore } from '@/store/player.store'
+import { usePlayer } from '@/hooks/player.hook'
 import { IconButton } from '@/components/ui/IconButton'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/utils'

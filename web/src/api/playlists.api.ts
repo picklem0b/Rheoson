@@ -1,6 +1,6 @@
-import { api } from './client'
-import type { Playlist } from '@/types/playlist'
-import type { Track } from '@/types/track'
+import { api } from './client.api'
+import type { Playlist } from '@/types/playlist.types'
+import type { Track } from '@/types/track.types'
 
 export const playlistsApi = {
   getPlaylists: () =>
@@ -35,7 +35,7 @@ export const playlistsApi = {
 }
 
 // Named re-exports so pages can do:
-//   import { getPlaylists, getPlaylist } from '@/api/playlists'
+//   import { getPlaylists, getPlaylist } from '@/api/playlists.api'
 export const {
   getPlaylists,
   getPlaylist,

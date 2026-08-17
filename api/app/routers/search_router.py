@@ -2,7 +2,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query, HTTPException
 from app.services.search_service import search, resolve_url
 from app.services.ytmusic_service import get_suggestions
-from app.schemas.search import SearchResultsSchema, ResolveResponseSchema
+from app.schemas.search_schema import SearchResultsSchema, ResolveResponseSchema
 
 router = APIRouter()
 

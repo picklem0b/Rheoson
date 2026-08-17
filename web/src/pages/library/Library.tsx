@@ -18,12 +18,12 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { IconButton } from "@/components/ui/IconButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toaster";
-import { getPlaylists } from "@/api/playlists";
-import { getAlbums, getArtists } from "@/api/library";
-import { tracksApi } from "@/api/tracks";
-import { useUIStore } from "@/store/uiStore";
+import { getPlaylists } from "@/api/playlists.api";
+import { getAlbums, getArtists } from "@/api/library.api";
+import { tracksApi } from "@/api/tracks.api";
+import { useUIStore } from "@/store/ui.store";
 import { cn } from "@/lib/utils";
-import type { Artist } from "@/types/track";
+import type { Artist } from "@/types/track.types";
 
 type LibTab = "playlists" | "albums" | "artists";
 

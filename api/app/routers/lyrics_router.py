@@ -1,6 +1,6 @@
 from __future__ import annotations
 from fastapi import APIRouter, Query
-from app.schemas.lyrics import LyricsSchema
+from app.schemas.lyrics_schema import LyricsSchema
 from app.services.lyrics_service import get_lyrics
 
 router = APIRouter()
