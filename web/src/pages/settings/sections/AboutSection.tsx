@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
 	Music2,
 	ExternalLink,
@@ -6,8 +6,7 @@ import {
 	Star,
 	GitFork,
 	Eye,
-	Tag,
-	Trash2
+	Tag
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants';
 import { SettingsGroup, SettingsRow } from '../components/SettingsPrimitives';
@@ -25,7 +24,7 @@ const STACK = [
 	{ label: 'Zustand', value: '4.5' }
 ];
 
-const TAGS = ['v1.0.0', 'v1.1.0', 'v1.2.0', `v${APP_VERSION}`];
+const TAGS = ['v1.0.0', 'v1.1.0', 'v1.2.0', 'v1.3.0', `v${APP_VERSION}`];
 
 export default function AboutSection() {
 	const [ghStats, setGhStats] = useState<{
@@ -34,8 +33,7 @@ export default function AboutSection() {
 		watchers: number;
 	} | null>(null);
 
-	// Fetch GitHub stats once on mount
-	useState(() => {
+	useEffect(() => {
 		fetch('https://api.github.com/repos/picklem0b/shulker')
 			.then(r => r.json())
 			.then(d =>
@@ -46,18 +44,18 @@ export default function AboutSection() {
 				})
 			)
 			.catch(() => {});
-	});
+	}, []);
 
 	return (
 		<div className='pb-2'>
-			{/* App hero card */}
-			<div className='mb-5 rounded-3xl overflow-hidden bg-gradient-to-br from-[var(--accent)]/10 to-[var(--bg-surface)] border border-[var(--border)]'>
+			{/* App hero */}
+			<div className='mb-6 rounded-3xl overflow-hidden bg-gradient-to-br from-[var(--accent)]/10 to-[var(--bg-surface)] border border-[var(--border)]'>
 				<div className='flex items-center gap-4 px-5 py-5'>
-					<div className='w-14 h-14 rounded-2xl bg-[var(--accent)] flex items-center justify-center shadow-lg'>
+					<div className='w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-bright)] flex items-center justify-center shadow-lg flex-shrink-0'>
 						<Music2 className='w-7 h-7 text-white' />
 					</div>
-					<div>
-						<p className='font-black text-[var(--text-primary)] text-xl tracking-tight'>
+					<div className='min-w-0'>
+						<p className='font-black text-[var(--text-primary)] text-xl tracking-tight leading-tight'>
 							Shulker
 						</p>
 						<p className='text-sm text-[var(--text-muted)]'>
@@ -90,7 +88,7 @@ export default function AboutSection() {
 						].map(({ icon: Icon, label, value }) => (
 							<div
 								key={label}
-								className='flex-1 flex flex-col items-center py-3 gap-0.5'
+								className='flex-1 flex flex-col items-center py-3.5 gap-0.5'
 							>
 								<Icon className='w-4 h-4 text-[var(--accent)]' />
 								<span className='text-sm font-bold text-[var(--text-primary)]'>
@@ -105,9 +103,8 @@ export default function AboutSection() {
 				)}
 			</div>
 
-			{/* Release tags */}
 			<SettingsGroup title='Release tags'>
-				<div className='px-4 py-3 flex flex-wrap gap-2'>
+				<div className='px-4 py-3.5 flex flex-wrap gap-2'>
 					{TAGS.map(tag => (
 						<button
 							key={tag}
@@ -131,7 +128,6 @@ export default function AboutSection() {
 				</div>
 			</SettingsGroup>
 
-			{/* Stack */}
 			<SettingsGroup title='Stack'>
 				{STACK.map(d => (
 					<SettingsRow key={d.label} label={d.label}>
@@ -142,7 +138,6 @@ export default function AboutSection() {
 				))}
 			</SettingsGroup>
 
-			{/* Links */}
 			<SettingsGroup title='Links'>
 				<SettingsRow
 					label='GitHub'
@@ -172,42 +167,6 @@ export default function AboutSection() {
 					}
 				>
 					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
-				</SettingsRow>
-				<SettingsRow
-					label='Terms of service'
-					onClick={() =>
-						window.open(
-							`${GITHUB}/blob/main/docs/TERMS.md`,
-							'_blank'
-						)
-					}
-				>
-					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
-				</SettingsRow>
-				<SettingsRow
-					label='Privacy policy'
-					onClick={() =>
-						window.open(
-							`${GITHUB}/blob/main/docs/PRIVACY.md`,
-							'_blank'
-						)
-					}
-				>
-					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
-				</SettingsRow>
-			</SettingsGroup>
-
-			<SettingsGroup title='Danger zone'>
-				<SettingsRow
-					label='Clear all app data'
-					description='Reset everything — settings, theme, history, playlists. Cannot be undone.'
-					danger
-					onClick={() => {
-						localStorage.clear();
-						window.location.reload();
-					}}
-				>
-					<Trash2 className='w-4 h-4 text-red-400' />
 				</SettingsRow>
 			</SettingsGroup>
 		</div>

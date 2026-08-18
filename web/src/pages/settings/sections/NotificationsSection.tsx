@@ -1,43 +1,127 @@
-import { usePersisted } from '@/hooks/persisted.hook'
-import { SettingsGroup, SettingsRow, Toggle } from '../components/SettingsPrimitives'
+import { useState } from 'react';
+import { ExternalLink, Trash2, CheckCircle } from 'lucide-react';
+import { api } from '@/api/client.api';
+import { usePersisted } from '@/hooks/persisted.hook';
+import {
+	SettingsGroup,
+	SettingsRow,
+	Toggle
+} from '../components/SettingsPrimitives';
 
-export default function NotificationsSection() {
-  const [dlDone,  setDlDone]  = usePersisted('notif-dl-done', true)
-  const [dlFail,  setDlFail]  = usePersisted('notif-dl-fail', true)
-  const [sound,   setSound]   = usePersisted('notif-sound', true)
-  const [updates, setUpdates] = usePersisted('notif-updates', false)
+const GITHUB = 'https://github.com/picklem0b/shulker/blob/main/docs';
 
-  return (
-    <div className="pb-2">
-      <SettingsGroup title="Downloads">
-        <SettingsRow
-          label="Download complete"
-          description="Play a sound and show a notification when a track finishes"
-        >
-          <Toggle value={dlDone} onChange={setDlDone} />
-        </SettingsRow>
-        <SettingsRow
-          label="Download failed"
-          description="Alert when a download encounters an error"
-        >
-          <Toggle value={dlFail} onChange={setDlFail} />
-        </SettingsRow>
-        <SettingsRow
-          label="Sound effects"
-          description="Play rhea.mp3 on download complete"
-        >
-          <Toggle value={sound} onChange={setSound} />
-        </SettingsRow>
-      </SettingsGroup>
+export default function PrivacySection() {
+	const [history, setHistory] = usePersisted('save-history', true);
+	const [searchLog, setSearchLog] = usePersisted('save-search-log', true);
+	const [analytics, setAnalytics] = usePersisted('analytics', false);
 
-      <SettingsGroup title="App">
-        <SettingsRow
-          label="Update available"
-          description="Notify when a new version of Shulker is available"
-        >
-          <Toggle value={updates} onChange={setUpdates} />
-        </SettingsRow>
-      </SettingsGroup>
-    </div>
-  )
+	const [clearingPlay, setClearingPlay] = useState(false);
+	const [clearedPlay, setClearedPlay] = useState(false);
+	const [clearingSearch, setClearingSearch] = useState(false);
+	const [clearedSearch, setClearedSearch] = useState(false);
+
+	const clearPlayHistory = async () => {
+		setClearingPlay(true);
+		try {
+			await api.delete('/tracks/history');
+			setClearedPlay(true);
+			setTimeout(() => setClearedPlay(false), 2500);
+		} catch {
+		} finally {
+			setClearingPlay(false);
+		}
+	};
+
+	const clearSearchHistory = () => {
+		sessionStorage.removeItem('shulker-last-search');
+		setClearedSearch(true);
+		setTimeout(() => setClearedSearch(false), 2500);
+	};
+
+	return (
+		<div className='pb-2'>
+			<SettingsGroup title='History'>
+				<SettingsRow
+					label='Save play history'
+					description='Track recently played songs across sessions'
+				>
+					<Toggle value={history} onChange={setHistory} />
+				</SettingsRow>
+				<SettingsRow
+					label='Save search history'
+					description='Restore last search when you return to the search page'
+				>
+					<Toggle value={searchLog} onChange={setSearchLog} />
+				</SettingsRow>
+				<SettingsRow
+					label={
+						clearedPlay
+							? 'Play history cleared'
+							: 'Clear play history'
+					}
+					danger={!clearedPlay}
+					onClick={clearingPlay ? undefined : clearPlayHistory}
+					loading={clearingPlay}
+				>
+					{clearedPlay ? (
+						<CheckCircle className='w-4 h-4 text-green-400' />
+					) : (
+						<Trash2 className='w-4 h-4 text-red-400' />
+					)}
+				</SettingsRow>
+				<SettingsRow
+					label={
+						clearedSearch
+							? 'Search history cleared'
+							: 'Clear search history'
+					}
+					danger={!clearedSearch}
+					onClick={clearSearchHistory}
+				>
+					{clearedSearch ? (
+						<CheckCircle className='w-4 h-4 text-green-400' />
+					) : (
+						<Trash2 className='w-4 h-4 text-red-400' />
+					)}
+				</SettingsRow>
+			</SettingsGroup>
+
+			<SettingsGroup title='Data'>
+				<SettingsRow
+					label='Anonymous analytics'
+					description='Help improve Shulker by sharing anonymous usage data. No personal data collected.'
+				>
+					<Toggle value={analytics} onChange={setAnalytics} />
+				</SettingsRow>
+			</SettingsGroup>
+
+			<SettingsGroup title='Legal'>
+				<SettingsRow
+					label='Terms of service'
+					onClick={() => window.open(`${GITHUB}/TERMS.md`, '_blank')}
+				>
+					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
+				</SettingsRow>
+				<SettingsRow
+					label='Privacy policy'
+					onClick={() =>
+						window.open(`${GITHUB}/PRIVACY.md`, '_blank')
+					}
+				>
+					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
+				</SettingsRow>
+				<SettingsRow
+					label='Open source licences'
+					onClick={() =>
+						window.open(
+							'https://github.com/picklem0b/shulker/blob/main/LICENSE',
+							'_blank'
+						)
+					}
+				>
+					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
+				</SettingsRow>
+			</SettingsGroup>
+		</div>
+	);
 }
