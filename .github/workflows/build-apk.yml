@@ -1,60 +1,82 @@
 name: Build Shulker APK
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+   push:
+      branches: [main]
+   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+   build:
+      runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 24
+              cache: npm
+              cache-dependency-path: web/package-lock.json
 
-      - name: Install web dependencies
-        working-directory: web
-        run: npm install
+         - name: Install web dependencies
+           working-directory: web
+           run: npm ci
 
-      - name: Build Vite app
-        working-directory: web
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }} }}
-        run: npm run build
+         - name: Build Vite app
+           working-directory: web
+           env:
+              # Fix: was "${{ secrets.VITE_API_URL }} }}" — double closing brace
+              # caused the env block to be silently ignored in GitHub Actions.
+              VITE_API_URL: ${{ secrets.VITE_API_URL }}
+              # NODE_ENV=production is required so import.meta.env.PROD === true
+              # inside the Vite build. Without it, API_BASE resolves to '/api'
+              # (the dev proxy path) which is meaningless inside the APK WebView
+              # and causes fetch() to resolve against file:// → HTML error page.
+              NODE_ENV: production
+           run: npm run build
 
-      - name: Sync Capacitor
-        working-directory: web
-        run: npx cap sync android
+         - name: Sync Capacitor
+           working-directory: web
+           run: npx cap sync android
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+         - name: Set up Java 21
+           uses: actions/setup-java@v4
+           with:
+              java-version: "21"
+              distribution: "temurin"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+         - name: Set up Android SDK
+           uses: android-actions/setup-android@v3
 
-      - name: Install SDK platform
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+         - name: Install SDK platform and build tools
+           run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Make gradlew executable
-        working-directory: web/android
-        run: chmod +x gradlew
+         - name: Make gradlew executable
+           working-directory: web/android
+           run: chmod +x gradlew
 
-      - name: Build debug APK
-        working-directory: web/android
-        run: ./gradlew assembleDebug
+         # assembleRelease sets NODE_ENV=production in the Gradle build and
+         # produces an unsigned release APK. The debug variant does NOT set
+         # NODE_ENV=production so PROD would be false and API_BASE would be
+         # '/api' — a relative path that breaks inside the WebView.
+         - name: Build release APK (unsigned)
+           working-directory: web/android
+           run: ./gradlew assembleRelease
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: shulker-debug
-          path: web/android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+         - name: Upload APK artifact
+           uses: actions/upload-artifact@v4
+           with:
+              name: shulker-release-unsigned
+              path: web/android/app/build/outputs/apk/release/app-release-unsigned.apk
+              retention-days: 30
+
+         # ── Optional: create a GitHub Release on tags ─────────────
+         # Uncomment when you're ready to publish signed releases.
+         #
+         # - name: Create GitHub Release
+         #   if: startsWith(github.ref, 'refs/tags/v')
+         #   uses: softprops/action-gh-release@v2
+         #   with:
+         #     files: web/android/app/build/outputs/apk/release/app-release-unsigned.apk
