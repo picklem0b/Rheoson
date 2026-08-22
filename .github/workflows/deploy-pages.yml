@@ -8,7 +8,6 @@ on:
          - "README.md"
    workflow_dispatch:
 
-# Only one deployment at a time — cancel in-flight if a new push comes in
 concurrency:
    group: pages
    cancel-in-progress: true
@@ -19,24 +18,46 @@ permissions:
    id-token: write
 
 jobs:
-   deploy:
+   build:
       runs-on: ubuntu-latest
-      environment:
-         name: github-pages
-         url: ${{ steps.deployment.outputs.page_url }}
 
       steps:
          - name: Checkout
            uses: actions/checkout@v4
 
-         - name: Setup Pages
-           uses: actions/configure-pages@v5
+         - name: Setup Ruby
+           uses: ruby/setup-ruby@v1
+           with:
+              ruby-version: "3.3"
+              bundler-cache: true
+              working-directory: docs
 
-         - name: Upload docs/ as Pages artifact
+         - name: Install Jekyll
+           working-directory: docs
+           run: |
+              gem install jekyll bundler
+
+         - name: Build Jekyll site
+           working-directory: docs
+           run: |
+              jekyll build --destination _site
+
+         - name: Upload Pages artifact
            uses: actions/upload-pages-artifact@v3
            with:
-              # Serve everything inside docs/ — index.html is the entry point
-              path: docs
+              path: docs/_site
+
+   deploy:
+      needs: build
+      runs-on: ubuntu-latest
+
+      environment:
+         name: github-pages
+         url: ${{ steps.deployment.outputs.page_url }}
+
+      steps:
+         - name: Setup Pages
+           uses: actions/configure-pages@v5
 
          - name: Deploy to GitHub Pages
            id: deployment
