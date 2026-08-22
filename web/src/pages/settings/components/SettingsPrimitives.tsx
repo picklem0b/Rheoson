@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,9 +29,11 @@ export function SettingsGroup({
                {title}
             </p>
          )}
+
          <div className='bg-[var(--bg-surface)] rounded-[18px] overflow-hidden divide-y divide-[var(--border)]/50 border border-[var(--border)]/30'>
             {children}
          </div>
+
          {footer && (
             <p className='text-[11px] text-[var(--text-muted)] mt-2 px-1 leading-relaxed'>
                {footer}
@@ -41,6 +42,8 @@ export function SettingsGroup({
       </div>
    );
 }
+
+// ── SettingsRow ───────────────────────────────────────────────
 
 export function SettingsRow({
    label,
@@ -83,6 +86,7 @@ export function SettingsRow({
                {icon}
             </div>
          )}
+
          <div className='min-w-0 flex-1'>
             <p
                className={cn(
@@ -93,14 +97,17 @@ export function SettingsRow({
                )}>
                {label}
             </p>
+
             {description && (
                <p className='text-[13px] text-[var(--text-muted)] mt-[2px] leading-snug'>
                   {description}
                </p>
             )}
          </div>
+
          <div className='flex items-center gap-2 flex-shrink-0'>
             {children}
+
             {!children && clickable && (
                <ChevronRight className='w-[18px] h-[18px] text-[var(--text-muted)]/40' />
             )}
@@ -109,32 +116,9 @@ export function SettingsRow({
    );
 }
 
+// ── Toggle ────────────────────────────────────────────────────
+
 export function Toggle({
-	value,
-	onChange,
-	disabled
-}: {
-	value: boolean;
-	onChange: (v: boolean) => void;
-	disabled?: boolean;
-}) {
-	return (
-		<motion.button
-			onClick={() => !disabled && onChange(!value)}
-			className={cn(
-				'relative w-12 h-6.5 rounded-full flex-shrink-0 transition-colors duration-300',
-				value ? 'bg-[var(--accent)]' : 'bg-[var(--bg-overlay)]',
-				disabled && 'opacity-40 cursor-not-allowed'
-			)}
-			style={{ height: '26px', width: '46px' }}
-		>
-			<motion.div
-				animate={{ x: value ? 22 : 2 }}
-				transition={{ type: 'spring', damping: 22, stiffness: 380 }}
-				className='absolute top-[3px] w-[20px] h-[20px] rounded-full bg-white shadow-sm'
-			/>
-		</motion.button>
-	);
    value,
    onChange,
    disabled
@@ -145,11 +129,14 @@ export function Toggle({
 }) {
    return (
       <motion.button
-         onPointerDown={() => !disabled && onChange(!value)}
+         type='button'
+         onClick={() => !disabled && onChange(!value)}
          whileTap={{ scale: 0.94 }}
          transition={SPRING}
          role='switch'
          aria-checked={value}
+         aria-disabled={disabled}
+         disabled={disabled}
          style={{ width: 51, height: 31 }}
          className={cn(
             "relative flex-shrink-0 rounded-full transition-colors duration-200",
@@ -158,12 +145,18 @@ export function Toggle({
          )}>
          <motion.div
             animate={{ x: value ? 22 : 2 }}
-            transition={{ type: "spring", damping: 22, stiffness: 400 }}
+            transition={{
+               type: "spring",
+               damping: 22,
+               stiffness: 400
+            }}
             className='absolute top-[3px] w-[25px] h-[25px] rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.28)]'
          />
       </motion.button>
    );
 }
+
+// ── RadioGroup ────────────────────────────────────────────────
 
 export function RadioGroup<T extends string>({
    options,
@@ -211,94 +204,9 @@ export function RadioGroup<T extends string>({
    );
 }
 
+// ── Slider ────────────────────────────────────────────────────
+
 export function Slider({
-	value,
-	onChange,
-	min = 0,
-	max = 1,
-	step = 0.01,
-	label,
-	formatValue
-}: {
-	value: number;
-	onChange: (v: number) => void;
-	min?: number;
-	max?: number;
-	step?: number;
-	label?: string;
-	formatValue?: (v: number) => string;
-}) {
-	const pct = ((value - min) / (max - min)) * 100;
-
-	return (
-		<div className='px-4 py-3.5'>
-			{label && (
-				<div className='flex items-center justify-between mb-3'>
-					<span className='text-xs text-[var(--text-muted)]'>
-						{label}
-					</span>
-					<span className='text-xs font-bold text-[var(--text-primary)]'>
-						{formatValue
-							? formatValue(value)
-							: `${Math.round(pct)}%`}
-					</span>
-				</div>
-			)}
-			<div className='relative flex items-center h-6'>
-				<div className='w-full h-1.5 rounded-full bg-[var(--bg-overlay)] overflow-hidden'>
-					<div
-						className='h-full bg-[var(--accent)] rounded-full'
-						style={{ width: `${pct}%`, transition: 'width 0.05s' }}
-					/>
-				</div>
-				<input
-					type='range'
-					min={min}
-					max={max}
-					step={step}
-					value={value}
-					onChange={e => onChange(parseFloat(e.target.value))}
-					className='absolute inset-0 w-full opacity-0 cursor-pointer h-6'
-				/>
-				<div
-					className='absolute w-5 h-5 rounded-full bg-white shadow-md border border-[var(--border)] pointer-events-none'
-					style={{
-						left: `calc(${pct}% - 10px)`,
-						transition: 'left 0.05s'
-					}}
-				/>
-			</div>
-		</div>
-	);
-}
-
-export function StatusBadge({
-	ok,
-	labelOk,
-	labelErr
-}: {
-	ok: boolean;
-	labelOk: string;
-	labelErr: string;
-}) {
-	return (
-		<div
-			className={cn(
-				'flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold border',
-				ok
-					? 'bg-green-500/10 text-green-400 border-green-500/20'
-					: 'bg-orange-500/10 text-orange-400 border-orange-500/20'
-			)}
-		>
-			<div
-				className={cn(
-					'w-1.5 h-1.5 rounded-full',
-					ok ? 'bg-green-400' : 'bg-orange-400'
-				)}
-			/>
-			{ok ? labelOk : labelErr}
-		</div>
-	);
    value,
    onChange,
    min = 0,
@@ -324,13 +232,14 @@ export function StatusBadge({
                <span className='text-[13px] text-[var(--text-muted)]'>
                   {label}
                </span>
+
                <span className='text-[13px] font-semibold text-[var(--text-primary)] tabular-nums'>
                   {formatValue ? formatValue(value) : `${pct}%`}
                </span>
             </div>
          )}
+
          <div className='relative' style={{ height: 28 }}>
-            {/* Track background */}
             <div className='absolute inset-0 flex items-center pointer-events-none'>
                <div className='w-full h-[5px] rounded-full overflow-hidden bg-[var(--bg-overlay)]'>
                   <div
@@ -339,12 +248,12 @@ export function StatusBadge({
                   />
                </div>
             </div>
-            {/* Thumb */}
+
             <div
                className='absolute top-0 w-[28px] h-[28px] rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.22)] border border-black/5 pointer-events-none'
                style={{ left: `calc(${pct}% - 14px)` }}
             />
-            {/* Native input on top — invisible */}
+
             <input
                type='range'
                min={min}
@@ -376,6 +285,7 @@ export function Stepper({
    return (
       <div className='flex items-center gap-3'>
          <motion.button
+            type='button'
             whileTap={{ scale: 0.85 }}
             transition={SPRING}
             onClick={() => onChange(Math.max(min, value - 1))}
@@ -383,10 +293,13 @@ export function Stepper({
             className='w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-primary)] text-lg font-medium leading-none disabled:opacity-30'>
             −
          </motion.button>
+
          <span className='text-[15px] font-semibold text-[var(--text-primary)] tabular-nums w-5 text-center'>
             {value}
          </span>
+
          <motion.button
+            type='button'
             whileTap={{ scale: 0.85 }}
             transition={SPRING}
             onClick={() => onChange(Math.min(max, value + 1))}
@@ -408,6 +321,37 @@ export function ValueBadge({ label }: { label: string }) {
    );
 }
 
+// ── StatusBadge ───────────────────────────────────────────────
+
+export function StatusBadge({
+   ok,
+   labelOk,
+   labelErr
+}: {
+   ok: boolean;
+   labelOk: string;
+   labelErr: string;
+}) {
+   return (
+      <div
+         className={cn(
+            "flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold border",
+            ok
+               ? "bg-green-500/10 text-green-400 border-green-500/20"
+               : "bg-orange-500/10 text-orange-400 border-orange-500/20"
+         )}>
+         <div
+            className={cn(
+               "w-1.5 h-1.5 rounded-full",
+               ok ? "bg-green-400" : "bg-orange-400"
+            )}
+         />
+
+         {ok ? labelOk : labelErr}
+      </div>
+   );
+}
+
 // ── ActionRow ─────────────────────────────────────────────────
 // Row that shows loading → ok → err state with icon feedback
 
@@ -419,12 +363,14 @@ export function actionRunner(
 ) {
    return async () => {
       setter("loading");
+
       try {
          await fn();
          setter("ok");
       } catch {
          setter("err");
       }
+
       setTimeout(() => setter("idle"), 3000);
    };
 }
