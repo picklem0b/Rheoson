@@ -6,6 +6,7 @@ venv/
 # Build outputs
 dist/
 build/
+graphify-out/
 *.egg-info/
 
 # Environment
