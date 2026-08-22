@@ -1,0 +1,12 @@
+title: Shulker
+description: Self-hosted music. No subscription. No ads. No compromise.
+
+# Don't process these Markdown files as pages
+exclude:
+   - BUGS.md
+   - CHANGELOG.md
+   - CONTRIBUTING.md
+   - INTERNALS.md
+   - PRIVACY.md
+   - SECURITY.md
+   - TERMS.md

@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,9 +29,11 @@ export function SettingsGroup({
                {title}
             </p>
          )}
+
          <div className='bg-[var(--bg-surface)] rounded-[18px] overflow-hidden divide-y divide-[var(--border)]/50 border border-[var(--border)]/30'>
             {children}
          </div>
+
          {footer && (
             <p className='text-[11px] text-[var(--text-muted)] mt-2 px-1 leading-relaxed'>
                {footer}
@@ -85,6 +86,7 @@ export function SettingsRow({
                {icon}
             </div>
          )}
+
          <div className='min-w-0 flex-1'>
             <p
                className={cn(
@@ -95,14 +97,17 @@ export function SettingsRow({
                )}>
                {label}
             </p>
+
             {description && (
                <p className='text-[13px] text-[var(--text-muted)] mt-[2px] leading-snug'>
                   {description}
                </p>
             )}
          </div>
+
          <div className='flex items-center gap-2 flex-shrink-0'>
             {children}
+
             {!children && clickable && (
                <ChevronRight className='w-[18px] h-[18px] text-[var(--text-muted)]/40' />
             )}
@@ -124,11 +129,14 @@ export function Toggle({
 }) {
    return (
       <motion.button
-         onPointerDown={() => !disabled && onChange(!value)}
+         type='button'
+         onClick={() => !disabled && onChange(!value)}
          whileTap={{ scale: 0.94 }}
          transition={SPRING}
          role='switch'
          aria-checked={value}
+         aria-disabled={disabled}
+         disabled={disabled}
          style={{ width: 51, height: 31 }}
          className={cn(
             "relative flex-shrink-0 rounded-full transition-colors duration-200",
@@ -137,7 +145,11 @@ export function Toggle({
          )}>
          <motion.div
             animate={{ x: value ? 22 : 2 }}
-            transition={{ type: "spring", damping: 22, stiffness: 400 }}
+            transition={{
+               type: "spring",
+               damping: 22,
+               stiffness: 400
+            }}
             className='absolute top-[3px] w-[25px] h-[25px] rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.28)]'
          />
       </motion.button>
@@ -220,13 +232,14 @@ export function Slider({
                <span className='text-[13px] text-[var(--text-muted)]'>
                   {label}
                </span>
+
                <span className='text-[13px] font-semibold text-[var(--text-primary)] tabular-nums'>
                   {formatValue ? formatValue(value) : `${pct}%`}
                </span>
             </div>
          )}
+
          <div className='relative' style={{ height: 28 }}>
-            {/* Track background */}
             <div className='absolute inset-0 flex items-center pointer-events-none'>
                <div className='w-full h-[5px] rounded-full overflow-hidden bg-[var(--bg-overlay)]'>
                   <div
@@ -235,12 +248,12 @@ export function Slider({
                   />
                </div>
             </div>
-            {/* Thumb */}
+
             <div
                className='absolute top-0 w-[28px] h-[28px] rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.22)] border border-black/5 pointer-events-none'
                style={{ left: `calc(${pct}% - 14px)` }}
             />
-            {/* Native input on top — invisible */}
+
             <input
                type='range'
                min={min}
@@ -272,6 +285,7 @@ export function Stepper({
    return (
       <div className='flex items-center gap-3'>
          <motion.button
+            type='button'
             whileTap={{ scale: 0.85 }}
             transition={SPRING}
             onClick={() => onChange(Math.max(min, value - 1))}
@@ -279,10 +293,13 @@ export function Stepper({
             className='w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-primary)] text-lg font-medium leading-none disabled:opacity-30'>
             −
          </motion.button>
+
          <span className='text-[15px] font-semibold text-[var(--text-primary)] tabular-nums w-5 text-center'>
             {value}
          </span>
+
          <motion.button
+            type='button'
             whileTap={{ scale: 0.85 }}
             transition={SPRING}
             onClick={() => onChange(Math.min(max, value + 1))}
@@ -304,6 +321,37 @@ export function ValueBadge({ label }: { label: string }) {
    );
 }
 
+// ── StatusBadge ───────────────────────────────────────────────
+
+export function StatusBadge({
+   ok,
+   labelOk,
+   labelErr
+}: {
+   ok: boolean;
+   labelOk: string;
+   labelErr: string;
+}) {
+   return (
+      <div
+         className={cn(
+            "flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold border",
+            ok
+               ? "bg-green-500/10 text-green-400 border-green-500/20"
+               : "bg-orange-500/10 text-orange-400 border-orange-500/20"
+         )}>
+         <div
+            className={cn(
+               "w-1.5 h-1.5 rounded-full",
+               ok ? "bg-green-400" : "bg-orange-400"
+            )}
+         />
+
+         {ok ? labelOk : labelErr}
+      </div>
+   );
+}
+
 // ── ActionRow ─────────────────────────────────────────────────
 // Row that shows loading → ok → err state with icon feedback
 
@@ -315,12 +363,14 @@ export function actionRunner(
 ) {
    return async () => {
       setter("loading");
+
       try {
          await fn();
          setter("ok");
       } catch {
          setter("err");
       }
+
       setTimeout(() => setter("idle"), 3000);
    };
 }
