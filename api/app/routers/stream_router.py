@@ -1,12 +1,13 @@
 from __future__ import annotations
 import asyncio
+import httpx
 import structlog
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse, Response
 from app.core.config import settings
-from app.services.artwork_service import extract_artwork
+from app.services.artwork_service import extract_artwork, fetch_remote_artwork
 from app.services.metadata_service import _file_id
 
 log    = structlog.get_logger()
@@ -21,13 +22,9 @@ MIME_MAP   = {
     ".opus": "audio/ogg; codecs=opus",
     ".wav":  "audio/wav",
 }
-CHUNK = 65_536  # 64 KB
+CHUNK = 65_536
 
 # ── Local file cache ──────────────────────────────────────────
-# Maps track_id → absolute Path.
-# _cache_lock prevents two concurrent requests both seeing _cache_built=False
-# and running _build_cache() simultaneously — which caused the
-# "stream.cache.built count=0" appearing 2-3 times in the logs.
 
 _local_cache: dict[str, Path] = {}
 _cache_built  = False
@@ -35,7 +32,6 @@ _cache_lock   = asyncio.Lock()
 
 
 def _build_cache_sync() -> None:
-    """Sync build — called from inside the async lock."""
     global _cache_built
     _local_cache.clear()
     for d in settings.all_music_dirs:
@@ -53,13 +49,10 @@ def _build_cache_sync() -> None:
 
 
 async def _ensure_cache() -> None:
-    """Build cache exactly once. Lock prevents concurrent rebuilds."""
     global _cache_built
     if _cache_built:
         return
     async with _cache_lock:
-        # Double-check inside lock — another coroutine may have built it
-        # while we were waiting for the lock
         if _cache_built:
             return
         loop = asyncio.get_event_loop()
@@ -67,24 +60,34 @@ async def _ensure_cache() -> None:
 
 
 def _find_local(track_id: str) -> Optional[Path]:
-    """
-    Synchronous cache lookup — only call after _ensure_cache() has run.
-    Returns path if found and still exists, None otherwise.
-    """
     if track_id in _local_cache:
         p = _local_cache[track_id]
         if p.exists():
             return p
-        # Stale entry — file was deleted
         del _local_cache[track_id]
     return None
 
 
 def invalidate_stream_cache() -> None:
-    """Call after a download completes so the new file is found immediately."""
     global _cache_built
     _cache_built = False
     log.debug("stream.cache.invalidated")
+
+
+# ── Artwork cache ─────────────────────────────────────────────
+# In-memory cache for proxied remote artwork.
+# Keyed by track_id so each track's art is fetched once per process lifetime.
+# Max 500 entries — LRU-style eviction (pop oldest when full).
+
+_artwork_cache: dict[str, bytes] = {}
+_ARTWORK_MAX   = 500
+
+
+def _artwork_cache_set(key: str, data: bytes) -> None:
+    if len(_artwork_cache) >= _ARTWORK_MAX:
+        oldest = next(iter(_artwork_cache))
+        del _artwork_cache[oldest]
+    _artwork_cache[key] = data
 
 
 # ── Routes ────────────────────────────────────────────────────
@@ -99,7 +102,6 @@ async def stream_audio(track_id: str, request: Request):
         return _serve_local(local, request)
 
     if request.method == "HEAD":
-        # Can't verify without downloading — return optimistic headers
         if len(track_id) != 11:
             raise HTTPException(status_code=404, detail="Invalid track ID")
         return Response(headers={
@@ -107,7 +109,6 @@ async def stream_audio(track_id: str, request: Request):
             "Content-Type":  "audio/mpeg",
         })
 
-    # Cache miss on GET — try rebuilding once in case a download just finished
     if not _find_local(track_id):
         global _cache_built
         _cache_built = False
@@ -121,6 +122,11 @@ async def stream_audio(track_id: str, request: Request):
 
 @router.get("/{track_id}/artwork")
 async def get_artwork(track_id: str):
+    """
+    Serve embedded artwork from a locally downloaded file.
+    Returns 204 if the file exists but has no embedded art.
+    Returns 404 if the track is not downloaded.
+    """
     await _ensure_cache()
     local = _find_local(track_id)
     if not local:
@@ -129,7 +135,94 @@ async def get_artwork(track_id: str):
     return art if art else Response(status_code=204)
 
 
-# ── Local file serving with range support ─────────────────────
+@router.get("/{track_id}/artwork-proxy")
+async def proxy_artwork(
+    track_id: str,
+    url:      str = Query(..., description="Remote artwork URL to proxy"),
+):
+    """
+    Proxy a remote artwork URL (ytmusicapi thumbnail) through the API server.
+
+    Why this endpoint exists:
+      - The APK WebView sometimes can't fetch i.ytimg.com / lh3.googleusercontent.com
+        directly due to network restrictions or CORS on Android WebViews.
+      - Render's free tier IPs can hit rate limits on Google's image CDN.
+      - By proxying through the API, we get server-side caching and the
+        frontend only ever talks to our own domain.
+
+    The frontend should call this as:
+      /api/stream/{videoId}/artwork-proxy?url={encodeURIComponent(artworkUrl)}
+    """
+    # Return cached bytes if available
+    if track_id in _artwork_cache:
+        cached = _artwork_cache[track_id]
+        mime = _detect_image_mime(cached)
+        return Response(
+            content=cached,
+            media_type=mime,
+            headers={
+                "Cache-Control": "public, max-age=86400",
+                "X-Cache":       "HIT",
+            },
+        )
+
+    # First try the local file's embedded art (downloaded track)
+    await _ensure_cache()
+    local = _find_local(track_id)
+    if local:
+        art = extract_artwork(local)
+        if art:
+            _artwork_cache_set(track_id, art.body)
+            art.headers["Cache-Control"] = "public, max-age=86400"
+            return art
+
+    # Fall back to proxying the remote URL
+    if not url:
+        return Response(status_code=204)
+
+    data = await fetch_remote_artwork(url)
+    if not data:
+        return Response(status_code=204)
+
+    _artwork_cache_set(track_id, data)
+    mime = _detect_image_mime(data)
+    return Response(
+        content=data,
+        media_type=mime,
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "X-Cache":       "MISS",
+        },
+    )
+
+
+@router.post("/cache/clear")
+async def clear_stream_cache():
+    """Clear the in-memory stream file index — forces a rescan on next request."""
+    invalidate_stream_cache()
+    return {"ok": True, "message": "Stream cache cleared"}
+
+
+@router.post("/artwork/cache/clear")
+async def clear_artwork_cache():
+    """Clear the in-memory artwork proxy cache."""
+    _artwork_cache.clear()
+    return {"ok": True, "message": "Artwork cache cleared", "cleared": len(_artwork_cache)}
+
+
+# ── Helpers ───────────────────────────────────────────────────
+
+def _detect_image_mime(data: bytes) -> str:
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/jpeg"
+
+
+# ── Local file serving ────────────────────────────────────────
 
 def _serve_local(path: Path, request: Request) -> Response:
     mime      = MIME_MAP.get(path.suffix.lower(), "audio/mpeg")
@@ -185,41 +278,27 @@ def _serve_local(path: Path, request: Request) -> Response:
 # ── yt-dlp pipe ───────────────────────────────────────────────
 
 async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
-    """
-    Pipe audio from yt-dlp stdout → browser in real time with simple retry logic.
-    Tries a few extractor-client/user-agent combinations to reduce rate-limit failures.
-    """
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
 
-    # Variants to try when spawning yt-dlp (prefer mweb first as before).
     extractor_args_variants = [
         "youtube:player_client=mweb,android,web",
         "youtube:player_client=web",
         "youtube:player_client=android",
     ]
-
     user_agents = [
-        # mobile-like UA (kept from original)
         "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        # desktop-like UA
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     ]
-
     base_cmd = [
-        "yt-dlp",
-        "--quiet", "--no-warnings", "--no-playlist",
-        "-x", "--audio-format", "mp3", "--audio-quality", "192K",
-        "-o", "-",
+        "yt-dlp", "--quiet", "--no-warnings", "--no-playlist",
+        "-x", "--audio-format", "mp3", "--audio-quality", "192K", "-o", "-",
     ]
-
-    max_attempts = 3
 
     last_stderr = None
 
-    for attempt in range(max_attempts):
+    for attempt in range(3):
         extractor_args = extractor_args_variants[min(attempt, len(extractor_args_variants) - 1)]
-        ua = user_agents[attempt % len(user_agents)]
-
+        ua  = user_agents[attempt % len(user_agents)]
         cmd = [
             *base_cmd,
             "--extractor-args", extractor_args,
@@ -227,7 +306,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
             yt_url,
         ]
 
-        log.info("stream.ytdlp.spawn_attempt", track_id=track_id, attempt=attempt + 1, cmd_variant=extractor_args)
+        log.info("stream.ytdlp.attempt", track_id=track_id, attempt=attempt + 1)
 
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -236,40 +315,30 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
                 stderr=asyncio.subprocess.PIPE,
             )
         except Exception as e:
-            log.error("stream.ytdlp.spawn.failed", error=str(e), track_id=track_id, attempt=attempt + 1)
             last_stderr = str(e).encode()
-            # small backoff then retry
             await asyncio.sleep(0.8 + attempt)
             continue
 
-        # Wait for the first chunk to arrive (non-blocking)
         first_chunk = await proc.stdout.read(CHUNK)
         if not first_chunk:
-            # capture some stderr for debugging, kill process and retry
             try:
                 stderr = await proc.stderr.read(4096)
             except Exception:
                 stderr = b""
             last_stderr = stderr
-            log.warning("stream.ytdlp.no_output", track_id=track_id, attempt=attempt + 1,
-                        stderr=(stderr.decode(errors="ignore") if stderr else "<empty>"))
+            log.warning("stream.ytdlp.no_output", track_id=track_id, attempt=attempt + 1)
             try:
                 proc.kill()
             except Exception:
                 pass
-            # backoff before retrying
             await asyncio.sleep(0.8 + attempt * 0.5)
             continue
-
-        # Success — we have the first chunk; stream to client and pipe the rest
-        log.info("stream.ytdlp.first_chunk", track_id=track_id, bytes=len(first_chunk), attempt=attempt + 1)
 
         async def _pipe():
             yield first_chunk
             try:
                 while True:
                     if await request.is_disconnected():
-                        log.info("stream.client.disconnected", track_id=track_id)
                         break
                     chunk = await proc.stdout.read(CHUNK)
                     if not chunk:
@@ -283,7 +352,6 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
                 except Exception:
                     pass
                 await proc.wait()
-                log.info("stream.ytdlp.done", track_id=track_id)
 
         return StreamingResponse(
             _pipe(),
@@ -295,11 +363,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
             },
         )
 
-    # If we get here, all attempts failed
-    stderr_text = (last_stderr.decode(errors="ignore") if last_stderr else "")
-    log.error("stream.ytdlp.failed_all_attempts", track_id=track_id, stderr=stderr_text)
-    # Give a helpful message to the client — same status code used before
     raise HTTPException(
         status_code=502,
-        detail="Could not stream this track. YouTube may be rate-limiting or the server failed to fetch audio. Try again in a few seconds or download the track instead."
+        detail="Could not stream this track. YouTube may be rate-limiting. Try again or download the track instead.",
     )
