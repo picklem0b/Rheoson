@@ -1,127 +1,84 @@
-import { useState } from 'react';
-import { ExternalLink, Trash2, CheckCircle } from 'lucide-react';
-import { api } from '@/api/client.api';
-import { usePersisted } from '@/hooks/persisted.hook';
+import { Bell, Download, Zap, Megaphone } from "lucide-react";
+import { usePersisted } from "@/hooks/persisted.hook";
 import {
-	SettingsGroup,
-	SettingsRow,
-	Toggle
-} from '../components/SettingsPrimitives';
+   SettingsGroup,
+   SettingsRow,
+   Toggle
+} from "../components/SettingsPrimitives";
 
-const GITHUB = 'https://github.com/picklem0b/shulker/blob/main/docs';
+export default function NotificationsSection() {
+   const [dlDone, setDlDone] = usePersisted("notif-dl-done", true);
+   const [dlFail, setDlFail] = usePersisted("notif-dl-fail", true);
+   const [dlProgress, setDlProgress] = usePersisted("notif-dl-progress", false);
+   const [sound, setSound] = usePersisted("notif-sound", true);
+   const [playback, setPlayback] = usePersisted("notif-playback", true);
+   const [queueEnd, setQueueEnd] = usePersisted("notif-queue-end", false);
+   const [updates, setUpdates] = usePersisted("notif-updates", false);
 
-export default function PrivacySection() {
-	const [history, setHistory] = usePersisted('save-history', true);
-	const [searchLog, setSearchLog] = usePersisted('save-search-log', true);
-	const [analytics, setAnalytics] = usePersisted('analytics', false);
+   return (
+      <div className='pb-4'>
+         <SettingsGroup title='Downloads'>
+            <SettingsRow
+               label='Download complete'
+               description='Notify when a track finishes downloading'
+               icon={<Download className='w-[14px] h-[14px]' />}
+               iconBg='#22C55E'>
+               <Toggle value={dlDone} onChange={setDlDone} />
+            </SettingsRow>
+            <SettingsRow
+               label='Download failed'
+               description='Alert when a download encounters an error'
+               icon={<Download className='w-[14px] h-[14px]' />}
+               iconBg='#EF4444'>
+               <Toggle value={dlFail} onChange={setDlFail} />
+            </SettingsRow>
+            <SettingsRow
+               label='Download progress'
+               description='Show live progress in the notification shade'
+               icon={<Download className='w-[14px] h-[14px]' />}
+               iconBg='#0EA5E9'>
+               <Toggle value={dlProgress} onChange={setDlProgress} />
+            </SettingsRow>
+         </SettingsGroup>
 
-	const [clearingPlay, setClearingPlay] = useState(false);
-	const [clearedPlay, setClearedPlay] = useState(false);
-	const [clearingSearch, setClearingSearch] = useState(false);
-	const [clearedSearch, setClearedSearch] = useState(false);
+         <SettingsGroup
+            title='Sounds'
+            footer='Sound effects play through the main audio output. Adjust device volume to control them.'>
+            <SettingsRow
+               label='Sound effects'
+               description='Play a chime when downloads complete or fail'
+               icon={<Zap className='w-[14px] h-[14px]' />}
+               iconBg='#EAB308'>
+               <Toggle value={sound} onChange={setSound} />
+            </SettingsRow>
+         </SettingsGroup>
 
-	const clearPlayHistory = async () => {
-		setClearingPlay(true);
-		try {
-			await api.delete('/tracks/history');
-			setClearedPlay(true);
-			setTimeout(() => setClearedPlay(false), 2500);
-		} catch {
-		} finally {
-			setClearingPlay(false);
-		}
-	};
+         <SettingsGroup title='Playback'>
+            <SettingsRow
+               label='Now playing notification'
+               description='Show track info and controls in the system notification shade'
+               icon={<Bell className='w-[14px] h-[14px]' />}
+               iconBg='#8B5CF6'>
+               <Toggle value={playback} onChange={setPlayback} />
+            </SettingsRow>
+            <SettingsRow
+               label='Queue finished'
+               description='Notify when the play queue reaches the end'
+               icon={<Bell className='w-[14px] h-[14px]' />}
+               iconBg='#6B7280'>
+               <Toggle value={queueEnd} onChange={setQueueEnd} />
+            </SettingsRow>
+         </SettingsGroup>
 
-	const clearSearchHistory = () => {
-		sessionStorage.removeItem('shulker-last-search');
-		setClearedSearch(true);
-		setTimeout(() => setClearedSearch(false), 2500);
-	};
-
-	return (
-		<div className='pb-2'>
-			<SettingsGroup title='History'>
-				<SettingsRow
-					label='Save play history'
-					description='Track recently played songs across sessions'
-				>
-					<Toggle value={history} onChange={setHistory} />
-				</SettingsRow>
-				<SettingsRow
-					label='Save search history'
-					description='Restore last search when you return to the search page'
-				>
-					<Toggle value={searchLog} onChange={setSearchLog} />
-				</SettingsRow>
-				<SettingsRow
-					label={
-						clearedPlay
-							? 'Play history cleared'
-							: 'Clear play history'
-					}
-					danger={!clearedPlay}
-					onClick={clearingPlay ? undefined : clearPlayHistory}
-					loading={clearingPlay}
-				>
-					{clearedPlay ? (
-						<CheckCircle className='w-4 h-4 text-green-400' />
-					) : (
-						<Trash2 className='w-4 h-4 text-red-400' />
-					)}
-				</SettingsRow>
-				<SettingsRow
-					label={
-						clearedSearch
-							? 'Search history cleared'
-							: 'Clear search history'
-					}
-					danger={!clearedSearch}
-					onClick={clearSearchHistory}
-				>
-					{clearedSearch ? (
-						<CheckCircle className='w-4 h-4 text-green-400' />
-					) : (
-						<Trash2 className='w-4 h-4 text-red-400' />
-					)}
-				</SettingsRow>
-			</SettingsGroup>
-
-			<SettingsGroup title='Data'>
-				<SettingsRow
-					label='Anonymous analytics'
-					description='Help improve Shulker by sharing anonymous usage data. No personal data collected.'
-				>
-					<Toggle value={analytics} onChange={setAnalytics} />
-				</SettingsRow>
-			</SettingsGroup>
-
-			<SettingsGroup title='Legal'>
-				<SettingsRow
-					label='Terms of service'
-					onClick={() => window.open(`${GITHUB}/TERMS.md`, '_blank')}
-				>
-					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
-				</SettingsRow>
-				<SettingsRow
-					label='Privacy policy'
-					onClick={() =>
-						window.open(`${GITHUB}/PRIVACY.md`, '_blank')
-					}
-				>
-					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
-				</SettingsRow>
-				<SettingsRow
-					label='Open source licences'
-					onClick={() =>
-						window.open(
-							'https://github.com/picklem0b/shulker/blob/main/LICENSE',
-							'_blank'
-						)
-					}
-				>
-					<ExternalLink className='w-4 h-4 text-[var(--text-muted)]' />
-				</SettingsRow>
-			</SettingsGroup>
-		</div>
-	);
+         <SettingsGroup title='App'>
+            <SettingsRow
+               label='Update available'
+               description='Notify when a new version of Shulker is available on GitHub'
+               icon={<Megaphone className='w-[14px] h-[14px]' />}
+               iconBg='#14B8A6'>
+               <Toggle value={updates} onChange={setUpdates} />
+            </SettingsRow>
+         </SettingsGroup>
+      </div>
+   );
 }
