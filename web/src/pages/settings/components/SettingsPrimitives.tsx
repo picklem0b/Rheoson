@@ -42,8 +42,6 @@ export function SettingsGroup({
    );
 }
 
-// ── SettingsRow ───────────────────────────────────────────────
-
 export function SettingsRow({
    label,
    description,
@@ -111,9 +109,32 @@ export function SettingsRow({
    );
 }
 
-// ── Toggle ────────────────────────────────────────────────────
-
 export function Toggle({
+	value,
+	onChange,
+	disabled
+}: {
+	value: boolean;
+	onChange: (v: boolean) => void;
+	disabled?: boolean;
+}) {
+	return (
+		<motion.button
+			onClick={() => !disabled && onChange(!value)}
+			className={cn(
+				'relative w-12 h-6.5 rounded-full flex-shrink-0 transition-colors duration-300',
+				value ? 'bg-[var(--accent)]' : 'bg-[var(--bg-overlay)]',
+				disabled && 'opacity-40 cursor-not-allowed'
+			)}
+			style={{ height: '26px', width: '46px' }}
+		>
+			<motion.div
+				animate={{ x: value ? 22 : 2 }}
+				transition={{ type: 'spring', damping: 22, stiffness: 380 }}
+				className='absolute top-[3px] w-[20px] h-[20px] rounded-full bg-white shadow-sm'
+			/>
+		</motion.button>
+	);
    value,
    onChange,
    disabled
@@ -143,8 +164,6 @@ export function Toggle({
       </motion.button>
    );
 }
-
-// ── RadioGroup ────────────────────────────────────────────────
 
 export function RadioGroup<T extends string>({
    options,
@@ -192,9 +211,94 @@ export function RadioGroup<T extends string>({
    );
 }
 
-// ── Slider ────────────────────────────────────────────────────
-
 export function Slider({
+	value,
+	onChange,
+	min = 0,
+	max = 1,
+	step = 0.01,
+	label,
+	formatValue
+}: {
+	value: number;
+	onChange: (v: number) => void;
+	min?: number;
+	max?: number;
+	step?: number;
+	label?: string;
+	formatValue?: (v: number) => string;
+}) {
+	const pct = ((value - min) / (max - min)) * 100;
+
+	return (
+		<div className='px-4 py-3.5'>
+			{label && (
+				<div className='flex items-center justify-between mb-3'>
+					<span className='text-xs text-[var(--text-muted)]'>
+						{label}
+					</span>
+					<span className='text-xs font-bold text-[var(--text-primary)]'>
+						{formatValue
+							? formatValue(value)
+							: `${Math.round(pct)}%`}
+					</span>
+				</div>
+			)}
+			<div className='relative flex items-center h-6'>
+				<div className='w-full h-1.5 rounded-full bg-[var(--bg-overlay)] overflow-hidden'>
+					<div
+						className='h-full bg-[var(--accent)] rounded-full'
+						style={{ width: `${pct}%`, transition: 'width 0.05s' }}
+					/>
+				</div>
+				<input
+					type='range'
+					min={min}
+					max={max}
+					step={step}
+					value={value}
+					onChange={e => onChange(parseFloat(e.target.value))}
+					className='absolute inset-0 w-full opacity-0 cursor-pointer h-6'
+				/>
+				<div
+					className='absolute w-5 h-5 rounded-full bg-white shadow-md border border-[var(--border)] pointer-events-none'
+					style={{
+						left: `calc(${pct}% - 10px)`,
+						transition: 'left 0.05s'
+					}}
+				/>
+			</div>
+		</div>
+	);
+}
+
+export function StatusBadge({
+	ok,
+	labelOk,
+	labelErr
+}: {
+	ok: boolean;
+	labelOk: string;
+	labelErr: string;
+}) {
+	return (
+		<div
+			className={cn(
+				'flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold border',
+				ok
+					? 'bg-green-500/10 text-green-400 border-green-500/20'
+					: 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+			)}
+		>
+			<div
+				className={cn(
+					'w-1.5 h-1.5 rounded-full',
+					ok ? 'bg-green-400' : 'bg-orange-400'
+				)}
+			/>
+			{ok ? labelOk : labelErr}
+		</div>
+	);
    value,
    onChange,
    min = 0,
