@@ -4,13 +4,10 @@ on:
    push:
       branches: [main]
    workflow_dispatch:
-<<<<<<< HEAD
-=======
 
 concurrency:
    group: apk-build
    cancel-in-progress: true
->>>>>>> b38177d (fix: debug APK build with NODE_ENV=production so API_BASE resolves to prod URL not /api)
 
 jobs:
    build:
@@ -34,7 +31,6 @@ jobs:
          - name: Build Vite app
            working-directory: web
            env:
-<<<<<<< HEAD
               # Fix: was "${{ secrets.VITE_API_URL }} }}" — double closing brace
               # caused the env block to be silently ignored in GitHub Actions.
               VITE_API_URL: ${{ secrets.VITE_API_URL }}
@@ -42,15 +38,6 @@ jobs:
               # inside the Vite build. Without it, API_BASE resolves to '/api'
               # (the dev proxy path) which is meaningless inside the APK WebView
               # and causes fetch() to resolve against file:// → HTML error page.
-=======
-              # Fix: original had "${{ secrets.VITE_API_URL }} }}" — extra "  }}"
-              # caused GitHub Actions to silently ignore the entire env block.
-              VITE_API_URL: ${{ secrets.VITE_API_URL }}
-              # NODE_ENV=production ensures import.meta.env.PROD === true inside
-              # the Vite bundle. Without this, assembleDebug leaves NODE_ENV unset,
-              # so PROD is false and API_BASE resolves to '/api' — a relative path
-              # that file:// WebViews can't resolve, causing HTML-instead-of-JSON.
->>>>>>> b38177d (fix: debug APK build with NODE_ENV=production so API_BASE resolves to prod URL not /api)
               NODE_ENV: production
            run: npm run build
 
@@ -74,39 +61,16 @@ jobs:
            working-directory: web/android
            run: chmod +x gradlew
 
-<<<<<<< HEAD
-         # assembleRelease sets NODE_ENV=production in the Gradle build and
-         # produces an unsigned release APK. The debug variant does NOT set
-         # NODE_ENV=production so PROD would be false and API_BASE would be
-         # '/api' — a relative path that breaks inside the WebView.
-         - name: Build release APK (unsigned)
-=======
          # Debug build — no keystore needed, APK is immediately installable
          # via adb or direct file transfer. The JS bundle is production-optimised
          # (NODE_ENV=production above) even though the APK variant is debug.
          - name: Build debug APK
->>>>>>> b38177d (fix: debug APK build with NODE_ENV=production so API_BASE resolves to prod URL not /api)
            working-directory: web/android
            run: ./gradlew assembleDebug
 
          - name: Upload APK artifact
            uses: actions/upload-artifact@v4
            with:
-<<<<<<< HEAD
-              name: shulker-release-unsigned
-              path: web/android/app/build/outputs/apk/debug/app-debug.apk
-              retention-days: 30
-
-         # ── Optional: create a GitHub Release on tags ─────────────
-         # Uncomment when you're ready to publish signed releases.
-         #
-         # - name: Create GitHub Release
-         #   if: startsWith(github.ref, 'refs/tags/v')
-         #   uses: softprops/action-gh-release@v2
-         #   with:
-         #     files: web/android/app/build/outputs/apk/release/app-release-unsigned.apk
-=======
               name: shulker-debug
               path: web/android/app/build/outputs/apk/debug/app-debug.apk
               retention-days: 30
->>>>>>> b38177d (fix: debug APK build with NODE_ENV=production so API_BASE resolves to prod URL not /api)
