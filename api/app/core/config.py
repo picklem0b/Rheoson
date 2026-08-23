@@ -36,7 +36,11 @@ class Settings(BaseSettings):
     # or as a JSON array:
     #   CORS_ORIGINS=["https://a.com","https://b.com"]
     # Leave unset to rely solely on the builtins (recommended).
-    CORS_ORIGINS: list[str] = []
+    CORS_ORIGINS: list[str] = [
+        "https://shulker-web.onrender.com",
+        "https://shulker-api-vnny.onrender.com",
+        "https://shulker.onrender.com",
+    ]
 
     # ── Computed ──────────────────────────────────────────────
 

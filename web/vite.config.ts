@@ -89,11 +89,11 @@ export default defineConfig({
       host: true,
       proxy: {
          "/api": {
-            target: "http://127.0.0.1:8000",
+            target: "https://shulker-api-vnny.onrender.com",
             changeOrigin: true
          },
          "/socket.io": {
-            target: "http://127.0.0.1:8000",
+            target: "https://shulker-api-vnny.onrender.com",
             changeOrigin: true,
             ws: true
          }
