@@ -26,7 +26,8 @@ const isAPK = typeof window !== "undefined" && !!(window as any).Capacitor;
 // Dev:      /api          → Vite proxy → http://127.0.0.1:8000/api
 // Prod/APK: https://shulker-api-vnny.onrender.com/api
 //
-export const API_BASE = isProd ? `${PROD_API_ORIGIN}/api` : "/api";
+// export const API_BASE = isProd ? `${PROD_API_ORIGIN}/api` : "/api";
+export const API_BASE = `${PROD_API_ORIGIN}/api`;
 
 // ── WS_URL ────────────────────────────────────────────────────
 // Used by websocket.lib.ts for the Socket.IO connection.
@@ -95,4 +96,4 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const APP_NAME = "Shulker";
-export const APP_VERSION = "2.3.0";
+export const APP_VERSION = "2.7.3";
