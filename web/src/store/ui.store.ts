@@ -7,25 +7,25 @@ export type FontFamily = "plus-jakarta" | "inter" | "system";
 export type FontSize = "small" | "default" | "large";
 
 interface UIStore {
-   // Panels
+   // ── Panels ────────────────────────────────────────────────
    showQueue: boolean;
    showLyrics: boolean;
    showFullscreen: boolean;
    showDownloads: boolean;
 
-   // Sidebar (desktop)
+   // ── Sidebar (desktop) ─────────────────────────────────────
    sidebarCollapsed: boolean;
 
-   // Modals
+   // ── Modals ────────────────────────────────────────────────
    downloadModalTrackId: string | null;
 
-   // Layout preferences (settings-driven)
+   // ── Layout preferences (Settings → Layout) ────────────────
    navStyle: NavStyle;
    navPosition: NavPosition;
    fontFamily: FontFamily;
    fontSize: FontSize;
 
-   // Actions — panels
+   // ── Actions — panels ──────────────────────────────────────
    toggleQueue: () => void;
    toggleLyrics: () => void;
    toggleFullscreen: () => void;
@@ -35,7 +35,7 @@ interface UIStore {
    closeDownloadModal: () => void;
    closeAll: () => void;
 
-   // Actions — layout
+   // ── Actions — layout ──────────────────────────────────────
    setNavStyle: (v: NavStyle) => void;
    setNavPosition: (v: NavPosition) => void;
    setFontFamily: (v: FontFamily) => void;
@@ -57,6 +57,7 @@ export const useUIStore = create<UIStore>()(
          fontFamily: "plus-jakarta",
          fontSize: "default",
 
+         // Queue and lyrics are mutually exclusive
          toggleQueue: () =>
             set(s => ({ showQueue: !s.showQueue, showLyrics: false })),
          toggleLyrics: () =>
@@ -84,25 +85,25 @@ export const useUIStore = create<UIStore>()(
 
          setFontFamily: v => {
             set({ fontFamily: v });
-            const fonts: Record<FontFamily, string> = {
+            const map: Record<FontFamily, string> = {
                "plus-jakarta": '"Plus Jakarta Sans", sans-serif',
                inter: '"Inter", sans-serif',
                system:
                   '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
             };
-            document.documentElement.style.setProperty("--font-body", fonts[v]);
+            document.documentElement.style.setProperty("--font-body", map[v]);
          },
 
          setFontSize: v => {
             set({ fontSize: v });
-            const sizes: Record<FontSize, string> = {
+            const map: Record<FontSize, string> = {
                small: "14px",
                default: "16px",
                large: "18px"
             };
             document.documentElement.style.setProperty(
                "--font-size-base",
-               sizes[v]
+               map[v]
             );
          }
       }),
