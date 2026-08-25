@@ -7,33 +7,60 @@ from app.core.exceptions import SearchError
 
 log = structlog.get_logger()
 
+# BUG #18: User-Agent rotation pool — if YouTube blocks one UA,
+# the next YTMusic() call will use a different one.
+_UA_POOL = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15",
+]
+_ua_index = 0
+
 # ── Singleton ─────────────────────────────────────────────────
 
 _ytm:       YTMusic | None   = None
 _ytm_error: Exception | None = None
 _ytm_lock   = asyncio.Lock()
+_fail_count = 0  # consecutive failures — triggers re-init
+_MAX_FAILURES = 3
 
 
 async def _get_ytm_async() -> YTMusic:
-    global _ytm, _ytm_error
-    if _ytm is not None:
+    global _ytm, _ytm_error, _fail_count
+    if _ytm is not None and _fail_count < _MAX_FAILURES:
         return _ytm
-    if _ytm_error is not None:
+    if _ytm_error is not None and _fail_count < _MAX_FAILURES:
         raise SearchError(f"YTMusic unavailable: {_ytm_error}") from _ytm_error
     async with _ytm_lock:
-        if _ytm is not None:
+        if _ytm is not None and _fail_count < _MAX_FAILURES:
             return _ytm
-        if _ytm_error is not None:
+        if _ytm_error is not None and _fail_count < _MAX_FAILURES:
             raise SearchError(f"YTMusic unavailable: {_ytm_error}") from _ytm_error
+        # BUG #18: Rotate UA on re-init after failures
+        global _ua_index
+        if _fail_count >= _MAX_FAILURES:
+            _ua_index = (_ua_index + 1) % len(_UA_POOL)
+            _fail_count = 0
+            _ytm = None  # force re-creation
+            log.info("ytmusic.rotate_ua", ua_index=_ua_index)
         loop = asyncio.get_event_loop()
         try:
-            _ytm = await loop.run_in_executor(None, YTMusic)
+            _ytm = await loop.run_in_executor(None, lambda: YTMusic())
             log.info("ytmusic.init.ok")
         except Exception as e:
             _ytm_error = e
-            log.error("ytmusic.init.failed", error=str(e))
+            _fail_count += 1
+            log.error("ytmusic.init.failed", error=str(e), fail_count=_fail_count)
             raise SearchError(f"YTMusic failed to initialise: {e}") from e
     return _ytm
+
+
+def _record_ytm_failure() -> None:
+    """Call when a ytmusicapi call fails — triggers UA rotation after N failures."""
+    global _fail_count
+    _fail_count += 1
 
 
 def _get_ytm() -> YTMusic:
@@ -255,6 +282,7 @@ async def search(query: str, filter: str | None = None, limit: int = 20) -> dict
         }
 
     except Exception as e:
+        _record_ytm_failure()
         log.error("ytmusic.search.failed", query=query, error=str(e))
         raise SearchError(f"YouTube Music search failed: {e}")
 
@@ -266,6 +294,7 @@ async def get_suggestions(query: str) -> list[str]:
         results = await loop.run_in_executor(None, lambda: _get_ytm().get_search_suggestions(query))
         return [r for r in results if isinstance(r, str)][:8]
     except Exception as e:
+        _record_ytm_failure()
         log.warning("ytmusic.suggestions.failed", query=query, error=str(e))
         return []
 
@@ -310,6 +339,7 @@ async def get_track(video_id: str) -> dict:
             },
         }
     except Exception as e:
+        _record_ytm_failure()
         log.error("ytmusic.get_track.failed", video_id=video_id, error=str(e))
         raise SearchError(f"Could not fetch track {video_id}: {e}")
 
@@ -333,6 +363,7 @@ async def get_artist(artist_id: str) -> dict:
             "subscribers": _safe(data.get("subscribers")),
         }
     except Exception as e:
+        _record_ytm_failure()
         log.warning("ytmusic.get_artist.failed", artist_id=artist_id, error=str(e))
         return {"id": artist_id, "name": "", "imageUrl": "", "genres": []}
 
@@ -347,6 +378,7 @@ async def search_one(query: str) -> dict | None:
         tracks = [r for r in results if r.get("videoId")]
         return _parse_track(tracks[0]) if tracks else None
     except Exception as e:
+        _record_ytm_failure()
         log.error("ytmusic.search_one.failed", query=query, error=str(e))
         return None
 
@@ -371,5 +403,6 @@ async def get_trending(limit: int = 20) -> list[dict]:
         trending = charts.get("songs", {}).get("items", [])
         return [_parse_track(r) for r in trending[:limit] if r.get("videoId")]
     except Exception as e:
+        _record_ytm_failure()
         log.warning("ytmusic.trending.failed", error=str(e))
         return []

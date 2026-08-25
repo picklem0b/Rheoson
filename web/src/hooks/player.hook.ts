@@ -12,6 +12,10 @@ import { tracksApi } from '@/api/tracks.api';
 let _howl: Howl | null = null;
 let _loadedId: string | null = null;
 let _timer: number | null = null;
+// BUG #25: Generation counter — incremented each time a new track is loaded.
+// Howl callbacks from a previous generation are silently ignored, preventing
+// race conditions where a stale onload/onplay clobbers the current track state.
+let _generation = 0;
 
 // Track which IDs have had recordPlay called this session
 const _playedThisSession = new Set<string>();
@@ -49,6 +53,9 @@ function _startTimer(
 
 function _destroy() {
     _stopTimer();
+    // BUG #25: Increment generation so any in-flight callbacks from the old Howl
+    // are silently ignored when they fire after we destroy.
+    _generation++;
     if (_howl) {
         _howl.off();
         _howl.stop();
@@ -171,6 +178,9 @@ export function usePlayer() {
             setPlaying(false);
             setDuration(0);
             _loadedId = trackId;
+            // BUG #25: Capture current generation — all Howl callbacks check this
+            // to ensure they belong to the active track.
+            const gen = _generation;
 
             // Resolve the URL. The backend /stream endpoint checks the local file cache
             // first, so downloaded tracks play from disk without hitting YouTube.
@@ -188,6 +198,8 @@ export function usePlayer() {
                 autoplay: false, // we control play after seeking so there's no audible jump
 
                 onload() {
+                    // BUG #25: Ignore if a newer track was loaded while this one was loading
+                    if (gen !== _generation) return;
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
@@ -199,6 +211,8 @@ export function usePlayer() {
                 },
 
                 onplay() {
+                    // BUG #25: Ignore if generation has moved on
+                    if (gen !== _generation) return;
                     setPlaying(true);
                     setLoading(false);
                     const dur = _howl?.duration() ?? 0;
@@ -256,6 +270,13 @@ export function usePlayer() {
                             .then(() => _howl?.play())
                             .catch(() => {});
                     }
+                    // BUG #24: User-facing error toast — dispatch a custom event so
+                    // the app's toast provider can display a retry prompt.
+                    window.dispatchEvent(
+                        new CustomEvent('shulker:play-error', {
+                            detail: { trackId, error: String(err) },
+                        })
+                    );
                 }
             });
         },

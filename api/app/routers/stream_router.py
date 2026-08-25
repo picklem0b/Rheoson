@@ -1,7 +1,9 @@
 from __future__ import annotations
 import asyncio
 import httpx
+import os
 import structlog
+import time
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Query
@@ -22,7 +24,13 @@ MIME_MAP   = {
     ".opus": "audio/ogg; codecs=opus",
     ".wav":  "audio/wav",
 }
-CHUNK = 65_536
+# BUG #23: Make chunk size configurable (default 64KB)
+CHUNK = int(os.environ.get("STREAM_CHUNK_SIZE", "65536"))
+
+# BUG #7: Failure cache — avoid retry storms for tracks that consistently 502
+_failure_cache: dict[str, float] = {}  # track_id -> expiry timestamp
+_FAILURE_TTL = 60.0  # seconds
+_FAILURE_MAX = 200
 
 # ── Local file cache ──────────────────────────────────────────
 
@@ -55,6 +63,10 @@ async def _ensure_cache() -> None:
     async with _cache_lock:
         if _cache_built:
             return
+        # BUG #1: Clear stale entries inside the lock before rebuilding
+        # to prevent race condition where concurrent requests each see
+        # _cache_built=False and all rebuild simultaneously.
+        _local_cache.clear()
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, _build_cache_sync)
 
@@ -70,6 +82,8 @@ def _find_local(track_id: str) -> Optional[Path]:
 
 def invalidate_stream_cache() -> None:
     global _cache_built
+    # BUG #14: Also clear _local_cache so deleted files don't persist
+    _local_cache.clear()
     _cache_built = False
     log.debug("stream.cache.invalidated")
 
@@ -278,6 +292,17 @@ def _serve_local(path: Path, request: Request) -> Response:
 # ── yt-dlp pipe ───────────────────────────────────────────────
 
 async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
+    # BUG #7: Check failure cache to avoid retry storms
+    now = time.monotonic()
+    if track_id in _failure_cache:
+        if _failure_cache[track_id] > now:
+            raise HTTPException(
+                status_code=502,
+                detail="Track temporarily unavailable (recent failure cached).",
+            )
+        else:
+            del _failure_cache[track_id]
+
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
 
     extractor_args_variants = [
@@ -289,9 +314,13 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
         "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     ]
+    # BUG #17: Use configurable audio format/quality
+    audio_fmt  = settings.AUDIO_FORMAT or "mp3"
+    audio_qual = "0" if settings.AUDIO_QUALITY == "best" else (settings.AUDIO_QUALITY or "192")
     base_cmd = [
         "yt-dlp", "--quiet", "--no-warnings", "--no-playlist",
-        "-x", "--audio-format", "mp3", "--audio-quality", "192K", "-o", "-",
+        "-x", "--audio-format", audio_fmt, "--audio-quality", f"{audio_qual}K",
+        "-o", "-",
     ]
 
     last_stderr = None
@@ -319,7 +348,18 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
             await asyncio.sleep(0.8 + attempt)
             continue
 
-        first_chunk = await proc.stdout.read(CHUNK)
+        # BUG #15: Add spawn timeout — if yt-dlp hangs during startup, abort
+        try:
+            first_chunk = await asyncio.wait_for(proc.stdout.read(CHUNK), timeout=30.0)
+        except asyncio.TimeoutError:
+            log.warning("stream.ytdlp.spawn_timeout", track_id=track_id, attempt=attempt + 1)
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            await asyncio.sleep(0.8 + attempt * 0.5)
+            continue
+
         if not first_chunk:
             try:
                 stderr = await proc.stderr.read(4096)
@@ -327,9 +367,14 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
                 stderr = b""
             last_stderr = stderr
             log.warning("stream.ytdlp.no_output", track_id=track_id, attempt=attempt + 1)
+            # BUG #2: Kill and wait with timeout to prevent zombie processes
             try:
                 proc.kill()
             except Exception:
+                pass
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
                 pass
             await asyncio.sleep(0.8 + attempt * 0.5)
             continue
@@ -351,7 +396,11 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
                     proc.kill()
                 except Exception:
                     pass
-                await proc.wait()
+                # BUG #2: Wait with timeout to prevent hanging on zombie processes
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    pass
 
         return StreamingResponse(
             _pipe(),
@@ -362,6 +411,13 @@ async def _serve_ytdlp(track_id: str, request: Request) -> StreamingResponse:
                 "X-Content-Type-Options": "nosniff",
             },
         )
+
+    # BUG #7: Cache the failure to avoid repeated retry storms
+    if len(_failure_cache) >= _FAILURE_MAX:
+        # Evict oldest
+        oldest_key = min(_failure_cache, key=_failure_cache.get)
+        del _failure_cache[oldest_key]
+    _failure_cache[track_id] = now + _FAILURE_TTL
 
     raise HTTPException(
         status_code=502,
