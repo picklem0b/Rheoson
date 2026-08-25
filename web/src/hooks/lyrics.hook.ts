@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { lyricsApi } from '@/api/lyrics.api'
+import { lyricsApi, type LyricsLine } from '@/api/lyrics.api'
 import { usePlayerStore } from '@/store/player.store'
-
-interface LyricsLine {
-  text:       string
-  startTime?: number   // milliseconds from track start (only set for synced lyrics)
-}
 
 /**
  * useLyrics
@@ -61,7 +56,7 @@ export function useLyrics(trackId: string | undefined) {
     // Find the last line whose timestamp is at or before the current
     // playback position — that's the line currently being sung.
     for (let i = 0; i < lines.length; i++) {
-      const t = lines[i].startTime
+      const t = lines[i].time
       if (t !== undefined && t <= progressMs) idx = i
     }
 

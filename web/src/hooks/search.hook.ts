@@ -223,6 +223,13 @@ export function useSearch() {
         setSuggestions([]);
     }, []);
 
+    // Called by SearchBar on Enter — immediately hide suggestions so
+    // the dropdown doesn't linger over the loading/results state.
+    const handleSubmit = useCallback(() => {
+        setSuggestions([]);
+        setQueryState(q => q); // trigger the search effect
+    }, []);
+
     return {
         query,
         setQuery,
@@ -233,6 +240,7 @@ export function useSearch() {
         suggestions,
         error,
         clear,
-        selectSuggestion
+        selectSuggestion,
+        handleSubmit
     };
 }

@@ -1,7 +1,7 @@
-import type { Track } from './track'
-import type { Album } from './track'
-import type { Artist } from './track'
-import type { Playlist } from './playlist'
+import type { Track } from './track.types'
+import type { Album } from './track.types'
+import type { Artist } from './track.types'
+import type { Playlist } from './playlist.types'
 
 export type SearchFilter = 'all' | 'tracks' | 'albums' | 'artists' | 'playlists'
 

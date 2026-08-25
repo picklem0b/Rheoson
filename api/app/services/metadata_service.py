@@ -1,5 +1,6 @@
 from __future__ import annotations
 import hashlib
+import os
 import structlog
 from pathlib import Path
 from mutagen import File as MutagenFile
@@ -10,21 +11,38 @@ from mutagen.oggvorbis import OggVorbis
 
 log = structlog.get_logger()
 
+# API origin used to build absolute URLs for artworkUrl and streamUrl.
+# These fields end up in JSON responses consumed by the frontend.
+# When the frontend and API are on different origins (e.g. shulker-web.onrender.com
+# and shulker-api-vnny.onrender.com), relative paths like /api/stream/...
+# would be resolved against the FRONTEND origin and 404.
+# The frontend's API_BASE handles this for fetch() calls but <img src> and
+# Howler's src property use the raw string — so it must be absolute.
+#
+# On Render: set API_BASE_URL=https://shulker-api-vnny.onrender.com in env vars.
+# On Termux: leave unset — relative paths work when frontend and API are same origin.
+_API_ORIGIN = os.environ.get("API_BASE_URL", "").rstrip("/")
+
+
+def _abs(path: str) -> str:
+    """Make an API path absolute if API_BASE_URL is set, else leave relative."""
+    return f"{_API_ORIGIN}{path}" if _API_ORIGIN else path
+
 
 def _file_id(path: Path) -> str:
-    """Deterministic ID from file path."""
+    """Deterministic ID from file path — stable across restarts."""
     return hashlib.md5(str(path).encode()).hexdigest()[:16]
 
 
 def read_track_metadata(path: Path) -> dict:
     """Read ID3/vorbis tags from a local file → TrackSchema-compatible dict."""
-    suffix = path.suffix.lower()
-    title  = path.stem
-    artist = "Unknown Artist"
-    album  = "Unknown Album"
-    year   = 0
+    suffix    = path.suffix.lower()
+    title     = path.stem
+    artist    = "Unknown Artist"
+    album     = "Unknown Album"
+    year      = 0
     track_num = 0
-    artwork = ""
+    duration  = 0.0
 
     try:
         f = MutagenFile(path, easy=True)
@@ -40,41 +58,42 @@ def read_track_metadata(path: Path) -> dict:
                 track_num = int(str(f.get("tracknumber", [0])[0]).split("/")[0])
             except (ValueError, TypeError):
                 track_num = 0
-
-        # Duration
         duration = f.info.length if f and f.info else 0.0
-
     except Exception as e:
         log.warning("metadata.read.failed", path=str(path), error=str(e))
-        duration = 0.0
 
-    file_id = _file_id(path)
+    file_id    = _file_id(path)
+    stream_url = _abs(f"/api/stream/{file_id}/audio")
+    artwork_url = _abs(f"/api/stream/{file_id}/artwork")
+
+    artist_id = hashlib.md5(artist.encode()).hexdigest()[:8]
+    album_id  = hashlib.md5(album.encode()).hexdigest()[:8]
 
     return {
         "id":           file_id,
         "title":        title,
         "duration":     duration,
-        "artworkUrl":   f"/api/stream/{file_id}/artwork",
+        "artworkUrl":   artwork_url,
         "youtubeId":    None,
         "spotifyId":    None,
         "isDownloaded": True,
         "isLiked":      False,
         "filePath":     str(path),
-        "streamUrl":    f"/api/stream/{file_id}/audio",
+        "streamUrl":    stream_url,
         "artist": {
-            "id":       hashlib.md5(artist.encode()).hexdigest()[:8],
+            "id":       artist_id,
             "name":     artist,
             "imageUrl": None,
             "genres":   [],
         },
         "album": {
-            "id":          hashlib.md5(album.encode()).hexdigest()[:8],
+            "id":          album_id,
             "title":       album,
-            "artworkUrl":  f"/api/stream/{file_id}/artwork",
+            "artworkUrl":  artwork_url,
             "releaseYear": year,
             "trackCount":  0,
             "artist": {
-                "id":       hashlib.md5(artist.encode()).hexdigest()[:8],
+                "id":       artist_id,
                 "name":     artist,
                 "imageUrl": None,
                 "genres":   [],
@@ -83,98 +102,32 @@ def read_track_metadata(path: Path) -> dict:
     }
 
 
-def write_tags(
-    path: Path,
-    title:   str,
-    artist:  str,
-    album:   str,
-    year:    int     = 0,
-    artwork: bytes   = b"",
-    lyrics:  str     = "",
-    track:   int     = 0,
-) -> None:
-    """Write metadata tags to a downloaded file."""
-    suffix = path.suffix.lower()
-
+def extract_artwork_bytes(path: Path) -> bytes | None:
+    """Extract embedded artwork bytes from a local audio file."""
     try:
+        suffix = path.suffix.lower()
         if suffix == ".mp3":
-            _write_mp3(path, title, artist, album, year, artwork, lyrics, track)
-        elif suffix == ".flac":
-            _write_flac(path, title, artist, album, year, artwork, lyrics)
+            tags = ID3(path)
+            for tag in tags.values():
+                if isinstance(tag, APIC):
+                    return tag.data
         elif suffix in (".m4a", ".mp4", ".aac"):
-            _write_m4a(path, title, artist, album, year, artwork, lyrics)
+            tags = MP4(path)
+            covers = tags.get("covr", [])
+            if covers:
+                return bytes(covers[0])
+        elif suffix == ".flac":
+            f = FLAC(path)
+            if f.pictures:
+                return f.pictures[0].data
         elif suffix in (".ogg", ".opus"):
-            _write_ogg(path, title, artist, album, year, lyrics)
-        log.info("metadata.write.ok", path=str(path))
+            f = MutagenFile(path)
+            if hasattr(f, "tags") and f.tags:
+                for val in f.tags.values():
+                    if isinstance(val, list):
+                        for item in val:
+                            if hasattr(item, "data"):
+                                return item.data
     except Exception as e:
-        log.error("metadata.write.failed", path=str(path), error=str(e))
-
-
-def _write_mp3(path, title, artist, album, year, artwork, lyrics, track):
-    try:
-        tags = ID3(path)
-    except Exception:
-        tags = ID3()
-    tags["TIT2"] = TIT2(encoding=3, text=title)
-    tags["TPE1"] = TPE1(encoding=3, text=artist)
-    tags["TALB"] = TALB(encoding=3, text=album)
-    if year:
-        tags["TDRC"] = TDRC(encoding=3, text=str(year))
-    if track:
-        tags["TRCK"] = TRCK(encoding=3, text=str(track))
-    if artwork:
-        tags["APIC"] = APIC(
-            encoding=3,
-            mime="image/jpeg",
-            type=3,
-            desc="Cover",
-            data=artwork,
-        )
-    if lyrics:
-        tags["USLT"] = USLT(encoding=3, lang="eng", desc="", text=lyrics)
-    tags.save(path, v2_version=3)
-
-
-def _write_flac(path, title, artist, album, year, artwork, lyrics):
-    f = FLAC(path)
-    f["title"]  = title
-    f["artist"] = artist
-    f["album"]  = album
-    if year:
-        f["date"] = str(year)
-    if lyrics:
-        f["lyrics"] = lyrics
-    if artwork:
-        pic           = Picture()
-        pic.type      = 3
-        pic.mime      = "image/jpeg"
-        pic.data      = artwork
-        f.clear_pictures()
-        f.add_picture(pic)
-    f.save()
-
-
-def _write_m4a(path, title, artist, album, year, artwork, lyrics):
-    f = MP4(path)
-    f["\xa9nam"] = title
-    f["\xa9ART"] = artist
-    f["\xa9alb"] = album
-    if year:
-        f["\xa9day"] = str(year)
-    if lyrics:
-        f["\xa9lyr"] = lyrics
-    if artwork:
-        f["covr"] = [MP4Cover(artwork, imageformat=MP4Cover.FORMAT_JPEG)]
-    f.save()
-
-
-def _write_ogg(path, title, artist, album, year, lyrics):
-    f = OggVorbis(path)
-    f["title"]  = title
-    f["artist"] = artist
-    f["album"]  = album
-    if year:
-        f["date"] = str(year)
-    if lyrics:
-        f["lyrics"] = lyrics
-    f.save()
+        log.debug("metadata.artwork.failed", path=str(path), error=str(e))
+    return None
