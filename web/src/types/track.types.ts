@@ -4,6 +4,9 @@ export interface Artist {
   imageUrl?: string
   genres?: string[]
   followers?: number
+  monthlyListeners?: number
+  topTracks?: Track[]
+  albums?: Album[]
 }
 
 export interface Album {
@@ -30,4 +33,6 @@ export interface Track {
   youtubeId?: string
   spotifyId?: string
   addedAt?: string
+  trackNumber?: number    // position within its album, if known
+  playCount?: number      // YouTube play count, when available
 }

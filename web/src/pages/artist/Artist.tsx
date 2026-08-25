@@ -135,8 +135,8 @@ export default function Artist() {
                       )
                     }
                     <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{album.title}</p>
-                    {album.year && (
-                      <p className="text-[10px] text-[var(--text-muted)]">{album.year}</p>
+                    {album.releaseYear && (
+                      <p className="text-[10px] text-[var(--text-muted)]">{album.releaseYear}</p>
                     )}
                   </motion.button>
                 ))}

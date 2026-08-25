@@ -15,7 +15,7 @@ export default function LikedSongs() {
 
   const { data: tracks, isLoading } = useQuery({
     queryKey: ['liked-tracks'],
-    queryFn:  tracksApi.getLikedTracks,
+    queryFn:  tracksApi.getLiked,
   })
 
   return (

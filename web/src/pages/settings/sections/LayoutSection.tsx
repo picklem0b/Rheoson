@@ -15,7 +15,6 @@ export default function LayoutSection() {
 
    return (
       <div className='pb-4'>
-         {/* Navigation style */}
          <SettingsGroup
             title='Navigation style'
             footer='Changes take effect immediately. Pill is the default floating style. Flat is a solid bar. Minimal shows icons only.'>
@@ -42,7 +41,6 @@ export default function LayoutSection() {
             />
          </SettingsGroup>
 
-         {/* Navigation position */}
          <SettingsGroup
             title='Navigation position'
             footer='Bottom navigation is standard on mobile. Top bar mode moves the tabs to a top tab strip.'>
@@ -64,10 +62,9 @@ export default function LayoutSection() {
             />
          </SettingsGroup>
 
-         {/* Font family */}
          <SettingsGroup
             title='Font'
-            footer="Plus Jakarta Sans is the Shulker default. Inter is a popular alternative. System uses your device's native font.">
+            footer='Plus Jakarta Sans is the Shulker default. Changes apply immediately across the entire app.'>
             <RadioGroup
                value={fontFamily}
                onChange={setFontFamily}
@@ -91,7 +88,6 @@ export default function LayoutSection() {
             />
          </SettingsGroup>
 
-         {/* Font size */}
          <SettingsGroup
             title='Text size'
             footer='Affects body text throughout the app. Headings scale proportionally.'>
