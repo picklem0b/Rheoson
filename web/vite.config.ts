@@ -87,13 +87,16 @@ export default defineConfig({
    server: {
       port: 3000,
       host: true,
+      // Dev requests go through this proxy so the browser stays same-origin.
+      // Override with SHULKER_API_TARGET to develop against another backend,
+      // e.g.:  SHULKER_API_TARGET=https://shulker-api-vnny.onrender.com npm run dev
       proxy: {
          "/api": {
-            target: "http://127.0.0.1:8000",
+            target: process.env.SHULKER_API_TARGET ?? "http://127.0.0.1:8000",
             changeOrigin: true
          },
          "/socket.io": {
-            target: "http://127.0.0.1:8000",
+            target: process.env.SHULKER_API_TARGET ?? "http://127.0.0.1:8000",
             changeOrigin: true,
             ws: true
          }

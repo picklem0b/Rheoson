@@ -1,4 +1,4 @@
-import type { Track } from './track'
+import type { Track } from './track.types'
 
 export interface Playlist {
   id: string
@@ -9,6 +9,7 @@ export interface Playlist {
   trackCount: number
   isLocal: boolean        // user-created vs imported
   spotifyId?: string
+  totalDuration?: number  // seconds, computed by the server when it can
   createdAt: string
   updatedAt: string
 }
