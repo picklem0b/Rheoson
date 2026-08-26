@@ -88,12 +88,15 @@ export default defineConfig({
       port: 3000,
       host: true,
       proxy: {
+         // FIX: Dev proxy should point to the LOCAL backend, not prod.
+         // This was the root cause of "changes only visible in prod" —
+         // all dev requests were hitting the Render server.
          "/api": {
-            target: "https://shulker-api-vnny.onrender.com",
+            target: "http://127.0.0.1:8000",
             changeOrigin: true
          },
          "/socket.io": {
-            target: "https://shulker-api-vnny.onrender.com",
+            target: "http://127.0.0.1:8000",
             changeOrigin: true,
             ws: true
          }

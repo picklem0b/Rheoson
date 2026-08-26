@@ -26,7 +26,9 @@ const isAPK = typeof window !== "undefined" && !!(window as any).Capacitor;
 // Dev:      /api          → Vite proxy → http://127.0.0.1:8000/api
 // Prod/APK: https://shulker-api-vnny.onrender.com/api
 //
-export const API_BASE = isProd ? `${PROD_API_ORIGIN}/api` : "/api";
+// FIX: Use import.meta.env.DEV (set by Vite) for accurate detection.
+// Previously used import.meta.env.PROD which could be stale.
+export const API_BASE = (import.meta.env.DEV) ? "/api" : `${PROD_API_ORIGIN}/api`;
 
 // ── WS_URL ────────────────────────────────────────────────────
 // Used by websocket.lib.ts for the Socket.IO connection.
@@ -36,9 +38,9 @@ export const API_BASE = isProd ? `${PROD_API_ORIGIN}/api` : "/api";
 // Dev:      http://127.0.0.1:8000   (direct — no Vite proxy for WS in all cases)
 // Prod/APK: https://shulker-api-vnny.onrender.com
 //
-export const WS_URL = isProd
-   ? PROD_API_ORIGIN
-   : (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000");
+export const WS_URL = (import.meta.env.DEV)
+   ? (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000")
+   : PROD_API_ORIGIN;
 
 // ── Endpoints ─────────────────────────────────────────────────
 

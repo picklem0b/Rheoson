@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search as SearchIcon, X, Loader2, Link } from 'lucide-react'
-import { IconButton } from '@/components/ui/IconButton'
+import { Search as SearchIcon, Loader2, Link } from 'lucide-react'
 import { cn, detectInputType } from '@/lib/utils'
 
 interface SearchBarProps {
@@ -34,7 +33,9 @@ export function SearchBar({
         value={query}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onSubmit()
+          if (e.key === 'Enter') {
+            onSubmit()
+          }
           if (e.key === 'Escape') onClear()
         }}
         placeholder="Songs, artists, albums or paste a link…"
@@ -47,15 +48,16 @@ export function SearchBar({
       />
 
       {query && (
-        <motion.div
+        <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-10"
+          exit={{ opacity: 0, scale: 0.8 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={onClear}
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 px-2 py-1 rounded-lg text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
         >
-          <IconButton size="xs" variant="ghost" onClick={onClear}>
-            <X />
-          </IconButton>
-        </motion.div>
+          Clear
+        </motion.button>
       )}
 
       {/* Suggestions dropdown */}

@@ -39,32 +39,41 @@ def invalidate_track_index() -> None:
 
 
 async def _build_index() -> dict[str, dict]:
-    """Scan MUSIC_DIR and return {track_id: track_dict}."""
+    """Scan ALL configured music dirs and return {track_id: track_dict}.
+
+    Previously only scanned MUSIC_DIR, so tracks in EXTRA_MUSIC_DIRS
+    (e.g. /storage/emulated/0/Music) were invisible to liked, recently-played,
+    and trending endpoints.
+    """
     global _track_index
     if _track_index is not None:
         return _track_index
 
-    idx:       dict[str, dict] = {}
-    music_dir = Path(settings.MUSIC_DIR)
-    if not music_dir.exists():
+    idx: dict[str, dict] = {}
+    all_dirs = settings.all_music_dirs
+    if not all_dirs:
         _track_index = idx
         return idx
 
     def _scan():
         result = {}
-        for path in music_dir.rglob('*'):
-            if path.suffix.lstrip('.') in AUDIO_EXTS:
-                try:
-                    t = read_track_metadata(path)
-                    result[t['id']] = t
-                except Exception:
-                    continue
+        for d in all_dirs:
+            music_dir = Path(d)
+            if not music_dir.exists():
+                continue
+            for path in music_dir.rglob('*'):
+                if path.suffix.lstrip('.') in AUDIO_EXTS:
+                    try:
+                        t = read_track_metadata(path)
+                        result[t['id']] = t
+                    except Exception:
+                        continue
         return result
 
     loop = asyncio.get_event_loop()
     idx  = await loop.run_in_executor(None, _scan)
     _track_index = idx
-    log.debug('tracks.index.built', count=len(idx))
+    log.debug('tracks.index.built', count=len(idx), dirs=len(all_dirs))
     return idx
 
 # ── File paths ────────────────────────────────────────────────

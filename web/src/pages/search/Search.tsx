@@ -214,6 +214,7 @@ export default function Search() {
         isLoading,
         error,
         clear,
+        submitSearch,
         suggestions,
         selectSuggestion
     } = useSearch();
@@ -275,7 +276,7 @@ export default function Search() {
                     query={query}
                     onChange={setQuery}
                     onClear={clear}
-                    onSubmit={() => {}}
+                    onSubmit={submitSearch}
                     isLoading={isLoading}
                     suggestions={suggestions}
                     onSelectSuggestion={selectSuggestion}

@@ -233,10 +233,10 @@ async def _cron_keep_alive() -> None:
 async def _cron_library_scan() -> None:
     try:
         from app.routers.track_router import invalidate_track_index
-        from app.routers.stream_router import invalidate_stream_cache, _failure_cache
+        from app.routers.stream_router import invalidate_stream_cache, cleanup_expired_buffers, _failure_cache
         invalidate_track_index()
         invalidate_stream_cache()
-        # BUG #12: Clean stale failure cache entries during periodic scan
+        # Clean stale failure cache entries during periodic scan
         import time as _time
         now = _time.monotonic()
         stale = [k for k, exp in _failure_cache.items() if exp <= now]
@@ -244,6 +244,8 @@ async def _cron_library_scan() -> None:
             _failure_cache.pop(k, None)
         if stale:
             log.info("cron.failure_cache.cleaned", count=len(stale))
+        # Clean expired remote stream buffers
+        cleanup_expired_buffers()
         log.info("cron.library_scan.done")
     except Exception as e:
         log.error("cron.library_scan.failed", error=str(e))

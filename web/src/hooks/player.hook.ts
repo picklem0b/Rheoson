@@ -251,30 +251,58 @@ export function usePlayer() {
                 },
 
                 onloaderror(_id, err) {
-                    console.error('[Shulker] load error', {
-                        trackId,
-                        url,
-                        err
-                    });
+                    console.error('[Shulker] load error', { trackId, url, err });
                     setLoading(false);
                     setPlaying(false);
                     _loadedId = null;
-                },
-
-                onplayerror(_id, err) {
-                    console.error('[Shulker] play error', err);
-                    // Resume a suspended AudioContext (required after user-gesture lock on Android)
-                    if (Howler.ctx?.state === 'suspended') {
-                        Howler.ctx
-                            .resume()
-                            .then(() => _howl?.play())
-                            .catch(() => {});
-                    }
-                    // BUG #24: User-facing error toast — dispatch a custom event so
-                    // the app's toast provider can display a retry prompt.
+                    // Dispatch event so UI can show retry toast
                     window.dispatchEvent(
                         new CustomEvent('shulker:play-error', {
                             detail: { trackId, error: String(err) },
+                        })
+                    );
+                },
+
+                onplayerror(_id, err) {
+                    console.error('[Shulker] play error', { trackId, err });
+                    // BUG FIX: Auto-recover from play errors by destroying
+                    // the current Howl and rebuilding from saved position.
+                    // This fixes the broken play button after a stream error.
+                    const savedPos = usePlayerStore.getState().savedProgress;
+                    // Try AudioContext resume first (Android user-gesture lock)
+                    if (Howler.ctx?.state === 'suspended') {
+                        Howler.ctx
+                            .resume()
+                            .then(() => {
+                                if (gen === _generation && _howl) {
+                                    _howl.play();
+                                } else {
+                                    // Generation moved on — rebuild
+                                    _destroy();
+                                    setLoading(false);
+                                }
+                            })
+                            .catch(() => {
+                                // AudioContext resume failed — rebuild Howl
+                                _destroy();
+                                setLoading(false);
+                                _loadedId = null;
+                                window.dispatchEvent(
+                                    new CustomEvent('shulker:play-error', {
+                                        detail: { trackId, error: String(err) },
+                                    })
+                                );
+                            });
+                        return;
+                    }
+                    // Non-AudioContext error — try one rebuild from saved position
+                    _destroy();
+                    setLoading(false);
+                    _loadedId = null;
+                    // Dispatch event so UI can show retry toast
+                    window.dispatchEvent(
+                        new CustomEvent('shulker:play-error', {
+                            detail: { trackId, error: String(err), savedPos },
                         })
                     );
                 }
