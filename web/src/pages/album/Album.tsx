@@ -2,8 +2,8 @@ import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Play, Shuffle, Heart, Download } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { useQueue } from '@/hooks/useQueue'
-import { getAlbum } from '@/api/library'
+import { useQueue } from '@/hooks/queue.hook'
+import { getAlbum } from '@/api/library.api'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Button } from '@/components/ui/Button'
@@ -11,7 +11,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { TrackRowSkeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track'
+import type { Track } from '@/types/track.types'
 
 const GRADIENTS = [
   'from-cyan-900 to-blue-700',
@@ -67,7 +67,7 @@ export default function Album() {
               </h1>
               {album && (
                 <p className="text-[var(--text-secondary)] text-sm mt-1">
-                  {album.artist.name} · {album.year} · {album.tracks.length} songs
+                  {album.artist.name} · {album.releaseYear} · {album.tracks?.length ?? 0} songs
                 </p>
               )}
             </div>
@@ -76,8 +76,8 @@ export default function Album() {
               <Button
                 variant="primary"
                 size="md"
-                disabled={!album?.tracks.length}
-                onClick={() => album && playAll(album.tracks)}
+                disabled={!album?.tracks?.length}
+                onClick={() => album && playAll(album.tracks ?? [])}
               >
                 <Play className="w-4 h-4 fill-current" />
                 Play
@@ -85,8 +85,8 @@ export default function Album() {
               <Button
                 variant="secondary"
                 size="md"
-                disabled={!album?.tracks.length}
-                onClick={() => album && playAll(album.tracks, { shuffle: true })}
+                disabled={!album?.tracks?.length}
+                onClick={() => album && playAll(album.tracks ?? [], { shuffle: true })}
               >
                 <Shuffle className="w-4 h-4" />
                 Shuffle
@@ -102,12 +102,12 @@ export default function Album() {
           {isLoading &&
             Array.from({ length: 8 }).map((_, i) => <TrackRowSkeleton key={i} />)
           }
-          {album?.tracks.map((track, i) => (
+          {(album?.tracks ?? []).map((track, i) => (
             <AlbumTrackRow
               key={track.id}
               track={track}
               index={i}
-              onClick={() => album && playTrack(track, album.tracks)}
+              onClick={() => album && playTrack(track, album.tracks ?? [])}
             />
           ))}
         </div>

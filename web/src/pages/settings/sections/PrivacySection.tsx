@@ -1,76 +1,149 @@
-import { ExternalLink, Trash2 } from 'lucide-react'
-import { usePersisted } from '@/hooks/usePersisted'
-import { SettingsGroup, SettingsRow, Toggle } from '../components/SettingsPrimitives'
+import { useState } from "react";
+import {
+   Trash2,
+   CheckCircle2,
+   AlertCircle,
+   RefreshCw,
+   ExternalLink
+} from "lucide-react";
+import { api } from "@/api/client.api";
+import { usePersisted } from "@/hooks/persisted.hook";
+import {
+   SettingsGroup,
+   SettingsRow,
+   Toggle,
+   ActionState,
+   actionRunner
+} from "../components/SettingsPrimitives";
 
-const GITHUB = 'https://github.com/lethabokhedama-png/shulker/blob/main/docs'
+const GITHUB = "https://github.com/picklem0b/shulker/blob/main/docs";
 
 export default function PrivacySection() {
-  const [history,   setHistory]   = usePersisted('save-history', true)
-  const [searchLog, setSearchLog] = usePersisted('save-search-log', true)
-  const [analytics, setAnalytics] = usePersisted('analytics', false)
+   const [history, setHistory] = usePersisted("save-history", true);
+   const [searchLog, setSearchLog] = usePersisted("save-search-log", true);
+   const [analytics, setAnalytics] = usePersisted("analytics", false);
+   const [crashReport, setCrashReport] = usePersisted("crash-report", false);
 
-  return (
-    <div className="pb-2">
-      <SettingsGroup title="History">
-        <SettingsRow
-          label="Save play history"
-          description="Track recently played songs across sessions"
-        >
-          <Toggle value={history} onChange={setHistory} />
-        </SettingsRow>
-        <SettingsRow
-          label="Save search history"
-          description="Restore last search when you return to the search page"
-        >
-          <Toggle value={searchLog} onChange={setSearchLog} />
-        </SettingsRow>
-        <SettingsRow
-          label="Clear play history"
-          danger
-          onClick={async () => {
-            try { await fetch('/api/tracks/history', { method: 'DELETE' }) } catch {}
-          }}
-        >
-          <Trash2 className="w-4 h-4 text-red-400" />
-        </SettingsRow>
-        <SettingsRow
-          label="Clear search history"
-          danger
-          onClick={() => sessionStorage.removeItem('shulker-last-search')}
-        >
-          <Trash2 className="w-4 h-4 text-red-400" />
-        </SettingsRow>
-      </SettingsGroup>
+   const [clearPlayState, setClearPlayState] = useState<ActionState>("idle");
+   const [clearSearchState, setClearSearchState] =
+      useState<ActionState>("idle");
 
-      <SettingsGroup title="Data">
-        <SettingsRow
-          label="Anonymous analytics"
-          description="Help improve Shulker by sharing anonymous usage data. No personal data collected."
-        >
-          <Toggle value={analytics} onChange={setAnalytics} />
-        </SettingsRow>
-      </SettingsGroup>
+   const clearPlay = actionRunner(setClearPlayState, () =>
+      api.delete("/tracks/history")
+   );
 
-      <SettingsGroup title="Legal">
-        <SettingsRow
-          label="Terms of service"
-          onClick={() => window.open(`${GITHUB}/TERMS.md`, '_blank')}
-        >
-          <ExternalLink className="w-4 h-4 text-[var(--text-muted)]" />
-        </SettingsRow>
-        <SettingsRow
-          label="Privacy policy"
-          onClick={() => window.open(`${GITHUB}/PRIVACY.md`, '_blank')}
-        >
-          <ExternalLink className="w-4 h-4 text-[var(--text-muted)]" />
-        </SettingsRow>
-        <SettingsRow
-          label="Open source licences"
-          onClick={() => window.open('https://github.com/lethabokhedama-png/shulker/blob/main/LICENSE', '_blank')}
-        >
-          <ExternalLink className="w-4 h-4 text-[var(--text-muted)]" />
-        </SettingsRow>
-      </SettingsGroup>
-    </div>
-  )
+   const clearSearch = actionRunner(setClearSearchState, async () => {
+      sessionStorage.removeItem("shulker-last-search");
+      localStorage.removeItem("shulker-search-history");
+   });
+
+   return (
+      <div className='pb-4'>
+         <SettingsGroup
+            title='History'
+            footer='Play history is stored on the server. Search history is stored only on this device.'>
+            <SettingsRow
+               label='Save play history'
+               description='Track recently played songs and power recommendations'>
+               <Toggle value={history} onChange={setHistory} />
+            </SettingsRow>
+            <SettingsRow
+               label='Save search history'
+               description='Restore your last search when you return to the Search page'>
+               <Toggle value={searchLog} onChange={setSearchLog} />
+            </SettingsRow>
+         </SettingsGroup>
+
+         <SettingsGroup title='Clear history'>
+            <HistoryRow
+               state={clearPlayState}
+               idleLabel='Clear play history'
+               idleDesc='Permanently remove all recently played tracks from the server'
+               okLabel='Play history cleared'
+               onClick={clearPlayState === "idle" ? clearPlay : undefined}
+            />
+            <HistoryRow
+               state={clearSearchState}
+               idleLabel='Clear search history'
+               idleDesc='Remove saved search queries from this device'
+               okLabel='Search history cleared'
+               onClick={clearSearchState === "idle" ? clearSearch : undefined}
+            />
+         </SettingsGroup>
+
+         <SettingsGroup
+            title='Data'
+            footer='No personal data is ever sold or shared with third parties. All analytics are fully anonymous.'>
+            <SettingsRow
+               label='Anonymous analytics'
+               description='Share usage stats to help improve Shulker — no personal data'>
+               <Toggle value={analytics} onChange={setAnalytics} />
+            </SettingsRow>
+            <SettingsRow
+               label='Crash reports'
+               description='Automatically send crash logs — helps fix bugs faster'>
+               <Toggle value={crashReport} onChange={setCrashReport} />
+            </SettingsRow>
+         </SettingsGroup>
+
+         <SettingsGroup title='Legal'>
+            <SettingsRow
+               label='Privacy policy'
+               onClick={() => window.open(`${GITHUB}/PRIVACY.md`, "_blank")}>
+               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+            </SettingsRow>
+            <SettingsRow
+               label='Terms of service'
+               onClick={() => window.open(`${GITHUB}/TERMS.md`, "_blank")}>
+               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+            </SettingsRow>
+            <SettingsRow
+               label='Open source licences'
+               onClick={() =>
+                  window.open(
+                     "https://github.com/picklem0b/shulker/blob/main/LICENSE",
+                     "_blank"
+                  )
+               }>
+               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+            </SettingsRow>
+         </SettingsGroup>
+      </div>
+   );
+}
+
+function HistoryRow({
+   state,
+   idleLabel,
+   idleDesc,
+   okLabel,
+   onClick
+}: {
+   state: ActionState;
+   idleLabel: string;
+   idleDesc: string;
+   okLabel: string;
+   onClick?: () => void;
+}) {
+   return (
+      <SettingsRow
+         label={
+            state === "ok"
+               ? okLabel
+               : state === "err"
+                 ? "Failed — try again"
+                 : idleLabel
+         }
+         description={state === "idle" ? idleDesc : undefined}
+         danger={state === "idle"}
+         onClick={onClick}
+         loading={state === "loading"}>
+         {state === "loading" && (
+            <RefreshCw className='w-4 h-4 text-[var(--accent)] animate-spin' />
+         )}
+         {state === "ok" && <CheckCircle2 className='w-4 h-4 text-green-400' />}
+         {state === "err" && <AlertCircle className='w-4 h-4 text-red-400' />}
+         {state === "idle" && <Trash2 className='w-4 h-4 text-red-400' />}
+      </SettingsRow>
+   );
 }

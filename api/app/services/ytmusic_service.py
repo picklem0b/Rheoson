@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 import asyncio
 import structlog
 from ytmusicapi import YTMusic
@@ -7,32 +8,23 @@ from app.core.exceptions import SearchError
 log = structlog.get_logger()
 
 # ── Singleton ─────────────────────────────────────────────────
-# YTMusic() constructor hits the network on first call.
-# Guard with a lock so concurrent requests don't each try to init.
-# If init fails, _ytm_error is set and we raise immediately on all
-# subsequent calls rather than retrying the failing constructor each time.
 
-_ytm:        YTMusic | None  = None
-_ytm_error:  Exception | None = None
-_ytm_lock    = asyncio.Lock()
+_ytm:       YTMusic | None   = None
+_ytm_error: Exception | None = None
+_ytm_lock   = asyncio.Lock()
 
 
 async def _get_ytm_async() -> YTMusic:
-    """Thread-safe singleton getter. Raises if YTMusic can't initialise."""
     global _ytm, _ytm_error
-
     if _ytm is not None:
         return _ytm
     if _ytm_error is not None:
         raise SearchError(f"YTMusic unavailable: {_ytm_error}") from _ytm_error
-
     async with _ytm_lock:
-        # Double-check inside lock
         if _ytm is not None:
             return _ytm
         if _ytm_error is not None:
             raise SearchError(f"YTMusic unavailable: {_ytm_error}") from _ytm_error
-
         loop = asyncio.get_event_loop()
         try:
             _ytm = await loop.run_in_executor(None, YTMusic)
@@ -41,28 +33,71 @@ async def _get_ytm_async() -> YTMusic:
             _ytm_error = e
             log.error("ytmusic.init.failed", error=str(e))
             raise SearchError(f"YTMusic failed to initialise: {e}") from e
-
     return _ytm
 
 
 def _get_ytm() -> YTMusic:
-    """Sync getter — only safe to call from executor threads."""
     if _ytm is None:
         raise SearchError("YTMusic not yet initialised")
     return _ytm
 
 
-# ── Parsers ───────────────────────────────────────────────────
+# ── Thumbnail helpers ─────────────────────────────────────────
 
-def _thumb(thumbnails: list[dict]) -> str:
+def _thumb(thumbnails: list[dict], size: int = 500) -> str:
+    """
+    Return the best-quality thumbnail URL from a ytmusicapi thumbnails list.
+
+    Strategy:
+      1. Pick the last item (ytmusicapi sorts ascending by size)
+      2. If the URL has a size suffix (=w226-h226-...), replace it with
+         the requested size so we always get a sharp image.
+      3. For i.ytimg.com URLs, use the /maxresdefault.jpg path when possible.
+
+    Previous bug: _thumb was calling .split("=w")[0] which stripped the
+    entire size parameter and returned the base URL — valid for some CDNs
+    but on YouTube's image CDN this returns a broken/missing image because
+    the CDN requires a size suffix to serve the file.
+    """
     if not thumbnails:
         return ""
+
+    # Pick the largest thumbnail ytmusicapi gave us
     best = thumbnails[-1].get("url", "")
-    # Strip YouTube size suffix to get the largest available
-    return best.split("=w")[0] if "=w" in best else best
+    if not best:
+        return ""
+
+    # YouTube Music thumbnails: replace existing size with a larger one
+    # Pattern: =w226-h226-l90-rj  or  =s226  or  =w500-h500
+    if re.search(r"=w\d+", best):
+        best = re.sub(r"=w\d+(-h\d+)?(-l\d+)?(-rj)?$", f"=w{size}-h{size}-l90-rj", best)
+        return best
+
+    # YouTube video thumbnails (i.ytimg.com/vi/{id}/...)
+    ytimg_match = re.search(r"(https://i\.ytimg\.com/vi/[^/]+)/", best)
+    if ytimg_match:
+        base = ytimg_match.group(1)
+        return f"{base}/maxresdefault.jpg"
+
+    # Googleusercontent / lh3 artist images — replace size suffix
+    if "=s" in best:
+        best = re.sub(r"=s\d+.*$", f"=s{size}", best)
+        return best
+
+    return best
 
 
-def _safe(v, fallback="") -> str:
+def _thumb_hires(thumbnails: list[dict]) -> str:
+    """High-res variant for artwork (500px) — used for track/album art."""
+    return _thumb(thumbnails, size=500)
+
+
+def _thumb_artist(thumbnails: list[dict]) -> str:
+    """Square crop preferred for artist images (400px)."""
+    return _thumb(thumbnails, size=400)
+
+
+def _safe(v: object, fallback: str = "") -> str:
     return str(v) if v is not None else fallback
 
 
@@ -80,19 +115,30 @@ def _duration_to_secs(d: str | None) -> float:
     return 0.0
 
 
+# ── Parsers ───────────────────────────────────────────────────
+
 def _parse_track(r: dict) -> dict:
     artists = r.get("artists") or []
-    album   = r.get("album") or {}
+    album   = r.get("album")   or {}
     vid_id  = _safe(r.get("videoId"))
+    thumbs  = r.get("thumbnails", [])
 
-    artist_id   = _safe(artists[0].get("id"))   if artists else ""
-    artist_name = _safe(artists[0].get("name")) if artists else "Unknown Artist"
+    artist_id    = _safe(artists[0].get("id"))   if artists else ""
+    artist_name  = _safe(artists[0].get("name")) if artists else "Unknown Artist"
+
+    # Artist image: ytmusicapi search results include thumbnails on artist
+    # objects when the search filter is "artists" — but in track results the
+    # artist object only has id + name. We set imageUrl to the track thumbnail
+    # as a fallback so something always shows on artist pages.
+    artist_thumb = _thumb_artist(thumbs)
+
+    artwork = _thumb_hires(thumbs)
 
     return {
         "id":           vid_id,
         "title":        _safe(r.get("title"), "Unknown"),
         "duration":     _duration_to_secs(r.get("duration")),
-        "artworkUrl":   _thumb(r.get("thumbnails", [])),
+        "artworkUrl":   artwork,
         "youtubeId":    vid_id,
         "spotifyId":    None,
         "isDownloaded": False,
@@ -101,19 +147,19 @@ def _parse_track(r: dict) -> dict:
         "artist": {
             "id":       artist_id,
             "name":     artist_name,
-            "imageUrl": None,
+            "imageUrl": artist_thumb,
             "genres":   [],
         },
         "album": {
             "id":          _safe(album.get("id")),
             "title":       _safe(album.get("name")),
-            "artworkUrl":  _thumb(r.get("thumbnails", [])),
+            "artworkUrl":  artwork,
             "releaseYear": 0,
             "trackCount":  0,
             "artist": {
                 "id":       artist_id,
                 "name":     artist_name,
-                "imageUrl": None,
+                "imageUrl": artist_thumb,
                 "genres":   [],
             },
         },
@@ -122,26 +168,33 @@ def _parse_track(r: dict) -> dict:
 
 def _parse_album(r: dict) -> dict:
     artists = r.get("artists") or []
+    thumbs  = r.get("thumbnails", [])
     return {
         "id":          _safe(r.get("browseId")),
         "title":       _safe(r.get("title")),
-        "artworkUrl":  _thumb(r.get("thumbnails", [])),
+        "artworkUrl":  _thumb_hires(thumbs),
         "releaseYear": int(r.get("year") or 0),
         "trackCount":  0,
         "artist": {
             "id":       _safe(artists[0].get("id"))   if artists else "",
             "name":     _safe(artists[0].get("name")) if artists else "",
-            "imageUrl": None,
+            "imageUrl": _thumb_artist(thumbs),
             "genres":   [],
         },
     }
 
 
 def _parse_artist(r: dict) -> dict:
+    """
+    Parse an artist from search results.
+    ytmusicapi artist search results include a thumbnails array that contains
+    the artist's profile image — this was previously ignored.
+    """
+    thumbs = r.get("thumbnails", [])
     return {
         "id":       _safe(r.get("browseId")),
         "name":     _safe(r.get("artist", r.get("name"))),
-        "imageUrl": _thumb(r.get("thumbnails", [])),
+        "imageUrl": _thumb_artist(thumbs),
         "genres":   [],
     }
 
@@ -155,7 +208,7 @@ def _parse_playlist(r: dict) -> dict:
     return {
         "id":         _safe(r.get("browseId")),
         "title":      _safe(r.get("title")),
-        "artworkUrl": _thumb(r.get("thumbnails", [])),
+        "artworkUrl": _thumb_hires(r.get("thumbnails", [])),
         "trackCount": count,
         "source":     "youtube",
     }
@@ -163,30 +216,14 @@ def _parse_playlist(r: dict) -> dict:
 
 # ── Public API ────────────────────────────────────────────────
 
-async def search(
-    query: str,
-    filter: str | None = None,
-    limit: int = 20,
-) -> dict:
-    """
-    Concurrent search across all categories using run_in_executor + gather.
-    Ensures YTMusic is initialised before spawning threads.
-    """
-    # Ensure singleton is ready before any executor threads try to use it
+async def search(query: str, filter: str | None = None, limit: int = 20) -> dict:
     await _get_ytm_async()
     loop = asyncio.get_event_loop()
 
-    def _songs():
-        return _get_ytm().search(query, filter="songs", limit=limit)
-
-    def _albums():
-        return _get_ytm().search(query, filter="albums", limit=8)
-
-    def _artists():
-        return _get_ytm().search(query, filter="artists", limit=8)
-
-    def _playlists():
-        return _get_ytm().search(query, filter="playlists", limit=6)
+    def _songs():     return _get_ytm().search(query, filter="songs",     limit=limit)
+    def _albums():    return _get_ytm().search(query, filter="albums",    limit=8)
+    def _artists():   return _get_ytm().search(query, filter="artists",   limit=8)
+    def _playlists(): return _get_ytm().search(query, filter="playlists", limit=6)
 
     try:
         if filter in ("songs", "tracks", None):
@@ -237,15 +274,16 @@ async def get_track(video_id: str) -> dict:
     await _get_ytm_async()
     loop = asyncio.get_event_loop()
     try:
-        data = await loop.run_in_executor(None, lambda: _get_ytm().get_song(video_id))
-        vd   = data.get("videoDetails", {})
+        data  = await loop.run_in_executor(None, lambda: _get_ytm().get_song(video_id))
+        vd    = data.get("videoDetails", {})
         thumb = vd.get("thumbnail", {}).get("thumbnails", [])
         vid   = _safe(vd.get("videoId", video_id))
+        art   = _thumb_hires(thumb)
         return {
             "id":           vid,
             "title":        _safe(vd.get("title")),
             "duration":     float(vd.get("lengthSeconds") or 0),
-            "artworkUrl":   _thumb(thumb),
+            "artworkUrl":   art,
             "youtubeId":    vid,
             "spotifyId":    None,
             "isDownloaded": False,
@@ -254,19 +292,19 @@ async def get_track(video_id: str) -> dict:
             "artist": {
                 "id":       _safe(vd.get("channelId")),
                 "name":     _safe(vd.get("author")),
-                "imageUrl": None,
+                "imageUrl": art,
                 "genres":   [],
             },
             "album": {
                 "id":          "",
                 "title":       "",
-                "artworkUrl":  _thumb(thumb),
+                "artworkUrl":  art,
                 "releaseYear": 0,
                 "trackCount":  0,
                 "artist": {
                     "id":       _safe(vd.get("channelId")),
                     "name":     _safe(vd.get("author")),
-                    "imageUrl": None,
+                    "imageUrl": art,
                     "genres":   [],
                 },
             },
@@ -276,13 +314,35 @@ async def get_track(video_id: str) -> dict:
         raise SearchError(f"Could not fetch track {video_id}: {e}")
 
 
+async def get_artist(artist_id: str) -> dict:
+    """
+    Fetch full artist data from ytmusicapi including high-res header image.
+    The header image is much higher quality than the search thumbnail.
+    """
+    await _get_ytm_async()
+    loop = asyncio.get_event_loop()
+    try:
+        data   = await loop.run_in_executor(None, lambda: _get_ytm().get_artist(artist_id))
+        thumbs = data.get("thumbnails", [])
+        return {
+            "id":       artist_id,
+            "name":     _safe(data.get("name")),
+            "imageUrl": _thumb_artist(thumbs),
+            "genres":   [],
+            "description": _safe(data.get("description")),
+            "subscribers": _safe(data.get("subscribers")),
+        }
+    except Exception as e:
+        log.warning("ytmusic.get_artist.failed", artist_id=artist_id, error=str(e))
+        return {"id": artist_id, "name": "", "imageUrl": "", "genres": []}
+
+
 async def search_one(query: str) -> dict | None:
     await _get_ytm_async()
     loop = asyncio.get_event_loop()
     try:
         results = await loop.run_in_executor(
-            None,
-            lambda: _get_ytm().search(query, filter="songs", limit=5),
+            None, lambda: _get_ytm().search(query, filter="songs", limit=5),
         )
         tracks = [r for r in results if r.get("videoId")]
         return _parse_track(tracks[0]) if tracks else None
@@ -292,7 +352,6 @@ async def search_one(query: str) -> dict | None:
 
 
 async def resolve_youtube_url(url: str) -> dict | None:
-    import re
     patterns = [
         r'(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})',
         r'youtube\.com/shorts/([a-zA-Z0-9_-]{11})',
@@ -305,15 +364,10 @@ async def resolve_youtube_url(url: str) -> dict | None:
 
 
 async def get_trending(limit: int = 20) -> list[dict]:
-    """
-    Fetch trending/charts tracks from YouTube Music.
-    Returns empty list on failure — caller handles gracefully.
-    """
     await _get_ytm_async()
     loop = asyncio.get_event_loop()
     try:
-        # get_charts returns a rich object; we extract the trending songs
-        charts = await loop.run_in_executor(None, lambda: _get_ytm().get_charts())
+        charts   = await loop.run_in_executor(None, lambda: _get_ytm().get_charts())
         trending = charts.get("songs", {}).get("items", [])
         return [_parse_track(r) for r in trending[:limit] if r.get("videoId")]
     except Exception as e:

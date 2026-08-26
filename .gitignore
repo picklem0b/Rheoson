@@ -1,12 +1,12 @@
 # Dependencies
 node_modules/
-package-lock.json
 venv/
 .venv/
 
 # Build outputs
 dist/
 build/
+graphify-out/
 *.egg-info/
 
 # Environment
@@ -35,3 +35,5 @@ web/.vite/
 # TypeScript
 tsconfig.tsbuildinfo
 music/.history.json
+graphify-out/cache/
+graphify-out/.graphify_*

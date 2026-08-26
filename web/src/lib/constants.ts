@@ -1,66 +1,97 @@
-const RENDER_API_URL = import.meta.env.VITE_API_URL ?? 'https://shulker-api-vnny.onrender.com'
+// ── Environment detection ─────────────────────────────────────
+//
+// Three runtime environments:
+//   1. Dev (npm run dev)      — Vite proxy forwards /api → localhost:8000
+//   2. Prod web (Render)      — VITE_API_URL must be set in Render env vars
+//   3. APK (Capacitor build)  — VITE_API_URL baked in at build time,
+//                               Capacitor CapacitorHttp handles CORS natively
+//
+// VITE_API_URL must be the bare origin with no trailing slash:
+//   https://shulker-api-vnny.onrender.com
+//
+// For the APK build, set it in web/.env.production before running:
+//   npm run build && npx cap sync
 
-const isProd = import.meta.env.PROD
+const PROD_API_ORIGIN =
+   import.meta.env.VITE_API_URL ?? "https://shulker-api-vnny.onrender.com";
 
-export const API_BASE = isProd
-  ? `${RENDER_API_URL}/api`
-  : '/api'
+const isProd = import.meta.env.PROD;
 
+// Capacitor sets window.Capacitor when running inside a native WebView
+const isAPK = typeof window !== "undefined" && !!(window as any).Capacitor;
+
+// ── API_BASE ──────────────────────────────────────────────────
+// Used by the api client (client.api.ts) for all REST requests.
+//
+// Dev:      /api          → Vite proxy → http://127.0.0.1:8000/api
+// Prod/APK: https://shulker-api-vnny.onrender.com/api
+export const API_BASE = isProd ? `${PROD_API_ORIGIN}/api` : "/api";
+
+// ── WS_URL ────────────────────────────────────────────────────
+// Used by websocket.lib.ts for the Socket.IO connection.
+// Socket.IO io() takes the ORIGIN, not the /api path — this was
+// the root cause of the APK WebSocket connection failure.
+//
+// Dev:      http://127.0.0.1:8000   (direct — no Vite proxy for WS in all cases)
+// Prod/APK: https://shulker-api-vnny.onrender.com
+//
 export const WS_URL = isProd
-  ? RENDER_API_URL
-  : import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"
+   ? PROD_API_ORIGIN
+   : (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000");
+
+// ── Endpoints ─────────────────────────────────────────────────
 
 export const ENDPOINTS = {
-  health:         `${API_BASE}/health`,
-  search:         (q: string, filter?: string) =>
-    `${API_BASE}/search?q=${encodeURIComponent(q)}${filter ? `&filter=${filter}` : ''}`,
-  resolve:        `${API_BASE}/search/resolve`,
-  tracks:         `${API_BASE}/tracks`,
-  track:          (id: string) => `${API_BASE}/tracks/${id}`,
-  stream:         (id: string) => `${API_BASE}/stream/${id}/audio`,
-  artwork:        (id: string) => `${API_BASE}/stream/${id}/artwork`,
-  like:           (id: string) => `${API_BASE}/tracks/${id}/like`,
-  play:           (id: string) => `${API_BASE}/tracks/${id}/play`,
-  liked:          `${API_BASE}/tracks/liked`,
-  recentlyPlayed: `${API_BASE}/tracks/recently-played`,
-  downloads:      `${API_BASE}/downloads`,
-  download:       (id: string) => `${API_BASE}/downloads/${id}`,
-  downloadCancel: (id: string) => `${API_BASE}/downloads/${id}/cancel`,
-  downloadRetry:  (id: string) => `${API_BASE}/downloads/${id}/retry`,
-  playlists:      `${API_BASE}/playlists`,
-  playlist:       (id: string) => `${API_BASE}/playlists/${id}`,
-  playlistTracks: (id: string) => `${API_BASE}/playlists/${id}/tracks`,
-  importPlaylist: (id: string) => `${API_BASE}/playlists/${id}/import`,
-  lyrics:         (id: string, title?: string, artist?: string) =>
-    `${API_BASE}/lyrics/${id}?title=${encodeURIComponent(title || '')}&artist=${encodeURIComponent(artist || '')}`,
-} as const
+   health: `${API_BASE}/health`,
+   search: (q: string, filter?: string) =>
+      `${API_BASE}/search?q=${encodeURIComponent(q)}${filter ? `&filter=${filter}` : ""}`,
+   resolve: `${API_BASE}/search/resolve`,
+   tracks: `${API_BASE}/tracks`,
+   track: (id: string) => `${API_BASE}/tracks/${id}`,
+   stream: (id: string) => `${API_BASE}/stream/${id}/audio`,
+   artwork: (id: string) => `${API_BASE}/stream/${id}/artwork`,
+   like: (id: string) => `${API_BASE}/tracks/${id}/like`,
+   play: (id: string) => `${API_BASE}/tracks/${id}/play`,
+   liked: `${API_BASE}/tracks/liked`,
+   recentlyPlayed: `${API_BASE}/tracks/recently-played`,
+   downloads: `${API_BASE}/downloads`,
+   download: (id: string) => `${API_BASE}/downloads/${id}`,
+   downloadCancel: (id: string) => `${API_BASE}/downloads/${id}/cancel`,
+   downloadRetry: (id: string) => `${API_BASE}/downloads/${id}/retry`,
+   playlists: `${API_BASE}/playlists`,
+   playlist: (id: string) => `${API_BASE}/playlists/${id}`,
+   playlistTracks: (id: string) => `${API_BASE}/playlists/${id}/tracks`,
+   importPlaylist: (id: string) => `${API_BASE}/playlists/${id}/import`,
+   lyrics: (id: string, title?: string, artist?: string) =>
+      `${API_BASE}/lyrics/${id}?title=${encodeURIComponent(title ?? "")}&artist=${encodeURIComponent(artist ?? "")}`
+} as const;
 
 export const PLAYER_DEFAULTS = {
-  volume:   0.8,
-  seekStep: 10,
-} as const
+   volume: 0.8,
+   seekStep: 10
+} as const;
 
 export const DOWNLOAD_DEFAULTS = {
-  format:       'mp3'  as const,
-  quality:      '320'  as const,
-  embedArtwork: true,
-  embedLyrics:  true,
-} as const
+   format: "mp3" as const,
+   quality: "320" as const,
+   embedArtwork: true,
+   embedLyrics: true
+} as const;
 
 export const BREAKPOINTS = {
-  sm:  640,
-  md:  768,
-  lg:  1024,
-  xl:  1280,
-} as const
+   sm: 640,
+   md: 768,
+   lg: 1024,
+   xl: 1280
+} as const;
 
 export const STORAGE_KEYS = {
-  theme:  'shulker-theme',
-  volume: 'shulker-volume',
-  queue:  'shulker-queue',
-  liked:  'shulker-liked',
-  user:   'shulker-user',
-} as const
+   theme: "shulker-theme",
+   volume: "shulker-volume",
+   queue: "shulker-queue",
+   liked: "shulker-liked",
+   user: "shulker-user"
+} as const;
 
-export const APP_NAME    = 'Shulker'
-export const APP_VERSION = '1.3.0-rc'
+export const APP_NAME = "Shulker";
+export const APP_VERSION = "2.7.3";

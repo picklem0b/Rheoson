@@ -2,15 +2,15 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette, Volume2, Download, Keyboard, Info,
-  ChevronRight, ChevronLeft, User,
-  Bell, Shield, HardDrive,
+  ChevronRight, ChevronLeft, User, Bell, Shield,
+  HardDrive, Layout,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
-import { IconButton } from '@/components/ui/IconButton'
 import { APP_VERSION } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 import AppearanceSection    from './sections/AppearanceSection'
+import LayoutSection        from './sections/LayoutSection'
 import AudioSection         from './sections/AudioSection'
 import DownloadsSection     from './sections/DownloadsSection'
 import StorageSection       from './sections/StorageSection'
@@ -20,33 +20,51 @@ import NotificationsSection from './sections/NotificationsSection'
 import ShortcutsSection     from './sections/ShortcutsSection'
 import AboutSection         from './sections/AboutSection'
 
-// ── Section registry ──────────────────────────────────────────
-
 type Section =
-  | 'appearance' | 'audio'    | 'downloads' | 'storage'
-  | 'account'    | 'privacy'  | 'notifications'
-  | 'shortcuts'  | 'about'
+  | 'appearance' | 'layout'  | 'audio'
+  | 'downloads'  | 'storage' | 'notifications'
+  | 'account'    | 'privacy' | 'shortcuts' | 'about'
 
-const SECTIONS: {
-  id:          Section
-  label:       string
-  icon:        React.ReactNode
-  description: string
-}[] = [
-  { id: 'appearance',    label: 'Appearance',    icon: <Palette   className="w-4 h-4" />, description: 'Theme, colours, transparency'   },
-  { id: 'audio',         label: 'Audio',         icon: <Volume2   className="w-4 h-4" />, description: 'Quality, crossfade, gapless'    },
-  { id: 'downloads',     label: 'Downloads',     icon: <Download  className="w-4 h-4" />, description: 'Format, quality, embed options' },
-  { id: 'storage',       label: 'Storage',       icon: <HardDrive className="w-4 h-4" />, description: 'Music dirs, cache, library'     },
-  { id: 'account',       label: 'Account',       icon: <User      className="w-4 h-4" />, description: 'Profile, Spotify credentials'   },
-  { id: 'privacy',       label: 'Privacy',       icon: <Shield    className="w-4 h-4" />, description: 'History, data, permissions'     },
-  { id: 'notifications', label: 'Notifications', icon: <Bell      className="w-4 h-4" />, description: 'Download alerts, updates'       },
-  { id: 'shortcuts',     label: 'Shortcuts',     icon: <Keyboard  className="w-4 h-4" />, description: 'Keyboard controls'             },
-  { id: 'about',         label: 'About',         icon: <Info      className="w-4 h-4" />, description: `v${APP_VERSION} · Credits`      },
+interface SectionMeta {
+  id:    Section
+  label: string
+  desc:  string
+  Icon:  React.ElementType
+  bg:    string
+}
+
+const GROUPS: { label: string; items: SectionMeta[] }[] = [
+  {
+    label: 'Personalisation',
+    items: [
+      { id: 'appearance', label: 'Appearance',    desc: 'Theme, accent, transparency',   Icon: Palette,   bg: '#8B5CF6' },
+      { id: 'layout',     label: 'Layout',        desc: 'Navigation, fonts, sidebar',    Icon: Layout,    bg: '#3B82F6' },
+      { id: 'audio',      label: 'Audio',         desc: 'Quality, crossfade, EQ',        Icon: Volume2,   bg: '#0EA5E9' },
+      { id: 'downloads',  label: 'Downloads',     desc: 'Format, quality, concurrency',  Icon: Download,  bg: '#22C55E' },
+      { id: 'storage',    label: 'Storage',       desc: 'Directories, library, cache',   Icon: HardDrive, bg: '#F97316' },
+    ],
+  },
+  {
+    label: 'Account & privacy',
+    items: [
+      { id: 'notifications', label: 'Notifications', desc: 'Alerts, sounds, updates',      Icon: Bell,     bg: '#EAB308' },
+      { id: 'account',       label: 'Account',       desc: 'Profile, Spotify credentials', Icon: User,     bg: '#EC4899' },
+      { id: 'privacy',       label: 'Privacy',       desc: 'History, data, legal',         Icon: Shield,   bg: '#6B7280' },
+    ],
+  },
+  {
+    label: 'App',
+    items: [
+      { id: 'shortcuts', label: 'Shortcuts', desc: 'Keyboard controls',           Icon: Keyboard, bg: '#64748B' },
+      { id: 'about',     label: 'About',     desc: `v${APP_VERSION} · Credits`,   Icon: Info,     bg: '#14B8A6' },
+    ],
+  },
 ]
 
-function SectionContent({ section }: { section: Section }) {
-  switch (section) {
+function SectionContent({ id }: { id: Section }) {
+  switch (id) {
     case 'appearance':    return <AppearanceSection />
+    case 'layout':        return <LayoutSection />
     case 'audio':         return <AudioSection />
     case 'downloads':     return <DownloadsSection />
     case 'storage':       return <StorageSection />
@@ -59,123 +77,132 @@ function SectionContent({ section }: { section: Section }) {
   }
 }
 
-// ── Root ──────────────────────────────────────────────────────
+const DETAIL_SPRING = { type: 'spring' as const, damping: 28, stiffness: 300 }
 
 export default function Settings() {
   const [active, setActive] = useState<Section | null>(null)
-  const meta = SECTIONS.find((s) => s.id === active)
+  const meta = GROUPS.flatMap((g) => g.items).find((s) => s.id === active) ?? null
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden bg-[var(--bg-base)]">
 
-      {/* ── Left: section list ─────────────────────────────── */}
+      {/* ── Left list ─────────────────────────────────────── */}
       <div className={cn(
-        'flex-shrink-0 w-full lg:w-72 border-r border-[var(--border)] flex flex-col',
+        'flex-shrink-0 w-full lg:w-[310px] flex flex-col border-r border-[var(--border)]/40',
         active ? 'hidden lg:flex' : 'flex',
       )}>
-        <div className="px-4 lg:px-5 pt-6 pb-5 flex-shrink-0 border-b border-[var(--border)]">
-          <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">Settings</h1>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Shulker v{APP_VERSION}</p>
+        <div className="px-5 pt-12 pb-2 flex-shrink-0">
+          <h1 className="text-[32px] font-bold tracking-tight text-[var(--text-primary)]">
+            Settings
+          </h1>
         </div>
 
-        <ScrollArea className="flex-1 px-2 py-3">
-          {SECTIONS.map((s, i) => (
-            <motion.button
-              key={s.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.035 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setActive(s.id)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl mb-0.5',
-                'transition-all duration-200 text-left',
-                active === s.id
-                  ? 'bg-[var(--accent-subtle)] border border-[var(--accent-border)]'
-                  : 'hover:bg-[var(--bg-elevated)]',
-              )}
-            >
-              <div className={cn(
-                'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors',
-                active === s.id
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]',
-              )}>
-                {s.icon}
+        <ScrollArea className="flex-1 px-4 pb-6 pt-3">
+          {GROUPS.map((g) => (
+            <div key={g.label} className="mb-6">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2 px-1">
+                {g.label}
+              </p>
+              <div className="bg-[var(--bg-surface)] rounded-[18px] overflow-hidden divide-y divide-[var(--border)]/40 border border-[var(--border)]/30">
+                {g.items.map((s, i) => (
+                  <motion.button
+                    key={s.id}
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.02, type: 'spring', damping: 26, stiffness: 300 }}
+                    whileTap={{ opacity: 0.55 }}
+                    onClick={() => setActive(s.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3.5 py-[11px] text-left transition-colors duration-100',
+                      active === s.id ? 'bg-[var(--accent)]/8' : 'hover:bg-[var(--bg-elevated)]',
+                    )}
+                  >
+                    <div
+                      className="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center flex-shrink-0"
+                      style={{ background: s.bg }}
+                    >
+                      <s.Icon className="w-[17px] h-[17px] text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn(
+                        'text-[15px] leading-snug',
+                        active === s.id
+                          ? 'font-semibold text-[var(--accent)]'
+                          : 'font-[440] text-[var(--text-primary)]',
+                      )}>
+                        {s.label}
+                      </p>
+                      <p className="text-[12px] text-[var(--text-muted)] truncate leading-snug mt-[1px]">
+                        {s.desc}
+                      </p>
+                    </div>
+                    <ChevronRight className={cn(
+                      'w-4 h-4 flex-shrink-0',
+                      active === s.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]/35',
+                    )} />
+                  </motion.button>
+                ))}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className={cn(
-                  'text-sm font-bold truncate',
-                  active === s.id ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
-                )}>
-                  {s.label}
-                </p>
-                <p className="text-[11px] text-[var(--text-muted)] truncate">{s.description}</p>
-              </div>
-              <ChevronRight className={cn(
-                'w-4 h-4 flex-shrink-0 transition-colors',
-                active === s.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
-              )} />
-            </motion.button>
+            </div>
           ))}
         </ScrollArea>
       </div>
 
-      {/* ── Right: section detail ──────────────────────────── */}
+      {/* ── Right detail ──────────────────────────────────── */}
       <div className={cn(
         'flex-1 min-w-0 flex flex-col overflow-hidden',
         !active ? 'hidden lg:flex' : 'flex',
       )}>
-        <AnimatePresence mode="wait">
-          {active ? (
+        <AnimatePresence mode="wait" initial={false}>
+          {active && meta ? (
             <motion.div
               key={active}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0  }}
-              exit={{ opacity: 0, x: -10   }}
-              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              initial={{ opacity: 0, x: 28 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={DETAIL_SPRING}
               className="flex flex-col h-full"
             >
-              {/* Sub-header */}
-              <div className="flex items-center gap-3 px-4 lg:px-5 pt-5 pb-4 flex-shrink-0 border-b border-[var(--border)]">
-                <IconButton
-                  size="sm"
-                  variant="ghost"
-                  className="lg:hidden"
+              {/* Detail header */}
+              <div className="flex items-center gap-3 px-4 lg:px-5 pt-12 pb-2 flex-shrink-0">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setActive(null)}
+                  className="lg:hidden flex items-center gap-1 text-[var(--accent)] mr-1"
                 >
-                  <ChevronLeft />
-                </IconButton>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[var(--accent)] text-white flex items-center justify-center">
-                    {meta?.icon}
+                  <ChevronLeft className="w-5 h-5" />
+                  <span className="text-[17px]">Settings</span>
+                </motion.button>
+                <div className="flex-1 flex items-center gap-3 min-w-0">
+                  <div
+                    className="hidden lg:flex w-9 h-9 rounded-[10px] items-center justify-center flex-shrink-0"
+                    style={{ background: meta.bg }}
+                  >
+                    <meta.Icon className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <h2 className="text-base font-black text-[var(--text-primary)] leading-tight">
-                      {meta?.label}
-                    </h2>
-                    <p className="text-xs text-[var(--text-muted)]">{meta?.description}</p>
-                  </div>
+                  <h2 className="text-[26px] font-bold tracking-tight text-[var(--text-primary)] lg:text-[20px] leading-tight">
+                    {meta.label}
+                  </h2>
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 px-4 lg:px-5 py-5">
-                <SectionContent section={active} />
+              <ScrollArea className="flex-1 px-4 lg:px-5 pb-10 pt-3">
+                <SectionContent id={active} />
               </ScrollArea>
             </motion.div>
           ) : (
             <motion.div
-              key="placeholder"
+              key="empty"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="hidden lg:flex flex-1 items-center justify-center flex-col gap-5"
+              className="hidden lg:flex flex-1 items-center justify-center flex-col gap-4"
             >
-              <div className="w-20 h-20 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]">
-                <ChevronRight className="w-8 h-8 text-[var(--text-muted)]" />
+              <div className="w-14 h-14 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center">
+                <ChevronRight className="w-6 h-6 text-[var(--text-muted)]/30" />
               </div>
               <div className="text-center">
-                <p className="text-[var(--text-primary)] font-bold">Select a section</p>
-                <p className="text-[var(--text-muted)] text-sm mt-1">Configure Shulker from the left</p>
+                <p className="text-[15px] font-semibold text-[var(--text-primary)]">Select a section</p>
+                <p className="text-[13px] text-[var(--text-muted)] mt-0.5">Configure Shulker from the sidebar</p>
               </div>
             </motion.div>
           )}

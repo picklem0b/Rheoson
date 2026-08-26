@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/formatters'
-import type { Track } from '@/types/track'
+import type { Track } from '@/types/track.types'
 import type { Album, Playlist } from '@/types'
 
 // ── QuickPicks ────────────────────────────────────────────────

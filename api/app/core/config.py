@@ -1,23 +1,28 @@
+from __future__ import annotations
+import json
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    ENV:       str = "development"
-    API_HOST:  str = "0.0.0.0"
-    API_PORT:  int = 8000
+    ENV:      str = "development"
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
 
-    MUSIC_DIR:      str = "/data/data/com.termux/files/home/shulker/music"
-    DOWNLOADS_DIR:  str = "/data/data/com.termux/files/home/shulker/downloads"
+    MUSIC_DIR:     str = "/data/data/com.termux/files/home/shulker/music"
+    DOWNLOADS_DIR: str = "/data/data/com.termux/files/home/shulker/downloads"
 
+    # Comma-separated or JSON array of extra directories.
+    # On Render: EXTRA_MUSIC_DIRS=/tmp/shulker/music
+    # On Termux: leave unset — defaults cover the common paths
     EXTRA_MUSIC_DIRS: list[str] = [
         "/storage/emulated/0/Music",
         "/storage/emulated/0/Download",
         "/sdcard/Music",
     ]
 
-    REDIS_URL:                str = "redis://127.0.0.1:6379/0"
     AUDIO_FORMAT:             str = "mp3"
     AUDIO_QUALITY:            str = "0"
     MAX_CONCURRENT_DOWNLOADS: int = 4
@@ -25,8 +30,23 @@ class Settings(BaseSettings):
     SPOTIFY_CLIENT_ID:     str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
 
-    # Allow all origins — locked down per-env via CORS_ORIGINS env var on Render
-    CORS_ORIGINS: list[str] = ["*"]
+    # CORS_ORIGINS is an ADDITIVE override — extra origins beyond the
+    # hardcoded builtins in main.py. Set on Render as:
+    #   CORS_ORIGINS=https://my-custom-domain.com
+    # or as a JSON array:
+    #   CORS_ORIGINS=["https://a.com","https://b.com"]
+    # Leave unset to rely solely on the builtins (recommended).
+    CORS_ORIGINS: list[str] = [
+        "https://shulker-web.onrender.com",
+        "https://shulker-api-vnny.onrender.com",
+        "https://shulker.onrender.com",
+    ]
+
+    # ── Computed ──────────────────────────────────────────────
+
+    @property
+    def is_prod(self) -> bool:
+        return self.ENV == "production"
 
     @property
     def is_dev(self) -> bool:
@@ -38,8 +58,14 @@ class Settings(BaseSettings):
 
     @property
     def all_music_dirs(self) -> list[str]:
-        dirs = [self.MUSIC_DIR] + self.EXTRA_MUSIC_DIRS
-        return [d for d in dirs if __import__("pathlib").Path(d).exists()]
+        """All music dirs that actually exist on disk."""
+        dirs = [self.MUSIC_DIR] + list(self.EXTRA_MUSIC_DIRS)
+        return [d for d in dict.fromkeys(dirs) if Path(d).exists()]
+
+    @property
+    def all_music_dirs_configured(self) -> list[str]:
+        """All configured dirs regardless of whether they exist."""
+        return list(dict.fromkeys([self.MUSIC_DIR] + list(self.EXTRA_MUSIC_DIRS)))
 
 
 settings = Settings()

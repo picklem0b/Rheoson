@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/Toaster'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import PlayerBar from '@/components/player/PlayerBar'
-import { usePlayerStore } from '@/store/playerStore'
+import { usePlayerStore } from '@/store/player.store'
 import { cn } from '@/lib/utils'
 
 /**

@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="web/public/assets/logo.png" width="96" height="96" style="border-radius:24px" alt="Shulker logo" />
+<img src="web/public/assets/logo.png" width="96" height="96" style="border-radius:24px" alt="Shulker" />
 
 # Shulker
 
-**Music. Downloaded. Played.**
+**Self-hosted music. No subscription. No ads. No compromise.**
 
-Self-hosted music streaming and download app — search, stream, and save songs with a Spotify-grade UI. No subscription. No ads. No data collection. Everything runs on your device.
+Search, stream, and download any song with a Spotify-grade interface that runs entirely on your own device or server.
 
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.103+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -14,63 +14,78 @@ Self-hosted music streaming and download app — search, stream, and save songs 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[Live Demo](https://shulker.onrender.com) · [Report a Bug](https://github.com/lethabokhedama-png/shulker/issues) · [Request a Feature](https://github.com/lethabokhedama-png/shulker/issues)
+[Live Demo](https://shulker.onrender.com) · [Report a Bug](https://github.com/picklem0b/shulker/issues) · [Request a Feature](https://github.com/picklem0b/shulker/issues)
 
 </div>
 
 ---
 
-## What is Shulker?
+## Overview
 
-Shulker is a self-hosted, open-source music application built for people who want full control over their music. It looks and feels like Spotify Premium — same layout, smooth animations, iOS-quality UI — but everything runs on **your** device or **your** server.
+Shulker is an open-source music application built for full ownership of your listening experience. The UI mirrors Spotify Premium — same layout, smooth spring animations, swipeable mobile player — but the audio is sourced from YouTube Music via [yt-dlp](https://github.com/yt-dlp/yt-dlp) and stored locally on your device.
 
-The core idea: search any song, stream it instantly, download it in any format, save it to playlists, see synced lyrics — all from one app that you own.
+Spotify's API is used **only** for metadata (titles, artwork, durations) when you paste a Spotify link. Shulker never touches Spotify's audio.
 
-Shulker is **not** a Spotify wrapper. It does not touch Spotify's audio. It uses YouTube Music as its audio source, and optionally uses Spotify's metadata API (free) only to read song information — titles, artwork, durations — when you paste a Spotify link.
+**Offline playback is a first-class feature.** Once a track is downloaded, it plays from disk at full quality with no network activity whatsoever — no buffering, no rate limits, no YouTube.
 
 ---
 
 ## Screenshots
 
-| Search | Now Playing | Downloads |
-|--------|-------------|-----------|
-| ![search](docs/screenshots/search.png) | ![now-playing](docs/screenshots/nowplaying.png) | ![downloads](docs/screenshots/downloads.png) |
+| Home | Now Playing | Downloads |
+|------|-------------|-----------|
+| ![home](docs/screenshots/home.png) | ![now-playing](docs/screenshots/nowplaying.png) | ![downloads](docs/screenshots/downloads.png) |
+
+---
+
+## Requirements
+
+- Python 3.13+
+- Node.js 18+
+- ffmpeg
+
+```bash
+# Termux (Android)
+pkg install ffmpeg python nodejs
+
+# macOS
+brew install ffmpeg node python@3.13
+
+# Debian/Ubuntu
+apt install ffmpeg nodejs python3.13
+```
+
+yt-dlp is installed automatically as a Python dependency.
 
 ---
 
 ## Quick Start
 
-### Requirements
-
-- Python 3.13+
-- Node.js 18+
-- ffmpeg — `pkg install ffmpeg` on Termux, `brew install ffmpeg` on Mac, `apt install ffmpeg` on Linux
-- yt-dlp — installed automatically via pip
-
-### 1. Clone
+### 1 · Clone
 
 ```bash
-git clone https://github.com/lethabokhedama-png/shulker.git
+git clone https://github.com/picklem0b/shulker.git
 cd shulker
 ```
 
-### 2. Backend
+### 2 · Backend
 
 ```bash
 cd api
 python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -e .
 
 cp .env.example .env
-# Edit .env — set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET (optional but recommended)
+# Optional: set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env
 
 uvicorn app.main:socket_app --host 0.0.0.0 --port 8000 --reload
 ```
 
-API runs at `http://localhost:8000`. Swagger docs at `http://localhost:8000/api/docs`.
+API: `http://localhost:8000`  
+Swagger docs: `http://localhost:8000/api/docs`
 
-### 3. Frontend
+### 3 · Frontend
 
 ```bash
 cd web
@@ -78,168 +93,116 @@ npm install
 npm run dev
 ```
 
-App opens at `http://localhost:3000`. The Vite dev server proxies `/api` to `localhost:8000` automatically.
+App: `http://localhost:3000`  
+The Vite dev server proxies `/api` → `localhost:8000` automatically.
 
-### 4. Spotify credentials (optional)
+### 4 · Spotify (optional)
 
-Spotify credentials unlock pasting Spotify links and give higher-quality artwork.
+Spotify credentials unlock pasting Spotify links and enable higher-quality artwork. Without them, search, stream, download, playlists, and lyrics all work fully.
 
-1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
-2. Create an app → copy Client ID and Client Secret
-3. In Shulker: **Settings → Account** → paste both fields → Save
-
-Without credentials everything else — search, stream, download, playlists, lyrics — works fully.
-
----
-
-## CLI
-
-After `pip install -e .`, the `shulker` command is available:
-
-```bash
-shulker                  # interactive REPL
-shulker health           # check API status
-shulker search "kendrick lamar"
-shulker dl "not like us"
-shulker dl "https://open.spotify.com/track/..."
-shulker dl "https://youtu.be/abc123" --format=flac --quality=best
-shulker dls              # list all download jobs
-shulker status <id>      # check job status
-shulker lyrics <id>      # fetch lyrics for a track
-shulker lib              # browse local library
-```
+1. Create a free app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
+2. Copy the Client ID and Client Secret
+3. In Shulker: **Settings → Account** → paste both → Save
 
 ---
 
 ## How It Works
 
-### Search
-
-| Input | What happens |
-|-------|-------------|
-| Plain text | Calls ytmusicapi → returns tracks, albums, artists, playlists |
-| Spotify track URL | Calls Spotify API for metadata → matches on YouTube Music → merges high-quality artwork with audio |
-| Spotify album / playlist URL | Resolves every track concurrently → full collection ready to play or download |
-| YouTube URL | Extracts video ID → fetches track info via ytmusicapi |
-| SoundCloud, Bandcamp, etc. | Passes URL to yt-dlp info extractor directly |
-
-Search runs at two levels simultaneously:
-- **Suggestions** (80ms debounce) — autocomplete dropdown as you type
-- **Full search** (200ms debounce) — all four categories in parallel via `asyncio.gather`
-
 ### Streaming
 
-When you tap a track:
+When a track is tapped:
 
-1. Frontend calls `/api/stream/{youtube_video_id}/audio`
-2. Backend checks if the track is already downloaded locally
-   - **Yes** → serves from disk with HTTP range support (instant)
-   - **No** → pipes audio from yt-dlp stdout through the HTTP response in real time
-3. First audio bytes arrive in ~2–3 seconds
-4. Howler.js plays the stream with `html5: true` — no waiting for a full download
+1. The frontend calls `/api/stream/{youtube_video_id}/audio`
+2. The backend checks whether the track is already downloaded locally
+   - **Downloaded** → serves the file from disk with HTTP range support — instant playback, zero network
+   - **Not downloaded** → pipes audio from yt-dlp stdout directly through the HTTP response
+3. First audio bytes arrive in 1–3 seconds
+4. Howler.js (`html5: true`) plays the stream without waiting for a full download
+
+A single global Howl instance ensures there is never more than one audio source active at a time.
 
 ### Downloading
 
-1. Frontend sends `trackId + format + quality` to `/api/downloads`
-2. Backend queues the job and returns immediately — you see it in the Downloads tab
+1. Submit `trackId + format + quality` to `POST /api/downloads`
+2. The job is queued and returns immediately — live progress appears in the Downloads tab
 3. In the background:
-   - yt-dlp downloads best available audio quality
-   - ffmpeg converts to your chosen format (MP3 / FLAC / Opus / M4A / WAV)
-   - mutagen writes ID3 tags (title, artist, album, artwork, lyrics)
-   - File saved to `DOWNLOADS_DIR`
-4. Real-time progress (0% → 100%) pushed via WebSocket
-5. `rhea.mp3` plays as a completion notification
+   - yt-dlp fetches the best available audio
+   - ffmpeg converts to the chosen format (MP3 / FLAC / Opus / M4A / WAV)
+   - mutagen writes ID3 tags: title, artist, album, embedded artwork, synced lyrics
+   - File is saved to `MUSIC_DIR/<Artist>/<Title>.<ext>`
+4. On completion, the stream cache and track index are invalidated — the file appears in Library on the very next request, no restart required
 
-### Local Library
+### Search
 
-Shulker scans these directories on startup (configurable in Settings):
+| Input | Behaviour |
+|-------|-----------|
+| Plain text | Calls ytmusicapi → tracks, albums, artists, playlists |
+| Spotify track URL | Fetches Spotify metadata → matches on YouTube Music → merges artwork |
+| Spotify album / playlist | Resolves every track concurrently |
+| YouTube URL | Extracts video ID → fetches via ytmusicapi |
+| Any other URL | Passes directly to yt-dlp info extractor |
 
-```
-/data/data/com.termux/files/home/shulker/music   ← primary
-/storage/emulated/0/Music                         ← Android music folder
-/storage/emulated/0/Download
-```
+### Scheduled Jobs
 
-Every audio file is indexed by reading its ID3/vorbis tags. Local tracks appear in Library and play offline instantly.
+Three background cron tasks run automatically:
 
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    FRONTEND (web/)                      │
-│                                                         │
-│  React 18 · TypeScript · Vite · Tailwind CSS           │
-│  Zustand · TanStack Query · Howler.js · Framer Motion  │
-│  Runs on port 3000                                     │
-└─────────────────────────────────────────────────────────┘
-                       │  HTTP + WebSocket
-                       ▼
-┌─────────────────────────────────────────────────────────┐
-│                    BACKEND (api/)                       │
-│                                                         │
-│  FastAPI · Python 3.13 · uvicorn · Socket.IO           │
-│  yt-dlp · ffmpeg · ytmusicapi · mutagen · structlog    │
-│  Runs on port 8000                                     │
-└─────────────────────────────────────────────────────────┘
-```
+| Job | Schedule | Purpose |
+|-----|----------|---------|
+| Library scan | Every 30 min | Invalidates track and stream caches so manually-dropped files appear without a restart |
+| yt-dlp update | Daily at 03:00 UTC | Keeps yt-dlp current against YouTube format changes |
+| Job cleanup | Every 6 hours | Trims the in-memory download job list to 100 entries; removes references to deleted files |
 
 ---
 
 ## Features
 
-**Player**
-- Stream any song instantly — audio starts in ~2 seconds
-- Full playback controls: play, pause, next, previous, shuffle, repeat (off / all / one)
-- Seek slider with real-time timestamps
-- Volume control with mute
-- Like button synced to API
-- Keyboard shortcuts (Space, arrows, N, P, R, S, Q, L, M, F)
-- Lock screen / notification controls via Media Session API
-- Single global Howl instance — no audio doubling or piling
+### Player
+- Stream any song — audio starts in 1–3 seconds
+- Offline playback for downloaded tracks — plays from disk, zero network
+- Play / pause / next / previous / shuffle / repeat (off · all · one)
+- Seek slider with live timestamps
+- Volume control + mute
+- Like button synced with the API
+- Media Session API — lock screen and notification controls on Android
+- Keyboard shortcuts
+- Single Howl instance — no audio doubling or piling up
 
-**Now Playing**
+### Now Playing
 - Fullscreen player with blurred artwork background
-- Animated artwork that scales with playback state
-- Synced lyrics (LRC) that scroll line-by-line in time with the song
-- Queue panel (slide-in from bottom)
+- Artwork scales with playback state
+- Synced LRC lyrics scrolling line-by-line in time with the song
+- Queue panel (playlist / lyric / related tabs)
+- Offline badge on downloaded tracks
 - Download current track from the player
+- Swipe down to dismiss
 
-**Library**
-- Playlists, Albums, Artists tabs with grid / list toggle
+### Library
+- Playlists, Albums, Artists with grid / list toggle
 - Liked Songs pinned at the top
 - Create and manage playlists
-- Import Spotify playlists by URL
+- Import any Spotify playlist by URL
 
-**Downloads**
-- Active, Queued, Saved, Errors tabs
+### Downloads
+- Active / Queued / Saved / Errors tabs
 - Live progress bar per job via WebSocket
-- Format: MP3, FLAC, Opus, M4A, WAV
-- Quality: 128 / 192 / 256 / 320 kbps / Best available
+- Format: MP3 · FLAC · Opus · M4A · WAV
+- Quality: 128 / 192 / 256 / 320 kbps · Best
 - Embed artwork and synced lyrics into downloaded files
 - Retry failed jobs, cancel active jobs
 
-**Search**
-- Instant suggestions as you type
-- Filter by: All / Tracks / Albums / Artists / Playlists
+### Search
+- Instant suggestions as you type (80ms debounce)
+- Full results: All / Tracks / Albums / Artists / Playlists
 - Paste any Spotify, YouTube, SoundCloud, Bandcamp, or Deezer URL
-- Prewarm: first 3 results are pre-resolved in the background so playback starts faster
+- First 3 results pre-resolved in the background for faster playback start
 
-**Settings**
+### Settings
 - 7 accent colour themes with live preview
 - Dark / light surface
-- Spotify credentials (Client ID + Secret) with connection status
+- Spotify credentials with connection status indicator
 - Music directory management
 - Crossfade, gapless playback, volume normalisation
 - Configurable download format, quality, concurrent jobs
-
-**UI**
-- Spotify-inspired design system with CSS custom properties
-- iOS-style spring animations (Framer Motion)
-- Mobile-first: swipeable player shelf, bottom nav, safe area insets
-- Desktop: persistent sidebar, full keyboard navigation
-- Animated splash screen on first load
 
 ---
 
@@ -248,7 +211,7 @@ Every audio file is indexed by reading its ID3/vorbis tags. Local tracks appear 
 | Key | Action |
 |-----|--------|
 | `Space` | Play / Pause |
-| `← →` | Seek ±10 seconds |
+| `← →` | Seek ±10 s |
 | `↑ ↓` | Volume ±10% |
 | `N` | Next track |
 | `P` | Previous track |
@@ -266,22 +229,15 @@ Every audio file is indexed by reading its ID3/vorbis tags. Local tracks appear 
 All endpoints are prefixed with `/api`. Interactive docs at `http://localhost:8000/api/docs`.
 
 <details>
-<summary>Show all endpoints</summary>
+<summary>Endpoints</summary>
 
-**Health**
 ```
 GET  /api/health
-```
 
-**Search**
-```
-GET  /api/search?q=...&filter=...
-GET  /api/search/suggest?q=...
-POST /api/search/resolve          { url }
-```
+GET  /api/search?q=&filter=
+GET  /api/search/suggest?q=
+POST /api/search/resolve           { url }
 
-**Tracks**
-```
 GET  /api/tracks
 GET  /api/tracks/liked
 GET  /api/tracks/liked/count
@@ -291,32 +247,21 @@ GET  /api/tracks/{id}
 POST /api/tracks/{id}/like
 DEL  /api/tracks/{id}/like
 POST /api/tracks/{id}/play
-```
+DEL  /api/tracks/history
 
-**Stream**
-```
 GET  /api/stream/{id}/audio
 HEAD /api/stream/{id}/audio
 GET  /api/stream/{id}/artwork
-```
 
-**Downloads**
-```
 POST /api/downloads
 GET  /api/downloads
 GET  /api/downloads/{id}
 POST /api/downloads/{id}/cancel
 POST /api/downloads/{id}/retry
 DEL  /api/downloads/{id}
-```
 
-**Lyrics**
-```
 GET  /api/lyrics/{id}?title=&artist=
-```
 
-**Playlists**
-```
 GET   /api/playlists
 POST  /api/playlists
 GET   /api/playlists/{id}
@@ -326,10 +271,11 @@ POST  /api/playlists/{id}/tracks
 DEL   /api/playlists/{id}/tracks/{tid}
 PUT   /api/playlists/{id}/tracks/reorder
 POST  /api/playlists/import
-```
 
-**Settings**
-```
+GET  /api/library/featured
+GET  /api/library/albums
+GET  /api/library/artists
+
 POST /api/settings/spotify
 GET  /api/settings/spotify/status
 ```
@@ -338,39 +284,64 @@ GET  /api/settings/spotify/status
 
 ---
 
-## Deployment (Render)
+## Architecture
 
-Both services deploy via `render.yaml`:
+```
+┌──────────────────────────────────────────────────────┐
+│                  FRONTEND  (web/)                    │
+│                                                      │
+│  React 18 · TypeScript · Vite · Tailwind CSS        │
+│  Zustand · Howler.js · Framer Motion                │
+│  Port 3000                                          │
+└──────────────────────────────────────────────────────┘
+                    │  HTTP + WebSocket
+                    ▼
+┌──────────────────────────────────────────────────────┐
+│                  BACKEND  (api/)                     │
+│                                                      │
+│  FastAPI · Python 3.13 · uvicorn · Socket.IO        │
+│  yt-dlp · ffmpeg · ytmusicapi · APScheduler        │
+│  mutagen · structlog                                │
+│  Port 8000                                          │
+└──────────────────────────────────────────────────────┘
+```
 
-**API** — Python web service
+---
+
+## Deployment — Render
+
+`render.yaml` defines both services.
+
+**API — Python web service**
+
 ```
 Build:  pip install -e .
 Start:  uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT
 ```
 
-Set these in the Render dashboard:
+Environment variables to set in the Render dashboard:
+
 ```
 SPOTIFY_CLIENT_ID
 SPOTIFY_CLIENT_SECRET
-MUSIC_DIR       = /tmp/shulker/music
-DOWNLOADS_DIR   = /tmp/shulker/downloads
+MUSIC_DIR      = /tmp/shulker/music
+DOWNLOADS_DIR  = /tmp/shulker/downloads
 ```
 
-**Frontend** — Static site
+**Frontend — Static site**
+
 ```
 Build:   npm install && npx vite build
 Publish: dist/
 ```
 
-> **Note:** Render's free tier sleeps after 15 minutes — the first request after sleep takes ~30 seconds. For permanent downloads without data loss, run the API locally on Termux and use Render only for the web UI.
+> Render's free tier sleeps after 15 minutes of inactivity. The first request after sleep takes ~30 s. For permanent downloads and persistent library data, run the API locally on Termux and point the frontend at your local IP.
 
 ---
 
 ## Themes
 
-Shulker ships with 7 accent colour themes and dark / light surface:
-
-| Theme | Colour |
+| Theme | Accent |
 |-------|--------|
 | Crimson (default) | `#E5193A` |
 | Rose | `#F43F5E` |
@@ -380,31 +351,17 @@ Shulker ships with 7 accent colour themes and dark / light surface:
 | Green | `#22C55E` |
 | Gold | `#EAB308` |
 
-Theme is saved to `localStorage` and applied before first paint — no flash.
-
----
-
-## Roadmap
-
-- [ ] v1.3.0 — Onboarding modal, library and liked songs fully wired, like button end-to-end
-- [ ] v1.4.0 — Playlist CRUD in UI, album and artist pages with real data, dynamic artwork colours in Now Playing
-- [ ] v1.5.0 — Equalizer UI, audio visualizer (bar + wave), multiple user profiles
-- [ ] v1.6.0 — PWA (installable), offline playback for downloaded tracks, background sync
-- [ ] v2.0.0 — Stable release, full test coverage, production hardened
+Theme is written to `localStorage` and applied before first paint — no flash of wrong theme on load.
 
 ---
 
 ## File Structure
-
-<details>
-<summary>Show full structure</summary>
 
 ```
 shulker/
 ├── README.md
 ├── CHANGELOG.md
 ├── render.yaml
-├── .gitignore
 ├── docs/
 │   ├── PRIVACY.md
 │   ├── TERMS.md
@@ -415,42 +372,49 @@ shulker/
 │   ├── pyproject.toml
 │   ├── .env.example
 │   └── app/
-│       ├── main.py
-│       ├── core/           config, exceptions, logging
-│       ├── routers/        search, tracks, stream, downloads, lyrics, playlists, settings
-│       ├── schemas/        track, search, download, playlist, lyrics
-│       ├── services/       search, ytmusic, spotify, download, stream, metadata, artwork, lyrics
-│       └── websocket/      manager, events
+│       ├── main.py              FastAPI app + Socket.IO + APScheduler cron jobs
+│       ├── core/                config, exceptions, logging
+│       ├── routers/             search, tracks, stream, downloads, lyrics, playlists, settings
+│       ├── schemas/             track, search, download, playlist, lyrics
+│       ├── services/            search, ytmusic, spotify, download, stream, metadata, artwork, lyrics
+│       └── websocket/           manager, events
 │
 └── web/
     ├── vite.config.ts
     ├── tailwind.config.ts
-    ├── public/assets/      logo.png, favicon.ico, anim-logo.mp4, rhea.mp3
+    ├── public/assets/           logo.png, favicon.ico, anim-logo.mp4, rhea.mp3
     └── src/
         ├── main.tsx
         ├── App.tsx
         ├── router.tsx
-        ├── types/          track, player, download, playlist, search
-        ├── store/          playerStore, queueStore, downloadStore, uiStore, themeStore
-        ├── api/            client, search, tracks, downloads, playlists, lyrics, library
-        ├── hooks/          usePlayer, useQueue, useSearch, useDownloads, useLyrics,
-        │                   useMediaSession, useKeyboardShortcuts, useAudioAnalyser
-        ├── lib/            utils, formatters, constants, websocket
-        ├── pages/          home, search, library, liked, downloads, nowplaying,
-        │                   playlist, album, artist, settings
-        ├── components/
-        │   ├── ui/         Button, IconButton, Slider, Modal, Toast, Badge, Skeleton, ScrollArea
-        │   ├── layout/     RootLayout, Sidebar, BottomNav, TopBar
-        │   ├── player/     PlayerBar, PlayerControls, ProgressBar, VolumeControl, QueuePanel
-        │   ├── search/     SearchBar, SearchResults, CategoryGrid
-        │   ├── library/    TrackRow, AlbumCard, ArtistCard, PlaylistCard
-        │   ├── download/   DownloadButton, DownloadItem, DownloadModal
-        │   ├── lyrics/     LyricsPanel, LyricsLine
-        │   └── visualizer/ BarVisualizer, WaveVisualizer
-        └── themes/         7 accent themes + dark/light surface
+        ├── types/               track, player, download, playlist, search
+        ├── store/               playerStore, queueStore, downloadStore, uiStore, themeStore
+        ├── api/                 client, search, tracks, downloads, playlists, lyrics, library
+        ├── hooks/               usePlayer, useQueue, useSearch, useDownloads, useLyrics,
+        │                        useMediaSession, useKeyboardShortcuts, useAudioAnalyser
+        ├── lib/                 utils, formatters, constants, websocket
+        ├── pages/               home, search, library, liked, downloads, nowplaying,
+        │                        playlist, album, artist, settings
+        └── components/
+            ├── ui/              Button, IconButton, Slider, Modal, Toast, Badge, Skeleton
+            ├── layout/          RootLayout, Sidebar, BottomNav, TopBar
+            ├── player/          PlayerBar, PlayerControls, ProgressBar, VolumeControl, QueuePanel
+            ├── search/          SearchBar, SearchResults, CategoryGrid
+            ├── library/         TrackRow, AlbumCard, ArtistCard, PlaylistCard
+            ├── download/        DownloadButton, DownloadItem, DownloadModal
+            ├── lyrics/          LyricsPanel, LyricsLine
+            └── visualizer/      BarVisualizer, WaveVisualizer
 ```
 
-</details>
+---
+
+## Roadmap
+
+- [x] v1.3.0 — Single Howl instance, offline playback, like button end-to-end, stream cache fix, cron jobs
+- [ ] v1.4.0 — Playlist CRUD in UI, album and artist pages with real data, dynamic artwork colours in Now Playing
+- [ ] v1.5.0 — Equalizer UI, audio visualizer (bar + wave), multiple user profiles
+- [ ] v1.6.0 — PWA (installable), background sync, Android APK via Capacitor
+- [ ] v2.0.0 — Stable release, full test coverage, production-hardened
 
 ---
 
@@ -458,14 +422,10 @@ shulker/
 
 MIT — see [LICENSE](LICENSE).
 
-The MIT licence applies to the Shulker source code only. It does not grant rights to audio content downloaded using Shulker. You are responsible for complying with copyright law in your jurisdiction.
+This licence covers the Shulker source code only. It does not grant rights to audio content downloaded through Shulker. You are responsible for complying with copyright law in your jurisdiction.
 
 ---
 
-## Built by
+**Built by LethaboK** — [github.com/picklem0b](https://github.com/picklem0b)
 
-**LethaboK** — [github.com/lethabokhedama-png](https://github.com/lethabokhedama-png)
-
-Built on Termux (Android), deployed on Render. Developed with Claude (Anthropic) as a coding partner.
-
-> *Built in the trenches. Runs on a phone. Sounds like a server room.*
+> *Built in Termux on Android. Deployed on Render. Sounds like a proper server.*

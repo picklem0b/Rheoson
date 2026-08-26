@@ -2,7 +2,7 @@
                               S H U L K E R
                         Music. Downloaded. Played.
 ================================================================================
-Built by LethaboK — github.com/lethabokhedama-png/shulker
+Built by LethaboK — github.com/picklem0b/shulker
 Version: 1.2.5 (as of May 2026)
 ================================================================================
 
@@ -753,8 +753,8 @@ You are responsible for complying with copyright law in your jurisdiction.
 ────────────────────────────────────────────────────────────────────────────────
 
 LethaboK
-GitHub: https://github.com/lethabokhedama-png
-Project: https://github.com/lethabokhedama-png/shulker
+GitHub: https://github.com/picklem0b
+Project: https://github.com/picklem0b/shulker
 
 Built on Termux (Android), deployed on Render.
 Developed with Claude (Anthropic) as a coding partner.
