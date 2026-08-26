@@ -34,6 +34,6 @@ export interface Track {
   youtubeId?: string
   spotifyId?: string
   addedAt?: string
-  trackNumber?: number
-  playCount?: number
+  trackNumber?: number    // position within its album, if known
+  playCount?: number      // YouTube play count, when available
 }

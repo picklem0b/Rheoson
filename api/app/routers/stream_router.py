@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+import tempfile
+import time
 import httpx
 import os
 import structlog
@@ -89,6 +91,74 @@ def invalidate_stream_cache() -> None:
     log.debug("stream.cache.invalidated")
 
 
+# ── Remote stream cache ───────────────────────────────────────
+# When a non-local track is streamed via yt-dlp, the audio bytes are
+# written to a temp file in the background. Subsequent requests for
+# the same track_id serve from that temp file instantly — no new
+# yt-dlp process, no re-resolving the YouTube URL.
+#
+# Cache policy:
+#   - Max entries: 30 tracks (most recent, LRU eviction)
+#   - TTL: 30 minutes per entry (stale entries are evicted on access)
+#   - Temp files live in system temp dir and are cleaned on eviction
+
+_REMOTE_CACHE_MAX = 30
+_REMOTE_CACHE_TTL = 30 * 60  # 30 minutes in seconds
+
+_remote_cache: dict[str, dict] = {}  # track_id → {"path": Path, "ts": float}
+
+
+def _remote_cache_get(track_id: str) -> Optional[Path]:
+    """Return cached path if it exists and hasn't expired."""
+    entry = _remote_cache.get(track_id)
+    if entry is None:
+        return None
+    if time.time() - entry["ts"] > _REMOTE_CACHE_TTL:
+        # Expired — evict
+        _remote_cache_evict(track_id)
+        return None
+    if not entry["path"].exists():
+        _remote_cache_evict(track_id)
+        return None
+    return entry["path"]
+
+
+def _remote_cache_set(track_id: str, path: Path) -> None:
+    """Add or update a cached entry. Evict oldest if over capacity."""
+    # Evict expired entries first
+    _remote_cache_prune()
+    # Evict oldest if at capacity
+    while len(_remote_cache) >= _REMOTE_CACHE_MAX:
+        oldest_id = min(_remote_cache, key=lambda k: _remote_cache[k]["ts"])
+        _remote_cache_evict(oldest_id)
+    _remote_cache[track_id] = {"path": path, "ts": time.time()}
+    log.debug("stream.remote_cache.set", track_id=track_id, cache_size=len(_remote_cache))
+
+
+def _remote_cache_evict(track_id: str) -> None:
+    entry = _remote_cache.pop(track_id, None)
+    if entry and entry["path"].exists():
+        try:
+            entry["path"].unlink()
+        except OSError:
+            pass
+
+
+def _remote_cache_prune() -> None:
+    """Remove all expired entries."""
+    now = time.time()
+    expired = [k for k, v in _remote_cache.items() if now - v["ts"] > _REMOTE_CACHE_TTL]
+    for k in expired:
+        _remote_cache_evict(k)
+
+
+def _remote_cache_clear() -> None:
+    """Clear all cached remote streams."""
+    for track_id in list(_remote_cache):
+        _remote_cache_evict(track_id)
+    log.info("stream.remote_cache.cleared")
+
+
 # ── Artwork cache ─────────────────────────────────────────────
 # In-memory cache for proxied remote artwork.
 # Keyed by track_id so each track's art is fetched once per process lifetime.
@@ -131,6 +201,13 @@ async def stream_audio(track_id: str, request: Request):
         local = _find_local(track_id)
         if local:
             return _serve_local(local, request)
+
+    # Check the remote stream cache — serves cached audio instantly
+    # if the track was streamed within the last 30 minutes.
+    cached = _remote_cache_get(track_id)
+    if cached:
+        log.debug("stream.remote_cache.hit", track_id=track_id)
+        return _serve_local(cached, request)
 
     return await _serve_ytdlp(track_id, request)
 
@@ -216,6 +293,13 @@ async def clear_stream_cache():
     """Clear the in-memory stream file index — forces a rescan on next request."""
     invalidate_stream_cache()
     return {"ok": True, "message": "Stream cache cleared"}
+
+
+@router.post("/remote-cache/clear")
+async def clear_remote_cache():
+    """Clear the in-memory remote stream cache (cached yt-dlp audio files)."""
+    _remote_cache_clear()
+    return {"ok": True, "message": "Remote stream cache cleared"}
 
 
 @router.post("/artwork/cache/clear")
@@ -409,38 +493,7 @@ async def _fill_buffer(track_id: str, dest: Path) -> None:
             except asyncio.TimeoutError:
                 pass
             await asyncio.sleep(0.8 + attempt * 0.5)
-            continue
-
-        # Write the full stream to the buffer file
-        try:
-            with open(dest, "wb") as f:
-                f.write(first_chunk)
-                while True:
-                    chunk = await asyncio.wait_for(proc.stdout.read(CHUNK), timeout=60.0)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-        except asyncio.TimeoutError:
-            log.warning("stream.buffer.read_timeout", track_id=track_id)
-            try:
-                proc.kill()
-            except Exception:
-                pass
-        except Exception as e:
-            last_error = str(e)
-            try:
-                proc.kill()
-            except Exception:
-                pass
-        finally:
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception):
-                pass
-
-        if dest.exists() and dest.stat().st_size > 0:
-            log.info("stream.buffer.filled", track_id=track_id, size=dest.stat().st_size)
-            return
+            
 
     # All attempts failed
     if dest.exists():

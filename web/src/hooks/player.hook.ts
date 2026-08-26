@@ -351,7 +351,7 @@ export function usePlayer() {
     // ── Public API ─────────────────────────────────────────────
 
     const play = useCallback(() => {
-        if (_howl) {
+        if (_howl && _loadedId != null) {
             _howl.play();
         } else if (currentTrack) {
             const { savedProgress } = usePlayerStore.getState();
@@ -366,11 +366,13 @@ export function usePlayer() {
     const togglePlay = useCallback(() => {
         if (_howl?.playing()) {
             _howl.pause();
-        } else if (_howl) {
+        } else if (_howl && _loadedId != null) {
             _howl.play();
         } else if (currentTrack) {
+            // No usable Howl (never loaded, or destroyed after an error) —
+            // rebuild it and start playing from the saved position.
             const { savedProgress } = usePlayerStore.getState();
-            loadAndPlay(currentTrack.id, false, true, savedProgress);
+            loadAndPlay(currentTrack.id, true, true, savedProgress);
         }
     }, [currentTrack, loadAndPlay]);
 

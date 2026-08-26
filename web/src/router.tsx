@@ -11,6 +11,7 @@ import Playlist from '@/pages/playlist/Playlist'
 import Album from '@/pages/album/Album'
 import Artist from '@/pages/artist/Artist'
 import LikedSongs from '@/pages/liked/LikedSongs'
+import NotFound from '@/pages/errors/NotFound'
 
 // Home section "See all" pages — these live under pages/home/components/
 // because they only exist as drill-downs from Home's sections, not as
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { index: true,              element: <Home /> },
+      { path: 'home',             element: <Home /> },
       { path: 'search',           element: <Search /> },
       { path: 'library',          element: <Library /> },
       { path: 'playlists',        element: <Playlists /> },
@@ -40,7 +42,12 @@ export const router = createBrowserRouter([
       { path: 'recently-played',  element: <RecentlyPlayed /> },
       { path: 'trending',         element: <Trending /> },
       { path: 'featured',         element: <Featured /> },
+
+      // Catch-all — shows a custom 404 instead of a blank page
+      { path: '*',                 element: <NotFound /> },
     ],
   },
   { path: '/now-playing', element: <NowPlaying /> },
+  // 404 for the /now-playing catch-all
+  { path: '*',            element: <NotFound /> },
 ])

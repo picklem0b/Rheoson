@@ -97,4 +97,4 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const APP_NAME = "Shulker";
-export const APP_VERSION = "2.3.0";
+export const APP_VERSION = "2.7.3";

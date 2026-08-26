@@ -76,8 +76,8 @@ export default function Album() {
               <Button
                 variant="primary"
                 size="md"
-                disabled={!(album?.tracks?.length)}
-                onClick={() => album && album.tracks && playAll(album.tracks)}
+                disabled={!album?.tracks?.length}
+                onClick={() => album && playAll(album.tracks ?? [])}
               >
                 <Play className="w-4 h-4 fill-current" />
                 Play
@@ -85,8 +85,8 @@ export default function Album() {
               <Button
                 variant="secondary"
                 size="md"
-                disabled={!(album?.tracks?.length)}
-                onClick={() => album && album.tracks && playAll(album.tracks, { shuffle: true })}
+                disabled={!album?.tracks?.length}
+                onClick={() => album && playAll(album.tracks ?? [], { shuffle: true })}
               >
                 <Shuffle className="w-4 h-4" />
                 Shuffle
@@ -107,7 +107,7 @@ export default function Album() {
               key={track.id}
               track={track}
               index={i}
-              onClick={() => album && album.tracks && playTrack(track, album.tracks)}
+              onClick={() => album && playTrack(track, album.tracks ?? [])}
             />
           ))}
         </div>
