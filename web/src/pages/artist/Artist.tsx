@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { TrackRowSkeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track.types'
+import type { Track, Album as AlbumType } from '@/types'
 
 const GRADIENTS = [
   'from-rose-900 to-pink-700',
@@ -95,13 +95,13 @@ export default function Artist() {
               {isLoading &&
                 Array.from({ length: 5 }).map((_, i) => <TrackRowSkeleton key={i} />)
               }
-              {artist?.topTracks?.map((track, i) => (
+              {(artist?.topTracks ?? []).map((track: Track, i: number) => (
                 <PopularTrackRow
                   key={track.id}
                   track={track}
                   index={i}
                   gradient={GRADIENTS[i % GRADIENTS.length]}
-                  onClick={() => artist.topTracks && playTrack(track, artist.topTracks)}
+                  onClick={() => artist?.topTracks && playTrack(track, artist.topTracks)}
                 />
               ))}
             </div>
@@ -112,7 +112,7 @@ export default function Artist() {
             <div>
               <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">Albums</h2>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                {artist!.albums!.map((album, i) => (
+                {(artist?.albums ?? []).map((album: AlbumType, i: number) => (
                   <motion.button
                     key={album.id}
                     whileHover={{ scale: 1.04, y: -3 }}
@@ -135,8 +135,8 @@ export default function Artist() {
                       )
                     }
                     <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{album.title}</p>
-                    {album.year && (
-                      <p className="text-[10px] text-[var(--text-muted)]">{album.year}</p>
+                    {(album.releaseYear ?? album.year) && (
+                      <p className="text-[10px] text-[var(--text-muted)]">{album.releaseYear ?? album.year}</p>
                     )}
                   </motion.button>
                 ))}

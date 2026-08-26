@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search as SearchIcon,
@@ -6,6 +7,7 @@ import {
     Download,
     Music2,
     Disc3,
+    ListMusic,
     Link2,
     TrendingUp
 } from "lucide-react";
@@ -21,7 +23,7 @@ import { CategoryGrid, ResultSection } from "./components/CategoryGrid";
 import { formatDuration, truncate } from "@/lib/formatters";
 import { detectInputType, cn } from "@/lib/utils";
 import type { SearchFilter } from "@/types/search.types";
-import type { Track } from "@/types/track.types";
+import type { Track, Album, Artist, Playlist } from "@/types";
 
 const FILTERS: { id: SearchFilter; label: string }[] = [
     { id: "all", label: "All" },
@@ -118,7 +120,15 @@ function TrackRow({
 
 // ── Album card ────────────────────────────────────────────────
 
-function AlbumCard({ album, index }: { album: any; index: number }) {
+function AlbumCard({
+    album,
+    index,
+    onClick
+}: {
+    album: any;
+    index: number;
+    onClick?: () => void;
+}) {
     const artistName =
         typeof album.artist === "string"
             ? album.artist
@@ -130,6 +140,7 @@ function AlbumCard({ album, index }: { album: any; index: number }) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.04 }}
             whileTap={{ scale: 0.96 }}
+            onClick={onClick}
             className="flex-shrink-0 w-36 cursor-pointer group"
         >
             <div
@@ -167,13 +178,22 @@ function AlbumCard({ album, index }: { album: any; index: number }) {
 
 // ── Artist pill ───────────────────────────────────────────────
 
-function ArtistPill({ artist, index }: { artist: any; index: number }) {
+function ArtistPill({
+    artist,
+    index,
+    onClick
+}: {
+    artist: any;
+    index: number;
+    onClick?: () => void;
+}) {
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.88 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.05 }}
             whileTap={{ scale: 0.94 }}
+            onClick={onClick}
             className="flex-shrink-0 flex flex-col items-center gap-2 w-20 cursor-pointer"
         >
             <div
@@ -197,6 +217,59 @@ function ArtistPill({ artist, index }: { artist: any; index: number }) {
             </div>
             <p className="text-[10px] font-semibold text-[var(--text-primary)] text-center truncate w-full leading-tight">
                 {artist.name}
+            </p>
+        </motion.div>
+    );
+}
+
+// ── Playlist card ─────────────────────────────────────────────
+
+function PlaylistCard({
+    playlist,
+    index,
+    onClick
+}: {
+    playlist: any;
+    index: number;
+    onClick?: () => void;
+}) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.04 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={onClick}
+            className="flex-shrink-0 w-36 cursor-pointer group"
+        >
+            <div
+                className="relative w-36 h-36 rounded-2xl overflow-hidden mb-2 shadow-md
+                      border border-[var(--border)] group-active:opacity-80 transition-opacity"
+            >
+                {playlist.artworkUrl ? (
+                    <img
+                        src={playlist.artworkUrl}
+                        alt={playlist.title}
+                        className="w-full h-full object-cover"
+                        onError={e => {
+                            (e.target as HTMLImageElement).src =
+                                "/assets/logo.png";
+                        }}
+                    />
+                ) : (
+                    <div
+                        className="w-full h-full bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]
+                            flex items-center justify-center"
+                    >
+                        <ListMusic className="w-10 h-10 text-[var(--text-muted)]" />
+                    </div>
+                )}
+            </div>
+            <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
+                {playlist.title}
+            </p>
+            <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
+                {playlist.trackCount ? `${playlist.trackCount} songs` : "Playlist"}
             </p>
         </motion.div>
     );

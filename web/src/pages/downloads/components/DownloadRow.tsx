@@ -14,6 +14,7 @@ const STATUS_CONFIG: Record<DownloadStatus, { label: string; color: string; icon
   tagging:     { label: 'Tagging',     color: 'warning', icon: <Loader2     className="w-3.5 h-3.5 animate-spin" /> },
   done:        { label: 'Done',        color: 'success', icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
   error:       { label: 'Error',       color: 'danger',  icon: <XCircle     className="w-3.5 h-3.5" /> },
+  cancelled:   { label: 'Cancelled',   color: 'surface', icon: <XCircle     className="w-3.5 h-3.5" /> },
 }
 
 interface DownloadRowProps {
@@ -24,8 +25,8 @@ interface DownloadRowProps {
 }
 
 export default function DownloadRow({ job, index, onCancel, onRetry }: DownloadRowProps) {
-  const cfg     = STATUS_CONFIG[job.status]
-  const active  = !['done', 'error'].includes(job.status)
+  const cfg     = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.queued
+  const active  = !['done', 'error', 'cancelled'].includes(job.status)
   const isError = job.status === 'error'
 
   return (

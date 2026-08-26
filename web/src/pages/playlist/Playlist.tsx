@@ -72,8 +72,10 @@ export default function Playlist() {
                 </h1>
                 {playlist && (
                   <p className="text-sm text-[var(--text-secondary)] mt-1">
-                    {playlist.tracks.length} songs
-                    {playlist.totalDuration ? ` · ${formatTotalDuration(playlist.totalDuration)}` : ''}
+                    {(playlist.tracks ?? []).length} songs
+                    {(playlist.tracks ?? []).length > 0
+                      ? ` · ${formatTotalDuration((playlist.tracks ?? []).reduce((acc: number, t: Track) => acc + (t.duration || 0), 0))}`
+                      : ''}
                   </p>
                 )}
               </div>
@@ -83,8 +85,8 @@ export default function Playlist() {
               <Button
                 variant="primary"
                 size="lg"
-                disabled={!playlist?.tracks.length}
-                onClick={() => playlist && playAll(playlist.tracks)}
+                disabled={!(playlist?.tracks?.length)}
+                onClick={() => playlist && playlist.tracks && playAll(playlist.tracks)}
               >
                 <Play className="w-5 h-5 fill-current" />
                 Play
@@ -92,8 +94,8 @@ export default function Playlist() {
               <Button
                 variant="secondary"
                 size="md"
-                disabled={!playlist?.tracks.length}
-                onClick={() => playlist && playAll(playlist.tracks, { shuffle: true })}
+                disabled={!(playlist?.tracks?.length)}
+                onClick={() => playlist && playlist.tracks && playAll(playlist.tracks, { shuffle: true })}
               >
                 <Shuffle className="w-4 h-4" />
                 Shuffle
@@ -110,12 +112,12 @@ export default function Playlist() {
           {isLoading &&
             Array.from({ length: 8 }).map((_, i) => <TrackRowSkeleton key={i} />)
           }
-          {playlist?.tracks.map((track, i) => (
+          {(playlist?.tracks ?? []).map((track: Track, i: number) => (
             <PlaylistTrackRow
               key={track.id}
               track={track}
               index={i}
-              onClick={() => playlist && playTrack(track, playlist.tracks)}
+              onClick={() => playlist && playlist.tracks && playTrack(track, playlist.tracks)}
             />
           ))}
         </div>

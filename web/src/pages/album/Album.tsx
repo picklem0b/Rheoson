@@ -67,7 +67,7 @@ export default function Album() {
               </h1>
               {album && (
                 <p className="text-[var(--text-secondary)] text-sm mt-1">
-                  {album.artist.name} · {album.year} · {album.tracks.length} songs
+                  {album.artist.name} · {album.releaseYear ?? album.year ?? '—'} · {(album.tracks ?? []).length} songs
                 </p>
               )}
             </div>
@@ -76,8 +76,8 @@ export default function Album() {
               <Button
                 variant="primary"
                 size="md"
-                disabled={!album?.tracks.length}
-                onClick={() => album && playAll(album.tracks)}
+                disabled={!(album?.tracks?.length)}
+                onClick={() => album && album.tracks && playAll(album.tracks)}
               >
                 <Play className="w-4 h-4 fill-current" />
                 Play
@@ -85,8 +85,8 @@ export default function Album() {
               <Button
                 variant="secondary"
                 size="md"
-                disabled={!album?.tracks.length}
-                onClick={() => album && playAll(album.tracks, { shuffle: true })}
+                disabled={!(album?.tracks?.length)}
+                onClick={() => album && album.tracks && playAll(album.tracks, { shuffle: true })}
               >
                 <Shuffle className="w-4 h-4" />
                 Shuffle
@@ -102,12 +102,12 @@ export default function Album() {
           {isLoading &&
             Array.from({ length: 8 }).map((_, i) => <TrackRowSkeleton key={i} />)
           }
-          {album?.tracks.map((track, i) => (
+          {(album?.tracks ?? []).map((track: Track, i: number) => (
             <AlbumTrackRow
               key={track.id}
               track={track}
               index={i}
-              onClick={() => album && playTrack(track, album.tracks)}
+              onClick={() => album && album.tracks && playTrack(track, album.tracks)}
             />
           ))}
         </div>

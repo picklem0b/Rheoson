@@ -16,13 +16,14 @@ import {
     Share2,
     Plus,
     Clock,
-    Flag,
     Music2,
     X,
-    WifiOff
+    WifiOff,
+    Link as LinkIcon
 } from 'lucide-react';
 import { usePlayerStore } from '@/store/player.store';
 import { useUIStore } from '@/store/ui.store';
+import { useQueueStore } from '@/store/queue.store';
 import { useQueue } from '@/hooks/queue.hook';
 import { useLyrics } from '@/hooks/lyrics.hook';
 import { tracksApi } from '@/api/tracks.api';
@@ -34,18 +35,16 @@ import { truncate, formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Track } from '@/types/track.types';
 
-type Tab = 'playlist' | 'lyric' | 'related';
+type Tab = 'queue' | 'lyric' | 'related';
 
 // ── Context menu ──────────────────────────────────────────────
 
 const MENU_ITEMS = [
     { icon: Heart, label: 'Like', action: 'like' },
     { icon: Download, label: 'Download', action: 'download' },
-    { icon: Plus, label: 'Add to playlist', action: 'playlist' },
-    { icon: Share2, label: 'Share', action: 'share' },
-    { icon: Clock, label: 'Sleep Timer · Off', action: 'sleep' },
+    { icon: Plus, label: 'Add to queue', action: 'queue-add' },
+    { icon: LinkIcon, label: 'Copy link', action: 'copy-link' },
     { icon: Mic2, label: 'View lyrics', action: 'lyrics' },
-    { icon: Flag, label: 'Report', action: 'report' },
     { icon: Music2, label: 'Song details', action: 'details' }
 ];
 
@@ -320,7 +319,7 @@ export default function NowPlaying() {
         isLoading: lyricsLoading
     } = useLyrics(currentTrack?.id);
 
-    const [tab, setTab] = useState<Tab>('playlist');
+    const [tab, setTab] = useState<Tab>('queue');
     const [showMenu, setShowMenu] = useState(false);
     const [liked, setLiked] = useState(currentTrack?.isLiked ?? false);
 
@@ -354,6 +353,16 @@ export default function NowPlaying() {
             case 'lyrics':
                 setTab('lyric');
                 break;
+            case 'queue-add': {
+                const { addToQueue } = useQueueStore.getState();
+                addToQueue(currentTrack);
+                break;
+            }
+            case 'copy-link': {
+                const url = `${window.location.origin}/search?q=${encodeURIComponent(currentTrack.title + ' ' + currentTrack.artist.name)}`;
+                navigator.clipboard.writeText(url).catch(() => {});
+                break;
+            }
         }
     };
 
@@ -535,24 +544,24 @@ export default function NowPlaying() {
                 {/* Tabs */}
                 <div className='flex-shrink-0 px-6 mt-4 border-b border-white/10'>
                     <div className='flex gap-6'>
-                        {(['playlist', 'lyric', 'related'] as Tab[]).map(t => (
-                            <button
-                                key={t}
-                                onClick={() => setTab(t)}
-                                className={cn(
-                                    'pb-3 text-sm font-bold capitalize transition-colors border-b-2 -mb-px',
-                                    tab === t
-                                        ? 'text-white border-white'
-                                        : 'text-white/40 border-transparent'
-                                )}
-                            >
-                                {t === 'playlist'
-                                    ? 'Playlist'
-                                    : t === 'lyric'
-                                      ? 'Lyric'
-                                      : 'Related'}
-                            </button>
-                        ))}
+                    {(['queue', 'lyric', 'related'] as Tab[]).map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setTab(t)}
+                            className={cn(
+                                'pb-3 text-sm font-bold capitalize transition-colors border-b-2 -mb-px',
+                                tab === t
+                                    ? 'text-white border-white'
+                                    : 'text-white/40 border-transparent'
+                            )}
+                        >
+                            {t === 'queue'
+                                ? 'Queue'
+                                : t === 'lyric'
+                                  ? 'Lyrics'
+                                  : 'Related'}
+                        </button>
+                    ))}
                     </div>
                 </div>
 
@@ -566,7 +575,7 @@ export default function NowPlaying() {
                             exit={{ opacity: 0, y: -6 }}
                             transition={{ duration: 0.15 }}
                         >
-                            {tab === 'playlist' && (
+                            {tab === 'queue' && (
                                 <PlaylistTab currentTrack={currentTrack} />
                             )}
                             {tab === 'lyric' && (

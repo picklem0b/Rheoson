@@ -3,6 +3,7 @@ import RootLayout from '@/components/layout/RootLayout'
 import Home from '@/pages/home/Home'
 import Search from '@/pages/search/Search'
 import Library from '@/pages/library/Library'
+import Playlists from '@/pages/playlists/Playlists'
 import Downloads from '@/pages/downloads/Downloads'
 import Settings from '@/pages/settings/Settings'
 import NowPlaying from '@/pages/nowplaying/NowPlaying'
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { index: true,              element: <Home /> },
       { path: 'search',           element: <Search /> },
       { path: 'library',          element: <Library /> },
+      { path: 'playlists',        element: <Playlists /> },
       { path: 'downloads',        element: <Downloads /> },
       { path: 'settings',         element: <Settings /> },
       { path: 'liked',            element: <LikedSongs /> },
