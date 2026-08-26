@@ -6,6 +6,7 @@ export type DownloadStatus =
   | 'tagging'
   | 'done'
   | 'error'
+  | 'cancelled'
 
 export type AudioFormat = 'mp3' | 'flac' | 'opus' | 'm4a' | 'wav'
 export type AudioQuality = '128' | '192' | '256' | '320' | 'best'

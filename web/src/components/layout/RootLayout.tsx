@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/Toaster'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import PlayerBar from '@/components/player/PlayerBar'
+import QueuePanel from '@/components/player/QueuePanel'
 import { usePlayerStore } from '@/store/player.store'
 import { cn } from '@/lib/utils'
 
@@ -84,8 +85,8 @@ export default function RootLayout() {
           <main
             className={cn(
               'flex-1 overflow-y-auto overflow-x-hidden no-scrollbar',
-              // Desktop — only player bar below
-              'lg:pb-[var(--player-height)]',
+              // Desktop — player bar card + spacing
+              'lg:pb-[calc(var(--player-height)+8px)]',
               // Mobile — player bar + nav (when both visible)
               // Using CSS variable approach avoids Tailwind purging dynamic strings
               hasTrack && navVisible  && 'pb-[calc(var(--player-height)+var(--nav-height)+8px)]',
@@ -102,7 +103,7 @@ export default function RootLayout() {
             </div>
           </main>
 
-          {/* Desktop PlayerBar — inside column flow */}
+          {/* Desktop PlayerBar — floating card at bottom */}
           <div className="hidden lg:block flex-shrink-0">
             <PlayerBar />
           </div>
@@ -167,6 +168,9 @@ export default function RootLayout() {
             )}
           </AnimatePresence>
         </div>
+
+        {/* ── Queue Panel (slide-in drawer) ─────────────── */}
+        <QueuePanel />
 
       </div>
     </Toaster>

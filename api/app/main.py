@@ -125,9 +125,19 @@ async def _cron_keep_alive() -> None:
 async def _cron_library_scan() -> None:
     try:
         from app.routers.track_router import invalidate_track_index
-        from app.routers.stream_router import invalidate_stream_cache
+        from app.routers.stream_router import invalidate_stream_cache, cleanup_expired_buffers, _failure_cache
         invalidate_track_index()
         invalidate_stream_cache()
+        # Clean stale failure cache entries during periodic scan
+        import time as _time
+        now = _time.monotonic()
+        stale = [k for k, exp in _failure_cache.items() if exp <= now]
+        for k in stale:
+            _failure_cache.pop(k, None)
+        if stale:
+            log.info("cron.failure_cache.cleaned", count=len(stale))
+        # Clean expired remote stream buffers
+        cleanup_expired_buffers()
         log.info("cron.library_scan.done")
     except Exception as e:
         log.error("cron.library_scan.failed", error=str(e))
@@ -169,9 +179,14 @@ async def _cron_job_cleanup() -> None:
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins="*",
+    # BUG #20: Use the explicit CORS allow-list instead of wildcard.
+    # Socket.IO accepts a list[str] for allowed origins.
+    cors_allowed_origins=_ALLOWED_ORIGINS,
     logger=False,
     engineio_logger=False,
+    # BUG #19: Configure built-in Socket.IO ping interval
+    ping_interval=25,
+    ping_timeout=10,
 )
 
 app = FastAPI(
@@ -193,13 +208,27 @@ register_events(sio)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     log.info("shulker.api.starting", version=VERSION, env=settings.ENV)
-    Path(settings.MUSIC_DIR).mkdir(parents=True, exist_ok=True)
+    # BUG #22: Validate MUSIC_DIR existence — create if missing, warn if inaccessible
+    music_path = Path(settings.MUSIC_DIR)
+    if not music_path.exists():
+        try:
+            music_path.mkdir(parents=True, exist_ok=True)
+            log.info("lifespan.music_dir.created", path=str(music_path))
+        except OSError as e:
+            log.error("lifespan.music_dir.unusable", path=str(music_path), error=str(e))
+    else:
+        if not os.access(str(music_path), os.R_OK | os.W_OK):
+            log.warning("lifespan.music_dir.no_access", path=str(music_path))
     Path(settings.DOWNLOADS_DIR).mkdir(parents=True, exist_ok=True)
 
-    scheduler.add_job(_cron_keep_alive,   "interval", minutes=14, id="keep_alive",   replace_existing=True)
-    scheduler.add_job(_cron_library_scan, "interval", minutes=30, id="library_scan", replace_existing=True)
-    scheduler.add_job(_cron_ytdlp_update, "cron",     hour=3,     id="ytdlp_update", replace_existing=True)
-    scheduler.add_job(_cron_job_cleanup,  "interval", hours=6,    id="job_cleanup",  replace_existing=True)
+    # BUG #12: Clean stale stream failure cache entries on startup
+    from app.routers.stream_router import _failure_cache
+    _failure_cache.clear()
+
+    scheduler.add_job(_cron_keep_alive,    "interval", minutes=14, id="keep_alive",   replace_existing=True)
+    scheduler.add_job(_cron_library_scan,  "interval", minutes=30, id="library_scan", replace_existing=True)
+    scheduler.add_job(_cron_ytdlp_update,  "cron", hour=3,         id="ytdlp_update", replace_existing=True)
+    scheduler.add_job(_cron_job_cleanup,   "interval", hours=6,    id="job_cleanup",  replace_existing=True)
     scheduler.start()
 
     log.info("shulker.api.ready", cron_jobs=[j.id for j in scheduler.get_jobs()])

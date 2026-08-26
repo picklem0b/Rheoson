@@ -205,6 +205,59 @@ export function useSearch() {
         }, SEARCH_MS);
     }, [query, filter]);
 
+    // ── Immediate search on Enter ─────────────────────────────
+    // Bypasses the debounce timer so the user gets results instantly
+    // when they press Enter. Also clears suggestions immediately.
+
+    const submitSearch = useCallback(() => {
+        if (searchTimer.current) clearTimeout(searchTimer.current);
+        searchAbort.current?.abort();
+        suggestAbort.current?.abort();
+        setSuggestions([]);
+
+        const q = query.trim();
+        if (!q) return;
+
+        setLoading(true);
+        setError(null);
+
+        const ctrl = new AbortController();
+        searchAbort.current = ctrl;
+
+        (async () => {
+            try {
+                const type = detectInputType(q);
+                let data: SearchResults;
+
+                if (type === "spotify" || type === "youtube") {
+                    const resolved = await searchApi.resolve(q, ctrl.signal);
+                    const tracks = resolveToTracks(resolved);
+                    data = { tracks, albums: [], artists: [], playlists: [], query: q };
+                } else {
+                    data = await searchApi.search(
+                        q,
+                        filter !== "all" ? filter : undefined,
+                        ctrl.signal
+                    );
+                }
+
+                if (!ctrl.signal.aborted) {
+                    setResults(data);
+                    setSuggestions([]);
+                    writeSession(q, filter);
+                    if (data.tracks.length > 0) prewarmTracks(data.tracks);
+                }
+            } catch (e) {
+                if (!isAbortError(e) && !ctrl.signal.aborted) {
+                    setError(e instanceof Error ? e.message : "Search failed. Try again.");
+                    setResults(null);
+                }
+            } finally {
+                if (!ctrl.signal.aborted) setLoading(false);
+            }
+        })();
+    }, [query, filter]);
+
     const clear = useCallback(() => {
         searchAbort.current?.abort();
         suggestAbort.current?.abort();

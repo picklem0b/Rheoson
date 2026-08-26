@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search as SearchIcon, Loader2, Link } from 'lucide-react'
-
 import { cn, detectInputType } from '@/lib/utils'
 
 interface SearchBarProps {
@@ -52,13 +51,10 @@ export function SearchBar({
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          whileTap={{ scale: 0.92 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          whileTap={{ scale: 0.9 }}
           onClick={onClear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-10
-            px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-            text-[var(--text-muted)] hover:text-[var(--text-primary)]
-            bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)]
-            border border-[var(--border)] transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 px-2 py-1 rounded-lg text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
         >
           Clear
         </motion.button>

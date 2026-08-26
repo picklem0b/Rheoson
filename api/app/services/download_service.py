@@ -1,9 +1,10 @@
 from __future__ import annotations
 import asyncio
+import json
 import re
+import structlog
 import uuid
 import yt_dlp
-import structlog
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -14,14 +15,39 @@ from app.websocket.ws_manager import ws_manager
 log = structlog.get_logger()
 
 # ── Job store ─────────────────────────────────────────────────
-# In-memory only — jobs do not survive a server restart. That's expected
-# behaviour; the downloaded files themselves survive and appear in the
-# library via the file-system scan. The Downloads page Activity tab is
-# session-scoped.
+# BUG #21: Jobs are persisted to a JSON file so active downloads survive
+# a server restart. Downloaded files themselves always survive (they're on disk).
+_JOBS_FILE = Path(settings.DOWNLOADS_DIR) / ".download_jobs.json"
 
 _jobs:  dict[str, dict]          = {}
 _tasks: dict[str, asyncio.Task]  = {}
 _sem:   asyncio.Semaphore | None = None
+
+
+def _load_jobs() -> None:
+    """Load persisted jobs from disk on startup."""
+    if _JOBS_FILE.exists():
+        try:
+            data = json.loads(_JOBS_FILE.read_text())
+            if isinstance(data, dict):
+                for jid, job in data.items():
+                    # Reset any mid-flight jobs to 'error' since the server restarted
+                    if job.get("status") in ("downloading", "converting", "tagging", "queued"):
+                        job["status"] = "error"
+                        job["error"]  = "Server restarted during download"
+                    _jobs[jid] = job
+                log.info("download.jobs.loaded", count=len(_jobs))
+        except Exception as e:
+            log.warning("download.jobs.load_failed", error=str(e))
+
+
+def _persist_jobs() -> None:
+    """Persist jobs to disk (called after every mutation)."""
+    try:
+        _JOBS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _JOBS_FILE.write_text(json.dumps(_jobs, default=str))
+    except Exception as e:
+        log.warning("download.jobs.persist_failed", error=str(e))
 
 
 def _get_sem() -> asyncio.Semaphore:
@@ -65,6 +91,7 @@ def _new_job(
 def _update(job_id: str, **kwargs) -> None:
     if job_id in _jobs:
         _jobs[job_id].update(kwargs)
+        _persist_jobs()  # BUG #21: persist after every update
 
 
 def get_all_jobs()       -> list[dict]: return list(reversed(list(_jobs.values())))
@@ -130,6 +157,7 @@ def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
         if status == 'downloading':
             total      = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
             downloaded = d.get('downloaded_bytes', 0)
+            # BUG #9: Scale progress to 0-80% for download phase
             progress   = (downloaded / total * 80) if total else 0.0
             _update(job_id, status='downloading', progress=round(progress, 1))
             asyncio.run_coroutine_threadsafe(
@@ -139,10 +167,14 @@ def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
                 ), loop,
             )
         elif status == 'finished':
-            _update(job_id, status='converting', progress=82.0)
+            # BUG #9: Report estimated converting progress based on bytes downloaded
+            total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+            # Estimate conversion time: ~80-88% range, advancing based on file size
+            estimated = min(88.0, 80.0 + (total / 1_000_000 * 0.5))  # 0.5% per MB
+            _update(job_id, status='converting', progress=round(estimated, 1))
             asyncio.run_coroutine_threadsafe(
                 ws_manager.emit_download_progress(
-                    job_id, 82.0, 'converting',
+                    job_id, estimated, 'converting',
                     title=_jobs[job_id].get('title'),
                 ), loop,
             )
@@ -289,16 +321,29 @@ async def _download_task(
             log.warning('download.track_index.invalidate.failed', error=str(e))
 
     except asyncio.CancelledError:
-        _update(job_id, status='error', error='Cancelled')
-        await ws_manager.emit_download_error(job_id, 'Cancelled')
+        # BUG #16: Use 'cancelled' status instead of generic 'error' so the
+        # frontend can distinguish user-initiated cancellation from failures.
+        _update(job_id, status='cancelled', error='Cancelled by user')
+        await ws_manager.emit_download_error(job_id, 'Cancelled by user')
     except Exception as e:
         log.error('download.failed', job_id=job_id, error=str(e))
-        _update(job_id, status='error', error=str(e))
+        # BUG #16: Set the correct intermediate status based on where it failed
+        current = _jobs.get(job_id, {}).get('status', 'error')
+        if current == 'downloading':
+            _update(job_id, status='error', error=f'Download failed: {e}')
+        elif current == 'converting':
+            _update(job_id, status='error', error=f'Conversion failed: {e}')
+        elif current == 'tagging':
+            _update(job_id, status='error', error=f'Tagging failed: {e}')
+        else:
+            _update(job_id, status='error', error=str(e))
         await ws_manager.emit_download_error(job_id, str(e))
     finally:
         _tasks.pop(job_id, None)
 
-# ── Public API ────────────────────────────────────────────────
+# ── Init: load persisted jobs on first use ────────────────────
+_jobs_loaded = False
+
 
 async def enqueue_download(
     track_id:      Optional[str] = None,
@@ -310,6 +355,11 @@ async def enqueue_download(
     job_id:        Optional[str] = None,
     playlist_name: Optional[str] = None,
 ) -> dict:
+    global _jobs_loaded
+    # BUG #21: Load persisted jobs on first use
+    if not _jobs_loaded:
+        _load_jobs()
+        _jobs_loaded = True
     try:
         yt_url, title, artist, artwork_url = await _resolve_to_yt_url(track_id, url)
     except Exception as e:
@@ -340,11 +390,16 @@ async def cancel_job(job_id: str) -> bool:
     task = _tasks.pop(job_id, None)
     if task and not task.done():
         task.cancel()
+        # BUG #6: Wait with explicit timeout, then force-kill if needed
         try:
-            await asyncio.wait_for(asyncio.shield(task), timeout=2.0)
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            pass
-    _update(job_id, status='error', error='Cancelled by user')
+            await asyncio.wait_for(asyncio.shield(task), timeout=3.0)
+        except asyncio.TimeoutError:
+            log.warning("cancel_job.task_timeout", job_id=job_id)
+            task.cancel()  # second cancel attempt
+        except asyncio.CancelledError:
+            pass  # expected
+    _update(job_id, status='cancelled', error='Cancelled by user')
+    await ws_manager.emit_download_error(job_id, 'Cancelled by user')
     return True
 
 
@@ -352,6 +407,14 @@ async def retry_job(job_id: str) -> Optional[dict]:
     job = _jobs.get(job_id)
     if not job:
         return None
+    # BUG #6: Ensure old task is fully stopped before retrying
+    old_task = _tasks.pop(job_id, None)
+    if old_task and not old_task.done():
+        old_task.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(old_task), timeout=2.0)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            pass
     _update(job_id, status='queued', progress=0.0, error=None)
     return await enqueue_download(
         track_id=job.get('trackId') or None,

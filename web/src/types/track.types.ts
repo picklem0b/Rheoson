@@ -15,6 +15,7 @@ export interface Album {
   artist: Artist
   artworkUrl: string
   releaseYear: number
+  year?: number
   trackCount: number
   tracks?: Track[]
 }

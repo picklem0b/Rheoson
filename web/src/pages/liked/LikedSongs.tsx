@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Heart, Play, Shuffle } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { Heart, Play, Shuffle, MoreVertical, Music2 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useQueue } from '@/hooks/queue.hook'
 import { tracksApi } from '@/api/tracks.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
@@ -13,9 +14,9 @@ import type { Track } from '@/types/track.types'
 export default function LikedSongs() {
   const { playAll, playTrack } = useQueue()
 
-  const { data: tracks, isLoading } = useQuery({
+  const { data: tracks, isLoading } = useQuery<Track[]>({
     queryKey: ['liked-tracks'],
-    queryFn:  tracksApi.getLiked,
+    queryFn:  () => tracksApi.getLiked(),
   })
 
   return (
@@ -82,6 +83,21 @@ export default function LikedSongs() {
               onClick={() => playTrack(track, tracks)}
             />
           ))}
+          {!isLoading && tracks && tracks.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center py-24 gap-4"
+            >
+              <div className="w-20 h-20 rounded-[2rem] bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]">
+                <Heart className="w-9 h-9 text-[var(--text-muted)]" />
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-[var(--text-primary)] text-lg">No liked songs yet</p>
+                <p className="text-[var(--text-muted)] text-sm mt-1">Tap the heart icon on any song to save it here</p>
+              </div>
+            </motion.div>
+          )}
         </div>
       </ScrollArea>
     </div>
@@ -97,6 +113,19 @@ interface TrackRowProps {
 }
 
 function TrackRow({ track, index, onClick }: TrackRowProps) {
+  const queryClient = useQueryClient()
+
+  const handleUnlike = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await tracksApi.unlikeTrack(track.id)
+      queryClient.invalidateQueries({ queryKey: ['liked-tracks'] })
+      queryClient.invalidateQueries({ queryKey: ['liked-count'] })
+    } catch {
+      // revert silently
+    }
+  }
+
   return (
     <motion.button
       initial={{ opacity: 0, y: 8 }}
@@ -114,18 +143,29 @@ function TrackRow({ track, index, onClick }: TrackRowProps) {
 
       {track.artworkUrl
         ? <img src={track.artworkUrl} alt={track.title} className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
-        : <div className="w-11 h-11 rounded-xl flex-shrink-0 bg-[var(--bg-elevated)]" />
+        : <div className="w-11 h-11 rounded-xl flex-shrink-0 bg-[var(--bg-elevated)] flex items-center justify-center">
+            <Music2 className="w-4 h-4 text-[var(--text-muted)]" />
+          </div>
       }
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{track.title}</p>
         <p className="text-xs text-[var(--text-secondary)] truncate">
-          {track.artist.name} · {track.album.title}
+          {track.artist.name}
+          {track.album?.title ? ` · ${track.album.title}` : ''}
         </p>
       </div>
 
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <Heart className="w-4 h-4 text-[var(--accent)] fill-current opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Unlike button — visible on hover */}
+        <motion.button
+          whileTap={{ scale: 0.8 }}
+          onClick={handleUnlike}
+          className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10"
+          aria-label="Unlike"
+        >
+          <Heart className="w-4 h-4 text-red-400 fill-current" />
+        </motion.button>
         <span className="text-xs text-[var(--text-muted)] tabular-nums">
           {formatDuration(track.duration)}
         </span>

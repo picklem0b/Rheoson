@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Search, Library, Download, Settings, Heart } from 'lucide-react'
+import { Home, Search, Library, Download, Settings, Heart, ListMusic } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -7,8 +7,9 @@ const NAV_ITEMS = [
   { to: '/',          icon: Home,     label: 'Home'        },
   { to: '/search',    icon: Search,   label: 'Search'      },
   { to: '/library',   icon: Library,  label: 'Library'     },
+  { to: '/playlists', icon: ListMusic, label: 'Playlists'  },
   { to: '/liked',     icon: Heart,    label: 'Liked Songs' },
-  { to: '/downloads', icon: Download, label: 'Downloads'   },
+  { to: '/downloads', icon: Download, label: 'My Music'    },
   { to: '/settings',  icon: Settings, label: 'Settings'    },
 ]
 

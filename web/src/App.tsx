@@ -6,12 +6,34 @@ import { router } from './router'
 import { useThemeStore } from '@/store/theme.store'
 import { useKeyboardShortcuts } from '@/hooks/keyboardShortcuts.hook'
 import { useMediaSession } from '@/hooks/mediaSession.hook'
+import { useToast } from '@/components/ui/Toaster'
 import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
+
+// ── Player error toast ────────────────────────────────────────
+function usePlayerErrorToast() {
+  const { toast } = useToast()
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      toast(
+        detail?.savedPos
+          ? `Couldn't play this track — tap to retry`
+          : `Couldn't load this track`,
+        'error',
+        4000
+      )
+    }
+    window.addEventListener('shulker:play-error', handler)
+    return () => window.removeEventListener('shulker:play-error', handler)
+  }, [toast])
+}
 
 // ── Inner app — hooks that need router context ────────────────
 function AppInner() {
   useKeyboardShortcuts()
   useMediaSession()
+  usePlayerErrorToast()
   return <RouterProvider router={router} />
 }
 

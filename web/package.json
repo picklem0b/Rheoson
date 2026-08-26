@@ -9,12 +9,10 @@
         "preview": "vite preview",
         "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
         "typecheck": "tsc --noEmit",
-
         "cap:sync": "npx cap sync android",
         "cap:open": "npx cap open android",
         "cap:run": "npx cap run android",
         "cap:build": "npm run build && npx cap sync android",
-
         "build:apk": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
     },
     "dependencies": {
@@ -38,11 +36,12 @@
         "@types/howler": "^2.2.11",
         "@types/react": "^18.3.1",
         "@types/react-dom": "^18.3.0",
-        "@typescript-eslint/eslint-plugin": "^7.9.0",
-        "@typescript-eslint/parser": "^7.9.0",
+        "@typescript-eslint/eslint-plugin": "^7.18.0",
+        "@typescript-eslint/parser": "^7.18.0",
         "@vitejs/plugin-react": "^4.2.1",
         "autoprefixer": "^10.4.19",
-        "eslint": "^8.57.0",
+        "eslint": "^8.57.1",
+        "eslint-plugin-react": "^7.37.5",
         "eslint-plugin-react-hooks": "^4.6.2",
         "eslint-plugin-react-refresh": "^0.4.6",
         "postcss": "^8.4.38",
@@ -50,15 +49,14 @@
         "typescript": "^5.4.5",
         "vite": "^5.2.11",
         "vite-plugin-pwa": "^1.3.0",
-
+        "workbox-background-sync": "^7.4.1",
+        "workbox-cacheable-response": "^7.4.1",
         "workbox-core": "^7.4.1",
+        "workbox-expiration": "^7.4.1",
         "workbox-precaching": "^7.4.1",
+        "workbox-range-requests": "^7.4.1",
         "workbox-routing": "^7.4.1",
         "workbox-strategies": "^7.4.1",
-        "workbox-expiration": "^7.4.1",
-        "workbox-cacheable-response": "^7.4.1",
-        "workbox-range-requests": "^7.4.1",
-        "workbox-background-sync": "^7.4.1",
         "workbox-window": "^7.4.1"
     }
 }

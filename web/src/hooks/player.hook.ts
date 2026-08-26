@@ -12,6 +12,10 @@ import { tracksApi } from '@/api/tracks.api';
 let _howl: Howl | null = null;
 let _loadedId: string | null = null;
 let _timer: number | null = null;
+// BUG #25: Generation counter — incremented each time a new track is loaded.
+// Howl callbacks from a previous generation are silently ignored, preventing
+// race conditions where a stale onload/onplay clobbers the current track state.
+let _generation = 0;
 
 // Track which IDs have had recordPlay called this session
 const _playedThisSession = new Set<string>();
@@ -49,6 +53,9 @@ function _startTimer(
 
 function _destroy() {
     _stopTimer();
+    // BUG #25: Increment generation so any in-flight callbacks from the old Howl
+    // are silently ignored when they fire after we destroy.
+    _generation++;
     if (_howl) {
         _howl.off();
         _howl.stop();
@@ -171,6 +178,9 @@ export function usePlayer() {
             setPlaying(false);
             setDuration(0);
             _loadedId = trackId;
+            // BUG #25: Capture current generation — all Howl callbacks check this
+            // to ensure they belong to the active track.
+            const gen = _generation;
 
             // Resolve the URL. The backend /stream endpoint checks the local file cache
             // first, so downloaded tracks play from disk without hitting YouTube.
@@ -188,6 +198,8 @@ export function usePlayer() {
                 autoplay: false, // we control play after seeking so there's no audible jump
 
                 onload() {
+                    // BUG #25: Ignore if a newer track was loaded while this one was loading
+                    if (gen !== _generation) return;
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
@@ -199,6 +211,8 @@ export function usePlayer() {
                 },
 
                 onplay() {
+                    // BUG #25: Ignore if generation has moved on
+                    if (gen !== _generation) return;
                     setPlaying(true);
                     setLoading(false);
                     const dur = _howl?.duration() ?? 0;
@@ -237,34 +251,60 @@ export function usePlayer() {
                 },
 
                 onloaderror(_id, err) {
-                    console.error('[Shulker] load error', {
-                        trackId,
-                        url,
-                        err
-                    });
+                    console.error('[Shulker] load error', { trackId, url, err });
                     setLoading(false);
                     setPlaying(false);
-                    // Tear the dead Howl down completely — leaving it alive here
-                    // meant every later tap of play hit `_howl.play()` on a broken
-                    // instance and silently did nothing (the "dead play button").
-                    _destroy();
+                    _loadedId = null;
+                    // Dispatch event so UI can show retry toast
+                    window.dispatchEvent(
+                        new CustomEvent('shulker:play-error', {
+                            detail: { trackId, error: String(err) },
+                        })
+                    );
                 },
 
                 onplayerror(_id, err) {
-                    console.error('[Shulker] play error', err);
-                    // Resume a suspended AudioContext (required after user-gesture lock on Android)
+                    console.error('[Shulker] play error', { trackId, err });
+                    // BUG FIX: Auto-recover from play errors by destroying
+                    // the current Howl and rebuilding from saved position.
+                    // This fixes the broken play button after a stream error.
+                    const savedPos = usePlayerStore.getState().savedProgress;
+                    // Try AudioContext resume first (Android user-gesture lock)
                     if (Howler.ctx?.state === 'suspended') {
                         Howler.ctx
                             .resume()
-                            .then(() => _howl?.play())
-                            .catch(() => {});
-                    } else {
-                        // Unrecoverable — destroy so the next play tap reloads fresh
-                        // instead of calling play() on an errored audio element.
-                        setPlaying(false);
-                        setLoading(false);
-                        _destroy();
+                            .then(() => {
+                                if (gen === _generation && _howl) {
+                                    _howl.play();
+                                } else {
+                                    // Generation moved on — rebuild
+                                    _destroy();
+                                    setLoading(false);
+                                }
+                            })
+                            .catch(() => {
+                                // AudioContext resume failed — rebuild Howl
+                                _destroy();
+                                setLoading(false);
+                                _loadedId = null;
+                                window.dispatchEvent(
+                                    new CustomEvent('shulker:play-error', {
+                                        detail: { trackId, error: String(err) },
+                                    })
+                                );
+                            });
+                        return;
                     }
+                    // Non-AudioContext error — try one rebuild from saved position
+                    _destroy();
+                    setLoading(false);
+                    _loadedId = null;
+                    // Dispatch event so UI can show retry toast
+                    window.dispatchEvent(
+                        new CustomEvent('shulker:play-error', {
+                            detail: { trackId, error: String(err), savedPos },
+                        })
+                    );
                 }
             });
         },

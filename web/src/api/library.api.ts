@@ -1,6 +1,5 @@
 import { api } from './client.api'
-import type { Track } from '@/types/track.types'
-import type { Album, Artist } from '@/types/track.types'
+import type { Track, Album, Artist } from '@/types'
 
 export interface FeaturedItem {
   id:          string
