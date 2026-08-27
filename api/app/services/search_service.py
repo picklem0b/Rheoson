@@ -76,14 +76,13 @@ async def resolve_url(url: str) -> dict:
     kind = _detect_url_type(url)
 
     if kind == "spotify":
-        # Give a clear error when Spotify credentials aren't configured
-        # instead of crashing with a 502 that looks like a server bug.
-        if not settings.has_spotify:
-            raise SearchError(
-                "Spotify links require credentials. "
-                "Go to Settings → Account and add your Spotify Client ID and Secret."
-            )
-        return await _resolve_spotify(url)
+        # If Spotify credentials are available, use the Spotify API
+        # Otherwise fall back to yt-dlp which can also extract Spotify URLs
+        if settings.has_spotify:
+            return await _resolve_spotify(url)
+        else:
+            log.info("search.spotify.fallback_to_ytdlp", url=url)
+            return await _resolve_ytdlp(url)
 
     if kind == "youtube":
         track  = await ytmusic_service.resolve_youtube_url(url)
