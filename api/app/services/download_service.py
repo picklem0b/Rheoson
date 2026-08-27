@@ -121,22 +121,26 @@ async def _resolve_to_yt_url(
         raise ValueError('Either trackId or url must be provided')
 
     if 'spotify.com' in url:
-        from app.services.spotify_service import (
-            detect_spotify_type, extract_spotify_id, get_track as sp_get,
-        )
-        from app.services.ytmusic_service import search_one
-        sp_type = detect_spotify_type(url)
-        if sp_type == 'track':
-            sid   = extract_spotify_id(url, 'track')
-            sp    = await sp_get(sid)
-            query = f"{sp['title']} {sp['artist']['name']}"
-            yt    = await search_one(query)
-            if yt:
-                return (
-                    f"https://www.youtube.com/watch?v={yt['youtubeId']}",
-                    sp['title'], sp['artist']['name'], sp.get('artworkUrl', ''),
-                )
-        raise ValueError('Only Spotify track URLs are supported for download.')
+        from app.core.config import settings
+        if settings.has_spotify:
+            from app.services.spotify_service import (
+                detect_spotify_type, extract_spotify_id, get_track as sp_get,
+            )
+            from app.services.ytmusic_service import search_one
+            sp_type = detect_spotify_type(url)
+            if sp_type == 'track':
+                sid   = extract_spotify_id(url, 'track')
+                sp    = await sp_get(sid)
+                query = f"{sp['title']} {sp['artist']['name']}"
+                yt    = await search_one(query)
+                if yt:
+                    return (
+                        f"https://www.youtube.com/watch?v={yt['youtubeId']}",
+                        sp['title'], sp['artist']['name'], sp.get('artworkUrl', ''),
+                    )
+            # For non-track Spotify URLs (album, playlist, artist), fall through to yt-dlp
+        # Use yt-dlp to resolve Spotify URLs (works without credentials)
+        log.info("download.spotify.fallback_to_ytdlp", url=url)
 
     loop = asyncio.get_event_loop()
     def _info():
