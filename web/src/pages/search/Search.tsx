@@ -1,15 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Search as SearchIcon,
-    X,
-    User,
-    Download,
-    Music2,
-    Disc3,
-    ListMusic,
-    Link2,
-    TrendingUp
+   Search as SearchIcon,
+   X,
+   User,
+   Download,
+   Music2,
+   Disc3,
+   ListMusic,
+   Link2,
+   TrendingUp
 } from "lucide-react";
 import { useSearch } from "@/hooks/search.hook";
 import { useQueue } from "@/hooks/queue.hook";
@@ -117,83 +117,78 @@ function TrackRow({
 // ── Album card ────────────────────────────────────────────────
 
 function AlbumCard({
-    album,
-    index,
-    onClick
+   album,
+   index,
+   onClick
 }: {
-    album: any;
-    index: number;
-    onClick?: () => void;
+   album: any;
+   index: number;
+   onClick?: () => void;
 }) {
-    const artistName =
-        typeof album.artist === "string"
-            ? album.artist
-            : (album.artist?.name ?? "");
+   const artistName =
+      typeof album.artist === "string"
+         ? album.artist
+         : (album.artist?.name ?? "");
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={onClick}
-            className="flex-shrink-0 w-36 cursor-pointer group"
-        >
-            <div
-                className="relative w-36 h-36 rounded-2xl overflow-hidden mb-2 shadow-md
-                      border border-[var(--border)] group-active:opacity-80 transition-opacity"
-            >
-                {album.artworkUrl ? (
-                    <img
-                        src={album.artworkUrl}
-                        alt={album.title}
-                        className="w-full h-full object-cover"
-                        onError={e => {
-                            (e.target as HTMLImageElement).src =
-                                "/assets/logo.png";
-                        }}
-                    />
-                ) : (
-                    <div
-                        className="w-full h-full bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]
-                            flex items-center justify-center"
-                    >
-                        <Disc3 className="w-10 h-10 text-[var(--text-muted)]" />
-                    </div>
-                )}
-            </div>
-            <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
-                {album.title}
-            </p>
-            <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
-                {artistName}
-            </p>
-        </motion.div>
-    );
+   return (
+      <motion.div
+         initial={{ opacity: 0, scale: 0.92 }}
+         animate={{ opacity: 1, scale: 1 }}
+         transition={{ delay: index * 0.04 }}
+         whileTap={{ scale: 0.96 }}
+         onClick={onClick}
+         className='flex-shrink-0 w-36 cursor-pointer group'>
+         <div
+            className='relative w-36 h-36 rounded-2xl overflow-hidden mb-2 shadow-md
+                      border border-[var(--border)] group-active:opacity-80 transition-opacity'>
+            {album.artworkUrl ? (
+               <img
+                  src={album.artworkUrl}
+                  alt={album.title}
+                  className='w-full h-full object-cover'
+                  onError={e => {
+                     (e.target as HTMLImageElement).src = "/assets/logo.png";
+                  }}
+               />
+            ) : (
+               <div
+                  className='w-full h-full bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]
+                            flex items-center justify-center'>
+                  <Disc3 className='w-10 h-10 text-[var(--text-muted)]' />
+               </div>
+            )}
+         </div>
+         <p className='text-xs font-semibold text-[var(--text-primary)] truncate leading-tight'>
+            {album.title}
+         </p>
+         <p className='text-[10px] text-[var(--text-muted)] truncate mt-0.5'>
+            {artistName}
+         </p>
+      </motion.div>
+   );
 }
 
 // ── Artist pill ───────────────────────────────────────────────
 
 function ArtistPill({
-    artist,
-    index,
-    onClick
+   artist,
+   index,
+   onClick
 }: {
-    artist: any;
-    index: number;
-    onClick?: () => void;
+   artist: any;
+   index: number;
+   onClick?: () => void;
 }) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.88 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
-            whileTap={{ scale: 0.94 }}
-            onClick={onClick}
-            className="flex-shrink-0 flex flex-col items-center gap-2 w-20 cursor-pointer"
-        >
-            <div
-                className="w-16 h-16 rounded-full overflow-hidden border-2 border-[var(--border)]
+   return (
+      <motion.div
+         initial={{ opacity: 0, scale: 0.88 }}
+         animate={{ opacity: 1, scale: 1 }}
+         transition={{ delay: index * 0.05 }}
+         whileTap={{ scale: 0.94 }}
+         onClick={onClick}
+         className='flex-shrink-0 flex flex-col items-center gap-2 w-20 cursor-pointer'>
+         <div
+            className='w-16 h-16 rounded-full overflow-hidden border-2 border-[var(--border)]
                       bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]
                       flex items-center justify-center'>
             {artist.imageUrl ? (
@@ -219,54 +214,50 @@ function ArtistPill({
 // ── Playlist card ─────────────────────────────────────────────
 
 function PlaylistCard({
-    playlist,
-    index,
-    onClick
+   playlist,
+   index,
+   onClick
 }: {
-    playlist: any;
-    index: number;
-    onClick?: () => void;
+   playlist: any;
+   index: number;
+   onClick?: () => void;
 }) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={onClick}
-            className="flex-shrink-0 w-36 cursor-pointer group"
-        >
-            <div
-                className="relative w-36 h-36 rounded-2xl overflow-hidden mb-2 shadow-md
-                      border border-[var(--border)] group-active:opacity-80 transition-opacity"
-            >
-                {playlist.artworkUrl ? (
-                    <img
-                        src={playlist.artworkUrl}
-                        alt={playlist.title}
-                        className="w-full h-full object-cover"
-                        onError={e => {
-                            (e.target as HTMLImageElement).src =
-                                "/assets/logo.png";
-                        }}
-                    />
-                ) : (
-                    <div
-                        className="w-full h-full bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]
-                            flex items-center justify-center"
-                    >
-                        <ListMusic className="w-10 h-10 text-[var(--text-muted)]" />
-                    </div>
-                )}
-            </div>
-            <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
-                {playlist.title}
-            </p>
-            <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
-                {playlist.trackCount ? `${playlist.trackCount} songs` : "Playlist"}
-            </p>
-        </motion.div>
-    );
+   return (
+      <motion.div
+         initial={{ opacity: 0, scale: 0.92 }}
+         animate={{ opacity: 1, scale: 1 }}
+         transition={{ delay: index * 0.04 }}
+         whileTap={{ scale: 0.96 }}
+         onClick={onClick}
+         className='flex-shrink-0 w-36 cursor-pointer group'>
+         <div
+            className='relative w-36 h-36 rounded-2xl overflow-hidden mb-2 shadow-md
+                      border border-[var(--border)] group-active:opacity-80 transition-opacity'>
+            {playlist.artworkUrl ? (
+               <img
+                  src={playlist.artworkUrl}
+                  alt={playlist.title}
+                  className='w-full h-full object-cover'
+                  onError={e => {
+                     (e.target as HTMLImageElement).src = "/assets/logo.png";
+                  }}
+               />
+            ) : (
+               <div
+                  className='w-full h-full bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]
+                            flex items-center justify-center'>
+                  <ListMusic className='w-10 h-10 text-[var(--text-muted)]' />
+               </div>
+            )}
+         </div>
+         <p className='text-xs font-semibold text-[var(--text-primary)] truncate leading-tight'>
+            {playlist.title}
+         </p>
+         <p className='text-[10px] text-[var(--text-muted)] truncate mt-0.5'>
+            {playlist.trackCount ? `${playlist.trackCount} songs` : "Playlist"}
+         </p>
+      </motion.div>
+   );
 }
 
 // ── Main page ─────────────────────────────────────────────────
