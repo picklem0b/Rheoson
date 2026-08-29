@@ -55,7 +55,8 @@ function _releaseSocket() {
 // Map<event, Set<handler>> — each event+handler pair registered exactly once.
 // Prevents doubled event firing on re-render without unmount.
 
-type Handler = (...args: any[]) => void;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Handler = (...args: any[]) => void
 const _registry = new Map<string, Set<Handler>>();
 
 function _addListener(event: string, handler: Handler): void {
@@ -65,7 +66,7 @@ function _addListener(event: string, handler: Handler): void {
    if (handlers.has(handler)) return;
 
    if (handlers.size === 0) {
-      socket.on(event, (...args: any[]) => {
+      socket.on(event, (...args: unknown[]) => {
          _registry.get(event)?.forEach(h => h(...args));
       });
    }

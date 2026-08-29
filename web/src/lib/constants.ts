@@ -15,11 +15,6 @@
 const PROD_API_ORIGIN =
    import.meta.env.VITE_API_URL ?? "https://shulker-api-vnny.onrender.com";
 
-const isProd = import.meta.env.PROD;
-
-// Capacitor sets window.Capacitor when running inside a native WebView
-const isAPK = typeof window !== "undefined" && !!(window as any).Capacitor;
-
 // ── API_BASE ──────────────────────────────────────────────────
 // Used by the api client (client.api.ts) for all REST requests.
 //

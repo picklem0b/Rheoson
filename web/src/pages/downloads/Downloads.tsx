@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { Download, HardDrive, Clock, FolderOpen, Music2 } from 'lucide-react'
+import { Download, HardDrive, Clock, FolderOpen } from 'lucide-react'
 import { useDownloads } from '@/hooks/downloads.hook'
 import { tracksApi } from '@/api/tracks.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'

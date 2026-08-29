@@ -308,8 +308,8 @@ export function usePlayer() {
                 }
             });
         },
-        []
-    ); // stable — all state accessed via refs or store.getState()
+        [] // eslint-disable-line react-hooks/exhaustive-deps -- stable: all state accessed via refs or store.getState()
+    );
 
     // ── Resume after page reload ───────────────────────────────
     // If currentTrack is rehydrated from localStorage but no Howl exists yet,

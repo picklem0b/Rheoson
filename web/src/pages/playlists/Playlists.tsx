@@ -9,8 +9,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, Music2, MoreHorizontal, Pencil, Trash2, Link as LinkIcon, X,
-  ChevronRight, ListMusic, Clock
+  Plus, Music2, Link as LinkIcon, X,
+  ChevronRight, ListMusic
 } from 'lucide-react'
 import { playlistsApi } from '@/api/playlists.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { IconButton } from '@/components/ui/IconButton'
 import { useToast } from '@/components/ui/Toaster'
-import { formatDuration, formatTotalDuration } from '@/lib/formatters'
+import { formatTotalDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { Playlist } from '@/types/playlist.types'
 
@@ -281,7 +281,7 @@ export default function Playlists() {
     queryFn: playlistsApi.getPlaylists,
   })
 
-  const deleteMutation = useMutation({
+  const _deleteMutation = useMutation({ // eslint-disable-line @typescript-eslint/no-unused-vars
     mutationFn: (id: string) => playlistsApi.deletePlaylist(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['playlists'] })

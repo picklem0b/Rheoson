@@ -1,4 +1,3 @@
-import { useCallback } from 'react'
 import { usePlayerStore } from '@/store/player.store'
 import { usePlayer } from '@/hooks/player.hook'
 import { Slider } from '@/components/ui/Slider'

@@ -4,8 +4,7 @@ import {
    SettingsRow,
    Toggle,
    RadioGroup,
-   Slider,
-   Stepper
+   Slider
 } from "../components/SettingsPrimitives";
 
 const EQ_PRESETS = [
@@ -76,7 +75,7 @@ export default function AudioSection() {
             title='Streaming quality'
             footer='Higher quality uses more data and takes longer to start. Very High is recommended on Wi-Fi.'>
             <RadioGroup
-               value={quality as any}
+               value={quality as "low" | "normal" | "high" | "very_high"}
                onChange={setQuality}
                options={[
                   {

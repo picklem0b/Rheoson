@@ -8,7 +8,7 @@ export interface ApiError extends Error {
 interface RequestOptions extends RequestInit {
    params?: Record<string, string | number | boolean | undefined>;
    signal?: AbortSignal;
-   _retry?: boolean;
+   _retryCount?: number;
 }
 
 const BODY_FREE = new Set(["GET", "HEAD", "DELETE"]);
@@ -35,7 +35,7 @@ async function request<T>(
    endpoint: string,
    options: RequestOptions = {}
 ): Promise<T> {
-   const { params, signal, _retry, ...init } = options;
+   const { params, signal, _retryCount = 0, ...init } = options;
    const method = (init.method ?? "GET").toUpperCase();
 
    const headers: Record<string, string> = {
@@ -56,14 +56,20 @@ async function request<T>(
       });
    } catch (err) {
       // TypeError = network failure ("Failed to fetch") — could be Render cold
-      // start or backend offline. Retry once after 1.2 s unless already retried
-      // or the request was explicitly cancelled.
+      // start or backend offline. Retry with exponential backoff:
+      //   Attempt 1 → 3 s (handles most Render cold starts)
+      //   Attempt 2 → 5 s (slow cold start or transient failure)
+      //   Then give up and surface the error.
       const isAbort = err instanceof DOMException && err.name === "AbortError";
-      if (!isAbort && !_retry) {
-         await new Promise(r => setTimeout(r, 1200));
-         return request<T>(endpoint, { ...options, _retry: true });
+      if (!isAbort && _retryCount < 2) {
+         const delay = _retryCount === 0 ? 3000 : 5000;
+         await new Promise(r => setTimeout(r, delay));
+         return request<T>(endpoint, { ...options, _retryCount: _retryCount + 1 });
       }
-      throw err;
+      throw makeError(
+         0,
+         "Cannot reach the API server. It may be waking up — try again in a moment."
+      );
    }
 
    // Detect HTML response — happens when:

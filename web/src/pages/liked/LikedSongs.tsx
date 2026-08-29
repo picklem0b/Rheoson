@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Heart, Play, Shuffle, MoreVertical, Music2 } from 'lucide-react'
+import { Heart, Play, Shuffle, Music2 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useQueue } from '@/hooks/queue.hook'
 import { tracksApi } from '@/api/tracks.api'
@@ -8,7 +7,6 @@ import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Button } from '@/components/ui/Button'
 import { TrackRowSkeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
-import { cn } from '@/lib/utils'
 import type { Track } from '@/types/track.types'
 
 export default function LikedSongs() {
