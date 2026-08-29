@@ -34,7 +34,7 @@ export function useMediaSession() {
     // Seekbackward / seekforward for headphone remote buttons
     navigator.mediaSession.setActionHandler('seekbackward', (details) => {
       const step = details.seekOffset ?? 10
-      const { progress: p, duration: d } = usePlayerStore.getState()
+      const { progress: p } = usePlayerStore.getState()
       seek(Math.max(0, p - step))
     })
 

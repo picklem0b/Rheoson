@@ -65,7 +65,7 @@ export default function LyricsOverlay({ lines, activeLine, synced, onClose }: Ly
             return (
               <Tag
                 key={i}
-                ref={(el: any) => { lineRefs.current[i] = el }}
+                ref={(el: HTMLButtonElement | HTMLParagraphElement | null) => { lineRefs.current[i] = el }}
                 animate={{
                   opacity: i === activeLine ? 1 : 0.35,
                   scale:   i === activeLine ? 1.02 : 1,

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 export default function QueuePanel() {
   const showQueue  = useUIStore((s) => s.showQueue)
   const toggleQueue = useUIStore((s) => s.toggleQueue)
-  const { queue, history, clearQueue } = useQueueStore()
+  const { queue, clearQueue } = useQueueStore()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
 
   // No track = no panel

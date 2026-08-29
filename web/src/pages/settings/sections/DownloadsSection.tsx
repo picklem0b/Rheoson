@@ -42,7 +42,7 @@ export default function DownloadsSection() {
             title='Default format'
             footer='MP3 is the most compatible. Opus is best quality-to-size. FLAC and WAV are lossless.'>
             <RadioGroup
-               value={fmt as any}
+               value={fmt as "mp3" | "opus" | "m4a" | "flac" | "wav"}
                onChange={setFmt}
                options={[
                   {
@@ -79,7 +79,7 @@ export default function DownloadsSection() {
             title='Download quality'
             footer='Only applies to lossy formats (MP3, Opus, M4A). FLAC and WAV are always lossless.'>
             <RadioGroup
-               value={quality as any}
+               value={quality as "128" | "192" | "256" | "320"}
                onChange={setQuality}
                options={[
                   {

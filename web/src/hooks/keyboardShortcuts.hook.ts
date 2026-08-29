@@ -54,7 +54,7 @@ export function useKeyboardShortcuts() {
         case 'KeyL': toggleLyrics();   break
 
         case 'KeyM': {
-          const { isMuted, toggleMute } = usePlayerStore.getState()
+          const { toggleMute } = usePlayerStore.getState()
           toggleMute()
           break
         }

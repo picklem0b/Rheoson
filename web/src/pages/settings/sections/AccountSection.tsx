@@ -16,12 +16,13 @@ export default function AccountSection() {
    const [showSecret, setShowSecret] = useState(false);
    const [saveState, setSaveState] = useState<SaveState>("idle");
    const [serverLinked, setServerLinked] = useState<boolean | null>(null);
+   const justSaved = saveState === "saved";
 
    useEffect(() => {
       api.get<{ connected: boolean }>("/settings/spotify/status")
          .then(r => setServerLinked(r.connected))
          .catch(() => setServerLinked(null));
-   }, [saveState === "saved"]);
+   }, [justSaved]);
 
    const handleSave = async () => {
       if (!editId.trim() || !editSecret.trim()) return;

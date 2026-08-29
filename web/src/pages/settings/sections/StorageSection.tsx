@@ -77,7 +77,7 @@ export default function StorageSection() {
             setDirs([...merged, ...local]);
          })
          .catch(() => {});
-   }, []);
+   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount-only: dirs is the initial value
 
    const addDir = () => {
       const trimmed = pathInput.trim();

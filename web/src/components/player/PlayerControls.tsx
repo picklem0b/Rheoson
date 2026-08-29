@@ -16,7 +16,7 @@ interface PlayerControlsProps {
 }
 
 export default function PlayerControls({
-  compact    = false,
+  compact: _compact = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   mobileOnly = false,
   large      = false,
 }: PlayerControlsProps) {

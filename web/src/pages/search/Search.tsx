@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
    Search as SearchIcon,
@@ -7,7 +6,6 @@ import {
    Download,
    Music2,
    Disc3,
-   ListMusic,
    Link2,
    TrendingUp
 } from "lucide-react";
@@ -16,14 +14,13 @@ import { useQueue } from "@/hooks/queue.hook";
 import { useUIStore } from "@/store/ui.store";
 import { useToast } from "@/components/ui/Toaster";
 import { ScrollArea } from "@/components/ui/ScrollArea";
-import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import { SearchBar } from "./components/SearchBar";
 import { CategoryGrid, ResultSection } from "./components/CategoryGrid";
 import { formatDuration, truncate } from "@/lib/formatters";
 import { detectInputType, cn } from "@/lib/utils";
 import type { SearchFilter } from "@/types/search.types";
-import type { Track, Album, Artist, Playlist } from "@/types";
+import type { Track } from "@/types";
 
 const FILTERS: { id: SearchFilter; label: string }[] = [
    { id: "all", label: "All" },
@@ -121,7 +118,7 @@ function AlbumCard({
    index,
    onClick
 }: {
-   album: any;
+   album: { id?: string; title?: string; artworkUrl?: string; artist?: string | { name?: string } };
    index: number;
    onClick?: () => void;
 }) {
@@ -175,7 +172,7 @@ function ArtistPill({
    index,
    onClick
 }: {
-   artist: any;
+   artist: { id?: string; name: string; imageUrl?: string };
    index: number;
    onClick?: () => void;
 }) {
@@ -206,55 +203,6 @@ function ArtistPill({
          </div>
          <p className='text-[10px] font-semibold text-[var(--text-primary)] text-center truncate w-full leading-tight'>
             {artist.name}
-         </p>
-      </motion.div>
-   );
-}
-
-// ── Playlist card ─────────────────────────────────────────────
-
-function PlaylistCard({
-   playlist,
-   index,
-   onClick
-}: {
-   playlist: any;
-   index: number;
-   onClick?: () => void;
-}) {
-   return (
-      <motion.div
-         initial={{ opacity: 0, scale: 0.92 }}
-         animate={{ opacity: 1, scale: 1 }}
-         transition={{ delay: index * 0.04 }}
-         whileTap={{ scale: 0.96 }}
-         onClick={onClick}
-         className='flex-shrink-0 w-36 cursor-pointer group'>
-         <div
-            className='relative w-36 h-36 rounded-2xl overflow-hidden mb-2 shadow-md
-                      border border-[var(--border)] group-active:opacity-80 transition-opacity'>
-            {playlist.artworkUrl ? (
-               <img
-                  src={playlist.artworkUrl}
-                  alt={playlist.title}
-                  className='w-full h-full object-cover'
-                  onError={e => {
-                     (e.target as HTMLImageElement).src = "/assets/logo.png";
-                  }}
-               />
-            ) : (
-               <div
-                  className='w-full h-full bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]
-                            flex items-center justify-center'>
-                  <ListMusic className='w-10 h-10 text-[var(--text-muted)]' />
-               </div>
-            )}
-         </div>
-         <p className='text-xs font-semibold text-[var(--text-primary)] truncate leading-tight'>
-            {playlist.title}
-         </p>
-         <p className='text-[10px] text-[var(--text-muted)] truncate mt-0.5'>
-            {playlist.trackCount ? `${playlist.trackCount} songs` : "Playlist"}
          </p>
       </motion.div>
    );
@@ -508,7 +456,8 @@ export default function Search() {
                            </div>
                            <div>
                               <p className='font-semibold text-[var(--text-primary)]'>
-                                 No results for "{truncate(query, 22)}"
+                                 No results for &quot;{truncate(query, 22)}
+                                 &quot;
                               </p>
                               <p className='text-sm text-[var(--text-muted)] mt-1'>
                                  Try a different search or paste a Spotify /
