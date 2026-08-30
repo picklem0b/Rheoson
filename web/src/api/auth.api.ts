@@ -1,4 +1,4 @@
-import { client } from './client.api';
+import { api } from './client.api';
 
 export interface AuthUser {
   id: string;
@@ -25,21 +25,18 @@ export interface AuthResponse {
 
 export const authApi = {
   login: async (data: LoginPayload): Promise<AuthResponse> => {
-    const res = await client.post<AuthResponse>('/api/auth/login', data);
-    return res.data;
+    return api.post<AuthResponse>('/api/auth/login', data);
   },
 
   register: async (data: RegisterPayload): Promise<AuthResponse> => {
-    const res = await client.post<AuthResponse>('/api/auth/register', data);
-    return res.data;
+    return api.post<AuthResponse>('/api/auth/register', data);
   },
 
   getProfile: async (): Promise<AuthUser> => {
-    const res = await client.get<AuthUser>('/api/auth/me');
-    return res.data;
+    return api.get<AuthUser>('/api/auth/me');
   },
 
   updateProfile: async (data: { display_name?: string }): Promise<void> => {
-    await client.patch('/api/auth/me', data);
+    return api.patch('/api/auth/me', data);
   },
 };
