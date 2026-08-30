@@ -1,7 +1,7 @@
 # CLAUDE.md — Rheoson Codebase Context
 
 > Single source of truth for any AI working on Rheoson. Read this before touching any file.
-> Version: 2.10.25 · Updated: 2026-08-30
+> Version: 2.11.0 · Updated: 2026-08-30
 
 ---
 
@@ -9,7 +9,7 @@
 
 Rheoson is a self-hosted music streaming and download app. No subscription, no ads. Users stream from YouTube Music, download tracks locally, manage playlists, and play back offline. Primary deployment target is a personal Termux environment on Android — the backend runs on-device at `127.0.0.1:8000`, the frontend is loaded in a Capacitor WebView as a native APK. A secondary cloud deployment exists on Render (free tier, ephemeral disk).
 
-**Version:** `2.10.25` in `api/pyproject.toml`, `web/package.json`, `web/src/lib/constants.ts`, and `api/app/main.py`. Keep these in sync.  
+**Version:** `2.11.0` in `api/pyproject.toml`, `web/package.json`, `web/src/lib/constants.ts`, and `api/app/main.py`. Keep these in sync.  
 **App ID (Android):** `com.lethabo.Rheoson`  
 **Versioning convention:** General Projects (`v(major).(minor).(patch)`), annotated tags, `--follow-tags` always.
 
@@ -761,10 +761,10 @@ Based on the codebase state and known issues, V2 should address:
 ### Version Consistency
 
 All four version numbers must stay in sync:
-- `api/pyproject.toml` → `version = "2.10.25"`
-- `web/package.json` → `"version": "2.10.25"`
-- `web/src/lib/constants.ts` → `APP_VERSION = "2.10.25"`
-- `api/app/main.py` → `VERSION = "2.10.25"`
+- `api/pyproject.toml` → `version = "2.11.0"`
+- `web/package.json` → `"version": "2.11.0"`
+- `web/src/lib/constants.ts` → `APP_VERSION = "2.11.0"`
+- `api/app/main.py` → `VERSION = "2.11.0"`
 
 ### CORS Policy
 
