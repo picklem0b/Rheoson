@@ -1,10 +1,24 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '@/store/player.store'
 import { usePlayer } from './player.hook'
 
 export function useMediaSession() {
-  const { currentTrack, isPlaying, progress, duration } = usePlayerStore()
+  const currentTrack = usePlayerStore(s => s.currentTrack)
+  const isPlaying    = usePlayerStore(s => s.isPlaying)
+  const progress     = usePlayerStore(s => s.progress)
+  const duration     = usePlayerStore(s => s.duration)
   const { togglePlay, skipNext, skipPrev, seek } = usePlayer()
+
+  // Store refs so action handlers always call the latest functions
+  const togglePlayRef = useRef(togglePlay)
+  const skipNextRef   = useRef(skipNext)
+  const skipPrevRef   = useRef(skipPrev)
+  const seekRef       = useRef(seek)
+
+  useEffect(() => { togglePlayRef.current = togglePlay }, [togglePlay])
+  useEffect(() => { skipNextRef.current   = skipNext },   [skipNext])
+  useEffect(() => { skipPrevRef.current   = skipPrev },   [skipPrev])
+  useEffect(() => { seekRef.current       = seek },       [seek])
 
   // ── Metadata + action handlers ─────────────────────────────
   // Re-registers only when the track changes.
@@ -21,27 +35,27 @@ export function useMediaSession() {
         : [],
     })
 
-    navigator.mediaSession.setActionHandler('play',          () => togglePlay())
-    navigator.mediaSession.setActionHandler('pause',         () => togglePlay())
-    navigator.mediaSession.setActionHandler('nexttrack',     () => skipNext())
-    navigator.mediaSession.setActionHandler('previoustrack', () => skipPrev())
+    navigator.mediaSession.setActionHandler('play',          () => togglePlayRef.current())
+    navigator.mediaSession.setActionHandler('pause',         () => togglePlayRef.current())
+    navigator.mediaSession.setActionHandler('nexttrack',     () => skipNextRef.current())
+    navigator.mediaSession.setActionHandler('previoustrack', () => skipPrevRef.current())
 
     // Seekto enables the lock-screen / notification scrubber on Android + desktop
     navigator.mediaSession.setActionHandler('seekto', (details) => {
-      if (details.seekTime != null) seek(details.seekTime)
+      if (details.seekTime != null) seekRef.current(details.seekTime)
     })
 
     // Seekbackward / seekforward for headphone remote buttons
     navigator.mediaSession.setActionHandler('seekbackward', (details) => {
       const step = details.seekOffset ?? 10
       const { progress: p } = usePlayerStore.getState()
-      seek(Math.max(0, p - step))
+      seekRef.current(Math.max(0, p - step))
     })
 
     navigator.mediaSession.setActionHandler('seekforward', (details) => {
       const step = details.seekOffset ?? 10
       const { progress: p, duration: d } = usePlayerStore.getState()
-      seek(Math.min(d, p + step))
+      seekRef.current(Math.min(d, p + step))
     })
 
     return () => {
@@ -52,7 +66,7 @@ export function useMediaSession() {
         try { navigator.mediaSession.setActionHandler(action, null) } catch { /* unsupported action */ }
       }
     }
-  }, [currentTrack, togglePlay, skipNext, skipPrev, seek])
+  }, [currentTrack])
 
   // ── Playback state ─────────────────────────────────────────
 
