@@ -47,6 +47,6 @@ export const useThemeStore = create<ThemeStore>()(
         )
       },
     }),
-    { name: 'shulker-theme' },
+    { name: 'rheoson-theme' },
   ),
 )

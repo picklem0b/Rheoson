@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { api } from "@/api/client.api";
 
-const KEY_ID = "shulker-spotify-client-id";
-const KEY_SECRET = "shulker-spotify-client-secret";
+const KEY_ID = "rheoson-spotify-client-id";
+const KEY_SECRET = "rheoson-spotify-client-secret";
 
 /**
  * Manages Spotify credentials in localStorage and syncs them to the backend.

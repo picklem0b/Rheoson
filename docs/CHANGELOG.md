@@ -1,6 +1,6 @@
 # CHANGELOG
 
-All notable changes to Shulker are documented here.
+All notable changes to Rheoson are documented here.
 Format: `v(major).(minor).(patch)` — annotated tags, `--follow-tags` always.
 
 ---

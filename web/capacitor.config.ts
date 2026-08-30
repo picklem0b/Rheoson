@@ -3,23 +3,23 @@ import { CapacitorConfig } from "@capacitor/cli";
 const isProd = process.env.NODE_ENV === "production";
 
 // For APK dev builds against your local Termux backend:
-//   SHULKER_DEV_URL=http://192.168.1.XX:3000 npx cap run android
+//   RHEOSON_DEV_URL=http://192.168.1.XX:3000 npx cap run android
 //
 // For a release APK against the prod Render backend:
 //   NODE_ENV=production npx cap build android
 //   (VITE_API_URL in .env.production handles the API URL)
 
 const config: CapacitorConfig = {
-   appId: "com.lethabo.shulker",
-   appName: "Shulker",
+   appId: "com.lethabo.rheoson",
+   appName: "Rheoson",
    webDir: "dist",
 
    // ── Server ─────────────────────────────────────────────────
    // Dev: point WebView at Vite dev server (hot-reload on device)
    // Prod: load from bundled dist/ — VITE_API_URL in .env.production
    //       sets the API base that gets baked into the JS bundle
-   ...(!isProd && process.env.SHULKER_DEV_URL
-      ? { server: { url: process.env.SHULKER_DEV_URL, cleartext: true } }
+   ...(!isProd && process.env.RHEOSON_DEV_URL
+      ? { server: { url: process.env.RHEOSON_DEV_URL, cleartext: true } }
       : {}),
 
    android: {

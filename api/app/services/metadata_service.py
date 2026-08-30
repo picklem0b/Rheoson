@@ -13,13 +13,13 @@ log = structlog.get_logger()
 
 # API origin used to build absolute URLs for artworkUrl and streamUrl.
 # These fields end up in JSON responses consumed by the frontend.
-# When the frontend and API are on different origins (e.g. shulker-web.onrender.com
-# and shulker-api-vnny.onrender.com), relative paths like /api/stream/...
+# When the frontend and API are on different origins (e.g. Rheoson-web.onrender.com
+# and Rheoson-api-vnny.onrender.com), relative paths like /api/stream/...
 # would be resolved against the FRONTEND origin and 404.
 # The frontend's API_BASE handles this for fetch() calls but <img src> and
 # Howler's src property use the raw string — so it must be absolute.
 #
-# On Render: set API_BASE_URL=https://shulker-api-vnny.onrender.com in env vars.
+# On Render: set API_BASE_URL=https://Rheoson-api-vnny.onrender.com in env vars.
 # On Termux: leave unset — relative paths work when frontend and API are same origin.
 _API_ORIGIN = os.environ.get("API_BASE_URL", "").rstrip("/")
 

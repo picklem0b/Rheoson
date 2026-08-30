@@ -22,7 +22,7 @@ export function useQueue() {
 
     // Same track → restart without rebuilding the Howl
     if (currentTrack?.id === track.id) {
-      window.dispatchEvent(new CustomEvent('shulker:restart-track'))
+      window.dispatchEvent(new CustomEvent('rheoson:restart-track'))
       return
     }
 

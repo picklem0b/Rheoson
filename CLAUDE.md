@@ -1,16 +1,16 @@
-# CLAUDE.md — Shulker Codebase Context
+# CLAUDE.md — Rheoson Codebase Context
 
-> Single source of truth for any AI working on Shulker. Read this before touching any file.
+> Single source of truth for any AI working on Rheoson. Read this before touching any file.
 > Version: 2.10.25 · Updated: 2026-08-30
 
 ---
 
 ## Project Overview
 
-Shulker is a self-hosted music streaming and download app. No subscription, no ads. Users stream from YouTube Music, download tracks locally, manage playlists, and play back offline. Primary deployment target is a personal Termux environment on Android — the backend runs on-device at `127.0.0.1:8000`, the frontend is loaded in a Capacitor WebView as a native APK. A secondary cloud deployment exists on Render (free tier, ephemeral disk).
+Rheoson is a self-hosted music streaming and download app. No subscription, no ads. Users stream from YouTube Music, download tracks locally, manage playlists, and play back offline. Primary deployment target is a personal Termux environment on Android — the backend runs on-device at `127.0.0.1:8000`, the frontend is loaded in a Capacitor WebView as a native APK. A secondary cloud deployment exists on Render (free tier, ephemeral disk).
 
 **Version:** `2.10.25` in `api/pyproject.toml`, `web/package.json`, `web/src/lib/constants.ts`, and `api/app/main.py`. Keep these in sync.  
-**App ID (Android):** `com.lethabo.shulker`  
+**App ID (Android):** `com.lethabo.Rheoson`  
 **Versioning convention:** General Projects (`v(major).(minor).(patch)`), annotated tags, `--follow-tags` always.
 
 ---
@@ -18,13 +18,13 @@ Shulker is a self-hosted music streaming and download app. No subscription, no a
 ## Repo Structure
 
 ```
-shulker/
+Rheoson/
 ├── api/                      # FastAPI + Socket.IO backend (Python 3.13)
 │   ├── app/
 │   │   ├── main.py           # Entry point, mounts Socket.IO, registers routers, cron jobs
 │   │   ├── core/
 │   │   │   ├── config.py     # Settings via pydantic-settings (.env)
-│   │   │   ├── exceptions.py # ShulkerException hierarchy + handlers
+│   │   │   ├── exceptions.py # RheosonException hierarchy + handlers
 │   │   │   └── logging.py    # structlog configuration
 │   │   ├── routers/          # Route handlers (thin — delegate to services)
 │   │   │   ├── search.py
@@ -52,7 +52,7 @@ shulker/
 │   │   └── websocket/
 │   │       ├── manager.py    # ConnectionManager singleton (wraps sio)
 │   │       └── events.py     # connect/disconnect/ping handlers
-│   ├── pyproject.toml        # Python deps, entry point: `shulker` CLI
+│   ├── pyproject.toml        # Python deps, entry point: `Rheoson` CLI
 │   └── requirements.txt      # Thin — pyproject.toml is the source
 │
 ├── web/                      # React 18 + Vite frontend (TypeScript)
@@ -142,7 +142,7 @@ shulker/
 Android APK (Capacitor WebView)
         │
         ├── loads bundled dist/ in prod
-        └── points at SHULKER_DEV_URL in dev
+        └── points at RHEOSON_DEV_URL in dev
                         │
               React SPA (Vite)
                         │
@@ -168,8 +168,8 @@ Android APK (Capacitor WebView)
     └── settings      └── artwork_service
           │
     File System (MUSIC_DIR)
-    /data/data/com.termux/files/home/shulker/music  (Termux default)
-    /tmp/shulker/music                               (Render)
+    /data/data/com.termux/files/home/Rheoson/music  (Termux default)
+    /tmp/Rheoson/music                               (Render)
 ```
 
 **Critical:** `uvicorn` always targets `socket_app`, not `app`. Using `app` bypasses the Socket.IO ASGI wrapper — download progress events stop working.
@@ -382,7 +382,7 @@ Module-level singletons (not React state — survive re-renders):
 
 - `API_BASE` from `lib/constants.ts`:
     - Dev: `/api` (proxied by Vite to `http://127.0.0.1:8000`)
-    - Prod: `${VITE_API_URL}/api` (e.g. `https://shulker-api-vnny.onrender.com/api`)
+    - Prod: `${VITE_API_URL}/api` (e.g. `https://Rheoson-api-vnny.onrender.com/api`)
 - All domain-specific modules (`tracks.ts`, `search.ts`, etc.) import `api` from here
 - `makeAbortable()` → `{signal, abort}` for cancellable requests
 
@@ -422,11 +422,11 @@ SW disabled in dev (`devOptions.enabled: false`) — incompatible with HMR.
 ### PWA / Capacitor
 
 - `vite-plugin-pwa` with `registerType: 'autoUpdate'`
-- Capacitor appId: `com.lethabo.shulker`
+- Capacitor appId: `com.lethabo.Rheoson`
 - `allowMixedContent: true` — Termux runs HTTP; APK talks to both local HTTP and Render HTTPS
 - Splash screen dismissed manually from `SplashScreen.tsx`
 - APK built by GitHub Actions on push to `main` (`build-apk.yml`)
-- Dev workflow: `SHULKER_DEV_URL=http://<LAN-IP>:3000 npx cap run android`
+- Dev workflow: `RHEOSON_DEV_URL=http://<LAN-IP>:3000 npx cap run android`
 
 ---
 
@@ -507,8 +507,8 @@ web/android/
 │   ├── build.gradle          # compileSdk 35, targetSdk 35
 │   ├── src/main/
 │   │   ├── AndroidManifest.xml  # INTERNET, WRITE_EXTERNAL_STORAGE, etc.
-│   │   └── java/com/lethabo/shulker/MainActivity.java
-│   └── shulker-release.keystore  # Release signing key
+│   │   └── java/com/lethabo/Rheoson/MainActivity.java
+│   └── Rheoson-release.keystore  # Release signing key
 └── variables.gradle          # Capacitor SDK versions
 ```
 
@@ -524,7 +524,7 @@ web/android/
 
 ## Authentication
 
-There is none. Shulker is single-user, self-hosted. No login, no sessions, no JWT.
+There is none. Rheoson is single-user, self-hosted. No login, no sessions, no JWT.
 
 Spotify credentials are stored in `.env` and hot-reloaded into `settings` at runtime via `POST /api/settings/spotify`. The `spotify_status` endpoint returns `connected: bool` and a truncated client ID.
 
@@ -709,7 +709,7 @@ Files where a change has wide blast radius — always check these when modifying
 
 ### 3. Render free tier ephemeral disk
 
-- `MUSIC_DIR=/tmp/shulker/music` on Render — files gone on restart/redeploy.
+- `MUSIC_DIR=/tmp/Rheoson/music` on Render — files gone on restart/redeploy.
 - Render is effectively streaming-only (yt-dlp pipe) in this config.
 
 ### 4. No playlist track deduplication
@@ -818,7 +818,7 @@ Vite dev server proxies `/api` and `/socket.io` to `127.0.0.1:8000`. The proxy h
 - Backend runs from `api/` with `uv run uvicorn app.main:socket_app --reload` or via Docker
 - Frontend runs from `web/` with `npm run dev` (port 3000, proxies to :8000)
 - Termux-first: Python deps installed with `pip install -e . --break-system-packages` or `uv sync`
-- For APK testing: `SHULKER_DEV_URL=http://<machine-LAN-IP>:3000 npx cap run android`
+- For APK testing: `RHEOSON_DEV_URL=http://<machine-LAN-IP>:3000 npx cap run android`
 - Service worker is OFF in dev — HMR and SW conflict
 
 **Package manager:** `npm` (frontend), `uv` or `pip` (backend). Not pnpm — this project predates the pnpm convention in LETHABO_STANDARDS.

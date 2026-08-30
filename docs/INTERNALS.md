@@ -2,16 +2,16 @@
                               S H U L K E R
                         Music. Downloaded. Played.
 ================================================================================
-Built by LethaboK — github.com/picklem0b/shulker
+Built by LethaboK — github.com/picklem0b/Rheoson
 Version: 1.2.5 (as of May 2026)
 ================================================================================
 
 
 ────────────────────────────────────────────────────────────────────────────────
-  WHAT IS SHULKER?
+  WHAT IS RHEOSON?
 ────────────────────────────────────────────────────────────────────────────────
 
-Shulker is a self-hosted, open-source music application built for people who
+Rheoson is a self-hosted, open-source music application built for people who
 want full control over their music. It looks and feels like Spotify Premium —
 same layout, same smooth animations, same iOS-quality UI — but everything runs
 on YOUR device or YOUR server. No subscription. No ads. No data collection.
@@ -19,7 +19,7 @@ on YOUR device or YOUR server. No subscription. No ads. No data collection.
 The core idea: search any song, stream it instantly, download it in any format,
 save it to playlists, see synced lyrics — all from one app that you own.
 
-Shulker is not a Spotify wrapper. It does not touch Spotify's audio. It uses
+Rheoson is not a Spotify wrapper. It does not touch Spotify's audio. It uses
 YouTube Music as its audio source, and optionally uses Spotify's metadata API
 (which is free) only to read song information like titles, artwork, and
 track durations when you paste a Spotify link.
@@ -95,8 +95,8 @@ track durations when you paste a Spotify link.
 
 4. LOCAL LIBRARY
    ────────────────
-   Shulker scans your local music directories on startup:
-   • /data/data/com.termux/files/home/shulker/music (primary)
+   Rheoson scans your local music directories on startup:
+   • /data/data/com.termux/files/home/Rheoson/music (primary)
    • /storage/emulated/0/Music (Android music folder)
    • /storage/emulated/0/Download
    • Any additional directories you add in Settings → Storage
@@ -120,7 +120,7 @@ track durations when you paste a Spotify link.
   ARCHITECTURE
 ────────────────────────────────────────────────────────────────────────────────
 
-Shulker is split into two separate services:
+Rheoson is split into two separate services:
 
   ┌─────────────────────────────────────────────────────────┐
   │                    FRONTEND (web/)                      │
@@ -162,7 +162,7 @@ Shulker is split into two separate services:
   FILE STRUCTURE
 ────────────────────────────────────────────────────────────────────────────────
 
-shulker/
+Rheoson/
 ├── README.md                   Project overview and quick start
 ├── CHANGELOG.md                Version history
 ├── render.yaml                 Render deployment config (both services)
@@ -180,7 +180,7 @@ shulker/
 │   ├── .env.example            Template for environment setup
 │   └── app/
 │       ├── main.py             FastAPI app, Socket.IO mount, middleware
-│       ├── cli.py              Terminal CLI (shulker command)
+│       ├── cli.py              Terminal CLI (Rheoson command)
 │       ├── core/
 │       │   ├── config.py       Settings from environment variables
 │       │   ├── exceptions.py   Custom exception types
@@ -323,7 +323,7 @@ shulker/
   THEMES AND UI
 ────────────────────────────────────────────────────────────────────────────────
 
-Shulker has 7 accent colour themes:
+Rheoson has 7 accent colour themes:
   1. Crimson  — #E5193A (default, deep red)
   2. Rose     — #F43F5E
   3. Orange   — #F97316
@@ -359,7 +359,7 @@ On first load (or after 30 minutes of not using the app):
   • "tap to skip" appears after 2 seconds
   • App loads automatically when video ends
 
-The 30-minute cooldown is stored in localStorage under 'shulker-splash-last'.
+The 30-minute cooldown is stored in localStorage under 'Rheoson-splash-last'.
 The splash only shows on reload, never during navigation within the app.
 
 
@@ -529,13 +529,13 @@ On mobile it navigates between the two panels.
 
 Key                     What it stores
 ─────────────────────── ───────────────────────────────────────────────────────
-shulker-theme           Accent colour + surface (dark/light)
-shulker-volume          Volume level + mute state
-shulker-downloads       Completed download jobs (persisted across sessions)
-shulker-liked           Liked track IDs (also synced to API)
-shulker-user            Username and display preferences
-shulker-splash-last     Timestamp of last splash screen show
-shulker-spotify-*       Spotify Client ID and Secret
+Rheoson-theme           Accent colour + surface (dark/light)
+Rheoson-volume          Volume level + mute state
+Rheoson-downloads       Completed download jobs (persisted across sessions)
+Rheoson-liked           Liked track IDs (also synced to API)
+Rheoson-user            Username and display preferences
+Rheoson-splash-last     Timestamp of last splash screen show
+Rheoson-spotify-*       Spotify Client ID and Secret
 
 Nothing else is stored. No tracking, no analytics, no external calls
 other than the APIs listed above.
@@ -547,16 +547,16 @@ other than the APIs listed above.
 
 Both services are deployed on Render using render.yaml (Blueprint):
 
-  shulker-api (Python web service)
+  Rheoson-api (Python web service)
     Build: pip install -e .
     Start: uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT
     Env vars to set manually in Render dashboard:
       SPOTIFY_CLIENT_ID     — your Spotify app client ID
       SPOTIFY_CLIENT_SECRET — your Spotify app client secret
-      MUSIC_DIR             — /tmp/shulker/music (Render ephemeral disk)
-      DOWNLOADS_DIR         — /tmp/shulker/downloads
+      MUSIC_DIR             — /tmp/Rheoson/music (Render ephemeral disk)
+      DOWNLOADS_DIR         — /tmp/Rheoson/downloads
 
-  shulker-web (Static site)
+  Rheoson-web (Static site)
     Build: npm install && npx vite build
     Publish: dist/
     Note: In production, the frontend calls the Render API URL directly.
@@ -597,38 +597,38 @@ Frontend:
   # Opens at http://localhost:3000
 
 CLI:
-  # After pip install -e ., the 'shulker' command is available:
-  shulker              # interactive REPL
-  shulker health       # check API status
-  shulker search "kendrick lamar"
-  shulker dl "not like us"
-  shulker dl "https://open.spotify.com/track/..."
-  shulker dl "https://youtu.be/abc123" --format=flac --quality=best
-  shulker dls          # list all download jobs
-  shulker status <id>  # check job status
-  shulker lyrics <id>  # fetch lyrics
-  shulker lib          # browse local library
+  # After pip install -e ., the 'Rheoson' command is available:
+  Rheoson              # interactive REPL
+  Rheoson health       # check API status
+  Rheoson search "kendrick lamar"
+  Rheoson dl "not like us"
+  Rheoson dl "https://open.spotify.com/track/..."
+  Rheoson dl "https://youtu.be/abc123" --format=flac --quality=best
+  Rheoson dls          # list all download jobs
+  Rheoson status <id>  # check job status
+  Rheoson lyrics <id>  # fetch lyrics
+  Rheoson lib          # browse local library
 
 
 ────────────────────────────────────────────────────────────────────────────────
   SPOTIFY CREDENTIALS — HOW TO GET THEM
 ────────────────────────────────────────────────────────────────────────────────
 
-Shulker uses the Spotify Web API for metadata only. It is free.
+Rheoson uses the Spotify Web API for metadata only. It is free.
 You need your own credentials because Spotify does not provide a public key.
 
 Steps:
   1. Go to https://developer.spotify.com/dashboard
   2. Log in with any Spotify account (free is fine)
   3. Click "Create app"
-  4. Name: Shulker (or anything)
+  4. Name: Rheoson (or anything)
   5. Redirect URI: http://localhost:3000
   6. Check "Web API"
   7. Save
   8. Copy the Client ID and Client Secret from the app settings page
-  9. In Shulker: Settings → Account → paste both fields → Save
+  9. In Rheoson: Settings → Account → paste both fields → Save
 
-What Spotify credentials unlock in Shulker:
+What Spotify credentials unlock in Rheoson:
   • Paste a Spotify track link → get exact song + Spotify artwork
   • Paste a Spotify album link → get the full album track list
   • Paste a Spotify playlist link → get all tracks, ready to play/download
@@ -743,8 +743,8 @@ v2.0.0   Stable release
 
 MIT License. See LICENSE file.
 
-The MIT licence applies to the Shulker code only.
-It does not grant rights to audio content downloaded using Shulker.
+The MIT licence applies to the Rheoson code only.
+It does not grant rights to audio content downloaded using Rheoson.
 You are responsible for complying with copyright law in your jurisdiction.
 
 
@@ -754,7 +754,7 @@ You are responsible for complying with copyright law in your jurisdiction.
 
 LethaboK
 GitHub: https://github.com/picklem0b
-Project: https://github.com/picklem0b/shulker
+Project: https://github.com/picklem0b/Rheoson
 
 Built on Termux (Android), deployed on Render.
 Developed with Claude (Anthropic) as a coding partner.

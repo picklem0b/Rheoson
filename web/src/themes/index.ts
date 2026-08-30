@@ -54,12 +54,12 @@ export function applyTheme(theme: Theme) {
    }
 
    // Persist
-   localStorage.setItem("shulker-theme", JSON.stringify(theme));
+   localStorage.setItem("rheoson-theme", JSON.stringify(theme));
 }
 
 export function loadTheme(): Theme {
    try {
-      const stored = localStorage.getItem("shulker-theme");
+      const stored = localStorage.getItem("rheoson-theme");
       if (stored) return JSON.parse(stored) as Theme;
    } catch (error) {
       console.error("theme not loaded ", error);

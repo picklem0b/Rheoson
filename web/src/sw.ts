@@ -33,11 +33,11 @@ cleanupOutdatedCaches();
 // ── Cache names ───────────────────────────────────────────────
 
 const CACHE = {
-    ARTWORK: "shulker-artwork-v1",
-    AUDIO: "shulker-audio-v1",
-    API: "shulker-api-v1",
-    FONTS: "shulker-fonts-v1",
-    OFFLINE: "shulker-offline-v1"
+    ARTWORK: "rheoson-artwork-v1",
+    AUDIO: "rheoson-audio-v1",
+    API: "rheoson-api-v1",
+    FONTS: "rheoson-fonts-v1",
+    OFFLINE: "rheoson-offline-v1"
 } as const;
 
 // ── Fonts ─────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ registerRoute(
 );
 
 // ── Album artwork + artist images ─────────────────────────────
-// Artwork is fetched from the Shulker API (/api/stream/{id}/artwork)
+// Artwork is fetched from the Rheoson API (/api/stream/{id}/artwork)
 // and from YouTube's thumbnail CDN.
 //
 // Strategy: CacheFirst — artwork never changes for a given track ID.
@@ -169,7 +169,7 @@ registerRoute(
 // This keeps recently-played accurate even when the app is used
 // fully offline for a period.
 
-const playHistorySync = new BackgroundSyncPlugin("shulker-play-history", {
+const playHistorySync = new BackgroundSyncPlugin("rheoson-play-history", {
     maxRetentionTime: 60 * 24 // 24 hours in minutes
 });
 
@@ -215,12 +215,12 @@ self.addEventListener("fetch", event => {
 
 registerRoute(
     ({ url }) => url.pathname.startsWith("/socket.io"),
-    new NetworkFirst({ cacheName: "shulker-socketio-v1" })
+    new NetworkFirst({ cacheName: "rheoson-socketio-v1" })
 );
 
 // ── Offline fallback ──────────────────────────────────────────
 // When a navigation request (page load) fails — e.g. the user opens
-// Shulker while fully offline and the SW cache is cold — serve the
+// Rheoson while fully offline and the SW cache is cold — serve the
 // precached index.html. The app shell is always in the precache, so
 // this will always succeed. React Router handles the rest client-side.
 
@@ -260,11 +260,11 @@ self.addEventListener("push", event => {
             body: data.body ?? "",
             icon: data.icon ?? "/icon-192.png",
             badge: data.badge ?? "/icon-192.png",
-            tag: data.tag ?? "shulker",
+            tag: data.tag ?? "Rheoson",
             data: data.data ?? {}
         };
         event.waitUntil(
-            self.registration.showNotification(data.title ?? "Shulker", options)
+            self.registration.showNotification(data.title ?? "Rheoson", options)
         );
     } catch {
         // Malformed push payload — silently ignore

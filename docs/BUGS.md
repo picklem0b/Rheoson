@@ -1,8 +1,8 @@
-# 🎵 **SHULKER - Complete Project Context**
+# 🎵 **RHEOSON - Complete Project Context**
 
 ## **📊 Project Overview**
 
-**Shulker** is a self-hosted, Spotify-grade music streaming platform that:
+**Rheoson** is a self-hosted, Spotify-grade music streaming platform that:
 
 - Uses **YouTube Music** (via yt-dlp) as the audio source
 - Optionally uses **Spotify API** for metadata (titles, artwork, durations)
@@ -614,7 +614,7 @@ The `onplayerror` handler in usePlayer only handles suspended AudioContext. Othe
 
 ```typescript
 onplayerror(_id, err) {
-    console.error('[Shulker] play error', err);
+    console.error('[Rheoson] play error', err);
     // Resume a suspended AudioContext (required after user-gesture lock on Android)
     if (Howler.ctx?.state === 'suspended') {
         Howler.ctx

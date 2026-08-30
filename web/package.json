@@ -1,7 +1,7 @@
 {
-    "name": "shulker-web",
+    "name": "rheoson-web",
     "private": true,
-    "version": "2.10.25",
+    "version": "2.11.0",
     "type": "module",
     "scripts": {
         "dev": "vite --host",

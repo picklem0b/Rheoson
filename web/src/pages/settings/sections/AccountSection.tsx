@@ -84,7 +84,7 @@ export default function AccountSection() {
          {/* Spotify */}
          <SettingsGroup
             title='Spotify credentials'
-            footer='Used only for metadata, cover art, and link resolution. Shulker never streams from Spotify.'>
+            footer='Used only for metadata, cover art, and link resolution. Rheoson never streams from Spotify.'>
             {/* Status */}
             <div
                className={cn(

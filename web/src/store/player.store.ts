@@ -84,7 +84,7 @@ export const usePlayerStore = create<PlayerStore>()(
             toggleShuffle: () => set(s => ({ isShuffled: !s.isShuffled }))
         }),
         {
-            name: 'shulker-player',
+            name: 'rheoson-player',
             // Only persist the settings + track identity + saved position.
             // Never persist isPlaying or isLoading — the app always starts paused,
             // and the Howl is rebuilt by usePlayer's resume-after-reload effect.

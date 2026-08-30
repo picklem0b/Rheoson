@@ -1,4 +1,4 @@
-name: Build Shulker APK
+name: Build Rheoson APK
 
 on:
    push:
@@ -71,6 +71,6 @@ jobs:
          - name: Upload APK artifact
            uses: actions/upload-artifact@v4
            with:
-              name: shulker-debug
+              name: Rheoson-debug
               path: web/android/app/build/outputs/apk/debug/app-debug.apk
               retention-days: 30

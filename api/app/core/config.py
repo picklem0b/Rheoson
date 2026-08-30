@@ -11,11 +11,11 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
 
-    MUSIC_DIR:     str = "/data/data/com.termux/files/home/shulker/music"
-    DOWNLOADS_DIR: str = "/data/data/com.termux/files/home/shulker/downloads"
+    MUSIC_DIR:     str = "/data/data/com.termux/files/home/Rheoson/music"
+    DOWNLOADS_DIR: str = "/data/data/com.termux/files/home/Rheoson/downloads"
 
     # Comma-separated or JSON array of extra directories.
-    # On Render: EXTRA_MUSIC_DIRS=/tmp/shulker/music
+    # On Render: EXTRA_MUSIC_DIRS=/tmp/Rheoson/music
     # On Termux: leave unset — defaults cover the common paths
     EXTRA_MUSIC_DIRS: list[str] = [
         "/storage/emulated/0/Music",
@@ -37,9 +37,9 @@ class Settings(BaseSettings):
     #   CORS_ORIGINS=["https://a.com","https://b.com"]
     # Leave unset to rely solely on the builtins (recommended).
     CORS_ORIGINS: list[str] = [
-        "https://shulker-web.onrender.com",
-        "https://shulker-api-vnny.onrender.com",
-        "https://shulker.onrender.com",
+        "https://Rheoson-web.onrender.com",
+        "https://Rheoson-api-vnny.onrender.com",
+        "https://Rheoson.onrender.com",
     ]
 
     # ── Computed ──────────────────────────────────────────────

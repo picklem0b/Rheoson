@@ -73,7 +73,7 @@ export default function NotificationsSection() {
          <SettingsGroup title='App'>
             <SettingsRow
                label='Update available'
-               description='Notify when a new version of Shulker is available on GitHub'
+               description='Notify when a new version of Rheoson is available on GitHub'
                icon={<Megaphone className='w-[14px] h-[14px]' />}
                iconBg='#14B8A6'>
                <Toggle value={updates} onChange={setUpdates} />

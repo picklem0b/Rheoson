@@ -20,8 +20,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app.core.config import settings
 from app.core.logging_config import configure_logging
 from app.core.exceptions import (
-    ShulkerException,
-    shulker_exception_handler,
+    RheosonException,
+    Rheoson_exception_handler,
     generic_exception_handler,
 )
 from app.websocket.ws_manager import ws_manager
@@ -39,7 +39,7 @@ from app.routers import (
 configure_logging()
 log = structlog.get_logger()
 
-VERSION     = "2.10.25"
+VERSION     = "2.11.0"
 _START_TIME = time.monotonic()
 
 AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
@@ -47,9 +47,9 @@ AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
 # ── CORS ──────────────────────────────────────────────────────
 
 _BUILTIN_ORIGINS = [
-    "https://shulker-web.onrender.com",
-    "https://shulker-api-vnny.onrender.com",
-    "https://shulker.onrender.com",
+    "https://Rheoson-web.onrender.com",
+    "https://Rheoson-api-vnny.onrender.com",
+    "https://Rheoson.onrender.com",
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
@@ -99,7 +99,7 @@ _keep_alive_stats: dict = {
 
 
 async def _cron_keep_alive() -> None:
-    url = f"http://127.0.0.1:{settings.API_PORT}/api/health" if settings.is_dev else f"https://shulker-api-vnny.onrender.com/api/health"
+    url = f"http://127.0.0.1:{settings.API_PORT}/api/health" if settings.is_dev else f"https://Rheoson-api-vnny.onrender.com/api/health"
     t0  = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=20) as client:
@@ -190,7 +190,7 @@ sio = socketio.AsyncServer(
 )
 
 app = FastAPI(
-    title="Shulker API",
+    title="Rheoson API",
     version=VERSION,
     docs_url="/api/docs",
     redoc_url=None,
@@ -207,7 +207,7 @@ register_events(sio)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    log.info("shulker.api.starting", version=VERSION, env=settings.ENV)
+    log.info("Rheoson.api.starting", version=VERSION, env=settings.ENV)
     # BUG #22: Validate MUSIC_DIR existence — create if missing, warn if inaccessible
     music_path = Path(settings.MUSIC_DIR)
     if not music_path.exists():
@@ -231,10 +231,10 @@ async def lifespan(_app: FastAPI):
     scheduler.add_job(_cron_job_cleanup,   "interval", hours=6,    id="job_cleanup",  replace_existing=True)
     scheduler.start()
 
-    log.info("shulker.api.ready", cron_jobs=[j.id for j in scheduler.get_jobs()])
+    log.info("Rheoson.api.ready", cron_jobs=[j.id for j in scheduler.get_jobs()])
     yield
     scheduler.shutdown(wait=False)
-    log.info("shulker.api.stopped")
+    log.info("Rheoson.api.stopped")
 
 app.router.lifespan_context = lifespan
 
@@ -249,7 +249,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_exception_handler(ShulkerException, shulker_exception_handler)
+app.add_exception_handler(RheosonException, Rheoson_exception_handler)
 app.add_exception_handler(Exception,        generic_exception_handler)
 
 
@@ -274,7 +274,7 @@ app.include_router(settings_router.router, prefix="/api/settings",  tags=["setti
 @app.get("/", include_in_schema=False)
 async def root():
     return JSONResponse({
-        "name":    "Shulker API",
+        "name":    "Rheoson API",
         "version": VERSION,
         "docs":    "/api/docs",
         "health":  "/api/health",

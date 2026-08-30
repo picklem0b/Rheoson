@@ -384,7 +384,7 @@ _remote_buffer: dict[str, dict] = {}  # track_id -> {"path": Path, "size": int, 
 _buffer_lock = asyncio.Lock()
 _BUFFER_TTL = 600.0  # 10 minutes
 _BUFFER_MAX = 20     # max simultaneous buffered streams
-_buffer_dir = Path("/tmp/shulker_stream_buffer")
+_buffer_dir = Path("/tmp/Rheoson_stream_buffer")
 _buffer_dir.mkdir(parents=True, exist_ok=True)
 
 

@@ -20,7 +20,7 @@ const SUGGEST_MS = 100;
 
 // ── Session persistence ───────────────────────────────────────
 
-const SESSION_KEY = "shulker-last-search";
+const SESSION_KEY = "rheoson-last-search";
 
 function readSession(): { query: string; filter: SearchFilter } {
    try {
@@ -50,7 +50,7 @@ function writeSession(query: string, filter: SearchFilter) {
 // API service), a relative URL resolves to the wrong host.
 //
 // Now uses `API_BASE` (which is already the full absolute URL in prod,
-// e.g. https://shulker-api-vnny.onrender.com/api) and the local API's
+// e.g. https://rheoson-api-vnny.onrender.com/api) and the local API's
 // absolute URL (http://127.0.0.1:8000/api/stream/...) in dev. The HEAD
 // request doesn't download audio — it just warms the yt-dlp process and
 // caches the resolved format URL in the backend's request cache.

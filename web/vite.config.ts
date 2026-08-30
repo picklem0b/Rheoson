@@ -24,8 +24,8 @@ export default defineConfig({
          ],
 
          manifest: {
-            name: "Shulker",
-            short_name: "Shulker",
+            name: "Rheoson",
+            short_name: "Rheoson",
             description:
                "Self-hosted music streaming and download. No subscription, no ads.",
             theme_color: "#0A0A0A",
@@ -88,18 +88,18 @@ export default defineConfig({
       port: 3000,
       host: true,
       // Dev requests go through this proxy so the browser stays same-origin.
-      // Override with SHULKER_API_TARGET to develop against another backend,
-      // e.g.:  SHULKER_API_TARGET=https://shulker-api-vnny.onrender.com npm run dev
+      // Override with RHEOSON_API_TARGET to develop against another backend,
+      // e.g.:  RHEOSON_API_TARGET=https://Rheoson-api-vnny.onrender.com npm run dev
       proxy: {
          // FIX: Dev proxy should point to the LOCAL backend, not prod.
          // This was the root cause of "changes only visible in prod" —
          // all dev requests were hitting the Render server.
          "/api": {
-            target: process.env.SHULKER_API_TARGET ?? "http://127.0.0.1:8000",
+            target: process.env.RHEOSON_API_TARGET ?? "http://127.0.0.1:8000",
             changeOrigin: true
          },
          "/socket.io": {
-            target: process.env.SHULKER_API_TARGET ?? "http://127.0.0.1:8000",
+            target: process.env.RHEOSON_API_TARGET ?? "http://127.0.0.1:8000",
             changeOrigin: true,
             ws: true
          }

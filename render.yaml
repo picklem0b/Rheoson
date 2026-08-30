@@ -1,7 +1,7 @@
 services:
   # ── Backend (FastAPI + Socket.IO) ───────────────────────────
   - type: web
-    name: shulker-api
+    name: Rheoson-api
     env: python
     region: oregon
     plan: free
@@ -29,9 +29,9 @@ services:
       # Render's free tier uses /tmp — files don't persist across restarts,
       # but it's fine for a self-hosted single-user setup.
       - key: MUSIC_DIR
-        value: /tmp/shulker/music
+        value: /tmp/Rheoson/music
       - key: DOWNLOADS_DIR
-        value: /tmp/shulker/downloads
+        value: /tmp/Rheoson/downloads
 
       # Set these in the Render dashboard — never commit credentials to git.
       - key: SPOTIFY_CLIENT_ID
@@ -42,11 +42,11 @@ services:
       # Restrict CORS to the actual frontend origin.
       # Update the URL if your Render service names differ.
       - key: CORS_ORIGINS
-        value: '["https://shulker-web.onrender.com","http://localhost:3000"]'
+        value: '["https://Rheoson-web.onrender.com","http://localhost:3000"]'
 
   # ── Frontend (React / Vite SPA) ──────────────────────────────
   - type: web
-    name: shulker-web
+    name: Rheoson-web
     env: static
     region: oregon
     plan: free
@@ -65,4 +65,4 @@ services:
       # Must match the actual API service URL — used at build time by Vite
       # to bake the correct API_BASE into the JS bundle.
       - key: VITE_API_URL
-        value: https://shulker-api-vnny.onrender.com
+        value: https://rheoson-api-vnny.onrender.com

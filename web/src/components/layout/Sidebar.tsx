@@ -25,11 +25,11 @@ export default function Sidebar() {
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2.5">
           <img
             src="/assets/logo.png"
-            alt="Shulker"
+            alt="Rheoson"
             className="w-9 h-9 rounded-2xl object-cover shadow-lg"
             style={{ boxShadow: '0 0 12px var(--accent-subtle)' }}
           />
-          <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight">Shulker</span>
+          <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight">Rheoson</span>
         </motion.div>
       </NavLink>
 

@@ -202,7 +202,7 @@ export default function Settings() {
               </div>
               <div className="text-center">
                 <p className="text-[15px] font-semibold text-[var(--text-primary)]">Select a section</p>
-                <p className="text-[13px] text-[var(--text-muted)] mt-0.5">Configure Shulker from the sidebar</p>
+                <p className="text-[13px] text-[var(--text-muted)] mt-0.5">Configure Rheoson from the sidebar</p>
               </div>
             </motion.div>
           )}

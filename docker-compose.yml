@@ -58,7 +58,7 @@ services:
         condition: service_started
 
 # NOTE: The Celery worker that was here has been removed.
-# Shulker uses asyncio + Semaphore for concurrent downloads — there is
+# Rheoson uses asyncio + Semaphore for concurrent downloads — there is
 # no Celery integration in the codebase. Running a dead worker wastes
 # memory and adds confusion. If task queuing is added later, re-introduce
 # it here alongside the Redis service.

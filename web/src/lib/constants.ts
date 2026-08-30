@@ -7,19 +7,19 @@
 //                               Capacitor CapacitorHttp handles CORS natively
 //
 // VITE_API_URL must be the bare origin with no trailing slash:
-//   https://shulker-api-vnny.onrender.com
+//   https://rheoson-api-vnny.onrender.com
 //
 // For the APK build, set it in web/.env.production before running:
 //   npm run build && npx cap sync
 
 const PROD_API_ORIGIN =
-   import.meta.env.VITE_API_URL ?? "https://shulker-api-vnny.onrender.com";
+   import.meta.env.VITE_API_URL ?? "https://rheoson-api-vnny.onrender.com";
 
 // ── API_BASE ──────────────────────────────────────────────────
 // Used by the api client (client.api.ts) for all REST requests.
 //
 // Dev:      /api          → Vite proxy → http://127.0.0.1:8000/api
-// Prod/APK: https://shulker-api-vnny.onrender.com/api
+// Prod/APK: https://rheoson-api-vnny.onrender.com/api
 //
 // FIX: Use import.meta.env.DEV (set by Vite) for accurate detection.
 // Previously used import.meta.env.PROD which could be stale.
@@ -31,7 +31,7 @@ export const API_BASE = (import.meta.env.DEV) ? "/api" : `${PROD_API_ORIGIN}/api
 // the root cause of the APK WebSocket connection failure.
 //
 // Dev:      http://127.0.0.1:8000   (direct — no Vite proxy for WS in all cases)
-// Prod/APK: https://shulker-api-vnny.onrender.com
+// Prod/APK: https://rheoson-api-vnny.onrender.com
 //
 export const WS_URL = (import.meta.env.DEV)
    ? (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000")
@@ -84,12 +84,12 @@ export const BREAKPOINTS = {
 } as const;
 
 export const STORAGE_KEYS = {
-   theme: "shulker-theme",
-   volume: "shulker-volume",
-   queue: "shulker-queue",
-   liked: "shulker-liked",
-   user: "shulker-user"
+   theme: "rheoson-theme",
+   volume: "rheoson-volume",
+   queue: "rheoson-queue",
+   liked: "rheoson-liked",
+   user: "rheoson-user"
 } as const;
 
-export const APP_NAME = "Shulker";
-export const APP_VERSION = "2.10.25";
+export const APP_NAME = "Rheoson";
+export const APP_VERSION = "2.11.0";

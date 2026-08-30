@@ -25,7 +25,7 @@ export default function LayoutSection() {
                   {
                      value: "pill",
                      label: "Pill",
-                     sub: "Floating rounded bar — default Shulker style"
+                     sub: "Floating rounded bar — default Rheoson style"
                   },
                   {
                      value: "flat",
@@ -64,7 +64,7 @@ export default function LayoutSection() {
 
          <SettingsGroup
             title='Font'
-            footer='Plus Jakarta Sans is the Shulker default. Changes apply immediately across the entire app.'>
+            footer='Plus Jakarta Sans is the Rheoson default. Changes apply immediately across the entire app.'>
             <RadioGroup
                value={fontFamily}
                onChange={setFontFamily}

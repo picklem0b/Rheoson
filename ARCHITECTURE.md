@@ -1,13 +1,13 @@
-# Shulker Application Architecture
+# Rheoson Application Architecture
 
 ## Overview
 
-The Shulker application is a full-stack music discovery and management platform built with a Python backend (FastAPI) and a React frontend (Vite). The system provides features for searching, playing, downloading, and managing music tracks, albums, playlists, and artists. The architecture is organized into distinct layers: data storage, business logic services, API endpoints, and client-side UI components.
+The Rheoson application is a full-stack music discovery and management platform built with a Python backend (FastAPI) and a React frontend (Vite). The system provides features for searching, playing, downloading, and managing music tracks, albums, playlists, and artists. The architecture is organized into distinct layers: data storage, business logic services, API endpoints, and client-side UI components.
 
 ## Repository Structure
 
 ```
-shulker/
+Rheoson/
 ├── api/                 # Backend REST API (FastAPI)
 │   ├── app/             # Main application package
 │   │   ├── __init__.py

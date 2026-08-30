@@ -25,19 +25,19 @@ function _getSocket(): Socket {
       });
 
       _socket.on("connect", () =>
-         console.debug("[Shulker WS] connected", _socket?.id)
+         console.debug("[Rheoson WS] connected", _socket?.id)
       );
       _socket.on("disconnect", (r) =>
-         console.debug("[Shulker WS] disconnected", r)
+         console.debug("[Rheoson WS] disconnected", r)
       );
       _socket.on("connect_error", (e) =>
-         console.warn("[Shulker WS] error", e.message)
+         console.warn("[Rheoson WS] error", e.message)
       );
       _socket.on("reconnect", (n) =>
-         console.debug("[Shulker WS] reconnected after", n, "attempts")
+         console.debug("[Rheoson WS] reconnected after", n, "attempts")
       );
       _socket.on("reconnect_failed", () =>
-         console.error("[Shulker WS] gave up reconnecting")
+         console.error("[Rheoson WS] gave up reconnecting")
       );
    }
    return _socket;

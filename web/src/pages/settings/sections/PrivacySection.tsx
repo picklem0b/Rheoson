@@ -16,7 +16,7 @@ import {
    actionRunner
 } from "../components/SettingsPrimitives";
 
-const GITHUB = "https://github.com/picklem0b/shulker/blob/main/docs";
+const GITHUB = "https://github.com/picklem0b/Rheoson/blob/main/docs";
 
 export default function PrivacySection() {
    const [history, setHistory] = usePersisted("save-history", true);
@@ -33,8 +33,8 @@ export default function PrivacySection() {
    );
 
    const clearSearch = actionRunner(setClearSearchState, async () => {
-      sessionStorage.removeItem("shulker-last-search");
-      localStorage.removeItem("shulker-search-history");
+      sessionStorage.removeItem("rheoson-last-search");
+      localStorage.removeItem("rheoson-search-history");
    });
 
    return (
@@ -76,7 +76,7 @@ export default function PrivacySection() {
             footer='No personal data is ever sold or shared with third parties. All analytics are fully anonymous.'>
             <SettingsRow
                label='Anonymous analytics'
-               description='Share usage stats to help improve Shulker — no personal data'>
+               description='Share usage stats to help improve Rheoson — no personal data'>
                <Toggle value={analytics} onChange={setAnalytics} />
             </SettingsRow>
             <SettingsRow
@@ -101,7 +101,7 @@ export default function PrivacySection() {
                label='Open source licences'
                onClick={() =>
                   window.open(
-                     "https://github.com/picklem0b/shulker/blob/main/LICENSE",
+                     "https://github.com/picklem0b/Rheoson/blob/main/LICENSE",
                      "_blank"
                   )
                }>

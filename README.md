@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="web/public/assets/logo.png" width="96" height="96" style="border-radius:24px" alt="Shulker" />
+<img src="web/public/assets/logo.png" width="96" height="96" style="border-radius:24px" alt="Rheoson" />
 
-# Shulker
+# Rheoson
 
 **Self-hosted music. No subscription. No ads. No compromise.**
 
@@ -14,7 +14,7 @@ Search, stream, and download any song with a Spotify-grade interface that runs e
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[Live Demo](https://shulker.onrender.com) · [Report a Bug](https://github.com/picklem0b/shulker/issues) · [Request a Feature](https://github.com/picklem0b/shulker/issues)
+[Live Demo](https://Rheoson.onrender.com) · [Report a Bug](https://github.com/picklem0b/Rheoson/issues) · [Request a Feature](https://github.com/picklem0b/Rheoson/issues)
 
 </div>
 
@@ -22,9 +22,9 @@ Search, stream, and download any song with a Spotify-grade interface that runs e
 
 ## Overview
 
-Shulker is an open-source music application built for full ownership of your listening experience. The UI mirrors Spotify Premium — same layout, smooth spring animations, swipeable mobile player — but the audio is sourced from YouTube Music via [yt-dlp](https://github.com/yt-dlp/yt-dlp) and stored locally on your device.
+Rheoson is an open-source music application built for full ownership of your listening experience. The UI mirrors Spotify Premium — same layout, smooth spring animations, swipeable mobile player — but the audio is sourced from YouTube Music via [yt-dlp](https://github.com/yt-dlp/yt-dlp) and stored locally on your device.
 
-Spotify's API is used **only** for metadata (titles, artwork, durations) when you paste a Spotify link. Shulker never touches Spotify's audio.
+Spotify's API is used **only** for metadata (titles, artwork, durations) when you paste a Spotify link. Rheoson never touches Spotify's audio.
 
 **Offline playback is a first-class feature.** Once a track is downloaded, it plays from disk at full quality with no network activity whatsoever — no buffering, no rate limits, no YouTube.
 
@@ -64,8 +64,8 @@ yt-dlp is installed automatically as a Python dependency.
 ### 1 · Clone
 
 ```bash
-git clone https://github.com/picklem0b/shulker.git
-cd shulker
+git clone https://github.com/picklem0b/Rheoson.git
+cd Rheoson
 ```
 
 ### 2 · Backend
@@ -102,7 +102,7 @@ Spotify credentials unlock pasting Spotify links and enable higher-quality artwo
 
 1. Create a free app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
 2. Copy the Client ID and Client Secret
-3. In Shulker: **Settings → Account** → paste both → Save
+3. In Rheoson: **Settings → Account** → paste both → Save
 
 ---
 
@@ -324,8 +324,8 @@ Environment variables to set in the Render dashboard:
 ```
 SPOTIFY_CLIENT_ID
 SPOTIFY_CLIENT_SECRET
-MUSIC_DIR      = /tmp/shulker/music
-DOWNLOADS_DIR  = /tmp/shulker/downloads
+MUSIC_DIR      = /tmp/Rheoson/music
+DOWNLOADS_DIR  = /tmp/Rheoson/downloads
 ```
 
 **Frontend — Static site**
@@ -358,7 +358,7 @@ Theme is written to `localStorage` and applied before first paint — no flash o
 ## File Structure
 
 ```
-shulker/
+Rheoson/
 ├── README.md
 ├── CHANGELOG.md
 ├── render.yaml
@@ -422,7 +422,7 @@ shulker/
 
 MIT — see [LICENSE](LICENSE).
 
-This licence covers the Shulker source code only. It does not grant rights to audio content downloaded through Shulker. You are responsible for complying with copyright law in your jurisdiction.
+This licence covers the Rheoson source code only. It does not grant rights to audio content downloaded through Rheoson. You are responsible for complying with copyright law in your jurisdiction.
 
 ---
 

@@ -12,7 +12,7 @@ import { APP_VERSION } from "@/lib/constants";
 import { SettingsGroup, SettingsRow } from "../components/SettingsPrimitives";
 import { cn } from "@/lib/utils";
 
-const GITHUB = "https://github.com/picklem0b/shulker";
+const GITHUB = "https://github.com/picklem0b/Rheoson";
 
 const STACK: { label: string; value: string; url: string }[] = [
    {
@@ -49,7 +49,7 @@ export default function AboutSection() {
    } | null>(null);
 
    useEffect(() => {
-      fetch("https://api.github.com/repos/picklem0b/shulker")
+      fetch("https://api.github.com/repos/picklem0b/Rheoson")
          .then(r => r.json())
          .then(d =>
             setStats({
@@ -76,7 +76,7 @@ export default function AboutSection() {
                </div>
                <div>
                   <p className='text-[22px] font-bold text-[var(--text-primary)] leading-tight'>
-                     Shulker
+                     Rheoson
                   </p>
                   <p className='text-[14px] text-[var(--text-muted)]'>
                      v{APP_VERSION} · picklem0b
@@ -151,7 +151,7 @@ export default function AboutSection() {
          <SettingsGroup title='Links'>
             <SettingsRow
                label='GitHub'
-               description='picklem0b/shulker — source, issues, discussions'
+               description='picklem0b/Rheoson — source, issues, discussions'
                onClick={() => window.open(GITHUB, "_blank")}>
                <Github className='w-4 h-4 text-[var(--text-muted)]/60' />
             </SettingsRow>

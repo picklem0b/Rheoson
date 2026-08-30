@@ -5,20 +5,20 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta
          name="description"
-         content="Shulker — Self-hosted music. No subscription. No ads. No compromise. Search, stream, and download any song." />
-      <meta property="og:title" content="Shulker" />
+         content="Rheoson — Self-hosted music. No subscription. No ads. No compromise. Search, stream, and download any song." />
+      <meta property="og:title" content="Rheoson" />
       <meta
          property="og:description"
          content="Self-hosted music. No subscription. No ads. No compromise." />
       <meta
          property="og:image"
-         content="https://raw.githubusercontent.com/picklem0b/shulker/main/web/public/assets/logo.png" />
-      <meta property="og:url" content="https://picklem0b.github.io/shulker" />
+         content="https://raw.githubusercontent.com/picklem0b/Rheoson/main/web/public/assets/logo.png" />
+      <meta property="og:url" content="https://picklem0b.github.io/Rheoson" />
       <meta name="twitter:card" content="summary_large_image" />
-      <title>Shulker — Self-hosted music</title>
+      <title>Rheoson — Self-hosted music</title>
       <link
          rel="icon"
-         href="https://raw.githubusercontent.com/picklem0b/shulker/main/web/public/assets/logo.png" />
+         href="https://raw.githubusercontent.com/picklem0b/Rheoson/main/web/public/assets/logo.png" />
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
       <link
@@ -506,22 +506,22 @@
       <nav>
          <a href="#" class="nav-logo" style="text-decoration: none">
             <img
-               src="https://raw.githubusercontent.com/picklem0b/shulker/main/web/public/assets/logo.png"
-               alt="Shulker logo" />
-            Shulker
+               src="https://raw.githubusercontent.com/picklem0b/Rheoson/main/web/public/assets/logo.png"
+               alt="Rheoson logo" />
+            Rheoson
          </a>
          <div class="nav-links">
             <a href="#features" class="hide-sm">Features</a>
             <a href="#how" class="hide-sm">How it works</a>
             <a href="#quickstart" class="hide-sm">Quick start</a>
             <a
-               href="https://github.com/picklem0b/shulker"
+               href="https://github.com/picklem0b/Rheoson"
                target="_blank"
                rel="noopener"
                >GitHub</a
             >
             <a
-               href="https://shulker-web.onrender.com"
+               href="https://Rheoson-web.onrender.com"
                target="_blank"
                rel="noopener"
                class="btn-nav"
@@ -534,8 +534,8 @@
       <section class="hero">
          <img
             class="hero-logo"
-            src="https://raw.githubusercontent.com/picklem0b/shulker/main/web/public/assets/logo.png"
-            alt="Shulker" />
+            src="https://raw.githubusercontent.com/picklem0b/Rheoson/main/web/public/assets/logo.png"
+            alt="Rheoson" />
          <h1>Self-hosted music.<br /><span>No subscription.</span></h1>
          <p class="hero-sub">
             Search, stream, and download any song with a Spotify-grade interface
@@ -543,21 +543,21 @@
          </p>
          <div class="hero-actions">
             <a
-               href="https://shulker-web.onrender.com"
+               href="https://Rheoson-web.onrender.com"
                target="_blank"
                rel="noopener"
                class="btn-primary">
                ▶ &nbsp;Live demo
             </a>
             <a
-               href="https://github.com/picklem0b/shulker"
+               href="https://github.com/picklem0b/Rheoson"
                target="_blank"
                rel="noopener"
                class="btn-secondary">
                ★ &nbsp;Star on GitHub
             </a>
             <a
-               href="https://github.com/picklem0b/shulker/releases"
+               href="https://github.com/picklem0b/Rheoson/releases"
                target="_blank"
                rel="noopener"
                class="btn-secondary">
@@ -682,7 +682,7 @@
             <p class="section-label">How it works</p>
             <h2 class="section-title">Simple by design.</h2>
             <p class="section-sub">
-               Shulker is a thin layer between you and yt-dlp. No databases, no
+               Rheoson is a thin layer between you and yt-dlp. No databases, no
                accounts, no complexity.
             </p>
 
@@ -695,7 +695,7 @@
                         Type a song name — ytmusicapi searches YouTube Music and
                         returns tracks, albums, artists, and playlists in under
                         a second. Or paste any Spotify, YouTube, SoundCloud, or
-                        Bandcamp URL and Shulker resolves it automatically.
+                        Bandcamp URL and Rheoson resolves it automatically.
                      </p>
                   </div>
                </div>
@@ -779,8 +779,8 @@
 pkg install ffmpeg python nodejs git
 
 <span class="code-comment"># Clone and set up backend</span>
-git clone https://github.com/picklem0b/shulker.git
-cd shulker/api
+git clone https://github.com/picklem0b/Rheoson.git
+cd Rheoson/api
 pip install -e . --break-system-packages
 cp .env.example .env
 
@@ -802,8 +802,8 @@ npm run dev
 brew install ffmpeg node python@3.13   <span class="code-comment"># macOS</span>
 apt install ffmpeg nodejs python3.13   <span class="code-comment"># Debian/Ubuntu</span>
 
-git clone https://github.com/picklem0b/shulker.git
-cd shulker
+git clone https://github.com/picklem0b/Rheoson.git
+cd Rheoson
 
 <span class="code-comment"># Backend</span>
 cd api && pip install -e . && cp .env.example .env
@@ -822,11 +822,11 @@ cd web && npm install && npm run dev</pre>
 <span class="code-comment"># API service env vars to set in Render dashboard:</span>
 SPOTIFY_CLIENT_ID     = your_id
 SPOTIFY_CLIENT_SECRET = your_secret
-MUSIC_DIR             = /tmp/shulker/music
-DOWNLOADS_DIR         = /tmp/shulker/downloads
+MUSIC_DIR             = /tmp/Rheoson/music
+DOWNLOADS_DIR         = /tmp/Rheoson/downloads
 
 <span class="code-comment"># Web service env vars:</span>
-VITE_API_URL = https://shulker-api-vnny.onrender.com
+VITE_API_URL = https://Rheoson-api-vnny.onrender.com
 
 <span class="code-comment"># Note: free tier sleeps after 15 min inactivity</span>
 <span class="code-comment"># First request after sleep takes ~30 s to wake</span></pre>
@@ -948,14 +948,14 @@ VITE_API_URL = https://shulker-api-vnny.onrender.com
             </p>
             <div class="hero-actions">
                <a
-                  href="https://github.com/picklem0b/shulker"
+                  href="https://github.com/picklem0b/Rheoson"
                   target="_blank"
                   rel="noopener"
                   class="btn-primary">
                   View on GitHub
                </a>
                <a
-                  href="https://shulker-web.onrender.com"
+                  href="https://Rheoson-web.onrender.com"
                   target="_blank"
                   rel="noopener"
                   class="btn-secondary">
@@ -980,28 +980,28 @@ VITE_API_URL = https://shulker-api-vnny.onrender.com
                >
                ·
                <a
-                  href="https://github.com/picklem0b/shulker/blob/main/LICENSE"
+                  href="https://github.com/picklem0b/Rheoson/blob/main/LICENSE"
                   target="_blank"
                   rel="noopener"
                   >MIT Licence</a
                >
                ·
                <a
-                  href="https://github.com/picklem0b/shulker/blob/main/docs/PRIVACY.md"
+                  href="https://github.com/picklem0b/Rheoson/blob/main/docs/PRIVACY.md"
                   target="_blank"
                   rel="noopener"
                   >Privacy</a
                >
                ·
                <a
-                  href="https://github.com/picklem0b/shulker/blob/main/docs/CHANGELOG.md"
+                  href="https://github.com/picklem0b/Rheoson/blob/main/docs/CHANGELOG.md"
                   target="_blank"
                   rel="noopener"
                   >Changelog</a
                >
                ·
                <a
-                  href="https://github.com/picklem0b/shulker/issues"
+                  href="https://github.com/picklem0b/Rheoson/issues"
                   target="_blank"
                   rel="noopener"
                   >Issues</a

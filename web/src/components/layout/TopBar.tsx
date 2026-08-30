@@ -30,11 +30,11 @@ export default function TopBar({
         <div className="flex items-center gap-2.5 flex-1">
           <img
             src="/assets/logo.png"
-            alt="Shulker"
+            alt="Rheoson"
             className="w-8 h-8 rounded-xl object-cover"
             style={{ boxShadow: '0 0 8px var(--accent-subtle)' }}
           />
-          <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight">Shulker</span>
+          <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight">Rheoson</span>
         </div>
       ) : (
         <>

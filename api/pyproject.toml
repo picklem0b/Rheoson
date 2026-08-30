@@ -1,6 +1,6 @@
 [project]
-name = "shulker-api"
-version = "2.10.25"
+name = "rheoson-api"
+version = "2.11.0"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.103.2,<0.112",
@@ -42,7 +42,7 @@ dev = [
 ]
 
 [project.scripts]
-shulker = "app.cli:main"
+rheoson = "app.cli:main"
 
 [tool.black]
 line-length = 100

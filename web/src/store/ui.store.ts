@@ -98,7 +98,7 @@ export const useUIStore = create<UIStore>()(
       },
     }),
     {
-      name: 'shulker-ui',
+      name: 'rheoson-ui',
       partialize: (s) => ({
         sidebarCollapsed: s.sidebarCollapsed,
         navStyle:         s.navStyle,

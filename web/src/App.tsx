@@ -24,8 +24,8 @@ function usePlayerErrorToast() {
         4000
       )
     }
-    window.addEventListener('shulker:play-error', handler)
-    return () => window.removeEventListener('shulker:play-error', handler)
+    window.addEventListener('rheoson:play-error', handler)
+    return () => window.removeEventListener('rheoson:play-error', handler)
   }, [toast])
 }
 

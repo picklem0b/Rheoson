@@ -1,4 +1,4 @@
-# Shulker — Git Workflow
+# Rheoson — Git Workflow
 
 ## Branch strategy
 
@@ -84,7 +84,7 @@ git push origin main
 
 ## Tagging releases
 
-Shulker uses semantic versioning: `vMAJOR.MINOR.PATCH[-rc]`
+Rheoson uses semantic versioning: `vMAJOR.MINOR.PATCH[-rc]`
   - `rc` = release candidate (still being tested)
   - no suffix = stable release
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const SPLASH_KEY   = 'shulker-splash-last'
+const SPLASH_KEY   = 'rheoson-splash-last'
 const COOLDOWN_MS  = 1000 * 60 * 30   // 30 min cooldown — shows on fresh load or after 30 min
 
 export function useSplash() {

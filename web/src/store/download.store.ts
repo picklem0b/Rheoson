@@ -41,7 +41,7 @@ export const useDownloadStore = create<DownloadStore>()(
         get().jobs.find((j) => j.id === id),
     }),
     {
-      name: 'shulker-downloads',
+      name: 'rheoson-downloads',
       // Only persist completed/error jobs — in-flight jobs can't resume after
       // a page reload anyway, so drop them to avoid ghost "Downloading" entries.
       partialize: (s) => ({

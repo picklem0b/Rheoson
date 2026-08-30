@@ -251,20 +251,20 @@ export function usePlayer() {
                 },
 
                 onloaderror(_id, err) {
-                    console.error('[Shulker] load error', { trackId, url, err });
+                    console.error('[Rheoson] load error', { trackId, url, err });
                     setLoading(false);
                     setPlaying(false);
                     _loadedId = null;
                     // Dispatch event so UI can show retry toast
                     window.dispatchEvent(
-                        new CustomEvent('shulker:play-error', {
+                        new CustomEvent('rheoson:play-error', {
                             detail: { trackId, error: String(err) },
                         })
                     );
                 },
 
                 onplayerror(_id, err) {
-                    console.error('[Shulker] play error', { trackId, err });
+                    console.error('[Rheoson] play error', { trackId, err });
                     // BUG FIX: Auto-recover from play errors by destroying
                     // the current Howl and rebuilding from saved position.
                     // This fixes the broken play button after a stream error.
@@ -288,7 +288,7 @@ export function usePlayer() {
                                 setLoading(false);
                                 _loadedId = null;
                                 window.dispatchEvent(
-                                    new CustomEvent('shulker:play-error', {
+                                    new CustomEvent('rheoson:play-error', {
                                         detail: { trackId, error: String(err) },
                                     })
                                 );
@@ -301,7 +301,7 @@ export function usePlayer() {
                     _loadedId = null;
                     // Dispatch event so UI can show retry toast
                     window.dispatchEvent(
-                        new CustomEvent('shulker:play-error', {
+                        new CustomEvent('rheoson:play-error', {
                             detail: { trackId, error: String(err), savedPos },
                         })
                     );
@@ -333,9 +333,9 @@ export function usePlayer() {
         const handler = () => {
             if (currentTrack?.id) loadAndPlay(currentTrack.id, true, true, 0);
         };
-        window.addEventListener('shulker:restart-track', handler);
+        window.addEventListener('rheoson:restart-track', handler);
         return () =>
-            window.removeEventListener('shulker:restart-track', handler);
+            window.removeEventListener('rheoson:restart-track', handler);
     }, [currentTrack?.id, loadAndPlay]);
 
     // ── Volume sync ────────────────────────────────────────────

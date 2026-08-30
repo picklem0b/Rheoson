@@ -160,7 +160,7 @@ export default function DownloadsSection() {
          <SettingsGroup title='Save location'>
             <SettingsRow
                label='Custom path'
-               description={customPath || "Default Shulker music directory"}
+               description={customPath || "Default Rheoson music directory"}
                onClick={() => {
                   setPathInput(customPath);
                   setEditingPath(!editingPath);

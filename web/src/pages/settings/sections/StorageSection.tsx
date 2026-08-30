@@ -34,7 +34,7 @@ interface AudioFile {
 }
 
 const DEFAULT_DIRS: Dir[] = [
-   { path: "/data/data/com.termux/files/home/shulker/music", active: true },
+   { path: "/data/data/com.termux/files/home/Rheoson/music", active: true },
    { path: "/storage/emulated/0/Music", active: true },
    { path: "/storage/emulated/0/Download", active: false }
 ];
@@ -127,7 +127,7 @@ export default function StorageSection() {
       const url = URL.createObjectURL(blob);
       const a = Object.assign(document.createElement("a"), {
          href: url,
-         download: `shulker-library-${new Date().toISOString().slice(0, 10)}.json`
+         download: `rheoson-library-${new Date().toISOString().slice(0, 10)}.json`
       });
       a.click();
       URL.revokeObjectURL(url);

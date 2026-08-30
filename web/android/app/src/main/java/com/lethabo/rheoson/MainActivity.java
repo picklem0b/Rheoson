@@ -1,4 +1,4 @@
-package com.lethabo.shulker;
+package com.lethabo.rheoson;
 
 import com.getcapacitor.BridgeActivity;
 

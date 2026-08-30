@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Shulker CLI — talk to the API from your terminal.
+Rheoson CLI — talk to the API from your terminal.
 Usage: python app/cli.py <command> [args]
 
 Commands:
@@ -45,7 +45,7 @@ WH = "\033[97m"       # white
 def _header():
     print(f"""
 {RD}{B}╔══════════════════════════════════╗
-║         SHULKER  CLI             ║
+║         RHEOSON  CLI             ║
 ║    music. downloaded. played.    ║
 ╚══════════════════════════════════╝{R}
 """)
@@ -396,7 +396,7 @@ async def cmd_interactive():
 
     while True:
         try:
-            raw   = input(f"  {RD}shulker{R} {DIM}›{R} ").strip()
+            raw   = input(f"  {RD}Rheoson{R} {DIM}›{R} ").strip()
             parts = raw.split(None, 1)
             if not parts:
                 continue
@@ -479,17 +479,17 @@ def main():
         case "search":
             q = " ".join(args[1:])
             if not q:
-                print("Usage: shulker search <query>")
+                print("Usage: Rheoson search <query>")
                 sys.exit(1)
             asyncio.run(cmd_search(q))
         case "resolve":
             if len(args) < 2:
-                print("Usage: shulker resolve <url>")
+                print("Usage: Rheoson resolve <url>")
                 sys.exit(1)
             asyncio.run(cmd_resolve(args[1]))
         case "dl" | "download":
             if len(args) < 2:
-                print("Usage: shulker dl <query or url>")
+                print("Usage: Rheoson dl <query or url>")
                 sys.exit(1)
             fmt     = "mp3"
             quality = "320"
@@ -501,22 +501,22 @@ def main():
             asyncio.run(cmd_downloads())
         case "status":
             if len(args) < 2:
-                print("Usage: shulker status <job_id>")
+                print("Usage: Rheoson status <job_id>")
                 sys.exit(1)
             asyncio.run(cmd_status(args[1]))
         case "cancel":
             if len(args) < 2:
-                print("Usage: shulker cancel <job_id>")
+                print("Usage: Rheoson cancel <job_id>")
                 sys.exit(1)
             asyncio.run(cmd_cancel(args[1]))
         case "stream":
             if len(args) < 2:
-                print("Usage: shulker stream <track_id>")
+                print("Usage: Rheoson stream <track_id>")
                 sys.exit(1)
             asyncio.run(cmd_stream(args[1]))
         case "lyrics":
             if len(args) < 2:
-                print("Usage: shulker lyrics <track_id>")
+                print("Usage: Rheoson lyrics <track_id>")
                 sys.exit(1)
             asyncio.run(cmd_lyrics(args[1]))
         case "lib" | "library":

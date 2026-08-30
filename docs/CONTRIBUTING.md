@@ -1,14 +1,14 @@
-# Contributing to Shulker
+# Contributing to Rheoson
 
-Shulker is a personal project. Contributions are welcome but the bar is high — production-grade only, no placeholders, no half-finished work.
+Rheoson is a personal project. Contributions are welcome but the bar is high — production-grade only, no placeholders, no half-finished work.
 
 ---
 
 ## Setup
 
 ```bash
-git clone https://github.com/picklem0b/shulker
-cd shulker
+git clone https://github.com/picklem0b/Rheoson
+cd Rheoson
 ```
 
 **Backend**
