@@ -29,6 +29,9 @@ dependencies = [
     # Cron scheduling — powers the 30-min library scan, daily yt-dlp update,
     # and 6-hourly download job cleanup defined in app/main.py.
     "apscheduler>=3.10.0,<4",
+    # MongoDB async driver and helpers
+    "motor>=3.5.0,<4",
+    "pymongo>=4.7.0,<5",
 ]
 
 [project.optional-dependencies]

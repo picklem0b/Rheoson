@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     SPOTIFY_CLIENT_ID:     str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
 
+    # ── MongoDB ────────────────────────────────────────────────
+    MONGODB_URL:    str = "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "rheoson"
+
     # CORS_ORIGINS is an ADDITIVE override — extra origins beyond the
     # hardcoded builtins in main.py. Set on Render as:
     #   CORS_ORIGINS=https://my-custom-domain.com
@@ -37,9 +41,9 @@ class Settings(BaseSettings):
     #   CORS_ORIGINS=["https://a.com","https://b.com"]
     # Leave unset to rely solely on the builtins (recommended).
     CORS_ORIGINS: list[str] = [
-        "https://Rheoson-web.onrender.com",
-        "https://Rheoson-api-vnny.onrender.com",
-        "https://Rheoson.onrender.com",
+        "https://rheoson-web.onrender.com",
+        "https://rheoson-api-vnny.onrender.com",
+        "https://rheoson.onrender.com",
     ]
 
     # ── Computed ──────────────────────────────────────────────

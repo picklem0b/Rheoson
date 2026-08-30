@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.config import settings
 from app.core.logging_config import configure_logging
+from app.core.database import connect_db, close_db
 from app.core.exceptions import (
     RheosonException,
     Rheoson_exception_handler,
@@ -229,11 +230,13 @@ async def lifespan(_app: FastAPI):
     scheduler.add_job(_cron_library_scan,  "interval", minutes=30, id="library_scan", replace_existing=True)
     scheduler.add_job(_cron_ytdlp_update,  "cron", hour=3,         id="ytdlp_update", replace_existing=True)
     scheduler.add_job(_cron_job_cleanup,   "interval", hours=6,    id="job_cleanup",  replace_existing=True)
+    await connect_db()
     scheduler.start()
 
     log.info("Rheoson.api.ready", cron_jobs=[j.id for j in scheduler.get_jobs()])
     yield
     scheduler.shutdown(wait=False)
+    await close_db()
     log.info("Rheoson.api.stopped")
 
 app.router.lifespan_context = lifespan
