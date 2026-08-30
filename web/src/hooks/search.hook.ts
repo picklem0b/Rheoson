@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { searchApi, resolveToTracks } from "@/api/search.api";
 import { isAbortError } from "@/api/client.api";
 import { API_BASE } from "@/lib/constants";
+import { prefetchSearchResults } from "@/lib/prefetch";
 import type { SearchResults, SearchFilter } from "@/types/search.types";
 import type { Track } from "@/types/track.types";
 import { detectInputType } from "@/lib/utils";
@@ -55,19 +56,14 @@ function writeSession(query: string, filter: SearchFilter) {
 // request doesn't download audio — it just warms the yt-dlp process and
 // caches the resolved format URL in the backend's request cache.
 
-const PREWARM_N = 3;
+const PREWARM_N = 5;
 
 function prewarmTracks(tracks: Track[]) {
-   tracks.slice(0, PREWARM_N).forEach(t => {
-      // Build the absolute stream URL using the same helper that Howler uses
-      const url = `${API_BASE}/stream/${t.id}/audio`;
-      fetch(url, {
-         method: "HEAD",
-         // signal with 8s timeout so a sleeping Render instance doesn't
-         // leave these hanging forever
-         signal: AbortSignal.timeout(8_000)
-      }).catch(() => {}); // prewarm is best-effort — never throw
-   });
+   // Use the new prefetch utility for stream URL warming
+   prefetchSearchResults(
+      tracks.map((t) => t.id),
+      PREWARM_N
+   );
 }
 
 // ── Hook ──────────────────────────────────────────────────────

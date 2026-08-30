@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Track } from '@/types/track.types';
 import type { RepeatMode } from '@/types/player.types';
+import { prefetchStream } from '@/lib/prefetch';
 
 interface PlayerStore {
     // Playback state
@@ -47,17 +48,18 @@ export const usePlayerStore = create<PlayerStore>()(
             repeatMode: 'off',
             isShuffled: false,
 
-            setTrack: track =>
+            setTrack: track => {
                 set({
                     currentTrack: track,
                     isPlaying: false,
                     isLoading: false,
                     progress: 0,
                     duration: 0,
-                    // Reset savedProgress when switching to a different track so
-                    // resume always starts from 0 on a fresh track selection.
                     savedProgress: 0
-                }),
+                });
+                // Prefetch stream URL for instant playback
+                if (track?.id) prefetchStream(track.id);
+            },
 
             setPlaying: v => set({ isPlaying: v }),
             setLoading: v => set({ isLoading: v }),
