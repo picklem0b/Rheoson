@@ -10,6 +10,8 @@ import Playlist from '@/pages/playlist/Playlist'
 import Album from '@/pages/album/Album'
 import Artist from '@/pages/artist/Artist'
 import NotFound from '@/pages/errors/NotFound'
+import Login from '@/pages/auth/Login'
+import Register from '@/pages/auth/Register'
 
 // Home section "See all" pages — these live under pages/home/components/
 // because they only exist as drill-downs from Home's sections, not as
@@ -48,6 +50,8 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '/now-playing', element: <NowPlaying /> },
+  { path: '/login',       element: <Login /> },
+  { path: '/register',    element: <Register /> },
   // 404 for the /now-playing catch-all
   { path: '*',            element: <NotFound /> },
 ])

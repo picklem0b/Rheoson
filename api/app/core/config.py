@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     MONGODB_URL:    str = "mongodb://localhost:27017"
     MONGODB_DB_NAME: str = "rheoson"
 
+    # ── Auth / JWT ─────────────────────────────────────────────
+    SECRET_KEY:                str = "rheoson-dev-secret-change-in-production"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
     # CORS_ORIGINS is an ADDITIVE override — extra origins beyond the
     # hardcoded builtins in main.py. Set on Render as:
     #   CORS_ORIGINS=https://my-custom-domain.com

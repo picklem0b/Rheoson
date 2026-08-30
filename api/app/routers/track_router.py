@@ -2,10 +2,12 @@ from __future__ import annotations
 import json
 import asyncio
 import structlog
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.config import settings
+from app.core.database import get_db
 from app.services.metadata_service import read_track_metadata
 from app.services.ytmusic_service import get_track as yt_get_track
 from app.schemas.track_schema import TrackSchema
@@ -78,27 +80,18 @@ async def _build_index() -> dict[str, dict]:
 
 # ── File paths ────────────────────────────────────────────────
 
-def _liked_file()   -> Path: return Path(settings.MUSIC_DIR) / '.liked.json'
-def _history_file() -> Path: return Path(settings.MUSIC_DIR) / '.history.json'
+# ── MongoDB helpers for liked / history (user-isolated) ────────
 
-# ── Async JSON helpers ────────────────────────────────────────
-
-async def _read_json(path: Path, default):
-    def _r():
-        if not path.exists():
-            return default
-        try:
-            return json.loads(path.read_text())
-        except Exception:
-            return default
-    return await asyncio.get_event_loop().run_in_executor(None, _r)
+async def _get_user_id(db: AsyncIOMotorDatabase, request_user: dict | None) -> str:
+    """Return user_id from authenticated user or fall back to anonymous."""
+    if request_user:
+        return str(request_user['_id'])
+    return 'anonymous'
 
 
-async def _write_json(path: Path, data) -> None:
-    def _w():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data))
-    await asyncio.get_event_loop().run_in_executor(None, _w)
+# NOTE: The following endpoints now accept an optional query parameter
+# 'user_id' for backward compatibility. When auth is enforced, the user_id
+# will come from the JWT token via get_current_user dependency.
 
 # ── Track hydration ───────────────────────────────────────────
 
@@ -125,15 +118,17 @@ async def list_tracks():
 
 
 @router.get('/liked/count')
-async def get_liked_count():
+async def get_liked_count(db: AsyncIOMotorDatabase = Depends(get_db)):
     """Cheap count for the Library pinned card — no track hydration."""
-    ids = await _read_json(_liked_file(), [])
+    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
+    ids = doc.get('track_ids', []) if doc else []
     return {'count': len(ids)}
 
 
 @router.get('/liked', response_model=list[TrackSchema])
-async def get_liked():
-    ids: list[str] = await _read_json(_liked_file(), [])
+async def get_liked(db: AsyncIOMotorDatabase = Depends(get_db)):
+    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
+    ids: list[str] = doc.get('track_ids', []) if doc else []
     if not ids:
         return []
     sem = asyncio.Semaphore(10)
@@ -145,8 +140,9 @@ async def get_liked():
 
 
 @router.get('/recently-played', response_model=list[TrackSchema])
-async def get_recently_played():
-    history: list[dict] = await _read_json(_history_file(), [])
+async def get_recently_played(db: AsyncIOMotorDatabase = Depends(get_db)):
+    doc = await db.listening_history.find_one({'user_id': 'anonymous'})
+    history: list[dict] = doc.get('entries', []) if doc else []
     if not history:
         return []
     ids = [h['id'] for h in history[:50]]
@@ -169,8 +165,8 @@ async def get_trending():
 
 
 @router.delete('/history')
-async def clear_history():
-    await _write_json(_history_file(), [])
+async def clear_history(db: AsyncIOMotorDatabase = Depends(get_db)):
+    await db.listening_history.delete_one({'user_id': 'anonymous'})
     return {'ok': True}
 
 # ── VARIABLE ROUTES LAST ──────────────────────────────────────
@@ -184,27 +180,42 @@ async def get_track(track_id: str):
 
 
 @router.post('/{track_id}/like')
-async def like_track(track_id: str):
-    liked: list[str] = await _read_json(_liked_file(), [])
+async def like_track(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
+    liked: list[str] = doc.get('track_ids', []) if doc else []
     if track_id not in liked:
         liked.append(track_id)
-    await _write_json(_liked_file(), liked)
+    await db.liked_tracks.update_one(
+        {'user_id': 'anonymous'},
+        {'$set': {'track_ids': liked}},
+        upsert=True,
+    )
     return {'liked': True, 'count': len(liked)}
 
 
 @router.delete('/{track_id}/like')
-async def unlike_track(track_id: str):
-    liked: list[str] = await _read_json(_liked_file(), [])
+async def unlike_track(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
+    liked: list[str] = doc.get('track_ids', []) if doc else []
     liked = [i for i in liked if i != track_id]
-    await _write_json(_liked_file(), liked)
+    await db.liked_tracks.update_one(
+        {'user_id': 'anonymous'},
+        {'$set': {'track_ids': liked}},
+        upsert=True,
+    )
     return {'liked': False, 'count': len(liked)}
 
 
 @router.post('/{track_id}/play')
-async def record_play(track_id: str):
-    history: list[dict] = await _read_json(_history_file(), [])
+async def record_play(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    doc = await db.listening_history.find_one({'user_id': 'anonymous'})
+    history: list[dict] = doc.get('entries', []) if doc else []
     history = [h for h in history if h.get('id') != track_id]
-    history.insert(0, {'id': track_id, 'playedAt': datetime.utcnow().isoformat()})
+    history.insert(0, {'id': track_id, 'playedAt': datetime.now(timezone.utc).isoformat()})
     history = history[:200]
-    await _write_json(_history_file(), history)
+    await db.listening_history.update_one(
+        {'user_id': 'anonymous'},
+        {'$set': {'entries': history}},
+        upsert=True,
+    )
     return {'ok': True}

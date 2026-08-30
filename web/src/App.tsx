@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion'
 import { Howler } from 'howler'
 import { router } from './router'
 import { useThemeStore } from '@/store/theme.store'
+import { useAuthStore } from '@/store/auth.store'
 import { useKeyboardShortcuts } from '@/hooks/keyboardShortcuts.hook'
 import { useMediaSession } from '@/hooks/mediaSession.hook'
 import { useToast } from '@/components/ui/Toaster'
@@ -40,12 +41,18 @@ function AppInner() {
 // ── Root ──────────────────────────────────────────────────────
 export default function App() {
   const initTheme       = useThemeStore((s) => s.initTheme)
+  const initializeAuth  = useAuthStore((s) => s.initialize)
   const { show, dismiss } = useSplash()
 
   // Apply saved theme on mount
   useEffect(() => {
     initTheme()
   }, [initTheme])
+
+  // Validate stored auth token on mount
+  useEffect(() => {
+    initializeAuth()
+  }, [initializeAuth])
 
   // Unlock Web Audio context on first user gesture
   // Required on mobile browsers — audio won't play until unlocked

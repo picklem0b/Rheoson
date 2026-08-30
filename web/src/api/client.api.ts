@@ -44,6 +44,15 @@ async function request<T>(
    if (!BODY_FREE.has(method) && init.body != null) {
       headers["Content-Type"] = "application/json";
    }
+   // Inject JWT token if present
+   try {
+      const raw = localStorage.getItem("rheoson-auth");
+      if (raw) {
+         const parsed = JSON.parse(raw);
+         const token = parsed?.state?.token;
+         if (token) headers["Authorization"] = `Bearer ${token}`;
+      }
+   } catch { /* ignore */ }
 
    let res: Response;
 
@@ -86,6 +95,11 @@ async function request<T>(
    }
 
    if (!res.ok) {
+      // Auto-redirect to login on 401
+      if (res.status === 401 && !endpoint.includes("/api/auth/")) {
+         localStorage.removeItem("rheoson-auth");
+         window.location.href = "/login";
+      }
       let detail = `HTTP ${res.status}`;
       try {
          const body = await res.json();
