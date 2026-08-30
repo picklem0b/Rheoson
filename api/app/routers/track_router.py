@@ -10,6 +10,8 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.services.metadata_service import read_track_metadata
 from app.services.ytmusic_service import get_track as yt_get_track
+from app.services.signal_service import record_signal
+from app.models.recommendation import SignalType
 from app.schemas.track_schema import TrackSchema
 
 log    = structlog.get_logger()
@@ -169,6 +171,40 @@ async def clear_history(db: AsyncIOMotorDatabase = Depends(get_db)):
     await db.listening_history.delete_one({'user_id': 'anonymous'})
     return {'ok': True}
 
+# ── Signal reporting ─────────────────────────────────────────
+
+@router.post('/signals')
+async def report_signal(body: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Record a behavioral signal from the frontend.
+    
+    Accepts: { signal, track_id?, artist?, progress?, context? }
+    """
+    signal_str = body.get('signal')
+    try:
+        signal_type = SignalType(signal_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f'Unknown signal: {signal_str}')
+    
+    # Hydrate artist info if not provided
+    artist = body.get('artist')
+    if not artist and body.get('track_id'):
+        t = await _hydrate_track(body['track_id'])
+        if t:
+            artist = t.get('artist', {}).get('name')
+    
+    await record_signal(
+        db,
+        user_id='anonymous',
+        signal=signal_type,
+        track_id=body.get('track_id'),
+        artist=artist,
+        progress=body.get('progress'),
+        session_id=body.get('session_id'),
+        context=body.get('context', {}),
+    )
+    return {'ok': True}
+
+
 # ── VARIABLE ROUTES LAST ──────────────────────────────────────
 
 @router.get('/{track_id}', response_model=TrackSchema)
@@ -190,6 +226,9 @@ async def like_track(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
         {'$set': {'track_ids': liked}},
         upsert=True,
     )
+    # Record signal for recommendation engine
+    t = await _hydrate_track(track_id)
+    await record_signal(db, user_id='anonymous', signal=SignalType.LIKE, track_id=track_id, artist=t.get('artist', {}).get('name') if t else None)
     return {'liked': True, 'count': len(liked)}
 
 
@@ -203,6 +242,7 @@ async def unlike_track(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)
         {'$set': {'track_ids': liked}},
         upsert=True,
     )
+    await record_signal(db, user_id='anonymous', signal=SignalType.UNLIKE, track_id=track_id)
     return {'liked': False, 'count': len(liked)}
 
 
@@ -218,4 +258,7 @@ async def record_play(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db))
         {'$set': {'entries': history}},
         upsert=True,
     )
+    # Record signal for recommendation engine
+    t = await _hydrate_track(track_id)
+    await record_signal(db, user_id='anonymous', signal=SignalType.PLAY_START, track_id=track_id, artist=t.get('artist', {}).get('name') if t else None)
     return {'ok': True}

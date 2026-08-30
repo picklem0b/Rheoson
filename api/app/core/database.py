@@ -22,6 +22,13 @@ async def connect_db() -> None:
     await _db.playlists.create_index("user_id")
     await _db.liked_tracks.create_index("user_id")
     await _db.listening_history.create_index("user_id")
+    # Recommendation indexes
+    await _db.user_signals.create_index([("user_id", 1), ("timestamp", -1)])
+    await _db.user_signals.create_index([("user_id", 1), ("signal", 1), ("timestamp", -1)])
+    await _db.user_signals.create_index([("user_id", 1), ("artist", 1)])
+    await _db.user_signals.create_index([("user_id", 1), ("track_id", 1)])
+    await _db.taste_profiles.create_index("user_id", unique=True)
+    await _db.user_recommendations.create_index("user_id", unique=True)
 
 
 async def close_db() -> None:
