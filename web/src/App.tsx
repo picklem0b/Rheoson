@@ -9,6 +9,7 @@ import { useKeyboardShortcuts } from '@/hooks/keyboardShortcuts.hook'
 import { useMediaSession } from '@/hooks/mediaSession.hook'
 import { useToast } from '@/components/ui/Toaster'
 import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
+import { startVersionCheck } from '@/lib/versionCheck'
 
 // ── Player error toast ────────────────────────────────────────
 function usePlayerErrorToast() {
@@ -43,6 +44,7 @@ export default function App() {
   const initTheme       = useThemeStore((s) => s.initTheme)
   const initializeAuth  = useAuthStore((s) => s.initialize)
   const { show, dismiss } = useSplash()
+  const { toast } = useToast()
 
   // Apply saved theme on mount
   useEffect(() => {
@@ -53,6 +55,13 @@ export default function App() {
   useEffect(() => {
     initializeAuth()
   }, [initializeAuth])
+
+  // Check for app updates periodically
+  useEffect(() => {
+    return startVersionCheck((info) => {
+      toast(`New version ${info.version} available!`, 'info');
+    });
+  }, [toast])
 
   // Unlock Web Audio context on first user gesture
   // Required on mobile browsers — audio won't play until unlocked

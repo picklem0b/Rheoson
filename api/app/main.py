@@ -383,6 +383,15 @@ async def health():
     })
 
 
+@app.get("/api/version", tags=["version"])
+async def version_info():
+    return JSONResponse({
+        "version":     VERSION,
+        "name":        "Rheoson",
+        "releaseDate": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+    })
+
+
 # ── Library aggregates ────────────────────────────────────────
 
 @app.get("/api/library/featured", tags=["library"])
