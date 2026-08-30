@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
@@ -6,6 +7,7 @@ import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
 import { tracksApi } from '@/api/tracks.api'
 import { libraryApi } from '@/api/library.api'
+import { recommendationsApi, type RecommendationSection } from '@/api/recommendations.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
@@ -272,6 +274,84 @@ function EmptyHome() {
   )
 }
 
+// ── Recommended tracks list ─────────────────────────────────
+
+function RecommendedTracks({ trackIds, title }: { trackIds: string[]; title: string }) {
+  const { playTrack }  = useQueue()
+  const currentTrack   = usePlayerStore((s) => s.currentTrack)
+  const isPlaying      = usePlayerStore((s) => s.isPlaying)
+  const [tracks, setTracks] = useState<Track[]>([])
+
+  // Hydrate track IDs into full track objects
+  useEffect(() => {
+    if (!trackIds.length) return
+    let cancelled = false
+    Promise.all(
+      trackIds.slice(0, 12).map(id => tracksApi.getTrack(id).catch(() => null))
+    ).then(results => {
+      if (!cancelled) setTracks(results.filter(Boolean) as Track[])
+    })
+    return () => { cancelled = true }
+  }, [trackIds])
+
+  if (!tracks.length) return null
+
+  return (
+    <div className="space-y-1">
+      {tracks.map((track, i) => {
+        const active = currentTrack?.id === track.id
+        return (
+          <motion.button
+            key={track.id}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.04 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => playTrack(track, tracks)}
+            className={cn(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
+              active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',
+            )}
+          >
+            <div className="relative flex-shrink-0">
+              {track.artworkUrl
+                ? <img src={track.artworkUrl} alt={track.title} className="w-11 h-11 rounded-xl object-cover" />
+                : <div className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)]" />
+              }
+              {active && isPlaying && (
+                <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center">
+                  <div className="flex gap-[2px] items-end h-3">
+                    {[0, 1, 2].map((j) => (
+                      <motion.div
+                        key={j}
+                        className="w-[2px] bg-white rounded-full"
+                        animate={{ height: ['40%', '100%', '60%'] }}
+                        transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={cn(
+                'text-sm font-semibold truncate',
+                active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
+              )}>
+                {track.title}
+              </p>
+              <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist.name}</p>
+            </div>
+            <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
+              {formatDuration(track.duration)}
+            </span>
+          </motion.button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────
 
 export default function Home() {
@@ -281,6 +361,13 @@ export default function Home() {
     queryKey:  ['recently-played'],
     queryFn:   () => tracksApi.getRecentlyPlayed(16),
     staleTime: 30_000,
+    retry:     1,
+  })
+
+  const { data: recs, isLoading: loadingRecs } = useQuery({
+    queryKey:  ['recommendations', 'home'],
+    queryFn:   () => recommendationsApi.getHome(),
+    staleTime: 5 * 60_000,
     retry:     1,
   })
 
@@ -306,6 +393,9 @@ export default function Home() {
   const hasFeatured = featured.length > 0
   const hasAnything = hasRecent || hasTrending || hasFeatured
   const allDone     = !loadingRecent && !loadingTrending && !loadingFeatured
+
+  // Find personalized "for you" section from recommendation engine
+  const forYouSection = recs?.sections?.find((s: RecommendationSection) => s.section_id === 'for_you')
 
   return (
     <ScrollArea className="h-full">
@@ -345,6 +435,17 @@ export default function Home() {
               ? <div className="flex gap-4 -mx-4 px-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="w-44 h-44 rounded-3xl flex-shrink-0" />)}</div>
               : <FeaturedCarousel items={featured} />
             }
+          </section>
+        )}
+
+        {(!loadingRecs && forYouSection && forYouSection.track_ids.length > 0) && (
+          <section>
+            <SectionHeader
+              icon={Sparkles}
+              title={forYouSection.title}
+              subtitle="Based on your listening"
+            />
+            <RecommendedTracks trackIds={forYouSection.track_ids} title={forYouSection.title} />
           </section>
         )}
 

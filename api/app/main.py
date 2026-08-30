@@ -36,6 +36,7 @@ from app.routers import (
     playlist_router as playlists,
     settings_router,
     auth_router,
+    recommendation_router,
 )
 
 configure_logging()
@@ -267,6 +268,7 @@ app.include_router(lyrics.router,          prefix="/api/lyrics",    tags=["lyric
 app.include_router(playlists.router,       prefix="/api/playlists", tags=["playlists"])
 app.include_router(settings_router.router, prefix="/api/settings",  tags=["settings"])
 app.include_router(auth_router.router,      prefix="/api/auth",      tags=["auth"])
+app.include_router(recommendation_router.router, prefix="/api/recommendations", tags=["recommendations"])
 
 
 # ── Root — NO redirect ────────────────────────────────────────
