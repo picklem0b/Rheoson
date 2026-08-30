@@ -1,16 +1,14 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import RootLayout from '@/components/layout/RootLayout'
 import Home from '@/pages/home/Home'
 import Search from '@/pages/search/Search'
 import Library from '@/pages/library/Library'
-import Playlists from '@/pages/playlists/Playlists'
 import Downloads from '@/pages/downloads/Downloads'
 import Settings from '@/pages/settings/Settings'
 import NowPlaying from '@/pages/nowplaying/NowPlaying'
 import Playlist from '@/pages/playlist/Playlist'
 import Album from '@/pages/album/Album'
 import Artist from '@/pages/artist/Artist'
-import LikedSongs from '@/pages/liked/LikedSongs'
 import NotFound from '@/pages/errors/NotFound'
 
 // Home section "See all" pages — these live under pages/home/components/
@@ -29,13 +27,15 @@ export const router = createBrowserRouter([
       { path: 'home',             element: <Home /> },
       { path: 'search',           element: <Search /> },
       { path: 'library',          element: <Library /> },
-      { path: 'playlists',        element: <Playlists /> },
       { path: 'downloads',        element: <Downloads /> },
       { path: 'settings',         element: <Settings /> },
-      { path: 'liked',            element: <LikedSongs /> },
       { path: 'playlist/:id',     element: <Playlist /> },
       { path: 'album/:id',        element: <Album /> },
       { path: 'artist/:id',       element: <Artist /> },
+
+      // Legacy redirects — keep old URLs working
+      { path: 'playlists',        element: <Navigate to="/library" replace /> },
+      { path: 'liked',            element: <Navigate to="/library" replace /> },
 
       // Home section "See all" pages — routed at top level (URLs stay
       // clean, e.g. /trending) even though the components live under home/

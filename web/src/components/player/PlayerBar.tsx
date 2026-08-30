@@ -177,7 +177,7 @@ export default function PlayerBar() {
 
                   {/* Centre controls (desktop) */}
                   <div className='hidden sm:flex items-center'>
-                     <PlayerControls compact />
+                     <PlayerControls />
                   </div>
 
                   {/* Play/pause only (mobile) */}

@@ -1,7 +1,7 @@
 # CLAUDE.md — Shulker Codebase Context
 
 > Single source of truth for any AI working on Shulker. Read this before touching any file.
-> Version: 1.3.0 · Updated: 2026-08-16
+> Version: 2.10.25 · Updated: 2026-08-30
 
 ---
 
@@ -9,7 +9,7 @@
 
 Shulker is a self-hosted music streaming and download app. No subscription, no ads. Users stream from YouTube Music, download tracks locally, manage playlists, and play back offline. Primary deployment target is a personal Termux environment on Android — the backend runs on-device at `127.0.0.1:8000`, the frontend is loaded in a Capacitor WebView as a native APK. A secondary cloud deployment exists on Render (free tier, ephemeral disk).
 
-**Version:** `1.3.0` in both `api/pyproject.toml` and `web/package.json`. Keep these in sync.  
+**Version:** `2.10.25` in `api/pyproject.toml`, `web/package.json`, `web/src/lib/constants.ts`, and `api/app/main.py`. Keep these in sync.  
 **App ID (Android):** `com.lethabo.shulker`  
 **Versioning convention:** General Projects (`v(major).(minor).(patch)`), annotated tags, `--follow-tags` always.
 
@@ -89,14 +89,13 @@ shulker/
 │   │   ├── pages/            # Route-level components
 │   │   │   ├── home/Home.tsx                    # Sections: featured, trending, recent
 │   │   │   ├── search/Search.tsx                # Full-featured search page
-│   │   │   ├── library/Library.tsx              # Tabs: Songs, Albums, Artists, Playlists
+│   │   │   ├── library/Library.tsx              # Tabs: Liked, Playlists, Albums, Artists
 │   │   │   ├── nowplaying/NowPlaying.tsx        # Fullscreen player sheet
-│   │   │   ├── downloads/Downloads.tsx          # Active + completed downloads
-│   │   │   ├── settings/Settings.tsx            # Tabbed settings shell
+│   │   │   ├── downloads/Downloads.tsx          # Local/Downloaded/Activity tabs
+│   │   │   ├── settings/Settings.tsx            # Sectioned settings shell
 │   │   │   ├── playlist/Playlist.tsx
 │   │   │   ├── album/Album.tsx
-│   │   │   ├── artist/Artist.tsx
-│   │   │   └── liked/LikedSongs.tsx
+│   │   │   └── artist/Artist.tsx
 │   │   ├── components/
 │   │   │   ├── layout/
 │   │   │   │   ├── RootLayout.tsx    # Shell: sidebar + player bar + bottom nav
@@ -286,9 +285,21 @@ Two-tier audio serving:
 ### WebSocket — `api/app/websocket/`
 
 - `ConnectionManager` is a thin singleton wrapper: `ws_manager.init(sio)` called at startup
-- Only events registered: `connect`, `disconnect`, `ping/pong`
+- Pending event queue: events emitted before `init()` are queued and flushed on startup
+- Server-side heartbeat: periodic `server:ping` events with configurable interval/timeout
 - Emit methods: `emit_download_progress`, `emit_download_done`, `emit_download_error`
 - All emits are broadcast (no room targeting) — single-user app
+- CORS: socket CORS uses the same `_ALLOWED_ORIGINS` list as the FastAPI app
+
+### WebSocket Client — `web/src/lib/websocket.lib.ts`
+
+- `_socket: Socket | null` — module-level singleton, one connection for the whole app
+- Lazy connection: socket only connects when the first component mounts and uses it
+- `_refCount` — reference counting; socket disconnected when count hits 0
+- `_registry: Map<event, Set<Handler>>` — deduplication layer preventing double-registration on re-renders
+- `ws` — imperative API for non-hook usage
+- `useWebSocket(options)` — React hook, increments refCount on mount, decrements on unmount
+- `useDownloadSocket(handlers)` — convenience hook wiring `download:progress/done/error`
 
 ### Metadata — `api/app/services/metadata_service.py`
 
@@ -383,13 +394,14 @@ Routes:
 
 - `/` → Home
 - `/search` → Search
-- `/library` → Library
-- `/downloads` → Downloads
-- `/settings` → Settings
-- `/liked` → LikedSongs
+- `/library` → Library (tabs: Liked, Playlists, Albums, Artists)
+- `/downloads` → Downloads (tabs: Local, Downloaded, Activity)
+- `/settings` → Settings (sectioned: Appearance, Layout, Audio, Downloads, etc.)
 - `/playlist/:id` → Playlist
 - `/album/:id` → Album
 - `/artist/:id` → Artist
+- `/liked` → Redirects to `/library`
+- `/playlists` → Redirects to `/library`
 - `/recently-played`, `/trending`, `/featured` → Home section drill-downs
 - `/now-playing` → NowPlaying (outside RootLayout)
 
@@ -721,6 +733,10 @@ Files where a change has wide blast radius — always check these when modifying
 
 - `_build_cache_sync` scans all `settings.all_music_dirs`. If EXTRA_MUSIC_DIRS contains `/sdcard/Music` and the user has thousands of files there, the rebuild is slow.
 
+### 9. WebSocket auto-connect on app load
+
+- The singleton socket was previously `autoConnect: true`, meaning it connected even when no component used it. Now fixed: lazy connection via ref-counting, only connects when the first consumer mounts.
+
 ---
 
 ## V2 Objectives
@@ -740,7 +756,32 @@ Based on the codebase state and known issues, V2 should address:
 
 ---
 
-## Architectural Decisions
+## Architecture Notes
+
+### Version Consistency
+
+All four version numbers must stay in sync:
+- `api/pyproject.toml` → `version = "2.10.25"`
+- `web/package.json` → `"version": "2.10.25"`
+- `web/src/lib/constants.ts` → `APP_VERSION = "2.10.25"`
+- `api/app/main.py` → `VERSION = "2.10.25"`
+
+### CORS Policy
+
+- `_BUILTIN_ORIGINS` in `main.py` lists hardcoded allowed origins (no wildcard `"*"`, no `"null"`)
+- `CORS_ORIGINS` env var adds extra origins additively — never replaces builtins
+- Socket.IO uses the same origin list for its CORS config
+- The `null` origin was removed as a security fix — it could allow origin-spoofing attacks
+
+### Path Traversal Protection
+
+The `/api/settings/directories/browse` endpoint validates that the requested path resolves within a configured music directory. Requests outside those directories return 403.
+
+### WebSocket Lifecycle
+
+- Lazy connection: the socket only connects when the first React component mounts via `useWebSocket()`
+- Ref-counting: each consumer increments `_refCount` on mount, decrements on unmount; socket disconnects when count hits 0
+- Pending event queue: events emitted before `ws_manager.init(sio)` on the backend are queued and flushed on startup
 
 ### Why `socket_app` not `app` as uvicorn target
 

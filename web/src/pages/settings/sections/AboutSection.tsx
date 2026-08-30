@@ -39,7 +39,7 @@ const STACK: { label: string; value: string; url: string }[] = [
    { label: "Capacitor", value: "6", url: "https://capacitorjs.com" }
 ];
 
-const TAGS = ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0", `v${APP_VERSION}`];
+const TAGS = ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0", "v2.10.0", `v${APP_VERSION}`];
 
 export default function AboutSection() {
    const [stats, setStats] = useState<{

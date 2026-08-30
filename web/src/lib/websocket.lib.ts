@@ -5,8 +5,8 @@ import { WS_URL } from "@/lib/constants";
 // ── Singleton socket ──────────────────────────────────────────
 // One Socket.IO connection shared across the entire app.
 // io() takes the SERVER ORIGIN — not the /api path.
-// Using API_BASE here was the root cause of the WebSocket failure
-// on the APK and on prod (it was passing the /api string as the host).
+// Lazy connection: the socket only connects when the first component
+// mounts and uses it, and disconnects when all consumers unmount.
 
 let _socket: Socket | null = null;
 let _refCount: number = 0;
@@ -20,19 +20,20 @@ function _getSocket(): Socket {
          reconnectionDelay: 1_000,
          reconnectionDelayMax: 10_000,
          timeout: 10_000,
-         autoConnect: true
+         // Lazy: don't auto-connect until a component mounts
+         autoConnect: false,
       });
 
       _socket.on("connect", () =>
          console.debug("[Shulker WS] connected", _socket?.id)
       );
-      _socket.on("disconnect", r =>
+      _socket.on("disconnect", (r) =>
          console.debug("[Shulker WS] disconnected", r)
       );
-      _socket.on("connect_error", e =>
+      _socket.on("connect_error", (e) =>
          console.warn("[Shulker WS] error", e.message)
       );
-      _socket.on("reconnect", n =>
+      _socket.on("reconnect", (n) =>
          console.debug("[Shulker WS] reconnected after", n, "attempts")
       );
       _socket.on("reconnect_failed", () =>
@@ -40,6 +41,13 @@ function _getSocket(): Socket {
       );
    }
    return _socket;
+}
+
+function _connectSocket() {
+   const socket = _getSocket();
+   if (!socket.connected) {
+      socket.connect();
+   }
 }
 
 function _releaseSocket() {
@@ -67,7 +75,7 @@ function _addListener(event: string, handler: Handler): void {
 
    if (handlers.size === 0) {
       socket.on(event, (...args: unknown[]) => {
-         _registry.get(event)?.forEach(h => h(...args));
+         _registry.get(event)?.forEach((h) => h(...args));
       });
    }
    handlers.add(handler);
@@ -87,7 +95,7 @@ function _removeListener(event: string, handler: Handler): void {
 
 export const ws = {
    connect() {
-      _getSocket().connect();
+      _connectSocket();
    },
    disconnect() {
       _socket?.disconnect();
@@ -99,11 +107,12 @@ export const ws = {
       _removeListener(event, h);
    },
    emit(event: string, data?: unknown) {
+      _connectSocket(); // ensure connected before emit
       _getSocket().emit(event, data);
    },
    get connected() {
       return _socket?.connected ?? false;
-   }
+   },
 };
 
 // ── React hook ────────────────────────────────────────────────
@@ -115,12 +124,11 @@ interface UseWebSocketOptions {
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
    const optRef = useRef(options);
-   useEffect(() => {
-      optRef.current = options;
-   });
+   optRef.current = options;
 
    useEffect(() => {
       _refCount++;
+      _connectSocket(); // ensure connected when any component mounts
       const socket = _getSocket();
       const onConn = () => optRef.current.onConnect?.();
       const onDisconn = (r: string) => optRef.current.onDisconnect?.(r);
@@ -139,7 +147,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       []
    );
    const emit = useCallback(
-      (e: string, d?: unknown) => _getSocket().emit(e, d),
+      (e: string, d?: unknown) => {
+         _connectSocket();
+         _getSocket().emit(e, d);
+      },
       []
    );
    const isConnected = useCallback(() => _socket?.connected ?? false, []);
@@ -165,9 +176,7 @@ export function useDownloadSocket(handlers: {
 }) {
    const { on, off } = useWebSocket();
    const hRef = useRef(handlers);
-   useEffect(() => {
-      hRef.current = handlers;
-   });
+   hRef.current = handlers;
 
    useEffect(() => {
       const progress = (e: DownloadProgressEvent) =>

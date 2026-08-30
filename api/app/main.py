@@ -39,7 +39,7 @@ from app.routers import (
 configure_logging()
 log = structlog.get_logger()
 
-VERSION     = "2.3.0"
+VERSION     = "2.10.25"
 _START_TIME = time.monotonic()
 
 AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
@@ -54,7 +54,6 @@ _BUILTIN_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8000",
-    "null",
     "capacitor://localhost",
     "http://localhost",
 ]
@@ -100,7 +99,7 @@ _keep_alive_stats: dict = {
 
 
 async def _cron_keep_alive() -> None:
-    url = "https://shulker-api-vnny.onrender.com/api/health"
+    url = f"http://127.0.0.1:{settings.API_PORT}/api/health" if settings.is_dev else f"https://shulker-api-vnny.onrender.com/api/health"
     t0  = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=20) as client:

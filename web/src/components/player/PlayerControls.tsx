@@ -10,13 +10,11 @@ import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/utils'
 
 interface PlayerControlsProps {
-  compact?:    boolean
   mobileOnly?: boolean
   large?:      boolean
 }
 
 export default function PlayerControls({
-  compact: _compact = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   mobileOnly = false,
   large      = false,
 }: PlayerControlsProps) {

@@ -125,7 +125,11 @@ async def browse_directory(path: str):
     List MP3/audio files directly in a given directory path.
     Used by the frontend to preview what music will be found before rescanning.
     """
-    p = Path(path)
+    p = Path(path).resolve()
+    # Path traversal guard: only allow browsing configured music directories
+    allowed_bases = [Path(d).resolve() for d in settings.all_music_dirs_configured]
+    if not any(str(p).startswith(str(base)) for base in allowed_bases):
+        raise HTTPException(status_code=403, detail="Access denied: path outside configured music directories")
     if not p.exists():
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
     if not p.is_dir():
