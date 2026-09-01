@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef } from "react";
 import { Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Toaster } from "@/components/ui/Toaster";
@@ -28,52 +28,27 @@ import { cn } from "@/lib/utils";
 
 const SWIPE_UP_THRESHOLD = -36;
 const SWIPE_DOWN_THRESHOLD = 36;
-const NAV_AUTO_HIDE_MS = 3000;
+
+/**
+ * BottomNav auto-hide is DISABLED.
+ * The nav stays visible at all times — no cooldown timer, no swipe-to-hide.
+ * Users always have access to navigation without needing to swipe.
+ */
 
 export default function RootLayout() {
    const hasTrack = usePlayerStore(s => s.currentTrack !== null);
 
-   const [navVisible, setNavVisible] = useState(true);
+   // Nav is always visible — no auto-hide behavior
+   const navVisible = true;
    const touchStartY = useRef<number | null>(null);
-   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-   const scheduleHide = () => {
-      hideTimer.current && clearTimeout(hideTimer.current);
-      hideTimer.current = setTimeout(
-         () => setNavVisible(false),
-         NAV_AUTO_HIDE_MS
-      );
-   };
-
-   useEffect(() => {
-      if (hasTrack) {
-         scheduleHide();
-      } else {
-         hideTimer.current && clearTimeout(hideTimer.current);
-         setNavVisible(true);
-      }
-      return () => {
-         hideTimer.current && clearTimeout(hideTimer.current);
-      };
-   }, [hasTrack]);
-
+   // Touch handlers kept as no-ops for future gesture support
    const onTouchStart = (e: React.TouchEvent) => {
       touchStartY.current = e.touches[0].clientY;
    };
 
    const onTouchEnd = (e: React.TouchEvent) => {
-      if (touchStartY.current === null) return;
-      const dy = e.changedTouches[0].clientY - touchStartY.current;
       touchStartY.current = null;
-
-      if (dy < SWIPE_UP_THRESHOLD) {
-         // Swipe up → reveal nav
-         setNavVisible(true);
-         if (hasTrack) scheduleHide();
-      } else if (dy > SWIPE_DOWN_THRESHOLD) {
-         // Swipe down → hide nav
-         setNavVisible(true);
-      }
    };
 
    return (
@@ -133,49 +108,23 @@ export default function RootLayout() {
                         }}
                         className='fixed inset-x-0 z-50'
                         style={{
-                           // Sits on top of nav when nav visible, at bottom when hidden
-                           bottom: navVisible ? `var(--nav-height)` : "0px",
-                           transition: "bottom 0.3s var(--ease-ios)"
+                           // Player bar sits above the BottomNav
+                           bottom: "var(--nav-height)",
                         }}>
                         <PlayerBar />
                      </motion.div>
                   )}
                </AnimatePresence>
 
-               {/* BottomNav */}
-               <AnimatePresence>
-                  {navVisible && (
-                     <motion.nav
-                        key='bottom-nav'
-                        initial={{ y: 100, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: 100, opacity: 0 }}
-                        transition={{
-                           type: "spring",
-                           damping: 30,
-                           stiffness: 320
-                        }}
-                        className='fixed inset-x-0 bottom-0 z-40 flex items-end'
-                        style={{ height: "var(--nav-height)" }}>
-                        <BottomNav />
-                     </motion.nav>
-                  )}
-               </AnimatePresence>
-
-               {/* Swipe-up hint when nav hidden */}
-               <AnimatePresence>
-                  {!navVisible && hasTrack && (
-                     <motion.div
-                        key='hint'
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ delay: 0.8 }}
-                        className='fixed bottom-1.5 left-1/2 -translate-x-1/2 z-30 pointer-events-none'>
-                        <div className='w-8 h-1 rounded-full bg-white/20' />
-                     </motion.div>
-                  )}
-               </AnimatePresence>
+               {/* BottomNav — always visible, raised slightly from bottom */}
+               <motion.nav
+                  key='bottom-nav'
+                  initial={{ y: 0, opacity: 1 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className='fixed inset-x-0 bottom-0 z-40 flex items-end'
+                  style={{ height: "var(--nav-height)" }}>
+                  <BottomNav />
+               </motion.nav>
             </div>
 
             {/* ── Queue Panel (slide-in drawer) ─────────────── */}
