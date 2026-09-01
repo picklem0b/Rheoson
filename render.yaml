@@ -48,7 +48,6 @@ services:
   - type: web
     name: Rheoson
     env: static
-    plan: free
     rootDir: web
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
