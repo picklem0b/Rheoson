@@ -3,6 +3,11 @@ import { Howl, Howler } from 'howler';
 import { usePlayerStore } from '@/store/player.store';
 import { useQueueStore } from '@/store/queue.store';
 import { tracksApi } from '@/api/tracks.api';
+import { requestWakeLock, releaseWakeLock } from '@/lib/keepAwake';
+import { updateStatusBarColor, resetStatusBarColor } from '@/lib/statusbar';
+import { haptic } from '@/lib/haptics';
+import { getLocalFileUrl } from '@/lib/localFs';
+import { isNativePlatform } from '@/lib/capacitor';
 
 // ── Singleton Howl ────────────────────────────────────────────
 // One instance shared across every component that calls usePlayer().
@@ -66,19 +71,23 @@ function _destroy() {
 }
 
 // ── Resolve stream URL ────────────────────────────────────────
-// Prefer the local /api/stream URL, which the backend will serve from disk
-// if the file is downloaded, or fall back to the yt-dlp pipe.
-// This is the core of offline playback: downloaded tracks play from disk
-// at full quality without any network round-trip to YouTube.
+// Three-tier URL resolution for maximum offline support:
+//   1. If track has a filePath and we're on native → use file:// URI (zero network)
+//   2. If track is downloaded → use backend /api/stream (works offline via service worker)
+//   3. Otherwise → use backend /api/stream (yt-dlp pipe)
 
-function _resolveUrl(track: {
+async function _resolveUrl(track: {
     id: string;
     filePath?: string;
     isDownloaded?: boolean;
-}): string {
-    // The backend stream endpoint handles the local-vs-yt-dlp decision itself,
-    // but we can also build the URL from the track's own streamUrl/filePath.
-    // Always go through the API — the backend cache invalidation handles the rest.
+}): Promise<string> {
+    // Tier 1: Direct file access on native platform — zero network required
+    if (isNativePlatform() && track.filePath) {
+        const fileUrl = await getLocalFileUrl(track.filePath);
+        if (fileUrl) return fileUrl;
+    }
+
+    // Tiers 2 & 3: Go through the backend stream endpoint
     return tracksApi.getStreamUrl(track.id);
 }
 
@@ -182,12 +191,15 @@ export function usePlayer() {
             // to ensure they belong to the active track.
             const gen = _generation;
 
-            // Resolve the URL. The backend /stream endpoint checks the local file cache
-            // first, so downloaded tracks play from disk without hitting YouTube.
+            // Resolve the URL asynchronously — may need to check local filesystem
             const track = usePlayerStore.getState().currentTrack;
-            const url = track
+            const urlPromise = track
                 ? _resolveUrl(track)
-                : tracksApi.getStreamUrl(trackId);
+                : Promise.resolve(tracksApi.getStreamUrl(trackId));
+
+            urlPromise.then((url) => {
+                // Generation may have moved on while resolving
+                if (gen !== _generation) return;
 
             _howl = new Howl({
                 src: [url],
@@ -227,6 +239,12 @@ export function usePlayer() {
                         _playedThisSession.add(trackId);
                         tracksApi.recordPlay(trackId).catch(() => {});
                     }
+
+                    // Mobile enhancements: wake lock + status bar + haptic
+                    requestWakeLock();
+                    haptic('light');
+                    const artworkUrl = usePlayerStore.getState().currentTrack?.artworkUrl;
+                    if (artworkUrl) updateStatusBarColor(artworkUrl, trackId);
                 },
 
                 // Pause saves the exact position so resume picks up from the same spot.
@@ -237,6 +255,9 @@ export function usePlayer() {
                     _stopTimer();
                     const pos = _howl?.seek() as number | undefined;
                     if (pos != null) saveProgress(pos);
+                    // Release wake lock when paused — screen can sleep
+                    releaseWakeLock();
+                    haptic('light');
                 },
 
                 onstop() {
@@ -244,6 +265,8 @@ export function usePlayer() {
                     _stopTimer();
                     setProgress(0);
                     saveProgress(0);
+                    releaseWakeLock();
+                    resetStatusBarColor();
                 },
 
                 onend() {
@@ -306,6 +329,11 @@ export function usePlayer() {
                         })
                     );
                 }
+            });
+            }).catch(() => {
+                // URL resolution failed — load error is already handled above
+                setLoading(false);
+                _loadedId = null;
             });
         },
         [] // eslint-disable-line react-hooks/exhaustive-deps -- stable: all state accessed via refs or store.getState()
@@ -406,17 +434,18 @@ export function usePlayer() {
     const skipNext = useCallback(() => {
         const { isShuffled } = usePlayerStore.getState();
         const t = next(isShuffled);
-        if (t) setTrack(t);
+        if (t) { setTrack(t); haptic('medium'); }
     }, [next, setTrack]);
 
     const skipPrev = useCallback(() => {
         const { progress } = usePlayerStore.getState();
         if (progress > 3) {
             seek(0);
+            haptic('light');
             return;
         }
         const t = prev();
-        if (t) setTrack(t);
+        if (t) { setTrack(t); haptic('medium'); }
     }, [prev, seek, setTrack]);
 
     return {

@@ -10,6 +10,11 @@ import { useMediaSession } from '@/hooks/mediaSession.hook'
 import { useToast } from '@/components/ui/Toaster'
 import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
 import { startVersionCheck } from '@/lib/versionCheck'
+import OfflineBanner from '@/components/ui/OfflineBanner'
+import ErrorBoundary from '@/components/ui/ErrorBoundary'
+import { authApi } from '@/api/auth.api'
+import { initNetwork } from '@/lib/network'
+import { initAutoSync } from '@/lib/offlineQueue'
 
 // ── Player error toast ────────────────────────────────────────
 function usePlayerErrorToast() {
@@ -31,12 +36,30 @@ function usePlayerErrorToast() {
   }, [toast])
 }
 
+// ── Guest visit tracker ───────────────────────────────────────
+function useGuestTracker() {
+  useEffect(() => {
+    // Record one guest visit per session
+    const visited = sessionStorage.getItem('rheoson-guest-visited')
+    if (!visited) {
+      authApi.recordGuestVisit().catch(() => {})
+      sessionStorage.setItem('rheoson-guest-visited', '1')
+    }
+  }, [])
+}
+
 // ── Inner app — hooks that need router context ────────────────
 function AppInner() {
   useKeyboardShortcuts()
   useMediaSession()
   usePlayerErrorToast()
-  return <RouterProvider router={router} />
+  useGuestTracker()
+  return (
+    <ErrorBoundary>
+      <OfflineBanner />
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+  )
 }
 
 // ── Root ──────────────────────────────────────────────────────
@@ -56,6 +79,15 @@ export default function App() {
     initializeAuth()
   }, [initializeAuth])
 
+  // Initialize network detection and offline sync
+  useEffect(() => {
+    initNetwork(() => {
+      const PROD_API = import.meta.env.VITE_API_URL ?? 'https://rheoson-api-vnny.onrender.com'
+      return import.meta.env.DEV ? '/api/health' : `${PROD_API}/api/health`
+    })
+    initAutoSync()
+  }, [])
+
   // Check for app updates periodically
   useEffect(() => {
     return startVersionCheck((info) => {
@@ -64,7 +96,6 @@ export default function App() {
   }, [toast])
 
   // Unlock Web Audio context on first user gesture
-  // Required on mobile browsers — audio won't play until unlocked
   useEffect(() => {
     const unlock = () => {
       if (Howler.ctx && Howler.ctx.state === 'suspended') {
@@ -90,11 +121,11 @@ export default function App() {
   }, [])
 
   return (
-    <>
+    <ErrorBoundary>
       <AnimatePresence>
         {show && <SplashScreen onDone={dismiss} />}
       </AnimatePresence>
       {!show && <AppInner />}
-    </>
+    </ErrorBoundary>
   )
 }

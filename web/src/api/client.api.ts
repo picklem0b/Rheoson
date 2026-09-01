@@ -1,4 +1,6 @@
 import { API_BASE } from "@/lib/constants";
+import { isOnline } from "@/lib/network";
+import { queueMutation, initAutoSync } from "@/lib/offlineQueue";
 
 export interface ApiError extends Error {
    status: number;
@@ -9,6 +11,8 @@ interface RequestOptions extends RequestInit {
    params?: Record<string, string | number | boolean | undefined>;
    signal?: AbortSignal;
    _retryCount?: number;
+   /** If true, this request will be queued locally when offline instead of throwing. */
+   _offlineQueue?: boolean;
 }
 
 const BODY_FREE = new Set(["GET", "HEAD", "DELETE"]);
@@ -31,11 +35,23 @@ function makeError(status: number, detail: string): ApiError {
    return err;
 }
 
+function getAuthToken(): string | null {
+   try {
+      // Read from the auth store's persisted state
+      const raw = localStorage.getItem("rheoson-auth");
+      if (raw) {
+         const parsed = JSON.parse(raw);
+         return parsed?.state?.token ?? null;
+      }
+   } catch { /* ignore */ }
+   return null;
+}
+
 async function request<T>(
    endpoint: string,
    options: RequestOptions = {}
 ): Promise<T> {
-   const { params, signal, _retryCount = 0, ...init } = options;
+   const { params, signal, _retryCount = 0, _offlineQueue = false, ...init } = options;
    const method = (init.method ?? "GET").toUpperCase();
 
    const headers: Record<string, string> = {
@@ -44,15 +60,26 @@ async function request<T>(
    if (!BODY_FREE.has(method) && init.body != null) {
       headers["Content-Type"] = "application/json";
    }
-   // Inject JWT token if present
-   try {
-      const raw = localStorage.getItem("rheoson-auth");
-      if (raw) {
-         const parsed = JSON.parse(raw);
-         const token = parsed?.state?.token;
-         if (token) headers["Authorization"] = `Bearer ${token}`;
-      }
-   } catch { /* ignore */ }
+
+   // Inject auth token if present
+   const token = getAuthToken();
+   if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+   }
+
+   // ── Offline handling ───────────────────────────────────
+   // If we're offline and this is a mutation, queue it instead of failing
+   if (!isOnline() && !BODY_FREE.has(method) && _offlineQueue) {
+      // Queue for later sync — return a synthetic success
+      queueMutation({
+         method,
+         endpoint,
+         body: init.body ? JSON.parse(init.body as string) : undefined,
+      });
+
+      // Return a fake 200 response for mutations queued offline
+      return {} as T;
+   }
 
    let res: Response;
 
@@ -64,11 +91,6 @@ async function request<T>(
          signal
       });
    } catch (err) {
-      // TypeError = network failure ("Failed to fetch") — could be Render cold
-      // start or backend offline. Retry with exponential backoff:
-      //   Attempt 1 → 3 s (handles most Render cold starts)
-      //   Attempt 2 → 5 s (slow cold start or transient failure)
-      //   Then give up and surface the error.
       const isAbort = err instanceof DOMException && err.name === "AbortError";
       if (!isAbort && _retryCount < 2) {
          const delay = _retryCount === 0 ? 3000 : 5000;
@@ -81,9 +103,6 @@ async function request<T>(
       );
    }
 
-   // Detect HTML response — happens when:
-   //   • Vite proxy can't reach the backend and returns its own error page
-   //   • A CDN / load balancer intercepts before the API responds
    const contentType = res.headers.get("content-type") ?? "";
    if (contentType.includes("text/html")) {
       throw makeError(
@@ -139,7 +158,29 @@ export const api = {
          body: body != null ? JSON.stringify(body) : undefined
       }),
    delete: <T>(url: string, opts?: RequestOptions) =>
-      request<T>(url, { ...opts, method: "DELETE" })
+      request<T>(url, { ...opts, method: "DELETE" }),
+
+   /** POST with offline queue support — queued when offline. */
+   postQueued: <T>(url: string, body?: unknown, opts?: RequestOptions) =>
+      request<T>(url, {
+         ...opts,
+         method: "POST",
+         body: body != null ? JSON.stringify(body) : undefined,
+         _offlineQueue: true,
+      }),
+
+   /** DELETE with offline queue support — queued when offline. */
+   deleteQueued: <T>(url: string, opts?: RequestOptions) =>
+      request<T>(url, { ...opts, method: "DELETE", _offlineQueue: true }),
+
+   /** PATCH with offline queue support — queued when offline. */
+   patchQueued: <T>(url: string, body?: unknown, opts?: RequestOptions) =>
+      request<T>(url, {
+         ...opts,
+         method: "PATCH",
+         body: body != null ? JSON.stringify(body) : undefined,
+         _offlineQueue: true,
+      }),
 };
 
 export function makeAbortable() {
@@ -150,3 +191,6 @@ export function makeAbortable() {
 export function isAbortError(err: unknown): boolean {
    return err instanceof DOMException && err.name === "AbortError";
 }
+
+// Initialize auto-sync on module load
+initAutoSync();

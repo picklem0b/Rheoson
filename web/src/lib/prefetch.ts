@@ -6,22 +6,27 @@
  * a HEAD request to the stream endpoint before the player needs it.
  * The backend resolves the YouTube URL once, caches it, and the
  * subsequent GET from the player is a direct hit.
+ *
+ * Prefetching is skipped when offline — there's nothing to warm.
  */
 
 import { API_BASE } from './constants';
+import { isOnline } from './network';
 
 const _inflight = new Map<string, AbortController>();
 
 /**
  * Prefetch a single track's stream URL.  Safe to call multiple times
  * for the same track — only one request runs at a time.
+ * No-ops when offline.
  */
 export function prefetchStream(trackId: string): void {
+  if (!isOnline()) return;
   if (_inflight.has(trackId)) return;
   const controller = new AbortController();
   _inflight.set(trackId, controller);
 
-  fetch(`${API_BASE}/api/stream/${trackId}`, {
+  fetch(`${API_BASE}/stream/${trackId}/audio`, {
     method: 'HEAD',
     signal: controller.signal,
     // Include credentials so the backend can attribute the request
