@@ -46,7 +46,7 @@ services:
 
   # ── Frontend (React / Vite SPA) ──────────────────────────────
   - type: web
-    name: Rheoson-web
+    name: Rheoson
     env: static
     region: oregon
     plan: free
