@@ -534,7 +534,7 @@ function LikedTrackRow({
                {track.title}
             </p>
             <p className='text-xs text-[var(--text-secondary)] truncate'>
-               {track.artist.name}
+               {track.artist?.name ?? 'Unknown Artist'}
                {track.album?.title ? ` · ${track.album.title}` : ""}
             </p>
          </div>

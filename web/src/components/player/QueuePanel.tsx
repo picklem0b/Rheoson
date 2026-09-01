@@ -84,7 +84,7 @@ export default function QueuePanel() {
                       {currentTrack.title}
                     </p>
                     <p className="text-xs text-[var(--text-secondary)] truncate">
-                      {currentTrack.artist.name}
+                      {currentTrack.artist?.name ?? 'Unknown Artist'}
                     </p>
                   </div>
                   <div className="flex items-end gap-[2px] ml-auto flex-shrink-0">

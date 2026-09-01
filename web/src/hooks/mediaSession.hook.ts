@@ -28,7 +28,7 @@ export function useMediaSession() {
 
     navigator.mediaSession.metadata = new MediaMetadata({
       title:   currentTrack.title,
-      artist:  currentTrack.artist.name,
+      artist:  currentTrack.artist?.name ?? 'Unknown Artist',
       album:   currentTrack.album?.title ?? '',
       artwork: currentTrack.artworkUrl
         ? [{ src: currentTrack.artworkUrl, sizes: '512x512', type: 'image/jpeg' }]

@@ -5,7 +5,7 @@ import re
 import structlog
 import uuid
 import yt_dlp
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -84,7 +84,7 @@ def _new_job(
         'quality':    quality,
         'error':      None,
         'filePath':   None,
-        'createdAt':  datetime.utcnow().isoformat(),
+        'createdAt':  datetime.now(timezone.utc).isoformat(),
     }
 
 

@@ -185,7 +185,7 @@ function PlaylistTrackRow({ track, index, onClick }: PlaylistTrackRowProps) {
                {track.title}
             </p>
             <p className='text-xs text-[var(--text-secondary)] truncate'>
-               {track.artist.name} · {track.album.title}
+               {track.artist?.name ?? 'Unknown Artist'} · {track.album?.title ?? ''}
             </p>
          </div>
          <span className='text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0'>

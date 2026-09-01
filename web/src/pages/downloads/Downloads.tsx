@@ -17,11 +17,12 @@ export default function Downloads() {
   const { jobs, activeJobs, completedJobs, cancel, retry, clearDone } = useDownloads()
   const [tab, setTab] = useState<Tab>('local')
 
-  // ── Local library tracks — from all music dirs on disk ──
+  // ── Local library tracks — offline-first, from IndexedDB or filesystem ──
   const { data: localTracks, isLoading: loadingLocal } = useQuery({
     queryKey:  ['tracks', 'all'],
     queryFn:   tracksApi.getAll,
     staleTime: 10_000,
+    retry:     1,
   })
 
   // ── Downloaded tracks — filter local tracks with isDownloaded flag ──

@@ -6,6 +6,13 @@ import { VitePWA } from "vite-plugin-pwa";
 const isProd = process.env.NODE_ENV === "production";
 
 export default defineConfig({
+   // @ts-expect-error — test config is added by vitest
+   test: {
+      globals: true,
+      environment: "jsdom",
+      setupFiles: [],
+      include: ["src/**/*.{test,spec}.{ts,tsx}"],
+   },
    plugins: [
       react(),
 

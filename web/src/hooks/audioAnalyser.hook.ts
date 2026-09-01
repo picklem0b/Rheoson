@@ -6,15 +6,64 @@ function nearestPow2(n: number): number {
   return Math.pow(2, Math.ceil(Math.log2(n)))
 }
 
-// Module-level flag so we never call createMediaElementSource twice
-// on the same <audio> element (throws InvalidStateError if you do).
-let _sourceNode: MediaElementAudioSourceNode | null = null
+// Module-level: shared AudioContext + source node for both analyser and equalizer.
+// Only one MediaElementSource can exist per <audio> element.
+let _sharedCtx: AudioContext | null = null
+let _sharedSource: MediaElementAudioSourceNode | null = null
+let _sharedAnalyser: AnalyserNode | null = null
+let _eqFilters: BiquadFilterNode[] | null = null
+
+/**
+ * Get or create the shared audio analysis chain.
+ * Returns { analyser, source } so both useAudioAnalyser and EqualizerPanel
+ * can coexist on the same audio element.
+ */
+export function getSharedAudioChain(): {
+  ctx: AudioContext
+  source: MediaElementAudioSourceNode
+  analyser: AnalyserNode
+} {
+  if (_sharedCtx && _sharedSource && _sharedAnalyser) {
+    return { ctx: _sharedCtx, source: _sharedSource, analyser: _sharedAnalyser }
+  }
+
+  const audio = document.querySelector<HTMLAudioElement>('audio[data-howler]')
+  if (!audio) throw new Error('No Howler audio element found')
+
+  const ctx = new AudioContext()
+  const analyser = ctx.createAnalyser()
+  analyser.fftSize = 2048
+  analyser.smoothingTimeConstant = 0.75
+
+  let source: MediaElementAudioSourceNode
+  try {
+    source = ctx.createMediaElementSource(audio)
+  } catch {
+    // Source already created by equalizer — reuse it
+    source = _sharedSource!
+  }
+
+  // Build chain: source → analyser → destination
+  // (EqualizerPanel inserts filters between source and analyser when active)
+  source.connect(analyser)
+  analyser.connect(ctx.destination)
+
+  _sharedCtx = ctx
+  _sharedSource = source
+  _sharedAnalyser = analyser
+
+  return { ctx, source, analyser }
+}
+
+/** Get the shared source node (returns null if not initialized) */
+export function getSharedSource(): MediaElementAudioSourceNode | null {
+  return _sharedSource
+}
 
 export function useAudioAnalyser(barCount = 32) {
   const [bars, setBars] = useState<number[]>(() => new Array(barCount).fill(0))
 
   const analyserRef = useRef<AnalyserNode | null>(null)
-  const contextRef  = useRef<AudioContext | null>(null)
   const frameRef    = useRef<number | null>(null)
 
   const isPlaying = usePlayerStore((s) => s.isPlaying)
@@ -22,35 +71,17 @@ export function useAudioAnalyser(barCount = 32) {
   // ── Setup AudioContext once ─────────────────────────────────
 
   useEffect(() => {
-    const audio = document.querySelector<HTMLAudioElement>('audio[data-howler]')
-    if (!audio) return
-
-    // Guard: AudioContext is already set up (strict mode double-invoke, HMR, etc.)
-    if (contextRef.current) return
-
-    const ctx      = new AudioContext()
-    const analyser = ctx.createAnalyser()
-
-    // fftSize must be a power of 2 and at least twice barCount
-    analyser.fftSize        = nearestPow2(Math.max(barCount * 2, 32))
-    analyser.smoothingTimeConstant = 0.75  // smooth but responsive
-
-    contextRef.current  = ctx
-    analyserRef.current = analyser
-
-    // Reuse the existing source node if one was already created
-    if (!_sourceNode) {
-      _sourceNode = ctx.createMediaElementSource(audio)
+    try {
+      const { analyser } = getSharedAudioChain()
+      analyserRef.current = analyser
+    } catch {
+      // Audio element not ready yet — retry on next render
     }
-    _sourceNode.connect(analyser)
-    analyser.connect(ctx.destination)
 
     return () => {
       frameRef.current && cancelAnimationFrame(frameRef.current)
-      // Don't close the context here — it would break playback.
-      // The context lives as long as the app; only clean up on full unmount.
     }
-  }, [barCount])
+  }, [])
 
   // ── Animation loop ─────────────────────────────────────────
 
@@ -64,8 +95,8 @@ export function useAudioAnalyser(barCount = 32) {
       return
     }
 
-    // Resume context if suspended (browsers suspend on page load until user gesture)
-    contextRef.current?.state === 'suspended' && contextRef.current.resume()
+    // Resume context if suspended
+    _sharedCtx?.state === 'suspended' && _sharedCtx.resume()
 
     const data = new Uint8Array(analyser.frequencyBinCount)
 

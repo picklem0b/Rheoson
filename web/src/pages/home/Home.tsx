@@ -117,7 +117,7 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
                 {track.title}
               </p>
               <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
-                {track.artist.name}
+                {track.artist?.name ?? 'Unknown Artist'}
               </p>
             </div>
           </motion.button>
@@ -231,7 +231,7 @@ function TrendingList({ tracks }: { tracks: Track[] }) {
               )}>
                 {track.title}
               </p>
-              <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist.name}</p>
+              <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist?.name ?? 'Unknown Artist'}</p>
             </div>
             <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
               {formatDuration(track.duration)}
@@ -340,7 +340,7 @@ function RecommendedTracks({ trackIds, title }: { trackIds: string[]; title: str
               )}>
                 {track.title}
               </p>
-              <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist.name}</p>
+              <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist?.name ?? 'Unknown Artist'}</p>
             </div>
             <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
               {formatDuration(track.duration)}

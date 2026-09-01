@@ -205,6 +205,38 @@ async def report_signal(body: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
     return {'ok': True}
 
 
+# ── Track statistics ─────────────────────────────────────────
+
+@router.get('/stats/{track_id}')
+async def get_track_stats(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Return play count, like count, and last played for a track."""
+    # Check if liked
+    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
+    liked_ids = doc.get('track_ids', []) if doc else []
+    is_liked = track_id in liked_ids
+
+    # Count plays from signals
+    play_count = await db.user_signals.count_documents({
+        'user_id': 'anonymous',
+        'signal': 'play_start',
+        'track_id': track_id,
+    })
+
+    # Last played
+    last_signal = await db.user_signals.find_one(
+        {'user_id': 'anonymous', 'signal': 'play_start', 'track_id': track_id},
+        sort=[('timestamp', -1)],
+    )
+    last_played = last_signal['timestamp'].isoformat() if last_signal else None
+
+    return {
+        'track_id':   track_id,
+        'play_count': play_count,
+        'is_liked':   is_liked,
+        'last_played': last_played,
+    }
+
+
 # ── VARIABLE ROUTES LAST ──────────────────────────────────────
 
 @router.get('/{track_id}', response_model=TrackSchema)

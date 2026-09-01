@@ -32,7 +32,7 @@ export function QuickPicks({ tracks, onPlay }: QuickPicksProps) {
           }
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{track.title}</p>
-            <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist.name}</p>
+            <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist?.name ?? 'Unknown Artist'}</p>
           </div>
           <div className="w-8 h-8 rounded-full bg-[var(--accent)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
             <Play className="w-3.5 h-3.5 text-white fill-current ml-0.5" />
@@ -129,7 +129,7 @@ export function TrendingRow({ tracks, onPlay }: TrendingRowProps) {
 
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{track.title}</p>
-            <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist.name}</p>
+            <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist?.name ?? 'Unknown Artist'}</p>
           </div>
           <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
             {formatDuration(track.duration)}

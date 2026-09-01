@@ -101,7 +101,7 @@ function TrendingRow({
                {track.title}
             </p>
             <p className='text-xs text-[var(--text-secondary)] truncate mt-0.5'>
-               {track.artist.name}
+               {track.artist?.name ?? 'Unknown Artist'}
             </p>
          </div>
 

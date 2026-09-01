@@ -6,7 +6,7 @@
 import { APP_VERSION } from './constants';
 import { api } from '@/api/client.api';
 
-interface VersionInfo {
+export interface VersionInfo {
   version: string;
   name: string;
   releaseDate: string;
@@ -32,7 +32,7 @@ export async function checkForUpdate(): Promise<VersionInfo | null> {
   _lastCheck = now;
 
   try {
-    const info = await api.get<VersionInfo>('/api/version');
+    const info = await api.get<VersionInfo>('/version');
     if (info?.version && semverGt(info.version, APP_VERSION)) {
       return info;
     }

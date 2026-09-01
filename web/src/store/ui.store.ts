@@ -12,6 +12,7 @@ interface UIStore {
   showLyrics:     boolean
   showFullscreen: boolean
   showDownloads:  boolean
+  showEqualizer:  boolean
 
   // Sidebar (desktop)
   sidebarCollapsed: boolean
@@ -30,6 +31,7 @@ interface UIStore {
   toggleLyrics:       () => void
   toggleFullscreen:   () => void
   toggleDownloads:    () => void
+  toggleEqualizer:    () => void
   toggleSidebar:      () => void
   openDownloadModal:  (trackId: string) => void
   closeDownloadModal: () => void
@@ -49,6 +51,7 @@ export const useUIStore = create<UIStore>()(
       showLyrics:           false,
       showFullscreen:       false,
       showDownloads:        false,
+      showEqualizer:        false,
       sidebarCollapsed:     false,
       downloadModalTrackId: null,
 
@@ -57,8 +60,9 @@ export const useUIStore = create<UIStore>()(
       fontFamily:  'plus-jakarta',
       fontSize:    'default',
 
-      toggleQueue:      () => set((s) => ({ showQueue:   !s.showQueue,   showLyrics: false })),
-      toggleLyrics:     () => set((s) => ({ showLyrics:  !s.showLyrics,  showQueue:  false })),
+      toggleQueue:      () => set((s) => ({ showQueue:   !s.showQueue,   showLyrics: false, showEqualizer: false })),
+      toggleLyrics:     () => set((s) => ({ showLyrics:  !s.showLyrics,  showQueue:  false, showEqualizer: false })),
+      toggleEqualizer:  () => set((s) => ({ showEqualizer: !s.showEqualizer, showQueue: false, showLyrics: false })),
       toggleFullscreen: () => set((s) => ({ showFullscreen: !s.showFullscreen })),
       toggleDownloads:  () => set((s) => ({ showDownloads:  !s.showDownloads  })),
       toggleSidebar:    () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -71,6 +75,7 @@ export const useUIStore = create<UIStore>()(
         showLyrics:           false,
         showFullscreen:       false,
         showDownloads:        false,
+        showEqualizer:        false,
         downloadModalTrackId: null,
       }),
 
