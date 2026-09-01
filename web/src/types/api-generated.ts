@@ -359,13 +359,13 @@ export interface paths {
             cookie?: never;
         };
         /** Stream Audio */
-        get: operations["stream_audio_api_stream__track_id__audio_get"];
+        get: operations["stream_audio_api_stream__track_id__audio_head_1"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         /** Stream Audio */
-        head: operations["stream_audio_api_stream__track_id__audio_get_1"];
+        head: operations["stream_audio_api_stream__track_id__audio_head"];
         patch?: never;
         trace?: never;
     };
@@ -1204,6 +1204,33 @@ export interface paths {
         get: operations["time_capsule_api_smart_playlists_time_capsule_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/clerk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clerk Webhook
+         * @description Receive and process Clerk webhook events.
+         *
+         *     This endpoint:
+         *     1. Reads raw body for signature verification
+         *     2. Verifies the Svix HMAC-SHA256 signature
+         *     3. Checks timestamp freshness (5-minute window)
+         *     4. Dispatches to the appropriate event handler
+         *     5. Returns 200 quickly — processing is best-effort
+         */
+        post: operations["clerk_webhook_api_webhooks_clerk_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2423,7 +2450,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_api_stream__track_id__audio_get: {
+    stream_audio_api_stream__track_id__audio_head_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2454,7 +2481,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_api_stream__track_id__audio_get_1: {
+    stream_audio_api_stream__track_id__audio_head: {
         parameters: {
             query?: never;
             header?: never;
@@ -3814,6 +3841,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clerk_webhook_api_webhooks_clerk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

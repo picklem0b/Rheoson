@@ -810,12 +810,12 @@
       }
     },
     "/api/stream/{track_id}/audio": {
-      "get": {
+      "head": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_api_stream__track_id__audio_get",
+        "operationId": "stream_audio_api_stream__track_id__audio_head",
         "parameters": [
           {
             "name": "track_id",
@@ -848,12 +848,12 @@
           }
         }
       },
-      "head": {
+      "get": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_api_stream__track_id__audio_get_1",
+        "operationId": "stream_audio_api_stream__track_id__audio_head_1",
         "parameters": [
           {
             "name": "track_id",
@@ -2826,6 +2826,26 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/clerk": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Clerk Webhook",
+        "description": "Receive and process Clerk webhook events.\n\nThis endpoint:\n1. Reads raw body for signature verification\n2. Verifies the Svix HMAC-SHA256 signature\n3. Checks timestamp freshness (5-minute window)\n4. Dispatches to the appropriate event handler\n5. Returns 200 quickly \u2014 processing is best-effort",
+        "operationId": "clerk_webhook_api_webhooks_clerk_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
