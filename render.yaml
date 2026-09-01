@@ -42,13 +42,12 @@ services:
       # Restrict CORS to the actual frontend origin.
       # Update the URL if your Render service names differ.
       - key: CORS_ORIGINS
-        value: '["https://Rheoson-web.onrender.com","http://localhost:3000"]'
+        value: '["https://Rheoson.onrender.com","http://localhost:3000"]'
 
   # ── Frontend (React / Vite SPA) ──────────────────────────────
   - type: web
     name: Rheoson
     env: static
-    region: oregon
     plan: free
     rootDir: web
     buildCommand: npm ci && npm run build
