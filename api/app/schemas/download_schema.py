@@ -7,7 +7,7 @@ AudioFormat  = Literal["mp3", "flac", "opus", "m4a", "wav"]
 AudioQuality = Literal["128", "192", "256", "320", "best"]
 DownloadStatus = Literal[
     "queued", "searching", "downloading",
-    "converting", "tagging", "done", "error"
+    "converting", "tagging", "done", "error", "cancelled"
 ]
 
 

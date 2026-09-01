@@ -59,11 +59,13 @@ export const playlistsApi = {
       const localPlaylist: Playlist = {
          id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
          title: data.title,
-         description: data.description,
+         description: data.description ?? '',
          tracks: [],
          trackCount: 0,
          isLocal: true,
          artworkUrl: '',
+         spotifyId: '',
+         totalDuration: 0,
          createdAt: new Date().toISOString(),
          updatedAt: new Date().toISOString(),
       };

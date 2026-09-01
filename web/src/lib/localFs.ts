@@ -9,7 +9,7 @@
  * the backend API handles file scanning in that case.
  */
 
-import type { Track } from '@/types/track.types';
+import type { Track, Artist, Album } from '@/types/index';
 import { isNativePlatform } from './capacitor';
 
 // ── Audio file extensions ──────────────────────────────────────
@@ -66,7 +66,7 @@ async function _readDirRecursive(dirPath: string): Promise<string[]> {
    return files;
 }
 
-function _extractMetadataFromPath(filePath: string): Partial<Track> {
+function _extractMetadataFromPath(filePath: string): { title: string; artist: Artist; album: Album } {
    // Parse artist/track from file path: .../Music/Rheoson/Artist/Track.mp3
    const parts = filePath.split('/');
    const filename = parts[parts.length - 1];
@@ -75,15 +75,31 @@ function _extractMetadataFromPath(filePath: string): Partial<Track> {
    // Remove extension from filename
    const title = filename.replace(/\.[^.]+$/, '');
 
-   return {
-      title,
-      artist: {
-         id: artistDir.toLowerCase().replace(/\s+/g, '-'),
-         name: artistDir,
-      },
-      isDownloaded: true,
-      filePath,
+   const artist: Artist = {
+      id: artistDir.toLowerCase().replace(/\s+/g, '-'),
+      name: artistDir,
+      imageUrl: '',
+      genres: [],
+      followers: 0,
+      monthlyListeners: 0,
+      description: '',
+      subscribers: '',
+      topTracks: [],
+      albums: [],
    };
+
+   const album: Album = {
+      id: 'local-album',
+      title: 'Local',
+      artist,
+      artworkUrl: '',
+      releaseYear: 0,
+      year: 0,
+      trackCount: 0,
+      tracks: [],
+   };
+
+   return { title, artist, album };
 }
 
 /**
@@ -125,21 +141,19 @@ export async function scanLocalMusic(): Promise<Track[]> {
          return {
             id,
             title: meta.title ?? 'Unknown',
-            artist: meta.artist ?? { id: 'unknown', name: 'Unknown Artist' },
-            album: {
-               id: 'local-album',
-               title: 'Local',
-               artist: meta.artist ?? { id: 'unknown', name: 'Unknown Artist' },
-               artworkUrl: '',
-               releaseYear: 0,
-               trackCount: 0,
-            },
+            artist: meta.artist,
+            album: meta.album,
             artworkUrl: '',
-            duration: 0, // unknown until played
+            duration: 0,
+            streamUrl: `/api/stream/${id}/audio`,
+            filePath: path,
             isDownloaded: true,
             isLiked: false,
-            filePath: meta.filePath,
-            streamUrl: `/api/stream/${id}/audio`,
+            youtubeId: '',
+            spotifyId: '',
+            addedAt: '',
+            trackNumber: 0,
+            playCount: 0,
          } satisfies Track;
       });
    } catch (err) {
