@@ -229,7 +229,7 @@ export default function PlayerBar() {
                                  damping: 25,
                                  stiffness: 350
                               }}
-                              className='absolute bottom-full right-0 mb-2 z-50 w-52 glass-strong rounded-2xl border border-[var(--border)] shadow-2xl overflow-hidden'>
+                              className='absolute bottom-full right-0 mb-2 z-[100] w-52 glass-strong rounded-2xl border border-[var(--border)] shadow-2xl overflow-hidden'>
                               {[
                                  {
                                     label: liked

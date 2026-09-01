@@ -191,7 +191,8 @@ async def _personalized_candidates(db: AsyncIOMotorDatabase, profile: TasteProfi
         try:
             from app.services.ytmusic_service import search as yt_search
             results = await yt_search(f"{pref.artist} similar", limit=10)
-            for t in results:
+            # search() returns {tracks: [...], albums: [...], ...}
+            for t in results.get("tracks", []):
                 tid = t.get("id", "")
                 if tid and tid not in seen_ids:
                     seen_ids.add(tid)
@@ -237,7 +238,8 @@ async def _personalized_candidates(db: AsyncIOMotorDatabase, profile: TasteProfi
         try:
             from app.services.ytmusic_service import search as yt_search
             results = await yt_search(f"{pref.genre} music", limit=8)
-            for t in results:
+            # search() returns {tracks: [...], albums: [...], ...}
+            for t in results.get("tracks", []):
                 tid = t.get("id", "")
                 if tid and tid not in seen_ids:
                     seen_ids.add(tid)
@@ -505,7 +507,7 @@ async def get_autoplay_candidates(
     try:
         from app.services.ytmusic_service import search as yt_search
         results = await yt_search(f"{artist} similar", limit=limit * 3)
-        for t in results:
+        for t in results.get("tracks", []):
             tid = t.get("id", "")
             if tid and tid != current_track_id:
                 t_artist = t.get("artist", {}).get("name", "") if isinstance(t.get("artist"), dict) else str(t.get("artist", ""))
