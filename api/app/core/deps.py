@@ -1,32 +1,65 @@
-"""FastAPI authentication dependencies."""
+"""FastAPI authentication dependencies using Clerk.
+
+Provides two dependency functions:
+  - get_current_user: Requires a valid Clerk session token. Returns user claims.
+  - get_optional_user: Returns user claims if token present, None otherwise.
+
+Usage in routers:
+    @router.get("/protected")
+    async def protected_route(user=Depends(get_current_user)):
+        user_id = user["sub"]  # Clerk user ID
+        ...
+
+    @router.get("/optional")
+    async def optional_route(user=Depends(get_optional_user)):
+        if user:
+            # Authenticated
+            ...
+        else:
+            # Guest
+            ...
+"""
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from typing import Any
+
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.auth import decode_access_token
-from app.core.database import get_db
+from app.core.auth import verify_clerk_token
 
-_bearer = HTTPBearer()
+_bearer = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    cred: HTTPAuthorizationCredentials = Depends(_bearer),
-    db: AsyncIOMotorDatabase = Depends(get_db),
-) -> dict:
-    """Extract and validate the JWT, return the user document."""
-    payload = decode_access_token(cred.credentials)
-    if payload is None:
+    cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> dict[str, Any]:
+    """Require a valid Clerk session token. Raises 401 if missing/invalid."""
+    if cred is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    claims = await verify_clerk_token(cred.credentials)
+    if claims is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    user = await db.users.find_one({"_id": payload.get("sub")})
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-    return user
+
+    return claims
+
+
+async def get_optional_user(
+    cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> dict[str, Any] | None:
+    """Return user claims if a valid token is present, None otherwise."""
+    if cred is None:
+        return None
+
+    claims = await verify_clerk_token(cred.credentials)
+    return claims

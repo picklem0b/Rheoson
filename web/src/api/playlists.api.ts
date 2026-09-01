@@ -1,6 +1,7 @@
 import { api } from './client.api'
 import { playlistsStore } from '@/lib/localDb'
 import { isOnline } from '@/lib/network'
+import { normalizePlaylist, normalizePlaylists, normalizeTracks } from '@/lib/normalize'
 import type { Playlist } from '@/types/playlist.types'
 import type { Track } from '@/types/track.types'
 
@@ -22,7 +23,8 @@ export const playlistsApi = {
 
       // 2. Online — fetch from backend
       try {
-         const playlists = await api.get<Playlist[]>('/playlists');
+         const raw = await api.get<unknown[]>('/playlists');
+         const playlists = normalizePlaylists(raw);
          // Update local cache
          if (playlists.length > 0) {
             await playlistsStore.putAll(playlists);
@@ -40,7 +42,8 @@ export const playlistsApi = {
 
       // 2. Online — fetch from backend
       try {
-         const playlist = await api.get<Playlist>(`/playlists/${id}`);
+         const raw = await api.get<unknown>(`/playlists/${id}`);
+         const playlist = normalizePlaylist(raw);
          await playlistsStore.put(playlist);
          return playlist;
       } catch {
@@ -181,7 +184,8 @@ export const playlistsApi = {
 
       // 2. Online
       try {
-         const tracks = await api.get<Track[]>(`/playlists/${playlistId}/tracks`);
+         const raw = await api.get<unknown[]>(`/playlists/${playlistId}/tracks`);
+         const tracks = normalizeTracks(raw);
          // Update local cache with hydrated tracks
          if (local && tracks.length > 0) {
             await playlistsStore.put({

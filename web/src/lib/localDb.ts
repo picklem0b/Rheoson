@@ -145,7 +145,7 @@ export const tracksStore = {
       return all.filter(
          (t) =>
             t.title.toLowerCase().includes(q) ||
-            t.artist.name.toLowerCase().includes(q) ||
+            (t.artist?.name ?? '').toLowerCase().includes(q) ||
             (t.album?.title ?? '').toLowerCase().includes(q)
       );
    },

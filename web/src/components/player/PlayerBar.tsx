@@ -155,7 +155,7 @@ export default function PlayerBar() {
                            {truncate(currentTrack.title, 28)}
                         </p>
                         <p className='text-xs text-[var(--text-secondary)] truncate leading-tight mt-0.5'>
-                           {truncate(currentTrack.artist.name, 22)}
+                           {truncate(currentTrack.artist?.name ?? 'Unknown Artist', 22)}
                         </p>
                      </div>
                   </motion.button>

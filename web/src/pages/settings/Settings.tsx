@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette, Volume2, Download, Keyboard, Info,
   ChevronRight, ChevronLeft, User, Bell, Shield,
-  HardDrive, Layout,
+  HardDrive, Layout, BarChart3,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { APP_VERSION } from '@/lib/constants'
@@ -19,11 +19,13 @@ import PrivacySection       from './sections/PrivacySection'
 import NotificationsSection from './sections/NotificationsSection'
 import ShortcutsSection     from './sections/ShortcutsSection'
 import AboutSection         from './sections/AboutSection'
+import StatsSection         from './sections/StatsSection'
 
 type Section =
   | 'appearance' | 'layout'  | 'audio'
   | 'downloads'  | 'storage' | 'notifications'
   | 'account'    | 'privacy' | 'shortcuts' | 'about'
+  | 'stats'
 
 interface SectionMeta {
   id:    Section
@@ -53,6 +55,12 @@ const GROUPS: { label: string; items: SectionMeta[] }[] = [
     ],
   },
   {
+    label: 'Insights',
+    items: [
+      { id: 'stats',     label: 'Stats',     desc: 'Listening analytics & charts', Icon: BarChart3, bg: '#8B5CF6' },
+    ],
+  },
+  {
     label: 'App',
     items: [
       { id: 'shortcuts', label: 'Shortcuts', desc: 'Keyboard controls',           Icon: Keyboard, bg: '#64748B' },
@@ -73,6 +81,7 @@ function SectionContent({ id }: { id: Section }) {
     case 'notifications': return <NotificationsSection />
     case 'shortcuts':     return <ShortcutsSection />
     case 'about':         return <AboutSection />
+    case 'stats':         return <StatsSection />
     default:              return null
   }
 }

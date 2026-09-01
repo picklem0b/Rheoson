@@ -2,13 +2,14 @@ import { NavLink } from 'react-router-dom'
 import { Home, Search, Library, Download, Settings } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import ShortcutsModal from '@/components/ui/ShortcutsModal'
 
 const NAV_ITEMS = [
-  { to: '/',          icon: Home,     label: 'Home'        },
-  { to: '/search',    icon: Search,   label: 'Search'      },
-  { to: '/library',   icon: Library,  label: 'Library'     },
-  { to: '/downloads', icon: Download, label: 'My Music'    },
-  { to: '/settings',  icon: Settings, label: 'Settings'    },
+  { to: '/',          icon: Home,       label: 'Home'        },
+  { to: '/search',    icon: Search,     label: 'Search'      },
+  { to: '/library',   icon: Library,    label: 'Library'     },
+  { to: '/downloads', icon: Download,   label: 'My Music'    },
+  { to: '/settings',  icon: Settings,   label: 'Settings'    },
 ]
 
 /** Desktop-only sidebar. Hidden on mobile via RootLayout's `hidden lg:flex`. */
@@ -60,6 +61,10 @@ export default function Sidebar() {
           )}
         </NavLink>
       ))}
+      {/* ── Bottom section ─────────────────────────────── */}
+      <div className="mt-auto">
+        <ShortcutsModal />
+      </div>
     </motion.div>
   )
 }

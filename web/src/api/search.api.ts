@@ -1,4 +1,5 @@
 import { api } from "./client.api";
+import { normalizeSearchResults, normalizeTracks } from "@/lib/normalize";
 import type { SearchResults, SearchFilter } from "@/types/search.types";
 import type { Track } from "@/types/track.types";
 
@@ -15,15 +16,17 @@ export type ResolveResult =
 // ── API ───────────────────────────────────────────────────────
 
 export const searchApi = {
-   search: (
+   search: async (
       query: string,
       filter?: Exclude<SearchFilter, "all">,
       signal?: AbortSignal
-   ) =>
-      api.get<SearchResults>("/search", {
+   ): Promise<SearchResults> => {
+      const raw = await api.get<unknown>("/search", {
          params: { q: query, ...(filter ? { filter } : {}) },
          signal
-      }),
+      });
+      return normalizeSearchResults(raw);
+   },
 
    getSuggestions: (query: string, signal?: AbortSignal): Promise<string[]> =>
       api.get<string[]>("/search/suggest", {
@@ -42,10 +45,10 @@ export const searchApi = {
 export function resolveToTracks(result: ResolveResult): Track[] {
    switch (result.type) {
       case "track":
-         return [result.track];
+         return result.track ? [normalizeTracks([result.track])[0]] : [];
       case "album":
       case "playlist":
       case "tracks":
-         return result.tracks;
+         return normalizeTracks(result.tracks ?? []);
    }
 }

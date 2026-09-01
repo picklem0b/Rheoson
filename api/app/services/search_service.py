@@ -2,8 +2,6 @@ from __future__ import annotations
 import re
 import asyncio
 import structlog
-import urllib.request
-import urllib.error
 from pathlib import Path
 from app.core.config import settings
 from app.core.exceptions import SearchError, UnsupportedURLError
@@ -35,22 +33,19 @@ def _detect_url_type(url: str) -> str:
 _PREWARM_N = 3
 
 async def _prewarm_tracks(track_ids: list[str]) -> None:
-    loop    = asyncio.get_event_loop()
+    """Send HEAD requests to warm the stream cache for upcoming tracks."""
+    import httpx
+    url_template = f"http://127.0.0.1:{settings.API_PORT}/api/stream/{{}}/audio"
 
-    def _head(track_id: str) -> None:
-        url = f"http://127.0.0.1:{settings.API_PORT}/api/stream/{track_id}/audio"
-        try:
-            req = urllib.request.Request(url, method="HEAD")
-            with urllib.request.urlopen(req, timeout=8):
-                pass
-            log.debug("search.prewarm.ok", track_id=track_id)
-        except Exception as e:
-            log.debug("search.prewarm.skip", track_id=track_id, error=str(e))
+    async with httpx.AsyncClient(timeout=8) as client:
+        async def _head(track_id: str) -> None:
+            try:
+                resp = await client.head(url_template.format(track_id))
+                log.debug("search.prewarm.ok", track_id=track_id, status=resp.status_code)
+            except Exception as e:
+                log.debug("search.prewarm.skip", track_id=track_id, error=str(e))
 
-    await asyncio.gather(
-        *[loop.run_in_executor(None, _head, tid) for tid in track_ids],
-        return_exceptions=True,
-    )
+        await asyncio.gather(*[_head(tid) for tid in track_ids], return_exceptions=True)
 
 def _schedule_prewarm(tracks: list[dict]) -> None:
     ids = [t["id"] for t in tracks if t.get("id") and not t.get("isDownloaded")][:_PREWARM_N]

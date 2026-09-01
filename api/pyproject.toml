@@ -32,10 +32,9 @@ dependencies = [
     # MongoDB async driver and helpers
     "motor>=3.5.0,<4",
     "pymongo>=4.7.0,<5",
-    # Authentication
-    "passlib[bcrypt]>=1.7.4",
+    # Authentication — JWT verification for Clerk session tokens.
+    # Used as a fallback if Clerk JWKS verification is unavailable.
     "python-jose[cryptography]>=3.3.0",
-    "email-validator>=2.0.0",
 ]
 
 [project.optional-dependencies]

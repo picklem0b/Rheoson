@@ -7,10 +7,12 @@ interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isGuest: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName?: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
   initialize: () => Promise<void>;
+  setToken: (token: string) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -20,15 +22,17 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      isGuest: true,
 
       login: async (email, password) => {
         set({ isLoading: true });
         try {
           const res = await authApi.login({ email, password });
           set({
-            token: res.access_token,
+            token: res.session_token,
             user: res.user,
             isAuthenticated: true,
+            isGuest: false,
             isLoading: false,
           });
         } catch (err) {
@@ -37,14 +41,15 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      register: async (email, password, displayName) => {
+      register: async (email, password, name) => {
         set({ isLoading: true });
         try {
-          const res = await authApi.register({ email, password, display_name: displayName });
+          const res = await authApi.register({ email, password, name });
           set({
-            token: res.access_token,
+            token: res.session_token,
             user: res.user,
             isAuthenticated: true,
+            isGuest: false,
             isLoading: false,
           });
         } catch (err) {
@@ -54,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        set({ token: null, user: null, isAuthenticated: false });
+        set({ token: null, user: null, isAuthenticated: false, isGuest: true });
       },
 
       initialize: async () => {
@@ -62,10 +67,15 @@ export const useAuthStore = create<AuthState>()(
         if (!token) return;
         try {
           const user = await authApi.getProfile();
-          set({ user, isAuthenticated: true });
+          set({ user, isAuthenticated: true, isGuest: false });
         } catch {
-          set({ token: null, user: null, isAuthenticated: false });
+          // Token expired or invalid — fall back to guest mode
+          set({ token: null, user: null, isAuthenticated: false, isGuest: true });
         }
+      },
+
+      setToken: (token: string) => {
+        set({ token });
       },
     }),
     {

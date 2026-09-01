@@ -105,7 +105,7 @@ export function useDownloads() {
       id:         tempId,
       trackId:    track.id,
       title:      track.title,
-      artist:     track.artist.name,
+      artist:     track.artist?.name ?? 'Unknown Artist',
       artworkUrl: track.artworkUrl,
       status:     'queued',
       progress:   0,

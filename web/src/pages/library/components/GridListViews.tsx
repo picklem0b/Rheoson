@@ -50,7 +50,7 @@ export function GridView({ items, onSelect }: GridViewProps) {
           </div>
           <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{item.title}</p>
           <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
-            {'artist' in item ? item.artist.name : `${item.trackCount} songs`}
+            {'artist' in item ? (item.artist?.name ?? 'Unknown Artist') : `${item.trackCount ?? 0} songs`}
           </p>
         </motion.button>
       ))}
@@ -91,7 +91,7 @@ export function ListView({ items, onSelect }: ListViewProps) {
           <div className="flex-1 text-left">
             <p className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</p>
             <p className="text-xs text-[var(--text-muted)]">
-              {'artist' in item ? item.artist.name : `${item.trackCount} songs`}
+              {'artist' in item ? (item.artist?.name ?? 'Unknown Artist') : `${item.trackCount ?? 0} songs`}
             </p>
           </div>
         </motion.button>

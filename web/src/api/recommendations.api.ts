@@ -32,28 +32,51 @@ export interface TasteProfileInfo {
 
 export const recommendationsApi = {
   getHome: async (force = false): Promise<HomeRecommendations> => {
-    return api.get<HomeRecommendations>('/api/recommendations/home', {
-      params: { force: String(force) },
-    });
+    try {
+      const raw = await api.get<unknown>('/recommendations/home', {
+        params: { force: String(force) },
+      });
+      if (!raw || typeof raw !== 'object') return { sections: [], updated_at: '' };
+      const r = raw as Record<string, unknown>;
+      return {
+        sections: Array.isArray(r.sections)
+          ? r.sections.map((s: unknown) => {
+              if (!s || typeof s !== 'object') return null;
+              const sec = s as Record<string, unknown>;
+              return {
+                section_id: String(sec.section_id ?? ''),
+                title: String(sec.title ?? ''),
+                track_ids: Array.isArray(sec.track_ids)
+                  ? sec.track_ids.map(String)
+                  : [],
+                generated_at: String(sec.generated_at ?? ''),
+              };
+            }).filter(Boolean) as RecommendationSection[]
+          : [],
+        updated_at: String(r.updated_at ?? ''),
+      };
+    } catch {
+      return { sections: [], updated_at: '' };
+    }
   },
 
   getAutoplay: async (trackId: string, limit = 5): Promise<{ tracks: AutoplayCandidate[] }> => {
-    return api.get('/api/recommendations/autoplay', {
+    return api.get('/recommendations/autoplay', {
       params: { track_id: trackId, limit: String(limit) },
     });
   },
 
   getDiscover: async (limit = 20): Promise<{ track_ids: string[] }> => {
-    return api.get('/api/recommendations/discover', {
+    return api.get('/recommendations/discover', {
       params: { limit: String(limit) },
     });
   },
 
   getTaste: async (): Promise<TasteProfileInfo> => {
-    return api.get<TasteProfileInfo>('/api/recommendations/taste');
+    return api.get<TasteProfileInfo>('/recommendations/taste');
   },
 
   refresh: async (): Promise<{ ok: boolean; sections: number }> => {
-    return api.post('/api/recommendations/refresh');
+    return api.post('/recommendations/refresh');
   },
 };

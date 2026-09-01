@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+import time
 import asyncio
 import structlog
 from ytmusicapi import YTMusic
@@ -24,11 +25,13 @@ _ytm:       YTMusic | None   = None
 _ytm_error: Exception | None = None
 _ytm_lock   = asyncio.Lock()
 _fail_count = 0  # consecutive failures — triggers re-init
+_last_fail_time: float = 0.0  # timestamp of last failure
 _MAX_FAILURES = 3
+_RETRY_BACKOFF = 60.0  # seconds to wait before retrying after max failures
 
 
 async def _get_ytm_async() -> YTMusic:
-    global _ytm, _ytm_error, _fail_count
+    global _ytm, _ytm_error, _fail_count, _last_fail_time
     if _ytm is not None and _fail_count < _MAX_FAILURES:
         return _ytm
     if _ytm_error is not None and _fail_count < _MAX_FAILURES:
@@ -38,13 +41,21 @@ async def _get_ytm_async() -> YTMusic:
             return _ytm
         if _ytm_error is not None and _fail_count < _MAX_FAILURES:
             raise SearchError(f"YTMusic unavailable: {_ytm_error}") from _ytm_error
-        # BUG #18: Rotate UA on re-init after failures
-        global _ua_index
+        # BUG FIX: Recovery after max failures — wait for backoff period
         if _fail_count >= _MAX_FAILURES:
+            elapsed = time.monotonic() - _last_fail_time
+            if elapsed < _RETRY_BACKOFF:
+                raise SearchError(
+                    f"YTMusic unavailable: too many failures, "
+                    f"retrying in {int(_RETRY_BACKOFF - elapsed)}s"
+                )
+            # Rotate UA and reset for retry
+            global _ua_index
             _ua_index = (_ua_index + 1) % len(_UA_POOL)
             _fail_count = 0
             _ytm = None  # force re-creation
-            log.info("ytmusic.rotate_ua", ua_index=_ua_index)
+            _ytm_error = None
+            log.info("ytmusic.recovery.rotate_ua", ua_index=_ua_index)
         loop = asyncio.get_event_loop()
         try:
             _ytm = await loop.run_in_executor(None, lambda: YTMusic())
@@ -52,6 +63,7 @@ async def _get_ytm_async() -> YTMusic:
         except Exception as e:
             _ytm_error = e
             _fail_count += 1
+            _last_fail_time = time.monotonic()
             log.error("ytmusic.init.failed", error=str(e), fail_count=_fail_count)
             raise SearchError(f"YTMusic failed to initialise: {e}") from e
     return _ytm
@@ -59,8 +71,9 @@ async def _get_ytm_async() -> YTMusic:
 
 def _record_ytm_failure() -> None:
     """Call when a ytmusicapi call fails — triggers UA rotation after N failures."""
-    global _fail_count
+    global _fail_count, _last_fail_time
     _fail_count += 1
+    _last_fail_time = time.monotonic()
 
 
 def _get_ytm() -> YTMusic:
@@ -287,12 +300,26 @@ async def search(query: str, filter: str | None = None, limit: int = 20) -> dict
         raise SearchError(f"YouTube Music search failed: {e}")
 
 
+# ── Suggestions cache ────────────────────────────────────────
+_suggestions_cache: dict[str, tuple[float, list[str]]] = {}
+_SUGGESTIONS_TTL = 300.0  # 5 minutes
+
+
 async def get_suggestions(query: str) -> list[str]:
+    now = time.monotonic()
+
+    # Check cache
+    cached = _suggestions_cache.get(query.lower())
+    if cached and (now - cached[0]) < _SUGGESTIONS_TTL:
+        return cached[1]
+
     await _get_ytm_async()
     loop = asyncio.get_event_loop()
     try:
         results = await loop.run_in_executor(None, lambda: _get_ytm().get_search_suggestions(query))
-        return [r for r in results if isinstance(r, str)][:8]
+        suggestions = [r for r in results if isinstance(r, str)][:8]
+        _suggestions_cache[query.lower()] = (now, suggestions)
+        return suggestions
     except Exception as e:
         _record_ytm_failure()
         log.warning("ytmusic.suggestions.failed", query=query, error=str(e))

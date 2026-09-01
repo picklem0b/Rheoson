@@ -1,7 +1,7 @@
 # CLAUDE.md — Rheoson Codebase Context
 
 > Single source of truth for any AI working on Rheoson. Read this before touching any file.
-> Version: 2.11.0 · Updated: 2026-08-30
+> Version: 2.11.0 · Updated: 2026-09-01
 
 ---
 
@@ -27,13 +27,19 @@ Rheoson/
 │   │   │   ├── exceptions.py # RheosonException hierarchy + handlers
 │   │   │   └── logging.py    # structlog configuration
 │   │   ├── routers/          # Route handlers (thin — delegate to services)
-│   │   │   ├── search.py
-│   │   │   ├── tracks.py     # Track index, liked, history, trending
-│   │   │   ├── stream.py     # Audio streaming (local file + yt-dlp pipe)
-│   │   │   ├── downloads.py  # Job CRUD (delegates to download_service)
-│   │   │   ├── lyrics.py
-│   │   │   ├── playlists.py  # JSON-file backed playlist CRUD
-│   │   │   └── settings.py   # Spotify credential management
+│   │   │   ├── search_router.py
+│   │   │   ├── track_router.py    # Track index, liked, history, trending, stats
+│   │   │   ├── stream_router.py   # Audio streaming (local file + yt-dlp pipe)
+│   │   │   ├── download_router.py # Job CRUD + batch download
+│   │   │   ├── lyrics_router.py
+│   │   │   ├── playlist_router.py  # MongoDB-backed playlist CRUD + export
+│   │   │   ├── settings_router.py  # Spotify credential management
+│   │   │   ├── auth_router.py      # Register, login, profile (JWT)
+│   │   │   ├── recommendation_router.py  # Personalized home, autoplay, discover
+│   │   │   ├── equalizer_router.py  # 5-band EQ presets (10 built-in)
+│   │   │   ├── share_router.py      # Shareable links + OpenGraph cards
+│   │   │   ├── analytics_router.py  # Listening stats, charts, insights
+│   │   │   └── smart_playlist_router.py  # Auto-playlists (most played, discover, time capsule)
 │   │   ├── services/
 │   │   │   ├── download_service.py   # Core download orchestration
 │   │   │   ├── ytmusic_service.py    # YTMusic API wrapper (singleton)
@@ -44,14 +50,23 @@ Rheoson/
 │   │   │   ├── lyrics_service.py     # syncedlyrics → LRC parser
 │   │   │   └── stream_service.py     # (empty placeholder)
 │   │   ├── schemas/                  # Pydantic models (response shapes)
-│   │   │   ├── track.py
-│   │   │   ├── download.py
-│   │   │   ├── playlist.py
-│   │   │   ├── search.py
-│   │   │   └── lyrics.py
+│   │   │   ├── track_schema.py
+│   │   │   ├── download_schema.py
+│   │   │   ├── playlist_schema.py
+│   │   │   ├── search_schema.py
+│   │   │   └── lyrics_schema.py
+│   │   ├── models/                   # Data models (MongoDB documents)
+│   │   │   └── recommendation.py     # Signal, TasteProfile, RecommendationSection
 │   │   └── websocket/
-│   │       ├── manager.py    # ConnectionManager singleton (wraps sio)
-│   │       └── events.py     # connect/disconnect/ping handlers
+│   │       ├── ws_manager.py   # ConnectionManager singleton (wraps sio)
+│   │       └── ws_events.py    # connect/disconnect/ping handlers
+│   ├── tests/                        # pytest async test suite
+│   │   ├── conftest.py               # Fixtures: mock DB, test client
+│   │   ├── test_health.py            # Health & root endpoint tests
+│   │   ├── test_search.py            # Search validation tests
+│   │   ├── test_downloads.py         # Download validation tests
+│   │   ├── test_playlists.py         # Playlist CRUD tests
+│   │   └── test_tracks.py            # Track endpoint tests
 │   ├── pyproject.toml        # Python deps, entry point: `Rheoson` CLI
 │   └── requirements.txt      # Thin — pyproject.toml is the source
 │
@@ -68,7 +83,13 @@ Rheoson/
 │   │   │   ├── downloads.ts
 │   │   │   ├── library.ts    # albums, artists, featured
 │   │   │   ├── playlists.ts
-│   │   │   └── lyrics.ts
+│   │   │   ├── lyrics.ts
+│   │   │   ├── auth.ts         # Login, register, profile
+│   │   │   ├── recommendations.ts  # Personalized home, autoplay
+│   │   │   ├── analytics.ts    # Listening stats, charts
+│   │   │   ├── equalizer.ts    # EQ presets
+│   │   │   ├── smartPlaylists.ts  # Auto-playlists (most played, discover)
+│   │   │   └── share.ts        # Shareable links + social cards
 │   │   ├── store/            # Zustand stores (all named `use*Store`)
 │   │   │   ├── playerStore.ts    # currentTrack, volume, repeatMode, savedProgress
 │   │   │   ├── queueStore.ts     # queue, history, originalQueue
@@ -76,16 +97,18 @@ Rheoson/
 │   │   │   ├── uiStore.ts        # Panel visibility, downloadModalTrackId
 │   │   │   └── themeStore.ts     # Active theme name
 │   │   ├── hooks/
-│   │   │   ├── usePlayer.ts          # Howler singleton, loadAndPlay, play/pause/seek
-│   │   │   ├── useQueue.ts           # Thin wrapper around queueStore
-│   │   │   ├── useDownloads.ts       # WebSocket-driven download state sync
-│   │   │   ├── useSearch.ts          # Debounced search with TanStack Query
-│   │   │   ├── useLyrics.ts          # Lyrics fetch + active line tracking
-│   │   │   ├── useMediaSession.ts    # Media Session API (lock screen controls)
-│   │   │   ├── useKeyboardShortcuts.ts
-│   │   │   ├── useAudioAnalyser.ts   # Web Audio API analyser (visualizer)
-│   │   │   ├── usePersisted.ts       # localStorage helper
-│   │   │   └── useSpotifyCredentials.ts
+│   │   │   ├── player.hook.ts          # Howler singleton, loadAndPlay, play/pause/seek
+│   │   │   ├── queue.hook.ts           # Thin wrapper around queueStore
+│   │   │   ├── downloads.hook.ts       # WebSocket-driven download state sync
+│   │   │   ├── search.hook.ts          # Debounced search with TanStack Query
+│   │   │   ├── lyrics.hook.ts          # Lyrics fetch + active line tracking
+│   │   │   ├── mediaSession.hook.ts    # Media Session API (lock screen controls)
+│   │   │   ├── keyboardShortcuts.hook.ts
+│   │   │   ├── audioAnalyser.hook.ts   # Web Audio API analyser (visualizer)
+│   │   │   ├── persisted.hook.ts       # localStorage helper
+│   │   │   ├── spotifyCredentials.hook.ts
+│   │   │   ├── useShare.ts             # Web Share API with clipboard fallback
+│   │   │   └── useSearchHistory.ts     # Recent search history (localStorage)
 │   │   ├── pages/            # Route-level components
 │   │   │   ├── home/Home.tsx                    # Sections: featured, trending, recent
 │   │   │   ├── search/Search.tsx                # Full-featured search page
@@ -95,7 +118,8 @@ Rheoson/
 │   │   │   ├── settings/Settings.tsx            # Sectioned settings shell
 │   │   │   ├── playlist/Playlist.tsx
 │   │   │   ├── album/Album.tsx
-│   │   │   └── artist/Artist.tsx
+│   │   │   ├── artist/Artist.tsx
+│   │   │   └── stats/ListeningStats.tsx  # Listening charts & analytics
 │   │   ├── components/
 │   │   │   ├── layout/
 │   │   │   │   ├── RootLayout.tsx    # Shell: sidebar + player bar + bottom nav
@@ -103,25 +127,48 @@ Rheoson/
 │   │   │   │   ├── Sidebar.tsx       # Desktop-only left nav
 │   │   │   │   └── TopBar.tsx        # Page header (back, title, actions)
 │   │   │   ├── player/
-│   │   │   │   ├── PlayerBar.tsx     # Persistent mini player (bottom of layout)
+│   │   │   │   ├── PlayerBar.tsx           # Persistent mini player (bottom of layout)
 │   │   │   │   ├── PlayerControls.tsx
 │   │   │   │   ├── ProgressBar.tsx
 │   │   │   │   ├── QueuePanel.tsx
 │   │   │   │   ├── QueueItem.tsx
-│   │   │   │   └── VolumeControl.tsx
+│   │   │   │   ├── VolumeControl.tsx
+│   │   │   │   ├── EqualizerPanel.tsx     # 5-band graphic EQ with presets
+│   │   │   │   ├── SleepTimer.tsx         # Countdown timer, auto-pause
+│   │   │   │   ├── CrossfadeControl.tsx   # Crossfade duration selector
+│   │   │   │   ├── PlaybackSettings.tsx   # Unified settings drawer
+│   │   │   │   └── AudioVisualizer.tsx    # Real-time frequency bars
 │   │   │   └── ui/               # Primitives: Button, Badge, Modal, Slider, etc.
+│   │   │       ├── ShortcutsModal.tsx     # Keyboard shortcuts help overlay
+│   │   │       ├── OfflineBanner.tsx      # Backend unreachable detection
+│   │   │       ├── QualityBadge.tsx       # Audio format/quality indicator
+│   │   │       ├── PullToRefresh.tsx      # Mobile pull-to-refresh gesture
+│   │   │       ├── SwipeableRow.tsx       # Swipe-to-reveal action buttons
+│   │   │       ├── ErrorBoundary.tsx      # React error boundary with recovery
+│   │   │       └── UpdateNotification.tsx # New version banner
 │   │   ├── lib/
 │   │   │   ├── constants.ts      # API_BASE, WS_URL, ENDPOINTS, STORAGE_KEYS
 │   │   │   ├── formatters.ts     # formatDuration, formatDate
 │   │   │   ├── utils.ts          # cn(), shuffle(), isSpotifyUrl()
-│   │   │   └── websocket.ts      # Socket.IO singleton + useWebSocket hook
+│   │   │   ├── websocket.lib.ts  # Socket.IO singleton + useWebSocket hook
+│   │   │   ├── haptics.ts        # Haptic feedback (Vibration API)
+│   │   │   ├── keepAwake.ts      # Screen wake lock while playing
+│   │   │   ├── statusbar.ts      # Dynamic status bar color from album art
+│   │   │   ├── deeplinks.ts      # App link / custom scheme handler
+│   │   │   ├── versionCheck.ts   # Periodic version checking
+│   │   │   └── prefetch.ts       # Stream URL prefetcher
 │   │   ├── types/
 │   │   │   ├── track.ts          # Track, Artist, Album
 │   │   │   ├── download.ts       # DownloadJob, DownloadStatus, AudioFormat
 │   │   │   ├── player.ts         # RepeatMode
 │   │   │   ├── playlist.ts
 │   │   │   └── search.ts
-│   │   └── themes/index.ts       # Theme definitions (CSS variable maps)
+│   │   ├── themes/index.ts       # Theme definitions (CSS variable maps)
+│   │   └── __tests__/            # Vitest unit tests
+│   │       ├── formatters.test.ts   # formatDuration, formatFileSize, etc.
+│   │       ├── utils.test.ts        # cn, shuffle, URL detection, etc.
+│   │       ├── haptics.test.ts      # Haptic feedback patterns
+│   │       └── searchHistory.test.ts # Search history add/remove/dedup
 │   ├── capacitor.config.ts       # Capacitor: appId, Android settings
 │   ├── vite.config.ts            # Vite: proxy, PWA, chunk splitting
 │   ├── tailwind.config.ts
@@ -199,7 +246,12 @@ All config via `pydantic-settings`. Reads `.env` at startup.
 | `DOWNLOADS_DIR`            | Termux path                   | Legacy — nothing reads from here now     |
 | `EXTRA_MUSIC_DIRS`         | Android Music/Download/sdcard | Scanned alongside MUSIC_DIR              |
 | `SPOTIFY_CLIENT_ID/SECRET` | `""`                          | Optional; enables Spotify URL resolution |
-| `CORS_ORIGINS`             | `["*"]`                       | Set in Render dashboard for prod         |
+| `CLERK_SECRET_KEY`         | `""`                          | Required in production — Clerk auth      |
+| `CLERK_PUBLISHABLE_KEY`    | `""`                          | Required in production — Clerk auth      |
+| `REDIS_URL`                | `""`                          | Optional — Redis-backed rate limiting    |
+| `SECRET_KEY`               | dev-only value                | Must be changed in production            |
+| `CORS_ORIGINS`             | Render URLs                   | Set in Render dashboard for prod         |
+| `RENDER_API_URL`           | `""`                          | For keep-alive ping (prod only)          |
 | `MAX_CONCURRENT_DOWNLOADS` | `4`                           | Semaphore limit in download_service      |
 | `AUDIO_FORMAT`             | `mp3`                         | Default download format                  |
 | `AUDIO_QUALITY`            | `0`                           | yt-dlp quality string                    |
@@ -524,9 +576,26 @@ web/android/
 
 ## Authentication
 
-There is none. Rheoson is single-user, self-hosted. No login, no sessions, no JWT.
+Authentication is powered by **Clerk** (backend-only, custom UI). The frontend handles registration/login with custom forms, which call the backend's Clerk API endpoints. The backend verifies Clerk session JWTs on protected routes.
 
-Spotify credentials are stored in `.env` and hot-reloaded into `settings` at runtime via `POST /api/settings/spotify`. The `spotify_status` endpoint returns `connected: bool` and a truncated client ID.
+**Auth policy (guest mode):**
+- **Without login:** Search, stream, download, view local files, trending, recently played — all work
+- **Requires login:** Playlists (create/edit), recommendations, analytics/stats, messaging (future)
+- Guest visits are tracked via `POST /api/auth/guest-visit` for the landing page counter
+
+**Backend auth flow:**
+1. Frontend sends email/password to `POST /api/auth/register` or `POST /api/auth/login`
+2. Backend creates user in Clerk via Backend API, creates a session, returns JWT
+3. Frontend stores session token in Zustand (persisted to localStorage)
+4. API client injects `Authorization: Bearer <token>` on every request
+5. Backend middleware (`get_current_user` / `get_optional_user`) verifies the JWT
+
+**Environment variables:**
+- `CLERK_SECRET_KEY` — Clerk backend API secret (required in production)
+- `CLERK_PUBLISHABLE_KEY` — Clerk frontend key (required in production)
+- App refuses to start in production without these set
+
+**Spotify credentials** are managed via environment variables only (Render dashboard or `.env`). The `POST /api/settings/spotify` endpoint has been removed for security.
 
 ---
 
@@ -561,6 +630,8 @@ Base: `/api`
 | POST     | `/downloads/{id}/cancel`       | `downloads.router` | Cancel running job                             |
 | POST     | `/downloads/{id}/retry`        | `downloads.router` | Re-enqueue failed job                          |
 | DELETE   | `/downloads/{id}`              | `downloads.router` | Remove from job store                          |
+| POST     | `/downloads/batch`             | `downloads.router` | Start multiple downloads (max 20)             |
+| GET      | `/tracks/stats/{id}`           | `tracks.router`    | Play count, like status for a track           |
 | GET      | `/playlists`                   | `playlists.router` | List all                                       |
 | POST     | `/playlists`                   | `playlists.router` | Create                                         |
 | GET      | `/playlists/{id}`              | `playlists.router` | Single                                         |
@@ -569,8 +640,27 @@ Base: `/api`
 | POST     | `/playlists/{id}/tracks`       | `playlists.router` | Add track                                      |
 | DELETE   | `/playlists/{id}/tracks/{tid}` | `playlists.router` | Remove track                                   |
 | POST     | `/playlists/{id}/import`       | `playlists.router` | Import Spotify playlist                        |
-| POST     | `/settings/spotify`            | `settings.router`  | Save Spotify credentials                       |
-| GET      | `/settings/spotify/status`     | `settings.router`  | Credential status                              |
+| GET      | `/playlists/{id}/export`       | `playlists.router` | Export playlist as JSON                        |
+| POST     | `/auth/register`               | `auth_router`      | Register via Clerk (returns session JWT)      |
+| POST     | `/auth/login`                  | `auth_router`      | Login via Clerk (returns session JWT)         |
+| GET      | `/auth/me`                     | `auth_router`      | Get current user profile (requires auth)      |
+| PATCH    | `/auth/me`                     | `auth_router`      | Update user profile (requires auth)           |
+| POST     | `/auth/guest-visit`            | `auth_router`      | Record a guest visit (for counter)            |
+| GET      | `/auth/visitor-count`          | `auth_router`      | Get guest + authed visitor counts             |
+| GET      | `/settings/spotify/status`     | `settings.router`  | Credential status (read-only)                 |
+| GET      | `/equalizer/presets`           | `equalizer.router` | List EQ presets                                |
+| GET      | `/equalizer/presets/{id}`      | `equalizer.router` | Get preset band config                         |
+| GET      | `/share/{id}/card`             | `share.router`     | OpenGraph share card (HTML)                    |
+| GET      | `/share/{id}/link`             | `share.router`     | Shareable URL + deeplink                       |
+| GET      | `/analytics/stats`             | `analytics.router` | Overall listening statistics                   |
+| GET      | `/analytics/top-artists`       | `analytics.router` | Top artists by play count                      |
+| GET      | `/analytics/top-tracks`        | `analytics.router` | Top tracks by play count                       |
+| GET      | `/analytics/listening-by-hour` | `analytics.router` | Activity by hour of day                        |
+| GET      | `/analytics/listening-by-day`  | `analytics.router` | Activity by day of week                        |
+| GET      | `/smart-playlists/most-played` | `smart_playlist.router` | Most played tracks                    |
+| GET      | `/smart-playlists/recently-added`| `smart_playlist.router` | Recently added tracks                |
+| GET      | `/smart-playlists/discover`    | `smart_playlist.router` | Hidden gems in library                |
+| GET      | `/smart-playlists/time-capsule`| `smart_playlist.router` | Tracks from N days ago                |
 
 **Socket.IO events (server → client):**
 
@@ -701,41 +791,59 @@ Files where a change has wide blast radius — always check these when modifying
 - Same song appears twice — once as streamed (YouTube ID), once as local (MD5 ID).
 - `isDownloaded` on search results is unreliable because the IDs don't match.
 - **Root cause:** no stable universal ID linking a YouTube track to its local file.
+- **Status:** Requires V2 stable ID system.
 
 ### 2. Jobs lost on server restart
 
 - `_jobs` is in-memory. Active downloads shown in the UI disappear after server restart.
 - Files themselves survive (on Termux), but the activity feed is blank.
+- **Status:** Jobs now persisted to `.download_jobs.json` — in-flight jobs marked as error on restart, completed jobs survive.
 
 ### 3. Render free tier ephemeral disk
 
 - `MUSIC_DIR=/tmp/Rheoson/music` on Render — files gone on restart/redeploy.
 - Render is effectively streaming-only (yt-dlp pipe) in this config.
+- **Status:** Architectural limitation of Render free tier.
 
 ### 4. No playlist track deduplication
 
-- Adding the same track to a playlist twice works — the list stores IDs, doesn't deduplicate.
+- **FIXED:** Adding the same track to a playlist twice now returns a no-op instead of duplicating.
 
 ### 5. Artwork for downloaded tracks only served if local
 
 - `GET /stream/{id}/artwork` returns 404 for YouTube tracks (not downloaded).
 - Frontend falls back to `artworkUrl` from the search result (YouTube CDN URL).
+- **Status:** By design — artwork proxy endpoint available for remote artwork.
 
-### 6. YTMusic singleton failure is permanent
+### 6. YTMusic singleton failure recovery
 
-- If `YTMusic()` fails at startup (network error), `_ytm_error` is set and all searches fail for the lifetime of the process. No recovery without restart.
+- **FIXED:** After max failures, UA rotation kicks in with a 60-second backoff. Recovery is automatic instead of permanent.
 
 ### 7. Settings Spotify creds written to `.env` at runtime path
 
 - `settings.py` computes `.env` path relative to the file's location. On Render, `/tmp` means the file doesn't survive restart, so Spotify creds also don't survive.
+- **Status:** Architectural limitation of Render free tier.
 
 ### 8. Stream cache rebuilt from all music dirs on every invalidation
 
 - `_build_cache_sync` scans all `settings.all_music_dirs`. If EXTRA_MUSIC_DIRS contains `/sdcard/Music` and the user has thousands of files there, the rebuild is slow.
+- **Status:** Remote stream cache (30 entries, 30 min TTL) reduces frequency of full rebuilds.
 
 ### 9. WebSocket auto-connect on app load
 
-- The singleton socket was previously `autoConnect: true`, meaning it connected even when no component used it. Now fixed: lazy connection via ref-counting, only connects when the first consumer mounts.
+- **FIXED:** Lazy connection via ref-counting, only connects when the first consumer mounts.
+
+### 10. Frontend API path double-prefix bug
+
+- **FIXED:** `prefetch.ts`, `auth.api.ts`, `recommendations.api.ts` were using `/api/...` paths while `API_BASE` already contained `/api`. Now corrected.
+
+### 11. YTMusic search returning dict instead of list
+
+- **FIXED:** Recommendation engine was iterating over the search result dict instead of `results['tracks']`.
+
+### 12. Blocking urllib call in search prewarm
+
+- **FIXED:** Replaced synchronous `urllib.request` with async `httpx` in `search_service.py`.
 
 ---
 
@@ -745,7 +853,7 @@ Based on the codebase state and known issues, V2 should address:
 
 1. **Stable track identity** — link YouTube videoId to downloaded file via a sidecar JSON or SQLite; `isDownloaded` becomes reliable, no duplicate entries
 2. **Persistent job store** — write download jobs to disk (SQLite or JSON); survived restart
-3. **User accounts / multi-user** — currently hardcoded single-user; prep for session-based access if self-hosting for family
+3. **User accounts / multi-user** — **DONE:** Clerk-powered auth with guest mode, visitor counter, and per-user recommendations
 4. **Playlist track objects** — store full track metadata in playlist, not just IDs (faster load, no re-hydration)
 5. **Background download on Android** — current APK loses downloads when WebView goes to background; needs Capacitor background task or a proper service
 6. **YTMusic auth** — ytmusicapi supports authenticated cookies for higher rate limits and personalised results
@@ -795,9 +903,11 @@ Capacitor WebView on Android doesn't support Web Audio API decoding for large au
 
 The library scanner reads `MUSIC_DIR`. Files written to `DOWNLOADS_DIR` would never appear in `/tracks` or `/tracks/recently-played`. This was a bug in an earlier version — files now land in `MUSIC_DIR/<Artist>/<Title>.<ext>` directly.
 
-### Why no database
+### Database architecture
 
-Self-hosted, single-user, Termux-first. SQLite would be the right call for V2 (stable IDs, query-able history, job persistence), but V1 uses flat JSON files and in-memory dicts to stay dependency-light and deployable anywhere with just `pip install`.
+MongoDB (Motor async) is used for user accounts, recommendations, analytics, signals, and visitor counting. File-system JSON files are used for tracks, playlists, liked tracks, and play history. In dev, use local `mongod`. In production, use MongoDB Atlas (free M0 tier).
+
+The database connection is non-blocking — if MongoDB is unavailable, the app starts and all file-based features work. DB-dependent routes return HTTP 503 gracefully.
 
 ### Why `injectManifest` PWA strategy
 

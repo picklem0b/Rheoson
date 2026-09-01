@@ -3,6 +3,7 @@ import { API_BASE } from '@/lib/constants'
 import { tracksStore, likedStore, historyStore } from '@/lib/localDb'
 import { scanLocalMusic } from '@/lib/localFs'
 import { isOnline } from '@/lib/network'
+import { normalizeTrack, normalizeTracks } from '@/lib/normalize'
 import type { Track } from '@/types/track.types'
 
 /**
@@ -19,14 +20,15 @@ export const tracksApi = {
    getTrack: async (id: string): Promise<Track> => {
       // Check local IndexedDB first
       const local = await tracksStore.get(id);
-      if (local) return local;
+      if (local) return normalizeTrack(local);
 
       // Fall back to API
       try {
-         const track = await api.get<Track>(`/tracks/${id}`);
+         const track = await api.get<unknown>(`/tracks/${id}`);
+         const normalized = normalizeTrack(track);
          // Cache in local DB for offline access
-         await tracksStore.put(track);
-         return track;
+         await tracksStore.put(normalized);
+         return normalized;
       } catch {
          throw new Error(`Track ${id} not found`);
       }
@@ -53,7 +55,8 @@ export const tracksApi = {
 
       // 3. Fall back to backend API
       try {
-         const tracks = await api.get<Track[]>('/tracks/');
+         const raw = await api.get<unknown[]>('/tracks/');
+         const tracks = normalizeTracks(raw);
          // Cache in IndexedDB
          if (tracks.length > 0) {
             await tracksStore.putAll(tracks);
@@ -114,7 +117,8 @@ export const tracksApi = {
 
       // Online — fetch from backend (most up-to-date)
       try {
-         const tracks = await api.get<Track[]>('/tracks/liked');
+         const raw = await api.get<unknown[]>('/tracks/liked');
+         const tracks = normalizeTracks(raw);
          // Update local cache
          const txLiked: string[] = [];
          for (const track of tracks) {
@@ -171,7 +175,8 @@ export const tracksApi = {
 
       // 2. Online — fetch from backend
       try {
-         const tracks = await api.get<Track[]>('/tracks/recently-played', { params: { limit } });
+         const raw = await api.get<unknown[]>('/tracks/recently-played', { params: { limit } });
+         const tracks = normalizeTracks(raw);
          // Cache tracks locally
          if (tracks.length > 0) {
             await tracksStore.putAll(tracks);
@@ -192,7 +197,8 @@ export const tracksApi = {
       if (!isOnline()) return [];
 
       try {
-         const tracks = await api.get<Track[]>('/tracks/trending', { params: { limit } });
+         const raw = await api.get<unknown[]>('/tracks/trending', { params: { limit } });
+         const tracks = normalizeTracks(raw);
          if (tracks.length > 0) {
             await tracksStore.putAll(tracks);
          }
@@ -207,10 +213,8 @@ export const tracksApi = {
    recordPlay: async (id: string) => {
       // Always record locally first
       await historyStore.add(id);
-      await tracksStore.put({
-         ...(await tracksStore.get(id) ?? {} as Track),
-         id,
-      } as Track);
+      const existing = await tracksStore.get(id);
+      await tracksStore.put(normalizeTrack({ ...existing, id }));
 
       // Sync to backend (queued if offline)
       try {

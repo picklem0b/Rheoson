@@ -67,7 +67,7 @@ export default function Album() {
               </h1>
               {album && (
                 <p className="text-[var(--text-secondary)] text-sm mt-1">
-                  {album.artist.name} · {album.releaseYear ?? album.year ?? '—'} · {(album.tracks ?? []).length} songs
+                  {album.artist?.name ?? 'Unknown Artist'} · {album.releaseYear ?? album.year ?? '—'} · {(album.tracks ?? []).length} songs
                 </p>
               )}
             </div>
@@ -140,7 +140,7 @@ function AlbumTrackRow({ track, index, onClick }: AlbumTrackRowProps) {
       <Play className="w-4 h-4 text-[var(--text-primary)] fill-current hidden group-hover:block" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{track.title}</p>
-        <p className="text-xs text-[var(--text-secondary)]">{track.artist.name}</p>
+        <p className="text-xs text-[var(--text-secondary)]">{track.artist?.name ?? 'Unknown Artist'}</p>
       </div>
       <span className="text-xs text-[var(--text-muted)] tabular-nums">
         {formatDuration(track.duration)}

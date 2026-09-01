@@ -97,7 +97,7 @@ function ContextSheet({
                      {track.title}
                   </p>
                   <p className='text-sm text-[var(--text-muted)] truncate'>
-                     {track.artist.name}
+                     {track.artist?.name ?? 'Unknown Artist'}
                   </p>
                </div>
                <motion.button
@@ -259,7 +259,7 @@ function PlaylistTab({ currentTrack }: { currentTrack: Track }) {
                         {track.title}
                      </p>
                      <p className='text-xs text-[var(--text-secondary)] truncate'>
-                        {track.artist.name}
+                        {track.artist?.name ?? 'Unknown Artist'}
                      </p>
                   </div>
                   {isCurrent ? (
@@ -348,7 +348,7 @@ export default function NowPlaying() {
             break;
          }
          case "copy-link": {
-            const url = `${window.location.origin}/search?q=${encodeURIComponent(currentTrack.title + " " + currentTrack.artist.name)}`;
+            const url = `${window.location.origin}/search?q=${encodeURIComponent(currentTrack.title + " " + (currentTrack.artist?.name ?? ''))}`;
             navigator.clipboard.writeText(url).catch(() => {});
             break;
          }
@@ -477,7 +477,7 @@ export default function NowPlaying() {
                      {currentTrack.title}
                   </motion.h2>
                   <p className='text-sm text-white/60 truncate mt-0.5'>
-                     {currentTrack.artist.name}
+                     {currentTrack.artist?.name ?? 'Unknown Artist'}
                   </p>
                </div>
 

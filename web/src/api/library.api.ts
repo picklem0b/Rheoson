@@ -1,4 +1,5 @@
 import { api } from "./client.api";
+import { normalizeAlbum, normalizeArtist } from "@/lib/normalize";
 import type { Album, Artist } from "@/types";
 
 export interface FeaturedItem {
@@ -10,13 +11,25 @@ export interface FeaturedItem {
 }
 
 export const libraryApi = {
-   getAlbums: () => api.get<Album[]>("/library/albums"),
+   getAlbums: async (): Promise<Album[]> => {
+      const raw = await api.get<unknown[]>("/library/albums");
+      return Array.isArray(raw) ? raw.map(normalizeAlbum) : [];
+   },
 
-   getAlbum: (id: string) => api.get<Album>(`/library/albums/${id}`),
+   getAlbum: async (id: string): Promise<Album> => {
+      const raw = await api.get<unknown>(`/library/albums/${id}`);
+      return normalizeAlbum(raw);
+   },
 
-   getArtists: () => api.get<Artist[]>("/library/artists"),
+   getArtists: async (): Promise<Artist[]> => {
+      const raw = await api.get<unknown[]>("/library/artists");
+      return Array.isArray(raw) ? raw.map(normalizeArtist) : [];
+   },
 
-   getArtist: (id: string) => api.get<Artist>(`/library/artists/${id}`),
+   getArtist: async (id: string): Promise<Artist> => {
+      const raw = await api.get<unknown>(`/library/artists/${id}`);
+      return normalizeArtist(raw);
+   },
 
    /**
     * Featured items for the Home page.
