@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import os
 import json
+import re
 import shutil
 import time
 import uuid
@@ -562,3 +563,60 @@ async def library_artists():
             ),
         }
     return list(seen.values())
+
+
+# ── Artist detail ─────────────────────────────────────────────
+# Full artist profile + top songs. Tries the YouTube Music artist browse
+# first (covers remote artists and the full-player creator tab), then
+# falls back to aggregating local library files by artist id/name so
+# downloaded artists keep a page even with no network.
+
+def _artist_slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+\s*", "-", name.strip().lower()).strip("-")
+
+
+@app.get("/api/artists/{artist_id}", tags=["artists"])
+async def artist_detail(artist_id: str, name: str = Query("", description="Fallback match by artist name")):
+    from fastapi import HTTPException as _HTTP
+
+    # 1) YouTube Music browse (browse ids look like UCaBtyDC... or channel ids)
+    if artist_id and artist_id != "unknown" and artist_id != "local":
+        try:
+            from app.services.ytmusic_service import get_artist_with_content
+            data = await get_artist_with_content(artist_id)
+            if data.get("name"):
+                return data
+        except Exception:
+            pass  # fall through to the local aggregate below
+
+    # 2) Local library aggregate — match by exact artist id, slugged name,
+    #    or the explicit ?name= query the frontend sends for unknown ids.
+    from app.routers.track_router import _build_index
+    idx  = await _build_index()
+    matches: list[dict] = []
+    for t in idx.values():
+        art    = t.get("artist") or {}
+        aid    = art.get("id") or ""
+        aname  = art.get("name") or ""
+        if aid and aid == artist_id:
+            matches.append(t)
+        elif aname and (_artist_slug(aname) == artist_id or (name and aname.lower() == name.lower())):
+            matches.append(t)
+    if not matches:
+        raise _HTTP(status_code=404, detail="Artist not found")
+
+    first = matches[0].get("artist") or {}
+    return {
+        "id":               artist_id,
+        "name":             first.get("name", ""),
+        "imageUrl":         first.get("imageUrl", "") or matches[0].get("artworkUrl", ""),
+        "genres":           first.get("genres", []),
+        "description":      "",
+        "subscribers":      "",
+        "views":            "",
+        "monthlyListeners": 0,
+        "topTracks":        matches[:20],
+        "albums":           [],
+        "singles":          [],
+        "related":          [],
+    }

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
    motion,
    AnimatePresence,
@@ -17,14 +18,19 @@ import {
    Music2,
    X,
    WifiOff,
+   User,
+   Users,
+   ExternalLink,
    Link as LinkIcon
 } from "lucide-react";
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { useQueueStore } from "@/store/queue.store";
 import { useQueue } from "@/hooks/queue.hook";
+import { usePlayer } from "@/hooks/player.hook";
 import { useLyrics } from "@/hooks/lyrics.hook";
 import { tracksApi } from "@/api/tracks.api";
+import { getArtist } from "@/api/library.api";
 import PlayerControls from "@/components/player/PlayerControls";
 import ProgressBar from "@/components/player/ProgressBar";
 import { Spinner } from "@/components/ui/Spinner";
@@ -32,7 +38,7 @@ import { formatDuration } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { Track } from "@/types/track.types";
 
-type Tab = "queue" | "lyric" | "related";
+type Tab = "queue" | "lyric" | "creator";
 
 // ── Context menu ──────────────────────────────────────────────
 
@@ -138,18 +144,35 @@ function ContextSheet({
 }
 
 // ── Lyrics tab ────────────────────────────────────────────────
+// Karaoke-style reading view: the active line is highlighted and the
+// view auto-follows it while playing (toggleable), and tapping a synced
+// line jumps playback to that moment.
 
 function LyricsTab({
    lines,
    activeLine,
    synced,
-   isLoading
+   isLoading,
+   isPlaying,
+   onSeek
 }: {
    lines: { text: string; startTime?: number }[];
    activeLine: number;
    synced: boolean;
    isLoading: boolean;
+   isPlaying: boolean;
+   onSeek?: (seconds: number) => void;
 }) {
+   const [follow, setFollow] = useState(true);
+   const lineRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+
+   // Auto-scroll so the singing line stays centered while playing
+   useEffect(() => {
+      if (!follow || !synced || !isPlaying) return;
+      const el = lineRefs.current[activeLine];
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+   }, [activeLine, follow, synced, isPlaying]);
+
    if (isLoading) {
       return (
          <div className='flex items-center justify-center py-16'>
@@ -173,29 +196,236 @@ function LyricsTab({
    }
 
    return (
-      <div className='space-y-3 py-4 pb-8'>
-         {!synced && (
-            <p className='text-xs text-[var(--text-muted)] text-center'>
-               Unsynced lyrics
-            </p>
+      <div className='py-4 pb-8'>
+         <div className='flex items-center justify-center gap-2 mb-4'>
+            {!synced ? (
+               <span className='text-[11px] text-[var(--text-muted)] bg-white/5 px-3 py-1 rounded-full'>
+                  Static lyrics
+               </span>
+            ) : (
+               <button
+                  onClick={() => setFollow(f => !f)}
+                  className={cn(
+                     "px-3 py-1 rounded-full text-[11px] font-bold transition-colors",
+                     follow
+                        ? "bg-[var(--accent)] text-white"
+                        : "bg-white/5 text-white/50"
+                  )}>
+                  {follow ? "Following lyrics" : "Auto-scroll off"}
+               </button>
+            )}
+         </div>
+
+         <div className='space-y-4'>
+            {lines.map((line, i) => {
+               const active = i === activeLine;
+               const seekable = synced && typeof line.startTime === "number";
+               return (
+                  <motion.p
+                     key={i}
+                     ref={el => {
+                        lineRefs.current[i] = el;
+                     }}
+                     onClick={
+                        seekable && onSeek
+                           ? () => onSeek((line.startTime as number) / 1000)
+                           : undefined
+                     }
+                     animate={{
+                        opacity: active ? 1 : 0.4,
+                        scale: active ? 1.03 : 1
+                     }}
+                     transition={{ duration: 0.25 }}
+                     className={cn(
+                        "text-lg leading-relaxed text-center transition-all duration-300",
+                        seekable && onSeek && "cursor-pointer",
+                        active
+                           ? "font-bold text-white"
+                           : "font-medium text-white/50"
+                     )}>
+                     {line.text}
+                  </motion.p>
+               );
+            })}
+         </div>
+      </div>
+   );
+}
+
+// ── Creator tab ───────────────────────────────────────────────
+// Replaces the old "Related — coming soon" stub: shows the artist behind
+// the current track — profile, top songs and their reach ("their view").
+
+function compactCount(v: number | string | null | undefined): string {
+   const n = typeof v === "string" ? parseInt(v.replace(/,/g, ""), 10) : (v ?? 0);
+   if (!n || Number.isNaN(n)) return "";
+   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+   return String(n);
+}
+
+function CreatorTab({
+   artistId,
+   artistName
+}: {
+   artistId?: string;
+   artistName?: string;
+}) {
+   const navigate = useNavigate();
+   const { playTrack } = useQueue();
+   const currentTrack = usePlayerStore(s => s.currentTrack);
+
+   // Remote artists use their YouTube Music browse id; local/unknown ids
+   // fall back to the slugged artist name (the backend matches either).
+   const browseId =
+      artistId && artistId !== "unknown"
+         ? artistId
+         : artistName
+           ? artistName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+           : "";
+
+   const { data, isLoading } = useQuery({
+      queryKey: ["artist-content", browseId || "none"],
+      queryFn:  () => getArtist(browseId).catch(() => null),
+      enabled:  !!browseId,
+      staleTime: 10 * 60_000,
+      retry:     0
+   });
+
+   const artist = data ?? null;
+   const top = artist?.topTracks ?? [];
+   const listeners =
+      artist &&
+      ((artist.monthlyListeners ?? 0) > 0
+         ? compactCount(artist.monthlyListeners)
+         : compactCount(artist.subscribers));
+
+   if (isLoading) {
+      return (
+         <div className='space-y-2 py-4 pb-8'>
+            {Array.from({ length: 4 }).map((_, i) => (
+               <div key={i} className='h-14 rounded-2xl bg-white/5 animate-pulse' />
+            ))}
+         </div>
+      );
+   }
+
+   return (
+      <div className='py-4 pb-8 space-y-5'>
+         {/* Profile — the artist's view */}
+         {artist ? (
+            <>
+               <div className='flex items-center gap-3'>
+                  {artist.imageUrl ? (
+                     <img
+                        src={artist.imageUrl}
+                        alt={artist.name}
+                        className='w-14 h-14 rounded-full object-cover flex-shrink-0'
+                        onError={e => {
+                           (e.target as HTMLImageElement).src = "/assets/logo.png";
+                        }}
+                     />
+                  ) : (
+                     <div className='w-14 h-14 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0'>
+                        <User className='w-6 h-6 text-white/50' />
+                     </div>
+                  )}
+                  <div className='min-w-0 flex-1'>
+                     <p className='font-bold text-white truncate'>{artist.name}</p>
+                     <div className='flex items-center gap-2 mt-1 flex-wrap'>
+                        {(artist.genres ?? []).slice(0, 3).map(g => (
+                           <span
+                              key={g}
+                              className='text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-white/50'>
+                              {g}
+                           </span>
+                        ))}
+                        {listeners && (
+                           <span className='text-[11px] text-white/40 flex items-center gap-1'>
+                              <Users className='w-3 h-3' />
+                              {listeners} monthly listeners
+                           </span>
+                        )}
+                     </div>
+                  </div>
+                  <button
+                     onClick={() => navigate(`/artist/${encodeURIComponent(browseId)}`)}
+                     className='flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-bold flex-shrink-0'>
+                     <ExternalLink className='w-3.5 h-3.5' />
+                     Open
+                  </button>
+               </div>
+
+               {artist.description && (
+                  <p className='text-xs text-white/40 leading-relaxed'>{artist.description}</p>
+               )}
+            </>
+         ) : (
+            <div className='flex flex-col items-center justify-center py-10 gap-3 text-center'>
+               <User className='w-10 h-10 text-white/20' />
+               <p className='text-white/60 font-semibold'>
+                  {artistName ?? "This artist"}
+               </p>
+               <p className='text-white/40 text-sm'>
+                  Top songs aren&apos;t available for this artist right now
+               </p>
+            </div>
          )}
-         {lines.map((line, i) => (
-            <motion.p
-               key={i}
-               animate={{
-                  opacity: i === activeLine ? 1 : 0.35,
-                  scale: i === activeLine ? 1.02 : 1
-               }}
-               transition={{ duration: 0.25 }}
-               className={cn(
-                  "text-lg leading-relaxed text-center transition-all duration-300",
-                  i === activeLine
-                     ? "font-bold text-[var(--text-primary)]"
-                     : "font-medium text-[var(--text-secondary)]"
-               )}>
-               {line.text}
-            </motion.p>
-         ))}
+
+         {/* Top songs */}
+         {top.length > 0 && (
+            <div>
+               <p className='text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 px-1'>
+                  Top songs
+               </p>
+               <div className='space-y-0.5'>
+                  {top.map((track: Track, i: number) => {
+                     const isCurrent = currentTrack?.id === track.id;
+                     return (
+                        <motion.button
+                           key={`${track.id}-${i}`}
+                           whileTap={{ scale: 0.98 }}
+                           onClick={() => !isCurrent && playTrack(track, top)}
+                           className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2 rounded-2xl transition-colors text-left",
+                              isCurrent
+                                 ? "bg-[var(--accent-subtle)]"
+                                 : "hover:bg-white/5"
+                           )}>
+                           <span className='text-xs font-bold text-white/30 w-4 text-center tabular-nums flex-shrink-0'>
+                              {i + 1}
+                           </span>
+                           <div className='relative flex-shrink-0'>
+                              <img
+                                 src={track.artworkUrl || "/assets/logo.png"}
+                                 alt={track.title}
+                                 className='w-10 h-10 rounded-lg object-cover'
+                                 onError={e => {
+                                    (e.target as HTMLImageElement).src =
+                                       "/assets/logo.png";
+                                 }}
+                              />
+                           </div>
+                           <div className='flex-1 min-w-0'>
+                              <p
+                                 className={cn(
+                                    "text-sm font-semibold truncate",
+                                    isCurrent
+                                       ? "text-[var(--accent)]"
+                                       : "text-white"
+                                 )}>
+                                 {track.title}
+                              </p>
+                              <p className='text-xs text-white/40 truncate'>
+                                 {formatDuration(track.duration)}
+                              </p>
+                           </div>
+                        </motion.button>
+                     );
+                  })}
+               </div>
+            </div>
+         )}
       </div>
    );
 }
@@ -300,6 +530,7 @@ export default function NowPlaying() {
    const isPlaying = usePlayerStore(s => s.isPlaying);
    const isLoading = usePlayerStore(s => s.isLoading);
    const { openDownloadModal } = useUIStore();
+   const { seek } = usePlayer();
 
    const {
       lines,
@@ -311,6 +542,15 @@ export default function NowPlaying() {
    const [tab, setTab] = useState<Tab>("queue");
    const [showMenu, setShowMenu] = useState(false);
    const [liked, setLiked] = useState(currentTrack?.isLiked ?? false);
+
+   // The PlayerBar lyrics button opens this view on the Lyrics tab
+   useEffect(() => {
+      const handler = (e: Event) => {
+         if ((e as CustomEvent<string>).detail === "lyric") setTab("lyric");
+      };
+      window.addEventListener("rheoson:show-tab", handler);
+      return () => window.removeEventListener("rheoson:show-tab", handler);
+   }, []);
 
    // Swipe-down-to-dismiss
    const dragY = useMotionValue(0);
@@ -476,9 +716,16 @@ export default function NowPlaying() {
                      className='text-xl font-bold text-white truncate'>
                      {currentTrack.title}
                   </motion.h2>
-                  <p className='text-sm text-white/60 truncate mt-0.5'>
+                  <button
+                     onClick={() =>
+                        currentTrack.artist?.id &&
+                        currentTrack.artist.id !== 'unknown'
+                           ? navigate(`/artist/${encodeURIComponent(currentTrack.artist.id)}`)
+                           : setTab('creator')
+                     }
+                     className='text-sm text-white/60 truncate mt-0.5 block max-w-full text-left'>
                      {currentTrack.artist?.name ?? 'Unknown Artist'}
-                  </p>
+                  </button>
                </div>
 
                <motion.button whileTap={{ scale: 0.85 }} onClick={handleLike}>
@@ -519,7 +766,7 @@ export default function NowPlaying() {
             {/* Tabs */}
             <div className='flex-shrink-0 px-6 mt-4 border-b border-white/10'>
                <div className='flex gap-6'>
-                  {(["queue", "lyric", "related"] as Tab[]).map(t => (
+                  {(["queue", "lyric", "creator"] as Tab[]).map(t => (
                      <button
                         key={t}
                         onClick={() => setTab(t)}
@@ -533,7 +780,7 @@ export default function NowPlaying() {
                            ? "Queue"
                            : t === "lyric"
                              ? "Lyrics"
-                             : "Related"}
+                             : "Creator"}
                      </button>
                   ))}
                </div>
@@ -557,18 +804,15 @@ export default function NowPlaying() {
                            activeLine={activeLine}
                            synced={synced}
                            isLoading={lyricsLoading}
+                           isPlaying={isPlaying}
+                           onSeek={seek}
                         />
                      )}
-                     {tab === "related" && (
-                        <div className='flex flex-col items-center justify-center py-16 gap-3 text-center pb-8'>
-                           <Music2 className='w-10 h-10 text-[var(--text-muted)]' />
-                           <p className='text-[var(--text-secondary)] font-semibold'>
-                              Related tracks
-                           </p>
-                           <p className='text-[var(--text-muted)] text-sm'>
-                              Coming soon
-                           </p>
-                        </div>
+                     {tab === "creator" && (
+                        <CreatorTab
+                           artistId={currentTrack.artist?.id}
+                           artistName={currentTrack.artist?.name}
+                        />
                      )}
                   </motion.div>
                </AnimatePresence>

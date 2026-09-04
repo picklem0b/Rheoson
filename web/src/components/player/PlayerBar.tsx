@@ -26,11 +26,17 @@ export default function PlayerBar() {
    const isLoading = usePlayerStore(s => s.isLoading);
    const {
       showQueue,
-      showLyrics,
       toggleQueue,
-      toggleLyrics,
       openDownloadModal
    } = useUIStore();
+
+   // Lyrics lives in the full-player view (Lyrics tab) — open it there.
+   const openLyrics = useCallback(() => {
+      navigate("/full-player");
+      window.dispatchEvent(
+         new CustomEvent("rheoson:show-tab", { detail: "lyric" })
+      );
+   }, [navigate]);
 
    // Local liked state — kept in sync with the track's isLiked flag.
    const [liked, setLiked] = useState(currentTrack?.isLiked ?? false);
@@ -191,8 +197,7 @@ export default function PlayerBar() {
                      <IconButton
                         size='sm'
                         variant='ghost'
-                        active={showLyrics}
-                        onClick={toggleLyrics}
+                        onClick={openLyrics}
                         title='Lyrics'>
                         <Mic2 />
                      </IconButton>
@@ -258,12 +263,10 @@ export default function PlayerBar() {
                                     }
                                  },
                                  {
-                                    label: showLyrics
-                                       ? "Hide lyrics"
-                                       : "Show lyrics",
+                                    label: "View lyrics",
                                     icon: <Mic2 className='w-4 h-4' />,
                                     action: () => {
-                                       toggleLyrics();
+                                       openLyrics();
                                        setMenuOpen(false);
                                     }
                                  },

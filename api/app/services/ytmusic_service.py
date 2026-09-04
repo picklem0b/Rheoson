@@ -395,6 +395,78 @@ async def get_artist(artist_id: str) -> dict:
         return {"id": artist_id, "name": "", "imageUrl": "", "genres": []}
 
 
+def _parse_count(value: object) -> int:
+    """Parse a ytmusic count like '12,345,678', '12.3M' or 0 into an int."""
+    if isinstance(value, (int, float)):
+        return int(value)
+    s = str(value or "").replace(",", "").replace(" ", "").strip()
+    if not s:
+        return 0
+    m = re.match(r"^(\d+(?:\.\d+)?)([km]?)$", s, re.IGNORECASE)
+    if not m:
+        return 0
+    num = float(m.group(1))
+    suffix = m.group(2).lower()
+    if suffix == "k":
+        num *= 1_000
+    elif suffix == "m":
+        num *= 1_000_000
+    return int(num)
+
+
+async def get_artist_with_content(artist_id: str) -> dict:
+    """
+    Full artist page payload: profile + top tracks + albums/singles + related.
+    Powers the creator tab and the artist page for YouTube Music artists.
+    """
+    await _get_ytm_async()
+    loop = asyncio.get_event_loop()
+    try:
+        data = await loop.run_in_executor(None, lambda: _get_ytm().get_artist(artist_id))
+    except Exception as e:
+        _record_ytm_failure()
+        log.warning("ytmusic.get_artist_content.failed", artist_id=artist_id, error=str(e))
+        raise SearchError(f"Artist unavailable: {e}") from e
+
+    thumbs   = data.get("thumbnails") or []
+    top_list = []
+    for s in data.get("songs") or []:
+        if not s.get("videoId"):
+            continue
+        t = _parse_track(s)
+        t["playCount"] = _parse_count(s.get("playCount") or s.get("plays"))
+        top_list.append(t)
+
+    albums  = [_parse_album(a) for a in (data.get("albums") or []) if a.get("browseId")]
+    singles = [_parse_album(a) for a in (data.get("singles") or []) if a.get("browseId")]
+    related = [_parse_artist(r) for r in (data.get("related") or []) if r.get("browseId")]
+    keywords = data.get("keywords") or data.get("genre") or ""
+    if isinstance(keywords, str):
+        genres = [g.strip() for g in keywords.split(",") if g.strip()]
+    elif isinstance(keywords, list):
+        genres = [str(g) for g in keywords]
+    else:
+        genres = []
+
+    subscribers = _parse_count(data.get("subscribers"))
+    views       = _parse_count(data.get("views"))
+
+    return {
+        "id":               artist_id,
+        "name":             _safe(data.get("name")),
+        "imageUrl":         _thumb_artist(thumbs),
+        "genres":           genres[:6],
+        "description":      _safe(data.get("description")),
+        "subscribers":      str(subscribers) if subscribers else "",
+        "views":            str(views) if views else "",
+        "monthlyListeners": subscribers,
+        "topTracks":        top_list[:20],
+        "albums":           albums[:12],
+        "singles":          singles[:8],
+        "related":          related[:8],
+    }
+
+
 async def search_one(query: str) -> dict | None:
     await _get_ytm_async()
     loop = asyncio.get_event_loop()
