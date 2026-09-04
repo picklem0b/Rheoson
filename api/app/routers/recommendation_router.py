@@ -36,37 +36,24 @@ def _get_user_id(user: dict | None) -> str:
 
 
 # ── Local play history helpers ─────────────────────────────────
-
-def _load_local_history() -> list[dict]:
-    """Load play history from local JSON file."""
-    history_file = Path(settings.MUSIC_DIR) / ".history.json"
-    if not history_file.exists():
-        return []
-    try:
-        with open(history_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, list) else []
-    except (json.JSONDecodeError, Exception):
-        return []
+# Reads come from app.services.local_history — the JSON mirror every
+# play/like write also lands in, so local mode reflects real activity.
 
 
-def _load_local_liked() -> list[str]:
-    """Load liked track IDs from local JSON file."""
-    liked_file = Path(settings.MUSIC_DIR) / ".liked.json"
-    if not liked_file.exists():
-        return []
-    try:
-        with open(liked_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, list) else []
-    except (json.JSONDecodeError, Exception):
-        return []
+async def _load_local_history() -> list[dict]:
+    from app.services.local_history import read_history_local
+    return await read_history_local()
 
 
-def _build_local_taste() -> dict:
+async def _load_local_liked() -> list[str]:
+    from app.services.local_history import read_liked_local
+    return await read_liked_local()
+
+
+async def _build_local_taste() -> dict:
     """Build a simple taste profile from local play history + liked tracks."""
-    history = _load_local_history()
-    liked = _load_local_liked()
+    history = await _load_local_history()
+    liked = await _load_local_liked()
 
     # Count plays per track
     play_counts: dict[str, int] = {}
@@ -110,7 +97,7 @@ async def get_home_recommendations(
             pass  # Fall through to local mode
 
     # ── Local mode: no MongoDB ─────────────────────────────────
-    taste = _build_local_taste()
+    taste = await _build_local_taste()
     sections = []
 
     # Section 1: For You — based on play history
@@ -287,7 +274,7 @@ async def get_taste_profile(
             pass
 
     # ── Local mode ─────────────────────────────────────────────
-    taste = _build_local_taste()
+    taste = await _build_local_taste()
     return {
         "total_plays": taste["total_plays"],
         "total_likes": taste["total_likes"],

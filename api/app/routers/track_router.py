@@ -7,7 +7,15 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import db_available, get_db
+from app.services.local_history import (
+    clear_history_local,
+    like_local,
+    read_history_local,
+    read_liked_local,
+    record_play_local,
+    unlike_local,
+)
 from app.services.metadata_service import read_track_metadata
 from app.services.ytmusic_service import get_track as yt_get_track
 from app.services.signal_service import record_signal
@@ -108,6 +116,33 @@ async def _hydrate_track(track_id: str) -> dict | None:
         log.warning('tracks.hydrate.failed', track_id=track_id)
         return None
 
+
+async def _hydrate_many(track_ids: list[str], limit: int = 50) -> list[dict]:
+    """Hydrate track ids to full metadata (best-effort, bounded concurrency)."""
+    ids = [t for t in track_ids[:limit] if t]
+    if not ids:
+        return []
+    sem = asyncio.Semaphore(10)
+
+    async def _safe(tid: str):
+        async with sem:
+            return await _hydrate_track(tid)
+
+    results = await asyncio.gather(*[_safe(tid) for tid in ids])
+    return [r for r in results if r is not None]
+
+
+async def _liked_ids_mongo(db: AsyncIOMotorDatabase) -> list[str]:
+    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
+    return list(doc.get('track_ids', [])) if doc else []
+
+
+async def _history_ids_mongo(db: AsyncIOMotorDatabase) -> list[str]:
+    doc = await db.listening_history.find_one({'user_id': 'anonymous'})
+    history = doc.get('entries', []) if doc else []
+    return [h['id'] for h in history if h.get('id')]
+
+
 # ── STATIC ROUTES FIRST ───────────────────────────────────────
 # FastAPI matches routes in registration order. If /{track_id} were
 # registered first, GET /liked would resolve as track_id="liked" → 404.
@@ -120,40 +155,41 @@ async def list_tracks():
 
 
 @router.get('/liked/count')
-async def get_liked_count(db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_liked_count():
     """Cheap count for the Library pinned card — no track hydration."""
-    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
-    ids = doc.get('track_ids', []) if doc else []
-    return {'count': len(ids)}
+    try:
+        if db_available():
+            return {'count': len(await _liked_ids_mongo(get_db()))}
+    except Exception:
+        pass
+    return {'count': len(await read_liked_local())}
 
 
 @router.get('/liked', response_model=list[TrackSchema])
-async def get_liked(db: AsyncIOMotorDatabase = Depends(get_db)):
-    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
-    ids: list[str] = doc.get('track_ids', []) if doc else []
+async def get_liked():
+    ids: list[str] = []
+    try:
+        if db_available():
+            ids = await _liked_ids_mongo(get_db())
+    except Exception:
+        ids = []
     if not ids:
-        return []
-    sem = asyncio.Semaphore(10)
-    async def _safe(tid: str):
-        async with sem:
-            return await _hydrate_track(tid)
-    results = await asyncio.gather(*[_safe(tid) for tid in ids])
-    return [r for r in results if r is not None]
+        ids = await read_liked_local()
+    return await _hydrate_many(ids)
 
 
 @router.get('/recently-played', response_model=list[TrackSchema])
-async def get_recently_played(db: AsyncIOMotorDatabase = Depends(get_db)):
-    doc = await db.listening_history.find_one({'user_id': 'anonymous'})
-    history: list[dict] = doc.get('entries', []) if doc else []
-    if not history:
-        return []
-    ids = [h['id'] for h in history[:50]]
-    sem = asyncio.Semaphore(10)
-    async def _safe(tid: str):
-        async with sem:
-            return await _hydrate_track(tid)
-    results = await asyncio.gather(*[_safe(tid) for tid in ids])
-    return [r for r in results if r is not None]
+async def get_recently_played():
+    ids: list[str] = []
+    try:
+        if db_available():
+            ids = await _history_ids_mongo(get_db())
+    except Exception:
+        ids = []
+    if not ids:
+        history = await read_history_local()
+        ids = [h.get('id', '') for h in history]
+    return await _hydrate_many(ids)
 
 
 @router.get('/trending', response_model=list[TrackSchema])
@@ -167,8 +203,13 @@ async def get_trending():
 
 
 @router.delete('/history')
-async def clear_history(db: AsyncIOMotorDatabase = Depends(get_db)):
-    await db.listening_history.delete_one({'user_id': 'anonymous'})
+async def clear_history():
+    await clear_history_local()
+    try:
+        if db_available():
+            await get_db().listening_history.delete_one({'user_id': 'anonymous'})
+    except Exception:
+        pass
     return {'ok': True}
 
 # ── Signal reporting ─────────────────────────────────────────
@@ -248,49 +289,69 @@ async def get_track(track_id: str):
 
 
 @router.post('/{track_id}/like')
-async def like_track(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
-    liked: list[str] = doc.get('track_ids', []) if doc else []
-    if track_id not in liked:
-        liked.append(track_id)
-    await db.liked_tracks.update_one(
-        {'user_id': 'anonymous'},
-        {'$set': {'track_ids': liked}},
-        upsert=True,
-    )
-    # Record signal for recommendation engine
-    t = await _hydrate_track(track_id)
-    await record_signal(db, user_id='anonymous', signal=SignalType.LIKE, track_id=track_id, artist=t.get('artist', {}).get('name') if t else None)
+async def like_track(track_id: str):
+    liked = await like_local(track_id)
+    try:
+        if db_available():
+            db = get_db()
+            liked = await _liked_ids_mongo(db)
+            if track_id not in liked:
+                liked.append(track_id)
+            await db.liked_tracks.update_one(
+                {'user_id': 'anonymous'},
+                {'$set': {'track_ids': liked}},
+                upsert=True,
+            )
+            # Record signal for recommendation engine
+            t = await _hydrate_track(track_id)
+            await record_signal(db, user_id='anonymous', signal=SignalType.LIKE, track_id=track_id, artist=t.get('artist', {}).get('name') if t else None)
+    except Exception:
+        pass
     return {'liked': True, 'count': len(liked)}
 
 
 @router.delete('/{track_id}/like')
-async def unlike_track(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    doc = await db.liked_tracks.find_one({'user_id': 'anonymous'})
-    liked: list[str] = doc.get('track_ids', []) if doc else []
-    liked = [i for i in liked if i != track_id]
-    await db.liked_tracks.update_one(
-        {'user_id': 'anonymous'},
-        {'$set': {'track_ids': liked}},
-        upsert=True,
-    )
-    await record_signal(db, user_id='anonymous', signal=SignalType.UNLIKE, track_id=track_id)
+async def unlike_track(track_id: str):
+    liked = await unlike_local(track_id)
+    try:
+        if db_available():
+            db = get_db()
+            liked = await _liked_ids_mongo(db)
+            liked = [i for i in liked if i != track_id]
+            await db.liked_tracks.update_one(
+                {'user_id': 'anonymous'},
+                {'$set': {'track_ids': liked}},
+                upsert=True,
+            )
+            await record_signal(db, user_id='anonymous', signal=SignalType.UNLIKE, track_id=track_id)
+    except Exception:
+        pass
     return {'liked': False, 'count': len(liked)}
 
 
 @router.post('/{track_id}/play')
-async def record_play(track_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    doc = await db.listening_history.find_one({'user_id': 'anonymous'})
-    history: list[dict] = doc.get('entries', []) if doc else []
-    history = [h for h in history if h.get('id') != track_id]
-    history.insert(0, {'id': track_id, 'playedAt': datetime.now(timezone.utc).isoformat()})
-    history = history[:200]
-    await db.listening_history.update_one(
-        {'user_id': 'anonymous'},
-        {'$set': {'entries': history}},
-        upsert=True,
-    )
-    # Record signal for recommendation engine
-    t = await _hydrate_track(track_id)
-    await record_signal(db, user_id='anonymous', signal=SignalType.PLAY_START, track_id=track_id, artist=t.get('artist', {}).get('name') if t else None)
+async def record_play(track_id: str):
+    # Local mirror first — this is the no-Mongo source of truth for
+    # recently-played and the local recommendation engine.
+    await record_play_local(track_id)
+    try:
+        if db_available():
+            db = get_db()
+            doc = await db.listening_history.find_one({'user_id': 'anonymous'})
+            entries: list[dict] = doc.get('entries', []) if doc else []
+            entries = [e for e in entries if e.get('id') != track_id]
+            entries.insert(
+                0,
+                {'id': track_id, 'playedAt': datetime.now(timezone.utc).isoformat()},
+            )
+            await db.listening_history.update_one(
+                {'user_id': 'anonymous'},
+                {'$set': {'entries': entries[:200]}},
+                upsert=True,
+            )
+            # Record signal for recommendation engine
+            t = await _hydrate_track(track_id)
+            await record_signal(db, user_id='anonymous', signal=SignalType.PLAY_START, track_id=track_id, artist=t.get('artist', {}).get('name') if t else None)
+    except Exception:
+        pass
     return {'ok': True}
