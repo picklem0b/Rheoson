@@ -9,26 +9,7 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { Toast, type ToastData, type ToastType } from "./Toast";
 import { uid } from "@/lib/utils";
-
-// ── Notification sound ────────────────────────────────────────
-// rhea.mp3 is the download-complete notification sound.
-// It is also played on 'success' toasts so every confirmed action
-// has matching audio feedback (download queued, track liked, etc.).
-// Volume is low (0.35) so it's a subtle cue, not a loud alert.
-
-const _rhea =
-    typeof window !== "undefined"
-        ? Object.assign(new Audio("/assets/rhea.mp3"), {
-              volume: 0.35,
-              preload: "auto" as const
-          })
-        : null;
-
-function playRhea() {
-    if (!_rhea) return;
-    _rhea.currentTime = 0;
-    _rhea.play().catch(() => {});
-}
+import { playChime } from "@/lib/sounds";
 
 // ── Context ───────────────────────────────────────────────────
 
@@ -74,8 +55,9 @@ export function Toaster({ children }: { children: React.ReactNode }) {
                 return next.length > 4 ? next.slice(next.length - 4) : next;
             });
 
-            // Play rhea.mp3 on success toasts (download done, like saved, etc.)
-            if (type === "success") playRhea();
+            // Subtle chime on success toasts (download queued, track liked, etc.)
+            // Honours Settings → Notifications → "Sound effects".
+            if (type === "success") playChime();
 
             const timer = setTimeout(() => dismiss(id), duration);
             timers.current.set(id, timer);

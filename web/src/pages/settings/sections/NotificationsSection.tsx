@@ -1,5 +1,6 @@
 import { Bell, Download, Zap, Megaphone } from "lucide-react";
 import { usePersisted } from "@/hooks/persisted.hook";
+import { playChime } from "@/lib/sounds";
 import {
    SettingsGroup,
    SettingsRow,
@@ -46,10 +47,17 @@ export default function NotificationsSection() {
             footer='Sound effects play through the main audio output. Adjust device volume to control them.'>
             <SettingsRow
                label='Sound effects'
-               description='Play a chime when downloads complete or fail'
+               description='Play a chime for feedback and download completion'
                icon={<Zap className='w-[14px] h-[14px]' />}
                iconBg='#EAB308'>
                <Toggle value={sound} onChange={setSound} />
+            </SettingsRow>
+            <SettingsRow
+               label='Test sound effect'
+               description='Preview the chime at its current volume'
+               icon={<Zap className='w-[14px] h-[14px]' />}
+               iconBg='#A3A3A3'
+               onClick={() => playChime(0.6, true)}>
             </SettingsRow>
          </SettingsGroup>
 

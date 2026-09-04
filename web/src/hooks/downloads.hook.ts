@@ -10,20 +10,11 @@ import type { DownloadJob, DownloadOptions } from '@/types/download.types'
 import type { Track } from '@/types/track.types'
 import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
+import { playChime, downloadChimeEnabled } from '@/lib/sounds'
 
-// ── Notification sound ────────────────────────────────────────
-// Singleton audio element — created once at module level so there's
-// no latency when the first download completes.
-
-const _notifAudio = typeof window !== 'undefined'
-  ? Object.assign(new Audio('/assets/rhea.mp3'), { volume: 0.6, preload: 'auto' as const })
-  : null
-
-function playDoneSound() {
-  if (!_notifAudio) return
-  _notifAudio.currentTime = 0
-  _notifAudio.play().catch(() => {}) // autoplay policy may block; that's fine
-}
+// Notification chime — louder than the generic success toast so it's
+// noticeable, gated by Settings → Notifications → "Sound effects" and
+// "Download complete".
 
 // ── Hook ──────────────────────────────────────────────────────
 
@@ -57,7 +48,7 @@ export function useDownloads() {
       updateJob(d.id, { ...d, status: 'done', progress: 100 })
       // Mark as handled so the local watcher below doesn't double-fire
       prevStatuses.current.set(d.id, 'done')
-      playDoneSound()
+      if (downloadChimeEnabled()) playChime(0.6)
     }
 
     const onError = (data: unknown) => {
@@ -86,7 +77,7 @@ export function useDownloads() {
       const prev = prevStatuses.current.get(job.id)
       // Transition to done that the WS handler didn't already handle
       if (prev !== undefined && prev !== 'done' && job.status === 'done') {
-        playDoneSound()
+        if (downloadChimeEnabled()) playChime(0.6)
       }
       prevStatuses.current.set(job.id, job.status)
     }
