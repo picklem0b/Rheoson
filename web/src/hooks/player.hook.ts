@@ -8,6 +8,7 @@ import { updateStatusBarColor, resetStatusBarColor } from '@/lib/statusbar';
 import { haptic } from '@/lib/haptics';
 import { getLocalFileUrl } from '@/lib/localFs';
 import { isNativePlatform } from '@/lib/capacitor';
+import { ensureEffectsChain } from '@/lib/audioEffects';
 
 // ── Singleton Howl ────────────────────────────────────────────
 // One instance shared across every component that calls usePlayer().
@@ -215,6 +216,8 @@ export function usePlayer() {
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
+                    // Route audio through the DSP graph (EQ/bass/mono/pre-amp/normalise)
+                    ensureEffectsChain();
                     if (seekTo > 0) {
                         _howl?.seek(seekTo);
                         setProgress(seekTo);
@@ -225,6 +228,8 @@ export function usePlayer() {
                 onplay() {
                     // BUG #25: Ignore if generation has moved on
                     if (gen !== _generation) return;
+                    // Ensure the DSP graph is attached (a rebuilt Howl has a new element)
+                    ensureEffectsChain();
                     setPlaying(true);
                     setLoading(false);
                     const dur = _howl?.duration() ?? 0;

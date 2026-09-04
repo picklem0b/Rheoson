@@ -6,19 +6,11 @@ import {
    RadioGroup,
    Slider
 } from "../components/SettingsPrimitives";
-
-const EQ_PRESETS = [
-   "Flat",
-   "Bass Boost",
-   "Treble Boost",
-   "Vocal",
-   "Electronic",
-   "Rock",
-   "Jazz",
-   "Classical",
-   "Hip-Hop",
-   "Podcast"
-];
+import {
+   EQ_PRESETS,
+   setEQPreset,
+   applyFromStorage
+} from "@/lib/audioEffects";
 
 export default function AudioSection() {
    const [crossfade, setCrossfade] = usePersisted("crossfade", false);
@@ -32,10 +24,6 @@ export default function AudioSection() {
    const [eqPreset, setEqPreset] = usePersisted<string>("eq-preset", "Flat");
    const [bassBoost, setBassBoost] = usePersisted("bass-boost", false);
    const [mono, setMono] = usePersisted("mono", false);
-   const [replayGain, setReplayGain] = usePersisted<"track" | "album" | "off">(
-      "replay-gain",
-      "track"
-   );
    const [preAmpGain, setPreAmpGain] = usePersisted("pre-amp-gain", 0);
 
    return (
@@ -62,11 +50,6 @@ export default function AudioSection() {
                label='Gapless playback'
                description='Remove silence between consecutive tracks'>
                <Toggle value={gapless} onChange={setGapless} />
-            </SettingsRow>
-            <SettingsRow
-               label='Mono output'
-               description='Mix stereo to mono — useful with a single speaker'>
-               <Toggle value={mono} onChange={setMono} />
             </SettingsRow>
          </SettingsGroup>
 
@@ -106,58 +89,64 @@ export default function AudioSection() {
          <SettingsGroup title='Volume'>
             <SettingsRow
                label='Volume normalisation'
-               description='Equalise loudness so volume stays consistent across tracks'>
-               <Toggle value={normalize} onChange={setNormalize} />
+               description='Compress peaks so volume stays consistent across tracks'>
+               <Toggle
+                  value={normalize}
+                  onChange={v => {
+                     setNormalize(v)
+                     applyFromStorage()
+                  }}
+               />
             </SettingsRow>
-            {normalize && (
-               <>
-                  <RadioGroup
-                     value={replayGain}
-                     onChange={setReplayGain}
-                     options={[
-                        {
-                           value: "track",
-                           label: "Track gain",
-                           sub: "Normalise each track independently"
-                        },
-                        {
-                           value: "album",
-                           label: "Album gain",
-                           sub: "Preserve relative album dynamics"
-                        },
-                        {
-                           value: "off",
-                           label: "Pre-amp only",
-                           sub: "Apply gain offset but no metadata"
-                        }
-                     ]}
-                  />
-                  <Slider
-                     value={preAmpGain}
-                     onChange={setPreAmpGain}
-                     min={-12}
-                     max={12}
-                     step={0.5}
-                     label='Pre-amp gain'
-                     formatValue={v => `${v > 0 ? "+" : ""}${v} dB`}
-                  />
-               </>
-            )}
+            <Slider
+               value={preAmpGain}
+               onChange={v => {
+                  setPreAmpGain(v)
+                  applyFromStorage()
+               }}
+               min={-12}
+               max={12}
+               step={0.5}
+               label='Pre-amp gain'
+               formatValue={v => `${v > 0 ? "+" : ""}${v} dB`}
+            />
             <SettingsRow
                label='Bass boost'
                description='Boost low frequencies for a fuller, richer sound'>
-               <Toggle value={bassBoost} onChange={setBassBoost} />
+               <Toggle
+                  value={bassBoost}
+                  onChange={v => {
+                     setBassBoost(v)
+                     applyFromStorage()
+                  }}
+               />
+            </SettingsRow>
+            <SettingsRow
+               label='Mono output'
+               description='Mix stereo to mono — useful with a single speaker'>
+               <Toggle
+                  value={mono}
+                  onChange={v => {
+                     setMono(v)
+                     applyFromStorage()
+                  }}
+               />
             </SettingsRow>
          </SettingsGroup>
 
          {/* EQ */}
-         <SettingsGroup title='Equaliser preset'>
+         <SettingsGroup
+            title='Equaliser preset'
+            footer='Applied instantly to playback. Fine-tune with the Equalizer panel in the player.'>
             {EQ_PRESETS.map(preset => (
                <SettingsRow
-                  key={preset}
-                  label={preset}
-                  onClick={() => setEqPreset(preset)}>
-                  {eqPreset === preset && (
+                  key={preset.id}
+                  label={preset.name}
+                  onClick={() => {
+                     setEqPreset(preset.name)
+                     setEQPreset(preset.id)
+                  }}>
+                  {eqPreset === preset.name && (
                      <span className='text-[var(--accent)] font-semibold text-[14px]'>
                         ✓
                      </span>
