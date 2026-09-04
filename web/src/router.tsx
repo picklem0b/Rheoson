@@ -51,9 +51,11 @@ export const router = createBrowserRouter([
       { path: '*',                 element: <NotFound /> },
     ],
   },
-  { path: '/now-playing', element: <NowPlaying /> },
+  // Full-screen player — renamed from /now-playing; keep the old URL working
+  { path: '/full-player', element: <NowPlaying /> },
+  { path: '/now-playing', element: <Navigate to="/full-player" replace /> },
   { path: '/login',       element: <Login /> },
   { path: '/register',    element: <Register /> },
-  // 404 for the /now-playing catch-all
+  // 404 for the full-player catch-all
   { path: '*',            element: <NotFound /> },
 ])

@@ -37,7 +37,13 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   },
 
   addToQueue: (track) =>
-    set((s) => ({ queue: [...s.queue, track] })),
+    set((s) => {
+      // Never queue a track that's already up next or currently playing
+      const dup = s.queue.some((t) => t.id === track.id)
+      const playing = s.history[s.history.length - 1]
+      if (dup || playing?.id === track.id) return s
+      return { queue: [...s.queue, track] }
+    }),
 
   removeFromQueue: (index) =>
     set((s) => ({ queue: s.queue.filter((_, i) => i !== index) })),

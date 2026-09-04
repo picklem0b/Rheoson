@@ -107,7 +107,7 @@ export default function PlayerBar() {
                   {/* Track info → taps to Now Playing */}
                   <motion.button
                      whileTap={{ scale: 0.97 }}
-                     onClick={() => navigate("/now-playing")}
+                     onClick={() => navigate("/full-player")}
                      className='flex items-center gap-3 flex-1 min-w-0 text-left'>
                      {/* Artwork */}
                      <div className='relative flex-shrink-0'>
