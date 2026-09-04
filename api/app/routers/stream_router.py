@@ -174,6 +174,78 @@ def _artwork_cache_set(key: str, data: bytes) -> None:
     _artwork_cache[key] = data
 
 
+# ── Background warm-up ────────────────────────────────────────
+# The frontend fires POST /stream/{id}/warm the moment a track is
+# selected (or appears in the next-up queue). We spawn yt-dlp in the
+# background and buffer the audio to disk, so by the time the user
+# actually presses play the GET /audio below serves from the buffer
+# file — first bytes in well under a second instead of waiting for
+# yt-dlp extraction on the play request itself.
+
+_warm_tasks: dict[str, asyncio.Task] = {}
+_warm_lock   = asyncio.Lock()
+_WARM_LIMIT  = 6  # max concurrent background yt-dlp processes
+
+
+def _warm_finished(track_id: str) -> None:
+    _warm_tasks.pop(track_id, None)
+
+
+async def _warm_track(track_id: str) -> None:
+    """Download a remote track's audio to the buffer dir in the background."""
+    try:
+        await _ensure_cache()
+        if _find_local(track_id):
+            return
+        if _remote_cache_get(track_id):
+            return
+        buf_path = _buffer_dir / f"{track_id}.audio"
+        if buf_path.exists() and buf_path.stat().st_size > 0:
+            _remote_cache_set(track_id, buf_path)
+            return
+        await _fill_buffer(track_id, buf_path)
+        if buf_path.exists() and buf_path.stat().st_size > 0:
+            _remote_cache_set(track_id, buf_path)
+            log.info("stream.warm.complete", track_id=track_id)
+    except Exception:
+        log.warning("stream.warm.failed", track_id=track_id, exc_info=True)
+
+
+@router.post("/{track_id}/warm")
+async def warm_stream(track_id: str):
+    """Start buffering a remote track in the background.
+
+    Idempotent: dedupes against the remote cache and any warm already
+    in flight. Bounded by _WARM_LIMIT concurrent downloads — when the
+    limit is reached the request is a cheap no-op ("busy") and the next
+    GET falls back to the live-stream path.
+    """
+    if len(track_id) != 11:
+        raise HTTPException(status_code=404, detail="Invalid track ID")
+
+    # Local/downloaded tracks need no warming — instant either way
+    await _ensure_cache()
+    if _find_local(track_id):
+        return {"ok": True, "state": "local"}
+    if _remote_cache_get(track_id):
+        return {"ok": True, "state": "cached"}
+
+    async with _warm_lock:
+        existing = _warm_tasks.get(track_id)
+        if existing and not existing.done():
+            return {"ok": True, "state": "warming"}
+        # Drop finished tasks so their slots free up
+        for tid in [t for t, task in _warm_tasks.items() if task.done()]:
+            _warm_tasks.pop(tid, None)
+        if len(_warm_tasks) >= _WARM_LIMIT:
+            return {"ok": False, "state": "busy"}
+
+        task = asyncio.create_task(_warm_track(track_id))
+        _warm_tasks[track_id] = task
+        task.add_done_callback(lambda _t, tid=track_id: _warm_finished(tid))
+        return {"ok": True, "state": "warming"}
+
+
 # ── Routes ────────────────────────────────────────────────────
 
 @router.api_route("/{track_id}/audio", methods=["GET", "HEAD"])
@@ -318,6 +390,74 @@ def _detect_image_mime(data: bytes) -> str:
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "image/webp"
     return "image/jpeg"
+
+
+# ── Serving from an in-progress background warm ───────────────
+# Reads the buffer file as the warm task appends to it. No Range
+# support here (the final size is unknown until the download ends) —
+# range requests against a warming track wait for completion above.
+
+def _serve_warming_file(track_id: str, warm: asyncio.Task) -> StreamingResponse:
+    buf_path = _buffer_dir / f"{track_id}.audio"
+
+    def _size() -> int:
+        try:
+            return buf_path.stat().st_size if buf_path.exists() else 0
+        except OSError:
+            return 0
+
+    async def _gen():
+        pos   = 0
+        total = 0
+        try:
+            # Follow the file while the warm download is writing it
+            while not warm.done():
+                size = _size()
+                if size > pos:
+                    with open(buf_path, "rb") as f:
+                        f.seek(pos)
+                        chunk = f.read(min(CHUNK, size - pos))
+                    if chunk:
+                        pos += len(chunk)
+                        total += len(chunk)
+                        yield chunk
+                        continue
+                await asyncio.sleep(0.05)
+
+            # Warm finished — drain whatever remains and end cleanly
+            while True:
+                size = _size()
+                if size <= pos:
+                    break
+                with open(buf_path, "rb") as f:
+                    f.seek(pos)
+                    chunk = f.read(min(CHUNK, size - pos))
+                if not chunk:
+                    break
+                pos += len(chunk)
+                total += len(chunk)
+                yield chunk
+
+            if total == 0:
+                # Warm produced nothing (failed or cancelled) — surface an
+                # error so the client retries through the normal live path.
+                raise HTTPException(
+                    status_code=502,
+                    detail="Stream warm-up failed",
+                )
+        except (GeneratorExit, ConnectionResetError, BrokenPipeError):
+            # Client went away — let the warm task keep filling the cache
+            return
+
+    return StreamingResponse(
+        _gen(),
+        media_type="audio/mpeg",
+        headers={
+            "Accept-Ranges":         "bytes",
+            "Cache-Control":         "no-cache",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 # ── Local file serving ────────────────────────────────────────
@@ -736,6 +876,25 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
                     "Cache-Control":  "no-cache",
                     "X-Content-Type-Options": "nosniff",
                 })
+
+    # ── Case 2.5: a background warm is already buffering this track ──
+    # Join it instead of spawning a second yt-dlp process: serve straight
+    # from the buffer file as it grows, so the first bytes reach the
+    # client as soon as the warm download writes them (near-instant when
+    # the warm started even a second or two before play).
+    warm = _warm_tasks.get(track_id)
+    if warm and not warm.done():
+        if not request.headers.get("range"):
+            return _serve_warming_file(track_id, warm)
+        # Range requests need the complete file — wait for the warm to
+        # finish, then serve the exact byte range from disk.
+        try:
+            await asyncio.wait_for(asyncio.shield(warm), timeout=120.0)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            pass
+        cached = _remote_cache_get(track_id)
+        if cached:
+            return _serve_local(cached, request)
 
     # ── Case 3: no buffer — stream directly from yt-dlp ─────────
     # The generator below spawns yt-dlp, streams audio bytes directly to

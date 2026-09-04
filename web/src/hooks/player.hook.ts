@@ -9,6 +9,7 @@ import { haptic } from '@/lib/haptics';
 import { getLocalFileUrl } from '@/lib/localFs';
 import { isNativePlatform } from '@/lib/capacitor';
 import { ensureEffectsChain } from '@/lib/audioEffects';
+import { prefetchQueue } from '@/lib/prefetch';
 
 // ── Singleton Howl ────────────────────────────────────────────
 // One instance shared across every component that calls usePlayer().
@@ -238,6 +239,15 @@ export function usePlayer() {
                         s => tickRef.current(s),
                         s => persistRef.current(s)
                     );
+
+                    // Warm the next few queue tracks so skipping ahead or
+                    // auto-advance starts from an already-buffered file
+                    const upcoming = useQueueStore
+                        .getState()
+                        .queue.slice(0, 3);
+                    if (upcoming.length > 0) {
+                        prefetchQueue(upcoming.map(t => t.id), 3);
+                    }
 
                     // Record play history (once per session per track)
                     if (!_playedThisSession.has(trackId)) {
