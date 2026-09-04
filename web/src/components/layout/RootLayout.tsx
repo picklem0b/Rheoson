@@ -8,6 +8,7 @@ import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
 import { DownloadModal } from "@/components/ui/DownloadModal";
 import { usePlayerStore } from "@/store/player.store";
+import { useUIStore } from "@/store/ui.store";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,9 +30,11 @@ import { cn } from "@/lib/utils";
 
 export default function RootLayout() {
    const hasTrack = usePlayerStore(s => s.currentTrack !== null);
+   const navPosition = useUIStore(s => s.navPosition);
 
-   // Nav is always visible — no auto-hide behavior
-   const navVisible = true;
+   // Nav is always visible — no auto-hide behavior.
+   // Position (bottom/top) comes from Settings → Layout → Navigation position.
+   const navAtTop = navPosition === 'top';
 
    return (
       <Toaster>
@@ -46,19 +49,22 @@ export default function RootLayout() {
                <main
                   className={cn(
                      "flex-1 overflow-y-auto overflow-x-hidden no-scrollbar",
-                     // Desktop — player bar card + spacing
-                     "lg:pb-[calc(var(--player-height)+8px)]",
-                     // Mobile — player bar + nav (when both visible)
-                     // Using CSS variable approach avoids Tailwind purging dynamic strings
-                     hasTrack &&
-                        navVisible &&
-                        "pb-[calc(var(--player-height)+var(--nav-height)+8px)]",
-                     hasTrack &&
-                        !navVisible &&
-                        "pb-[calc(var(--player-height)+8px)]",
-                     !hasTrack && "pb-[calc(var(--nav-height)+8px)]",
-                     // Remove mobile padding on desktop
-                     "lg:!pb-[var(--player-height)]"
+                     // Desktop — player bar card + spacing; never a top nav
+                     "lg:pb-[calc(var(--player-height)+8px)] lg:!pt-0",
+                     // Mobile — reserve space for the player bar and nav,
+                     // laid out according to the chosen nav position
+                     navAtTop
+                        ? cn(
+                             "pt-[calc(var(--nav-height)+8px)]",
+                             hasTrack
+                                ? "pb-[calc(var(--player-height)+8px)]"
+                                : "pb-3"
+                          )
+                        : cn(
+                             hasTrack
+                                ? "pb-[calc(var(--player-height)+var(--nav-height)+8px)]"
+                                : "pb-[calc(var(--nav-height)+8px)]"
+                          )
                   )}
                   >
                   <div className='page-enter h-full'>
@@ -89,20 +95,24 @@ export default function RootLayout() {
                         }}
                         className='fixed inset-x-0 z-50'
                         style={{
-                           // Player bar sits above the BottomNav
-                           bottom: "var(--nav-height)",
+                           // Player bar sits above the BottomNav only when the
+                           // nav is docked at the bottom
+                           bottom: navAtTop ? 0 : "var(--nav-height)",
                         }}>
                         <PlayerBar />
                      </motion.div>
                   )}
                </AnimatePresence>
 
-               {/* BottomNav — always visible, raised slightly from bottom */}
+               {/* Nav — docked per Settings → Layout → Navigation position */}
                <motion.nav
                   key='bottom-nav'
                   initial={{ y: 0, opacity: 1 }}
                   animate={{ y: 0, opacity: 1 }}
-                  className='fixed inset-x-0 bottom-0 z-40 flex items-end'
+                  className={cn(
+                     'fixed inset-x-0 z-40 flex',
+                     navAtTop ? 'top-0 items-start' : 'bottom-0 items-end'
+                  )}
                   style={{ height: "var(--nav-height)" }}>
                   <BottomNav />
                </motion.nav>

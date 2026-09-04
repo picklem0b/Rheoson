@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion'
 import { Howler } from 'howler'
 import { router } from './router'
 import { useThemeStore } from '@/store/theme.store'
+import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
 import { useKeyboardShortcuts } from '@/hooks/keyboardShortcuts.hook'
 import { useMediaSession } from '@/hooks/mediaSession.hook'
@@ -65,14 +66,16 @@ function AppInner() {
 // ── Root ──────────────────────────────────────────────────────
 export default function App() {
   const initTheme       = useThemeStore((s) => s.initTheme)
+  const initLayout      = useUIStore((s) => s.initLayout)
   const initializeAuth  = useAuthStore((s) => s.initialize)
   const { show, dismiss } = useSplash()
   const { toast } = useToast()
 
-  // Apply saved theme on mount
+  // Apply saved theme + layout (font/size) prefs on mount
   useEffect(() => {
     initTheme()
-  }, [initTheme])
+    initLayout()
+  }, [initTheme, initLayout])
 
   // Validate stored auth token on mount
   useEffect(() => {
