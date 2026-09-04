@@ -298,3 +298,15 @@ input[type='range']:active::-webkit-slider-thumb {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ─── Artwork Loading Sweep ─────────────────────────────────── */
+/* Used by ArtworkImage — sweeps a soft sheen across the placeholder
+   while an image loads. The parent must be overflow-hidden. */
+.animate-shimmer {
+  animation: shimmerSweep 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmerSweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

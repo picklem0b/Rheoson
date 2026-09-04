@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 import { Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Toaster } from "@/components/ui/Toaster";
@@ -6,6 +6,7 @@ import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
+import { DownloadModal } from "@/components/ui/DownloadModal";
 import { usePlayerStore } from "@/store/player.store";
 import { cn } from "@/lib/utils";
 
@@ -26,30 +27,11 @@ import { cn } from "@/lib/utils";
  *  Sidebar on left, no BottomNav, PlayerBar pinned at bottom of content column.
  */
 
-const SWIPE_UP_THRESHOLD = -36;
-const SWIPE_DOWN_THRESHOLD = 36;
-
-/**
- * BottomNav auto-hide is DISABLED.
- * The nav stays visible at all times — no cooldown timer, no swipe-to-hide.
- * Users always have access to navigation without needing to swipe.
- */
-
 export default function RootLayout() {
    const hasTrack = usePlayerStore(s => s.currentTrack !== null);
 
    // Nav is always visible — no auto-hide behavior
    const navVisible = true;
-   const touchStartY = useRef<number | null>(null);
-
-   // Touch handlers kept as no-ops for future gesture support
-   const onTouchStart = (e: React.TouchEvent) => {
-      touchStartY.current = e.touches[0].clientY;
-   };
-
-   const onTouchEnd = (e: React.TouchEvent) => {
-      touchStartY.current = null;
-   };
 
    return (
       <Toaster>
@@ -78,8 +60,7 @@ export default function RootLayout() {
                      // Remove mobile padding on desktop
                      "lg:!pb-[var(--player-height)]"
                   )}
-                  onTouchStart={onTouchStart}
-                  onTouchEnd={onTouchEnd}>
+                  >
                   <div className='page-enter h-full'>
                      <Outlet />
                   </div>
@@ -129,6 +110,9 @@ export default function RootLayout() {
 
             {/* ── Queue Panel (slide-in drawer) ─────────────── */}
             <QueuePanel />
+
+            {/* ── Download options modal ─────────────────────── */}
+            <DownloadModal />
          </div>
       </Toaster>
    );

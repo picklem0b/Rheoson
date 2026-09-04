@@ -4,6 +4,7 @@ import type { Track } from '@/types/track.types'
 import { usePlayerStore } from '@/store/player.store'
 import { useQueue } from '@/hooks/queue.hook'
 import { IconButton } from '@/components/ui/IconButton'
+import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { formatDuration, truncate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 
@@ -39,10 +40,11 @@ export default function QueueItem({ track, index }: QueueItemProps) {
         onClick={() => playTrack(track)}
         className="flex items-center gap-3 flex-1 min-w-0 text-left"
       >
-        <img
+        <ArtworkImage
           src={track.artworkUrl}
           alt={track.title}
-          className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+          size={40}
+          radius="rounded-xl"
         />
         <div className="min-w-0 flex-1">
           <p className={cn(

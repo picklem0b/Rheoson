@@ -5,6 +5,7 @@ import { useQueueStore } from '@/store/queue.store'
 import { usePlayerStore } from '@/store/player.store'
 import QueueItem from './QueueItem'
 import { IconButton } from '@/components/ui/IconButton'
+import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { cn } from '@/lib/utils'
 
@@ -74,10 +75,11 @@ export default function QueuePanel() {
                   Now Playing
                 </p>
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-[var(--accent-subtle)] border border-[var(--accent-border)]">
-                  <img
+                  <ArtworkImage
                     src={currentTrack.artworkUrl}
                     alt={currentTrack.title}
-                    className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                    size={40}
+                    radius="rounded-xl"
                   />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-[var(--accent)] truncate">
