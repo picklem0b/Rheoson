@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
    Search as SearchIcon,
@@ -7,18 +8,24 @@ import {
    Music2,
    Disc3,
    Link2,
-   TrendingUp
+   TrendingUp,
+   History,
+   Trash2
 } from "lucide-react";
 import { useSearch } from "@/hooks/search.hook";
 import { useQueue } from "@/hooks/queue.hook";
 import { useUIStore } from "@/store/ui.store";
 import { useToast } from "@/components/ui/Toaster";
+import { ArtworkImage } from "@/components/ui/ArtworkImage";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Spinner } from "@/components/ui/Spinner";
 import { SearchBar } from "./components/SearchBar";
 import { CategoryGrid, ResultSection } from "./components/CategoryGrid";
+import { useSearchHistory } from "@/hooks/useSearchHistory";
+import type { SearchHistoryEntry } from "@/hooks/useSearchHistory";
 import { formatDuration, truncate } from "@/lib/formatters";
 import { detectInputType, cn } from "@/lib/utils";
+import { normalizeTrack } from "@/lib/normalize";
 import type { SearchFilter } from "@/types/search.types";
 import type { Track } from "@/types";
 
@@ -208,6 +215,88 @@ function ArtistPill({
    );
 }
 
+// ── Search history row ────────────────────────────────────────
+// Recent searches show the song the user actually listened to from
+// each query (tapping it replays that song); queries without a played
+// song fall back to re-running the search.
+
+function HistoryRow({
+   entry,
+   onPlay,
+   onSearch,
+   onRemove
+}: {
+   entry: SearchHistoryEntry;
+   onPlay: (entry: SearchHistoryEntry) => void;
+   onSearch: (query: string) => void;
+   onRemove: (entry: SearchHistoryEntry) => void;
+}) {
+   const track = entry.track;
+
+   const open = () => (track ? onPlay(entry) : onSearch(entry.query));
+
+   return (
+      <div
+         role='button'
+         tabIndex={0}
+         onClick={open}
+         onKeyDown={e => {
+            if (e.key === "Enter" || e.key === " ") {
+               e.preventDefault();
+               open();
+            }
+         }}
+         className='group flex items-center gap-3 px-3 py-2 rounded-2xl cursor-pointer
+                 transition-colors hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)]'>
+         {/* Leading artwork — the song that was played, or a search glyph */}
+         {track ? (
+            <ArtworkImage
+               src={track.artworkUrl}
+               alt={track.title}
+               size={44}
+               radius='rounded-xl'
+               iconScale={0.4}
+               className='w-11 h-11'
+            />
+         ) : (
+            <div className='w-11 h-11 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0'>
+               <SearchIcon className='w-4 h-4 text-[var(--text-muted)]' />
+            </div>
+         )}
+
+         <div className='flex-1 min-w-0'>
+            <p className='text-sm font-semibold text-[var(--text-primary)] truncate leading-tight'>
+               {track ? track.title : entry.query}
+            </p>
+            <p className='flex items-center gap-1.5 text-xs text-[var(--text-muted)] truncate mt-0.5 leading-tight'>
+               {track ? (
+                  <>
+                     <SearchIcon className='w-3 h-3 flex-shrink-0' />
+                     <span className='truncate'>
+                        Searched &quot;{entry.query}&quot; · {track.artistName}
+                     </span>
+                  </>
+               ) : (
+                  <span className='truncate'>Recent search</span>
+               )}
+            </p>
+         </div>
+
+         <button
+            onClick={e => {
+               e.stopPropagation();
+               onRemove(entry);
+            }}
+            aria-label={`Remove ${track?.title ?? entry.query} from recent searches`}
+            className='w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+                    text-[var(--text-muted)] hover:text-[var(--text-primary)]
+                    hover:bg-[var(--bg-elevated)] transition-colors'>
+            <X className='w-4 h-4' />
+         </button>
+      </div>
+   );
+}
+
 // ── Main page ─────────────────────────────────────────────────
 
 export default function Search() {
@@ -228,6 +317,8 @@ export default function Search() {
    const { playTrack } = useQueue();
    const { openDownloadModal } = useUIStore();
    const { toast } = useToast();
+   const { history, recordSearch, recordPlay, removeEntry, clearHistory } =
+      useSearchHistory();
 
    const inputType = query ? detectInputType(query) : "query";
    const hasResults =
@@ -237,9 +328,47 @@ export default function Search() {
          results.artists.length > 0 ||
          results.playlists.length > 0);
 
-   const handlePlay = (track: Track, queue: Track[]) => {
+   // Every fresh result set = a committed search → save it to history.
+   // Keyed on the results object (not the query) so mid-word keystrokes
+   // that haven't produced results yet don't churn the history list.
+   useEffect(() => {
+      const q = results?.query?.trim();
+      if (q) recordSearch(q);
+   }, [results, recordSearch]);
+
+   const handlePlay = (track: Track, queue: Track[], fromQuery?: string) => {
       playTrack(track, queue);
+      const q = (fromQuery ?? results?.query ?? query).trim();
+      if (q) {
+         // Remember the song listened to after this search query.
+         recordPlay(q, {
+            id: track.id,
+            youtubeId: track.youtubeId || track.id,
+            title: track.title,
+            artistName: track.artist?.name ?? "Unknown Artist",
+            artworkUrl: track.artworkUrl ?? "",
+            duration: track.duration ?? 0
+         });
+      }
       toast(`Playing ${truncate(track.title, 28)}`, "success", 2500);
+   };
+
+   const playFromHistory = (entry: SearchHistoryEntry) => {
+      const t = entry.track;
+      if (!t) return;
+      // Rebuild a full Track from the slim snapshot — normalize fills
+      // safe defaults for anything the player doesn't strictly need.
+      const full = normalizeTrack({
+         id: t.id,
+         youtubeId: t.youtubeId || t.id,
+         title: t.title,
+         artist: { id: t.youtubeId || t.id, name: t.artistName },
+         artworkUrl: t.artworkUrl,
+         duration: t.duration
+      });
+      playTrack(full, [full]);
+      recordPlay(entry.query, t); // bump back to the top of history
+      toast(`Playing ${truncate(t.title, 28)}`, "success", 2500);
    };
 
    const handleDownload = (
@@ -323,6 +452,43 @@ export default function Search() {
                      initial={{ opacity: 0 }}
                      animate={{ opacity: 1 }}
                      exit={{ opacity: 0 }}>
+                     {/* Recent searches — show the song listened to after
+                         each query, not just the raw text */}
+                     {history.length > 0 && (
+                        <div className='mb-7'>
+                           <div className='flex items-center justify-between mb-2'>
+                              <div className='flex items-center gap-2'>
+                                 <History className='w-4 h-4 text-[var(--accent)]' />
+                                 <p className='text-sm font-bold text-[var(--text-primary)]'>
+                                    Recent searches
+                                 </p>
+                                 <span className='text-[10px] font-semibold text-[var(--text-muted)] bg-[var(--bg-elevated)] px-1.5 py-0.5 rounded-full tabular-nums'>
+                                    {history.length}
+                                 </span>
+                              </div>
+                              <button
+                                 onClick={clearHistory}
+                                 className='flex items-center gap-1 px-2.5 py-1 -mr-1 rounded-full text-xs font-semibold
+                                    text-[var(--text-muted)] hover:text-[var(--text-primary)]
+                                    hover:bg-[var(--bg-elevated)] transition-colors'>
+                                 <Trash2 className='w-3.5 h-3.5' />
+                                 Clear all
+                              </button>
+                           </div>
+                           <div className='space-y-0.5'>
+                              {history.map(entry => (
+                                 <HistoryRow
+                                    key={entry.query}
+                                    entry={entry}
+                                    onPlay={playFromHistory}
+                                    onSearch={q => setQuery(q)}
+                                    onRemove={e => removeEntry(e.query)}
+                                 />
+                              ))}
+                           </div>
+                        </div>
+                     )}
+
                      <div className='flex items-center gap-2 mb-4 mt-2'>
                         <TrendingUp className='w-4 h-4 text-[var(--accent)]' />
                         <p className='text-sm font-bold text-[var(--text-primary)]'>
@@ -398,7 +564,11 @@ export default function Search() {
                                     track={track}
                                     index={i}
                                     onPlay={() =>
-                                       handlePlay(track, results.tracks)
+                                       handlePlay(
+                                          track,
+                                          results.tracks,
+                                          results.query
+                                       )
                                     }
                                     onDownload={e =>
                                        handleDownload(e, track.id, track.title)
