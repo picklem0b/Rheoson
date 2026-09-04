@@ -211,6 +211,11 @@ export const tracksApi = {
    // ── Write operations (queued if offline) ──────────────────
 
    recordPlay: async (id: string) => {
+      // Settings → Privacy → "Save play history" off: don't record anything
+      try {
+         const raw = localStorage.getItem('rheoson-save-history')
+         if (raw !== null && JSON.parse(raw) === false) return
+      } catch { /* keep default (recording on) */ }
       // Always record locally first
       await historyStore.add(id);
       const existing = await tracksStore.get(id);

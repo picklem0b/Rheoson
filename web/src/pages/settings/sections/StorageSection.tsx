@@ -79,16 +79,30 @@ export default function StorageSection() {
          .catch(() => {});
    }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount-only: dirs is the initial value
 
+   // Keep the server's directory config in sync on structural changes
+   // (add/remove). Active toggles only affect the next rescan.
+   const syncDirs = (list: Dir[]) => {
+      api
+         .post("/settings/directories", { dirs: list.map(d => d.path) })
+         .catch(() => {});
+   };
+
    const addDir = () => {
       const trimmed = pathInput.trim();
       if (!trimmed || dirs.some(d => d.path === trimmed)) return;
-      setDirs([...dirs, { path: trimmed, active: true }]);
+      const next = [...dirs, { path: trimmed, active: true }];
+      setDirs(next);
+      syncDirs(next);
       setPathInput("");
       setAdding(false);
    };
 
-   const removeDir = (path: string) =>
-      setDirs(dirs.filter(d => d.path !== path));
+   const removeDir = (path: string) => {
+      if (dirs.length <= 1) return; // server requires at least one directory
+      const next = dirs.filter(d => d.path !== path);
+      setDirs(next);
+      syncDirs(next);
+   };
    const toggleDir = (index: number, active: boolean) =>
       setDirs(dirs.map((d, i) => (i === index ? { ...d, active } : d)));
 
@@ -280,7 +294,7 @@ export default function StorageSection() {
 
             <SettingsRow
                label='Add directory'
-               description='Add a folder path to scan for music files'
+               description={dirs.length <= 1 ? 'The last directory can\u2019t be removed — the server needs at least one' : 'Add a folder path to scan for music files'}
                onClick={() => setAdding(!adding)}
                icon={<FolderOpen className='w-[14px] h-[14px]' />}
                iconBg='#F97316'

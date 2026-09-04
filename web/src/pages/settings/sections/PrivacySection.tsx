@@ -21,8 +21,6 @@ const GITHUB = "https://github.com/picklem0b/Rheoson/blob/main/docs";
 export default function PrivacySection() {
    const [history, setHistory] = usePersisted("save-history", true);
    const [searchLog, setSearchLog] = usePersisted("save-search-log", true);
-   const [analytics, setAnalytics] = usePersisted("analytics", false);
-   const [crashReport, setCrashReport] = usePersisted("crash-report", false);
 
    const [clearPlayState, setClearPlayState] = useState<ActionState>("idle");
    const [clearSearchState, setClearSearchState] =
@@ -44,12 +42,12 @@ export default function PrivacySection() {
             footer='Play history is stored on the server. Search history is stored only on this device.'>
             <SettingsRow
                label='Save play history'
-               description='Track recently played songs and power recommendations'>
+               description='Off stops recording new recently-played entries (existing history stays until you clear it)'>
                <Toggle value={history} onChange={setHistory} />
             </SettingsRow>
             <SettingsRow
                label='Save search history'
-               description='Restore your last search when you return to the Search page'>
+               description='Off stops saving new searches and stops restoring your last search'>
                <Toggle value={searchLog} onChange={setSearchLog} />
             </SettingsRow>
          </SettingsGroup>
@@ -73,16 +71,16 @@ export default function PrivacySection() {
 
          <SettingsGroup
             title='Data'
-            footer='No personal data is ever sold or shared with third parties. All analytics are fully anonymous.'>
+            footer='Rheoson sends no analytics and no crash reports — nothing leaves your device or server. These toggles are reserved for future use.'>
             <SettingsRow
                label='Anonymous analytics'
-               description='Share usage stats to help improve Rheoson — no personal data'>
-               <Toggle value={analytics} onChange={setAnalytics} />
+               description='Reserved — not implemented. No usage data is currently sent.'>
+               <Toggle value={false} onChange={() => {}} disabled />
             </SettingsRow>
             <SettingsRow
                label='Crash reports'
-               description='Automatically send crash logs — helps fix bugs faster'>
-               <Toggle value={crashReport} onChange={setCrashReport} />
+               description='Reserved — not implemented. No crash logs are currently sent.'>
+               <Toggle value={false} onChange={() => {}} disabled />
             </SettingsRow>
          </SettingsGroup>
 

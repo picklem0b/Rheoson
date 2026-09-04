@@ -22,12 +22,23 @@ function writeHistory(history: string[]) {
  * useSearchHistory — manages recent search queries with deduplication.
  * Most recent first. Max 10 entries.
  */
+// Settings → Privacy → "Save search history" off: keep showing previously
+// saved queries but stop adding new ones.
+function searchLoggingEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem('rheoson-save-search-log')
+    return raw === null ? true : JSON.parse(raw) === true
+  } catch {
+    return true
+  }
+}
+
 export function useSearchHistory() {
   const [history, setHistory] = useState<string[]>(readHistory)
 
   const addQuery = useCallback((query: string) => {
     const q = query.trim()
-    if (!q || q.length < 2) return
+    if (!q || q.length < 2 || !searchLoggingEnabled()) return
 
     setHistory(prev => {
       // Deduplicate and add to front
