@@ -11,6 +11,7 @@ import type { Track } from '@/types/track.types'
 import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
 import { playChime, downloadChimeEnabled } from '@/lib/sounds'
+import { signalDownload } from '@/lib/signals'
 import type { FileNaming } from '@/types'
 
 // Notification chime — louder than the generic success toast so it's
@@ -161,6 +162,7 @@ export function useDownloads() {
       const job = await downloadsApi.startDownload({ trackId: track.id, ...payload })
       // Replace temp ID with the real job from the server
       updateJob(tempId, job)
+      signalDownload(track.id, track.artist?.name)
     } catch (e) {
       updateJob(tempId, {
         status: 'error',

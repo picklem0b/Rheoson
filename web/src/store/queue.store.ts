@@ -10,7 +10,7 @@ interface QueueStore {
   originalQueue: Track[]
 
   setQueue:        (tracks: Track[], startIndex?: number) => void
-  addToQueue:      (track: Track) => void
+  addToQueue:      (track: Track) => boolean
   removeFromQueue: (index: number) => void
   clearQueue:      () => void
   next:            (isShuffled: boolean) => Track | null
@@ -36,14 +36,15 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     })
   },
 
-  addToQueue: (track) =>
-    set((s) => {
-      // Never queue a track that's already up next or currently playing
-      const dup = s.queue.some((t) => t.id === track.id)
-      const playing = s.history[s.history.length - 1]
-      if (dup || playing?.id === track.id) return s
-      return { queue: [...s.queue, track] }
-    }),
+  addToQueue: (track) => {
+    const s = get()
+    // Never queue a track that's already up next or currently playing
+    const dup = s.queue.some((t) => t.id === track.id)
+    const playing = s.history[s.history.length - 1]
+    if (dup || playing?.id === track.id) return false
+    set({ queue: [...s.queue, track] })
+    return true
+  },
 
   removeFromQueue: (index) =>
     set((s) => ({ queue: s.queue.filter((_, i) => i !== index) })),

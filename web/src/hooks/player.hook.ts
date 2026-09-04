@@ -10,6 +10,7 @@ import { getLocalFileUrl } from '@/lib/localFs';
 import { isNativePlatform } from '@/lib/capacitor';
 import { ensureEffectsChain } from '@/lib/audioEffects';
 import { prefetchQueue } from '@/lib/prefetch';
+import { signalPlayComplete, signalRepeat, signalSkip } from '@/lib/signals';
 
 // ── Singleton Howl ────────────────────────────────────────────
 // One instance shared across every component that calls usePlayer().
@@ -134,13 +135,21 @@ export function usePlayer() {
             setProgress(0);
             saveProgress(0);
 
-            const { repeatMode, isShuffled } = usePlayerStore.getState();
+            const state = usePlayerStore.getState();
+            const { repeatMode, isShuffled } = state;
+            const endedTrack = state.currentTrack;
+            const endedArtist = endedTrack?.artist?.name;
 
             if (repeatMode === 'one') {
+                // Replaying the same track is a repeat signal, not a skip
+                signalRepeat(endedTrack?.id, endedArtist);
                 _howl?.seek(0);
                 _howl?.play();
                 return;
             }
+
+            // The track genuinely finished — feed the taste profiler
+            signalPlayComplete(endedTrack?.id, endedArtist);
 
             const nextTrack = next(isShuffled);
             if (nextTrack) {
@@ -447,20 +456,28 @@ export function usePlayer() {
     }, [currentTrack, loadAndPlay]);
 
     const skipNext = useCallback(() => {
-        const { isShuffled } = usePlayerStore.getState();
-        const t = next(isShuffled);
-        if (t) { setTrack(t); haptic('medium'); }
+        const state = usePlayerStore.getState();
+        const t = next(state.isShuffled);
+        if (t) {
+            signalSkip(state.currentTrack?.id, state.progress, state.currentTrack?.artist?.name);
+            setTrack(t);
+            haptic('medium');
+        }
     }, [next, setTrack]);
 
     const skipPrev = useCallback(() => {
-        const { progress } = usePlayerStore.getState();
-        if (progress > 3) {
+        const state = usePlayerStore.getState();
+        if (state.progress > 3) {
             seek(0);
             haptic('light');
             return;
         }
         const t = prev();
-        if (t) { setTrack(t); haptic('medium'); }
+        if (t) {
+            signalSkip(state.currentTrack?.id, state.progress, state.currentTrack?.artist?.name);
+            setTrack(t);
+            haptic('medium');
+        }
     }, [prev, seek, setTrack]);
 
     return {
