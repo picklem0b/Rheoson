@@ -3118,6 +3118,42 @@
             "type": "boolean",
             "title": "Embed Lyrics",
             "default": true
+          },
+          "embed_metadata": {
+            "type": "boolean",
+            "title": "Embed Metadata",
+            "default": true
+          },
+          "file_naming": {
+            "type": "string",
+            "title": "File Naming",
+            "default": "artist-title"
+          },
+          "custom_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Path"
+          },
+          "retries": {
+            "type": "integer",
+            "title": "Retries",
+            "default": 3
+          },
+          "speed_limit": {
+            "type": "integer",
+            "title": "Speed Limit",
+            "default": 0
+          },
+          "concurrency": {
+            "type": "integer",
+            "title": "Concurrency",
+            "default": 3
           }
         },
         "type": "object",
@@ -3323,6 +3359,53 @@
             "type": "boolean",
             "title": "Embedlyrics",
             "default": true
+          },
+          "embedMetadata": {
+            "type": "boolean",
+            "title": "Embedmetadata",
+            "default": true
+          },
+          "retries": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Retries",
+            "default": 3
+          },
+          "speedLimit": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Speedlimit",
+            "default": 0
+          },
+          "concurrency": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Concurrency",
+            "default": 3
+          },
+          "fileNaming": {
+            "type": "string",
+            "enum": [
+              "artist-title",
+              "title-artist",
+              "id"
+            ],
+            "title": "Filenaming",
+            "default": "artist-title"
+          },
+          "customPath": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custompath"
           }
         },
         "type": "object",

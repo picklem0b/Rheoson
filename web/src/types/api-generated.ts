@@ -1430,6 +1430,33 @@ export interface components {
              * @default true
              */
             embed_lyrics: boolean;
+            /**
+             * Embed Metadata
+             * @default true
+             */
+            embed_metadata: boolean;
+            /**
+             * File Naming
+             * @default artist-title
+             */
+            file_naming: string;
+            /** Custom Path */
+            custom_path?: string | null;
+            /**
+             * Retries
+             * @default 3
+             */
+            retries: number;
+            /**
+             * Speed Limit
+             * @default 0
+             */
+            speed_limit: number;
+            /**
+             * Concurrency
+             * @default 3
+             */
+            concurrency: number;
         };
         /** CreatePlaylistSchema */
         CreatePlaylistSchema: {
@@ -1531,6 +1558,34 @@ export interface components {
              * @default true
              */
             embedLyrics: boolean;
+            /**
+             * Embedmetadata
+             * @default true
+             */
+            embedMetadata: boolean;
+            /**
+             * Retries
+             * @default 3
+             */
+            retries: number;
+            /**
+             * Speedlimit
+             * @default 0
+             */
+            speedLimit: number;
+            /**
+             * Concurrency
+             * @default 3
+             */
+            concurrency: number;
+            /**
+             * Filenaming
+             * @default artist-title
+             * @enum {string}
+             */
+            fileNaming: "artist-title" | "title-artist" | "id";
+            /** Custompath */
+            customPath?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

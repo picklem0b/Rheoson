@@ -11,10 +11,46 @@ import type { Track } from '@/types/track.types'
 import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
 import { playChime, downloadChimeEnabled } from '@/lib/sounds'
+import type { FileNaming } from '@/types'
 
 // Notification chime — louder than the generic success toast so it's
 // noticeable, gated by Settings → Notifications → "Sound effects" and
 // "Download complete".
+
+// ── Advanced options from Settings → Downloads ────────────────
+// Every download (modal, playlist, URL) is sent with the user's saved
+// preferences; explicit per-download choices override the stored defaults.
+
+function readPref<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(`rheoson-${key}`)
+    return raw !== null ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+const VALID_NAMING: FileNaming[] = ['artist-title', 'title-artist', 'id']
+
+function isCellular(): boolean {
+  const conn = (navigator as { connection?: { type?: string } }).connection
+  return conn?.type === 'cellular'
+}
+
+function persistedOptions() {
+  const autoRetry = readPref('dl-auto-retry', true)
+  const retries = readPref('dl-retries', 3)
+  const naming = readPref<FileNaming>('dl-naming', 'artist-title')
+  return {
+    embedMetadata: readPref('dl-metadata', true),
+    fileNaming: VALID_NAMING.includes(naming) ? naming : 'artist-title',
+    customPath: readPref('dl-custom-path', ''),
+    // 0 retries when auto-retry is switched off
+    retries: autoRetry ? Math.max(0, retries) : 0,
+    speedLimit: Math.max(0, readPref('dl-speed-cap', 0)),
+    concurrency: Math.min(8, Math.max(1, readPref('dl-concurrent', 3))),
+  }
+}
 
 // ── Hook ──────────────────────────────────────────────────────
 
@@ -89,7 +125,21 @@ export function useDownloads() {
     track: Track,
     options: DownloadOptions = DOWNLOAD_DEFAULTS,
   ) => {
+    // Settings → Downloads → Wi-Fi only: refuse on cellular data
+    if (readPref('dl-wifi-only', false) && isCellular()) {
+      throw new Error('Wi-Fi only is enabled — connect to Wi-Fi to download')
+    }
+
     const tempId = uid('dl')
+    // Persisted advanced options win unless this call overrides them
+    const payload: DownloadOptions = {
+      ...persistedOptions(),
+      ...options,
+      format: options.format ?? DOWNLOAD_DEFAULTS.format,
+      quality: options.quality ?? DOWNLOAD_DEFAULTS.quality,
+      embedArtwork: options.embedArtwork ?? DOWNLOAD_DEFAULTS.embedArtwork,
+      embedLyrics: options.embedLyrics ?? DOWNLOAD_DEFAULTS.embedLyrics,
+    }
 
     // Optimistic job shown immediately in the UI
     addJob({
@@ -100,15 +150,15 @@ export function useDownloads() {
       artworkUrl: track.artworkUrl,
       status:     'queued',
       progress:   0,
-      format:     options.format,
-      quality:    options.quality,
+      format:     payload.format,
+      quality:    payload.quality,
       error:      '',
       filePath:   '',
       createdAt:  new Date().toISOString(),
     })
 
     try {
-      const job = await downloadsApi.startDownload({ trackId: track.id, ...options })
+      const job = await downloadsApi.startDownload({ trackId: track.id, ...payload })
       // Replace temp ID with the real job from the server
       updateJob(tempId, job)
     } catch (e) {

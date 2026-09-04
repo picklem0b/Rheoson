@@ -106,14 +106,19 @@ export function DownloadModal() {
 
   const handleDownload = async () => {
     if (!track) return
-    download(track, {
-      format,
-      quality: effectiveQuality,
-      embedArtwork,
-      embedLyrics,
-    })
-    toast(`"${track.title}" queued for download`, 'success')
-    closeDownloadModal()
+    try {
+      await download(track, {
+        format,
+        quality: effectiveQuality,
+        embedArtwork,
+        embedLyrics,
+      })
+      toast(`"${track.title}" queued for download`, 'success')
+      closeDownloadModal()
+    } catch (e) {
+      // e.g. Wi-Fi-only mode on mobile data
+      toast(e instanceof Error ? e.message : 'Download failed', 'error', 4000)
+    }
   }
 
   return (

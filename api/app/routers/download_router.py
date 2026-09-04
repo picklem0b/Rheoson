@@ -2,6 +2,7 @@ from __future__ import annotations
 import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 from app.schemas.download_schema import DownloadRequestSchema, DownloadJobSchema
 from app.services.download_service import (
     enqueue_download, get_all_jobs, get_job,
@@ -52,6 +53,12 @@ async def start_download(req: DownloadRequestSchema):
         quality=req.quality,
         embed_artwork=req.embedArtwork,
         embed_lyrics=req.embedLyrics,
+        embed_metadata=req.embedMetadata,
+        file_naming=req.fileNaming,
+        custom_path=req.customPath,
+        retries=req.retries,
+        speed_limit=req.speedLimit,
+        concurrency=req.concurrency,
     )
     return job
 
@@ -108,6 +115,12 @@ class BatchDownloadRequest(BaseModel):
     quality:      str = "320"
     embed_artwork: bool = True
     embed_lyrics:  bool = True
+    embed_metadata: bool = True
+    file_naming:   str = "artist-title"
+    custom_path:   Optional[str] = None
+    retries:       int = 3
+    speed_limit:   int = 0
+    concurrency:   int = 3
 
 
 @router.post("/batch", response_model=list[DownloadJobSchema], status_code=202)
@@ -129,6 +142,12 @@ async def batch_download(req: BatchDownloadRequest):
             quality=req.quality,
             embed_artwork=req.embed_artwork,
             embed_lyrics=req.embed_lyrics,
+            embed_metadata=req.embed_metadata,
+            file_naming=req.file_naming,
+            custom_path=req.custom_path,
+            retries=req.retries,
+            speed_limit=req.speed_limit,
+            concurrency=req.concurrency,
         )
         jobs.append(job)
     return jobs
