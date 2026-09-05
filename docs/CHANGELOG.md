@@ -5,6 +5,12 @@ Format: `v(major).(minor).(patch)` — annotated tags, `--follow-tags` always.
 
 ---
 
+## v2.11.1
+
+chore: make OpenAPI type generation safe in CI when python3 is absent
+
+---
+
 ## v1.3.4
 
 feat: search debounce, library redesign, toasts, rhea sound
