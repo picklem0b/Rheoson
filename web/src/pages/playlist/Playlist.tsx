@@ -16,6 +16,7 @@ import { ArtworkImage } from "@/components/ui/ArtworkImage";
 import { useToast } from "@/components/ui/Toaster";
 import { PlaylistCover, PlaylistCoverEditor } from "@/components/playlist/PlaylistCover";
 import { usePlaylistMenuStore } from "@/store/playlistMenu.store";
+import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { formatDuration, formatTotalDuration, truncate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { Track } from "@/types/track.types";
@@ -285,6 +286,7 @@ interface PlaylistTrackRowProps {
 }
 
 function PlaylistTrackRow({ track, index, onClick, onAddToPlaylist, onAddNext }: PlaylistTrackRowProps) {
+   const contextMenu = useTrackContextMenu(track);
    return (
       <motion.button
          initial={{ opacity: 0, y: 6 }}
@@ -293,6 +295,7 @@ function PlaylistTrackRow({ track, index, onClick, onAddToPlaylist, onAddNext }:
          whileHover={{ backgroundColor: "var(--bg-elevated)" }}
          whileTap={{ scale: 0.98 }}
          onClick={onClick}
+         {...contextMenu}
          className='w-full group flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left'>
          <span className='text-sm text-[var(--text-muted)] w-5 text-center tabular-nums group-hover:hidden'>
             {index + 1}

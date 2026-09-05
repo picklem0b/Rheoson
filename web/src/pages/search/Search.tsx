@@ -25,6 +25,7 @@ import { CategoryGrid, ResultSection } from "./components/CategoryGrid";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import type { SearchHistoryEntry } from "@/hooks/useSearchHistory";
 import { usePlaylistMenuStore } from "@/store/playlistMenu.store";
+import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { formatDuration, truncate } from "@/lib/formatters";
 import { detectInputType, cn } from "@/lib/utils";
 import { normalizeTrack } from "@/lib/normalize";
@@ -54,6 +55,7 @@ function TrackRow({
    onDownload: (e: React.MouseEvent) => void;
    onAddToPlaylist: (e: React.MouseEvent) => void;
 }) {
+   const contextMenu = useTrackContextMenu(track);
    return (
       <motion.div
          initial={{ opacity: 0, y: 6 }}
@@ -62,7 +64,8 @@ function TrackRow({
          className='flex items-center gap-3 px-3 py-2.5 rounded-2xl
                  active:bg-[var(--bg-elevated)] hover:bg-[var(--bg-elevated)]
                  transition-colors cursor-pointer group'
-         onClick={onPlay}>
+         onClick={onPlay}
+         {...contextMenu}>
          {/* Artwork */}
          <div className='relative flex-shrink-0'>
             {track.artworkUrl ? (

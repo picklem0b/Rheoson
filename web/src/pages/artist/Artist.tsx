@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Play, UserPlus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useQueue } from '@/hooks/queue.hook'
+import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { getArtist } from '@/api/library.api'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
@@ -159,6 +160,7 @@ interface PopularTrackRowProps {
 }
 
 function PopularTrackRow({ track, index, gradient, onClick }: PopularTrackRowProps) {
+  const contextMenu = useTrackContextMenu(track)
   return (
     <motion.button
       initial={{ opacity: 0, x: -8 }}
@@ -166,6 +168,7 @@ function PopularTrackRow({ track, index, gradient, onClick }: PopularTrackRowPro
       transition={{ delay: index * 0.06 }}
       whileHover={{ backgroundColor: 'var(--bg-elevated)' }}
       onClick={onClick}
+      {...contextMenu}
       className="w-full group flex items-center gap-4 px-3 py-3 rounded-2xl transition-colors text-left"
     >
       <span className="text-sm text-[var(--text-muted)] w-5 text-center group-hover:hidden">

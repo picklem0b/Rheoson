@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Clock, Play, Shuffle, Trash2 } from 'lucide-react'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
+import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { tracksApi } from '@/api/tracks.api'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
@@ -31,6 +32,7 @@ function TrackRow({ track, index, onClick }: {
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const isPlaying    = usePlayerStore((s) => s.isPlaying)
   const active       = currentTrack?.id === track.id
+  const contextMenu  = useTrackContextMenu(track)
 
   return (
     <motion.button
@@ -39,6 +41,7 @@ function TrackRow({ track, index, onClick }: {
       transition={{ delay: Math.min(index * 0.02, 0.3) }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
+      {...contextMenu}
       className={cn(
         'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
         active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',

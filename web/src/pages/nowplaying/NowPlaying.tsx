@@ -29,6 +29,7 @@ import { useQueueStore } from "@/store/queue.store";
 import { useQueue } from "@/hooks/queue.hook";
 import { usePlayer } from "@/hooks/player.hook";
 import { useLyrics } from "@/hooks/lyrics.hook";
+import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { tracksApi } from "@/api/tracks.api";
 import { getArtist } from "@/api/library.api";
 import PlayerControls from "@/components/player/PlayerControls";
@@ -379,50 +380,15 @@ function CreatorTab({
                   Top songs
                </p>
                <div className='space-y-0.5'>
-                  {top.map((track: Track, i: number) => {
-                     const isCurrent = currentTrack?.id === track.id;
-                     return (
-                        <motion.button
-                           key={`${track.id}-${i}`}
-                           whileTap={{ scale: 0.98 }}
-                           onClick={() => !isCurrent && playTrack(track, top)}
-                           className={cn(
-                              "w-full flex items-center gap-3 px-3 py-2 rounded-2xl transition-colors text-left",
-                              isCurrent
-                                 ? "bg-[var(--accent-subtle)]"
-                                 : "hover:bg-white/5"
-                           )}>
-                           <span className='text-xs font-bold text-white/30 w-4 text-center tabular-nums flex-shrink-0'>
-                              {i + 1}
-                           </span>
-                           <div className='relative flex-shrink-0'>
-                              <img
-                                 src={track.artworkUrl || "/assets/logo.png"}
-                                 alt={track.title}
-                                 className='w-10 h-10 rounded-lg object-cover'
-                                 onError={e => {
-                                    (e.target as HTMLImageElement).src =
-                                       "/assets/logo.png";
-                                 }}
-                              />
-                           </div>
-                           <div className='flex-1 min-w-0'>
-                              <p
-                                 className={cn(
-                                    "text-sm font-semibold truncate",
-                                    isCurrent
-                                       ? "text-[var(--accent)]"
-                                       : "text-white"
-                                 )}>
-                                 {track.title}
-                              </p>
-                              <p className='text-xs text-white/40 truncate'>
-                                 {formatDuration(track.duration)}
-                              </p>
-                           </div>
-                        </motion.button>
-                     );
-                  })}
+                  {top.map((track: Track, i: number) => (
+                     <CreatorTopRow
+                        key={`${track.id}-${i}`}
+                        track={track}
+                        index={i}
+                        isCurrent={currentTrack?.id === track.id}
+                        onPlay={() => currentTrack?.id !== track.id && playTrack(track, top)}
+                     />
+                  ))}
                </div>
             </div>
          )}
@@ -452,72 +418,157 @@ function PlaylistTab({ currentTrack }: { currentTrack: Track }) {
          {all.map((track, i) => {
             const isCurrent = track.id === currentTrack.id;
             return (
-               <motion.button
+               <PlaylistTabRow
                   key={`${track.id}-${i}`}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => !isCurrent && playTrack(track, all)}
-                  className={cn(
-                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left",
-                     isCurrent
-                        ? "bg-[var(--accent-subtle)]"
-                        : "hover:bg-[var(--bg-elevated)]"
-                  )}>
-                  <div className='relative flex-shrink-0'>
-                     <img
-                        src={track.artworkUrl || "/assets/logo.png"}
-                        alt={track.title}
-                        className='w-10 h-10 rounded-xl object-cover'
-                        onError={e => {
-                           (e.target as HTMLImageElement).src =
-                              "/assets/logo.png";
-                        }}
-                     />
-                     {track.isDownloaded && (
-                        <div className='absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--accent)] flex items-center justify-center'>
-                           <Download className='w-2 h-2 text-white' />
-                        </div>
-                     )}
-                  </div>
-                  <div className='flex-1 min-w-0'>
-                     <p
-                        className={cn(
-                           "text-sm font-semibold truncate",
-                           isCurrent
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--text-primary)]"
-                        )}>
-                        {track.title}
-                     </p>
-                     <p className='text-xs text-[var(--text-secondary)] truncate'>
-                        {track.artist?.name ?? 'Unknown Artist'}
-                     </p>
-                  </div>
-                  {isCurrent ? (
-                     <div className='flex items-end gap-[2px] h-4 flex-shrink-0'>
-                        {[0, 1, 2].map(j => (
-                           <motion.div
-                              key={j}
-                              className='w-[2px] bg-[var(--accent)] rounded-full'
-                              animate={{
-                                 height: ["40%", "100%", "60%"]
-                              }}
-                              transition={{
-                                 duration: 0.8,
-                                 repeat: Infinity,
-                                 delay: j * 0.15
-                              }}
-                           />
-                        ))}
-                     </div>
-                  ) : (
-                     <span className='text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0'>
-                        {formatDuration(track.duration)}
-                     </span>
-                  )}
-               </motion.button>
+                  track={track}
+                  index={i}
+                  isCurrent={isCurrent}
+                  onPlay={() => !isCurrent && playTrack(track, all)}
+               />
             );
          })}
       </div>
+   );
+}
+
+// ── Playlist tab row ──────────────────────────────────────────
+
+function PlaylistTabRow({
+   track,
+   index,
+   isCurrent,
+   onPlay
+}: {
+   track: Track;
+   index: number;
+   isCurrent: boolean;
+   onPlay: () => void;
+}) {
+   const contextMenu = useTrackContextMenu(track);
+   return (
+      <motion.button
+         initial={{ opacity: 0, y: 6 }}
+         animate={{ opacity: 1, y: 0 }}
+         transition={{ delay: Math.min(index * 0.03, 0.3) }}
+         whileTap={{ scale: 0.98 }}
+         onClick={onPlay}
+         {...contextMenu}
+         className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left",
+            isCurrent
+               ? "bg-[var(--accent-subtle)]"
+               : "hover:bg-[var(--bg-elevated)]"
+         )}>
+         <div className='relative flex-shrink-0'>
+            <img
+               src={track.artworkUrl || "/assets/logo.png"}
+               alt={track.title}
+               className='w-10 h-10 rounded-xl object-cover'
+               onError={e => {
+                  (e.target as HTMLImageElement).src =
+                     "/assets/logo.png";
+               }}
+            />
+            {track.isDownloaded && (
+               <div className='absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--accent)] flex items-center justify-center'>
+                  <Download className='w-2 h-2 text-white' />
+               </div>
+            )}
+         </div>
+         <div className='flex-1 min-w-0'>
+            <p
+               className={cn(
+                  "text-sm font-semibold truncate",
+                  isCurrent
+                     ? "text-[var(--accent)]"
+                     : "text-[var(--text-primary)]"
+               )}>
+               {track.title}
+            </p>
+            <p className='text-xs text-[var(--text-secondary)] truncate'>
+               {track.artist?.name ?? 'Unknown Artist'}
+            </p>
+         </div>
+         {isCurrent ? (
+            <div className='flex items-end gap-[2px] h-4 flex-shrink-0'>
+               {[0, 1, 2].map(j => (
+                  <motion.div
+                     key={j}
+                     className='w-[2px] bg-[var(--accent)] rounded-full'
+                     animate={{
+                        height: ["40%", "100%", "60%"]
+                     }}
+                     transition={{
+                        duration: 0.8,
+                        repeat: Infinity,
+                        delay: j * 0.15
+                     }}
+                  />
+               ))}
+            </div>
+         ) : (
+            <span className='text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0'>
+               {formatDuration(track.duration)}
+            </span>
+         )}
+      </motion.button>
+   );
+}
+
+// ── Creator top-song row ──────────────────────────────────────
+
+function CreatorTopRow({
+   track,
+   index,
+   isCurrent,
+   onPlay
+}: {
+   track: Track;
+   index: number;
+   isCurrent: boolean;
+   onPlay: () => void;
+}) {
+   const contextMenu = useTrackContextMenu(track);
+   return (
+      <motion.button
+         whileTap={{ scale: 0.98 }}
+         onClick={onPlay}
+         {...contextMenu}
+         className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-2xl transition-colors text-left",
+            isCurrent
+               ? "bg-[var(--accent-subtle)]"
+               : "hover:bg-white/5"
+         )}>
+         <span className='text-xs font-bold text-white/30 w-4 text-center tabular-nums flex-shrink-0'>
+            {index + 1}
+         </span>
+         <div className='relative flex-shrink-0'>
+            <img
+               src={track.artworkUrl || "/assets/logo.png"}
+               alt={track.title}
+               className='w-10 h-10 rounded-lg object-cover'
+               onError={e => {
+                  (e.target as HTMLImageElement).src =
+                     "/assets/logo.png";
+               }}
+            />
+         </div>
+         <div className='flex-1 min-w-0'>
+            <p
+               className={cn(
+                  "text-sm font-semibold truncate",
+                  isCurrent
+                     ? "text-[var(--accent)]"
+                     : "text-white"
+               )}>
+               {track.title}
+            </p>
+            <p className='text-xs text-white/40 truncate'>
+               {formatDuration(track.duration)}
+            </p>
+         </div>
+      </motion.button>
    );
 }
 

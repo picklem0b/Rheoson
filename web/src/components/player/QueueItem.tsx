@@ -4,6 +4,7 @@ import type { Track } from '@/types/track.types'
 import { usePlayerStore } from '@/store/player.store'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlaylistMenuStore } from '@/store/playlistMenu.store'
+import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { IconButton } from '@/components/ui/IconButton'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { formatDuration, truncate } from '@/lib/formatters'
@@ -18,6 +19,7 @@ export default function QueueItem({ track, index }: QueueItemProps) {
   const currentTrack  = usePlayerStore((s) => s.currentTrack)
   const { playTrack, removeFromQueue } = useQueue()
   const isActive = currentTrack?.id === track.id
+  const contextMenu = useTrackContextMenu(track)
 
   return (
     <motion.div
@@ -32,6 +34,7 @@ export default function QueueItem({ track, index }: QueueItemProps) {
           ? 'bg-[var(--accent-subtle)] border border-[var(--accent-border)]'
           : 'hover:bg-[var(--bg-elevated)]'
       )}
+      {...contextMenu}
     >
       {/* Drag handle */}
       <GripVertical className="w-4 h-4 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 cursor-grab flex-shrink-0" />

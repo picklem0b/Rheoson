@@ -26,6 +26,7 @@ import { getAlbums, getArtists } from "@/api/library.api";
 import { tracksApi } from "@/api/tracks.api";
 import { playlistsApi } from "@/api/playlists.api";
 import { useQueue } from "@/hooks/queue.hook";
+import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/formatters";
 import type { Artist, Track } from "@/types/track.types";
@@ -503,6 +504,7 @@ function LikedTrackRow({
    onPlay: () => void;
    onUnlike: (e: React.MouseEvent) => void;
 }) {
+   const contextMenu = useTrackContextMenu(track);
    return (
       <motion.button
          initial={{ opacity: 0, y: 8 }}
@@ -511,6 +513,7 @@ function LikedTrackRow({
          whileHover={{ backgroundColor: "var(--bg-elevated)" }}
          whileTap={{ scale: 0.98 }}
          onClick={onPlay}
+         {...contextMenu}
          className='w-full group flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left'>
          <span className='text-sm text-[var(--text-muted)] w-5 text-center tabular-nums group-hover:hidden'>
             {index + 1}
