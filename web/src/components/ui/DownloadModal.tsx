@@ -262,7 +262,7 @@ export function DownloadModal() {
             {lossless ? 'Download lossless' : `Download ${format.toUpperCase()}`}
           </Button>
           <p className="text-center text-[11px] text-[var(--text-muted)] mt-3">
-            Queued downloads appear in My Music → Activity
+            Queued downloads appear at the top of My Music
           </p>
         </>
       )}
