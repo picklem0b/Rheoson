@@ -155,6 +155,8 @@ async def update_playlist(playlist_id: str, req: UpdatePlaylistSchema, user=None
         pl["title"] = req.title
     if req.description is not None:
         pl["description"] = req.description
+    if req.artworkUrl:
+        pl["artworkUrl"] = req.artworkUrl
     pl["updatedAt"] = now
     
     data[playlist_id] = pl

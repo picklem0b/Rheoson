@@ -10,7 +10,8 @@ import {
    Link2,
    TrendingUp,
    History,
-   Trash2
+   Trash2,
+   ListPlus
 } from "lucide-react";
 import { useSearch } from "@/hooks/search.hook";
 import { useQueue } from "@/hooks/queue.hook";
@@ -23,6 +24,7 @@ import { SearchBar } from "./components/SearchBar";
 import { CategoryGrid, ResultSection } from "./components/CategoryGrid";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import type { SearchHistoryEntry } from "@/hooks/useSearchHistory";
+import { usePlaylistMenuStore } from "@/store/playlistMenu.store";
 import { formatDuration, truncate } from "@/lib/formatters";
 import { detectInputType, cn } from "@/lib/utils";
 import { normalizeTrack } from "@/lib/normalize";
@@ -43,12 +45,14 @@ function TrackRow({
    track,
    index,
    onPlay,
-   onDownload
+   onDownload,
+   onAddToPlaylist
 }: {
    track: Track;
    index: number;
    onPlay: () => void;
    onDownload: (e: React.MouseEvent) => void;
+   onAddToPlaylist: (e: React.MouseEvent) => void;
 }) {
    return (
       <motion.div
@@ -101,6 +105,13 @@ function TrackRow({
             <span className='text-xs text-[var(--text-muted)] tabular-nums hidden sm:block'>
                {formatDuration(track.duration)}
             </span>
+            <motion.button
+               whileTap={{ scale: 0.85 }}
+               onClick={onAddToPlaylist}
+               className='w-8 h-8 rounded-full flex items-center justify-center bg-[var(--bg-elevated)] text-[var(--text-muted)] active:bg-[var(--accent-subtle)] active:text-[var(--accent)]'
+               aria-label={`Add ${track.title} to a playlist`}>
+               <ListPlus className='w-3.5 h-3.5' />
+            </motion.button>
             <motion.button
                whileTap={{ scale: 0.85 }}
                onClick={onDownload}
@@ -316,6 +327,7 @@ export default function Search() {
 
    const { playTrack } = useQueue();
    const { openDownloadModal } = useUIStore();
+   const openPlaylistMenu = usePlaylistMenuStore((s) => s.openForTrack);
    const { toast } = useToast();
    const { history, recordSearch, recordPlay, removeEntry, clearHistory } =
       useSearchHistory();
@@ -379,6 +391,11 @@ export default function Search() {
       e.stopPropagation();
       openDownloadModal(trackId);
       toast(`Added "${truncate(title, 24)}" to downloads`, "info", 2500);
+   };
+
+   const handleAddToPlaylist = (e: React.MouseEvent, track: Track) => {
+      e.stopPropagation();
+      openPlaylistMenu(track);
    };
 
    return (
@@ -572,6 +589,9 @@ export default function Search() {
                                     }
                                     onDownload={e =>
                                        handleDownload(e, track.id, track.title)
+                                    }
+                                    onAddToPlaylist={e =>
+                                       handleAddToPlaylist(e, track)
                                     }
                                  />
                               ))}

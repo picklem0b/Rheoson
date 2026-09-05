@@ -89,7 +89,7 @@ export const playlistsApi = {
       return localPlaylist;
    },
 
-   updatePlaylist: async (id: string, data: Partial<Pick<Playlist, 'title' | 'description'>>): Promise<Playlist> => {
+   updatePlaylist: async (id: string, data: Partial<Pick<Playlist, 'title' | 'description' | 'artworkUrl'>>): Promise<Playlist> => {
       // Optimistic local update
       const local = await playlistsStore.get(id);
       if (local) {

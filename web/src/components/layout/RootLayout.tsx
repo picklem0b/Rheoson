@@ -7,6 +7,7 @@ import BottomNav from "./BottomNav";
 import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
 import { DownloadModal } from "@/components/ui/DownloadModal";
+import { AddToPlaylistSheet } from "@/components/playlist/AddToPlaylistSheet";
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { cn } from "@/lib/utils";
@@ -123,6 +124,9 @@ export default function RootLayout() {
 
             {/* ── Download options modal ─────────────────────── */}
             <DownloadModal />
+
+            {/* ── Add-to-playlist sheet (global) ──────────────── */}
+            <AddToPlaylistSheet />
          </div>
       </Toaster>
    );

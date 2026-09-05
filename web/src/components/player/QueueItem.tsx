@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
-import { GripVertical, X } from 'lucide-react'
+import { GripVertical, ListPlus, X } from 'lucide-react'
 import type { Track } from '@/types/track.types'
 import { usePlayerStore } from '@/store/player.store'
 import { useQueue } from '@/hooks/queue.hook'
+import { usePlaylistMenuStore } from '@/store/playlistMenu.store'
 import { IconButton } from '@/components/ui/IconButton'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { formatDuration, truncate } from '@/lib/formatters'
@@ -62,15 +63,25 @@ export default function QueueItem({ track, index }: QueueItemProps) {
         </span>
       </button>
 
-      {/* Remove */}
-      <IconButton
-        size="xs"
-        variant="ghost"
-        onClick={() => removeFromQueue(index)}
-        className="opacity-0 group-hover:opacity-100"
-      >
-        <X />
-      </IconButton>
+      {/* Actions */}
+      <div className="flex items-center flex-shrink-0">
+        <IconButton
+          size="xs"
+          variant="ghost"
+          onClick={() => usePlaylistMenuStore.getState().openForTrack(track)}
+          className="opacity-0 group-hover:opacity-100"
+        >
+          <ListPlus />
+        </IconButton>
+        <IconButton
+          size="xs"
+          variant="ghost"
+          onClick={() => removeFromQueue(index)}
+          className="opacity-0 group-hover:opacity-100"
+        >
+          <X />
+        </IconButton>
+      </div>
     </motion.div>
   )
 }

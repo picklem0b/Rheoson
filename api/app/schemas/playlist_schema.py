@@ -37,3 +37,4 @@ class CreatePlaylistSchema(BaseModel):
 class UpdatePlaylistSchema(BaseModel):
     title:       str = ""
     description: str = ""
+    artworkUrl:  str = ""
