@@ -282,6 +282,39 @@ async def test_share_link_is_url_encoded(client):
     assert url == "https://rheoson.onrender.com/search?q=Rick+%26+Morty+Soul+%231"
 
 
+# ── Settings persistence round-trip ──────────────────────────
+
+def test_saved_directories_env_parses_on_next_boot(tmp_path):
+    """Regression: save-directories wrote EXTRA_MUSIC_DIRS as a comma-joined
+    string ('/a,/b') which pydantic-settings cannot parse for list[str] — the
+    API raised SettingsError and refused to boot on the next restart."""
+    from app.routers.settings_router import _persist_dirs_to_env
+    from app.core.config import Settings
+
+    env_file = tmp_path / ".env"
+    env_file.write_text("MUSIC_DIR=/old\nEXTRA_MUSIC_DIRS=[]\n")
+    _persist_dirs_to_env(env_file, "/data/Music", ["/data/Download", "/sdcard/Music"])
+
+    content = env_file.read_text()
+    assert "EXTRA_MUSIC_DIRS=[\"/data/Download\", \"/sdcard/Music\"]" in content
+
+    # The critical part: the file must reload cleanly through Settings().
+    # Process env vars (set by conftest for isolation) would shadow the file,
+    # so drop them for this parse round.
+    import os
+    saved = {k: os.environ.get(k) for k in ("MUSIC_DIR", "DOWNLOADS_DIR", "EXTRA_MUSIC_DIRS")}
+    for k in saved:
+        os.environ.pop(k, None)
+    try:
+        s = Settings(_env_file=str(env_file))
+    finally:
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+    assert s.MUSIC_DIR == "/data/Music"
+    assert s.EXTRA_MUSIC_DIRS == ["/data/Download", "/sdcard/Music"]
+
+
 # ── Settings browse traversal ─────────────────────────────────
 
 @pytest.mark.asyncio

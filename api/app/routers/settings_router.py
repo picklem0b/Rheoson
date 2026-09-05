@@ -7,6 +7,7 @@ been removed for security.
 
 from __future__ import annotations
 import asyncio
+import json
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -57,6 +58,30 @@ async def get_directories():
     return {"directories": result}
 
 
+def _persist_dirs_to_env(env_path: Path, primary: str, extra: list[str]) -> None:
+    """Rewrite MUSIC_DIR / EXTRA_MUSIC_DIRS inside the .env file.
+
+    EXTRA_MUSIC_DIRS is written as a JSON array (pydantic-settings parses
+    list[str] env values with json.loads) — a naive comma join produces a
+    value that fails Settings() parsing and the API refuses to boot on the
+    next restart.
+    """
+    lines: list[str] = []
+    if env_path.exists():
+        lines = env_path.read_text().splitlines()
+
+    def _set(key: str, value: str) -> None:
+        for i, line in enumerate(lines):
+            if line.startswith(f"{key}="):
+                lines[i] = f"{key}={value}"
+                return
+        lines.append(f"{key}={value}")
+
+    _set("MUSIC_DIR", primary)
+    _set("EXTRA_MUSIC_DIRS", json.dumps(extra))
+    env_path.write_text("\n".join(lines) + "\n")
+
+
 @router.post("/directories")
 async def save_directories(body: DirectoriesSchema):
     """Persist the frontend's directory list to settings."""
@@ -70,20 +95,10 @@ async def save_directories(body: DirectoriesSchema):
     settings.EXTRA_MUSIC_DIRS = extra
 
     env_path = Path(__file__).parent.parent.parent / ".env"
-    lines: list[str] = []
-    if env_path.exists():
-        lines = env_path.read_text().splitlines()
-
-    def _set(key: str, value: str) -> None:
-        for i, line in enumerate(lines):
-            if line.startswith(f"{key}="):
-                lines[i] = f"{key}={value}"
-                return
-        lines.append(f"{key}={value}")
-
-    _set("MUSIC_DIR", primary)
-    _set("EXTRA_MUSIC_DIRS", ",".join(extra))
-    env_path.write_text("\n".join(lines) + "\n")
+    try:
+        _persist_dirs_to_env(env_path, primary, extra)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Could not persist directories: {e}") from e
 
     return {"ok": True, "directories": body.dirs}
 
