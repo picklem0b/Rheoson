@@ -12,7 +12,7 @@ import type { Track } from '@/types/track.types'
  * suppresses the click that follows so the row doesn't also start
  * playback when the menu opens.
  */
-export function useTrackContextMenu(track: Track) {
+export function useTrackContextMenu(track: Track | null) {
   const timer = useRef<number | null>(null)
   const fired = useRef(false)
 
@@ -28,6 +28,7 @@ export function useTrackContextMenu(track: Track) {
 
   const onContextMenu = useCallback(
     (e: React.MouseEvent) => {
+      if (!track) return
       e.preventDefault()
       e.stopPropagation()
       openPointer(track, e.clientX, e.clientY)
@@ -40,6 +41,7 @@ export function useTrackContextMenu(track: Track) {
       fired.current = false
       clearTimer()
       timer.current = window.setTimeout(() => {
+        if (!track) return
         fired.current = true
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate?.(12)

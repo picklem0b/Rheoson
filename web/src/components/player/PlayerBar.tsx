@@ -10,6 +10,7 @@ import {
    WifiOff
 } from "lucide-react";
 import { usePlayerStore } from "@/store/player.store";
+import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { useUIStore } from "@/store/ui.store";
 import { tracksApi } from "@/api/tracks.api";
 import PlayerControls from "./PlayerControls";
@@ -73,6 +74,9 @@ export default function PlayerBar() {
          }
       }, [currentTrack?.id, liked]); // eslint-disable-line react-hooks/exhaustive-deps -- track ID change is sufficient
 
+   // Universal context menu on the track info area (right-click / long-press)
+   const contextMenu = useTrackContextMenu(currentTrack);
+
    if (!currentTrack) return null;
 
    return (
@@ -110,10 +114,12 @@ export default function PlayerBar() {
                </div>
 
                <div className='flex items-center gap-3 px-4 py-2.5'>
-                  {/* Track info → taps to Now Playing */}
+                  {/* Track info → taps to Now Playing; right-click /
+                      long-press opens the universal context menu */}
                   <motion.button
                      whileTap={{ scale: 0.97 }}
                      onClick={() => navigate("/full-player")}
+                     {...contextMenu}
                      className='flex items-center gap-3 flex-1 min-w-0 text-left'>
                      {/* Artwork */}
                      <div className='relative flex-shrink-0'>

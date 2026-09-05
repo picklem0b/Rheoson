@@ -10,6 +10,7 @@ import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toaster'
+import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { searchApi } from '@/api/search.api'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/formatters'
@@ -20,6 +21,7 @@ export default function QueuePanel() {
   const toggleQueue = useUIStore((s) => s.toggleQueue)
   const { queue, clearQueue } = useQueueStore()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
+  const contextMenu = useTrackContextMenu(currentTrack)
 
   // No track = no panel
   if (!currentTrack) return null
@@ -81,7 +83,10 @@ export default function QueuePanel() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] px-3 mb-2">
                     Now Playing
                   </p>
-                  <div className="flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-[var(--accent-subtle)] border border-[var(--accent-border)]">
+                  <div
+                    {...contextMenu}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-[var(--accent-subtle)] border border-[var(--accent-border)]"
+                  >
                     <ArtworkImage
                       src={currentTrack.artworkUrl}
                       alt={currentTrack.title}
