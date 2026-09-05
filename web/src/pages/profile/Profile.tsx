@@ -374,7 +374,7 @@ export default function Profile() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-red-400">Sign out</p>
-                  <p className="text-xs text-[var(--text-muted)]">You'll need to sign in again</p>
+                  <p className="text-xs text-[var(--text-muted)]">You&apos;ll need to sign in again</p>
                 </div>
               </motion.button>
             </div>

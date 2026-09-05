@@ -23,6 +23,10 @@ def _validate_job_id(job_id: str) -> str:
     job_id = job_id.strip()
     if not job_id or len(job_id) > 64:
         raise HTTPException(status_code=400, detail="Invalid job ID")
+    # Jobs are created with uuid4(); reject anything that isn't that shape so
+    # malformed IDs get a clear 400 before the 404 lookup.
+    if not _UUID_RE.match(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
     return job_id
 
 

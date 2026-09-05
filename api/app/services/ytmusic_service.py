@@ -159,7 +159,15 @@ def _duration_to_secs(d: str | None) -> float:
 
 def _parse_track(r: dict) -> dict:
     artists = r.get("artists") or []
-    album   = r.get("album")   or {}
+    if not isinstance(artists, list):
+        artists = []
+    album = r.get("album") or {}
+    if isinstance(album, str):
+        # Some ytmusicapi payloads give album as a bare name string
+        album = {"name": album, "id": ""}
+    if not isinstance(album, dict):
+        album = {}
+    artists = [a for a in artists if isinstance(a, dict)]
     vid_id  = _safe(r.get("videoId"))
     thumbs  = r.get("thumbnails", [])
 
@@ -331,7 +339,12 @@ async def get_track(video_id: str) -> dict:
     loop = asyncio.get_event_loop()
     try:
         data  = await loop.run_in_executor(None, lambda: _get_ytm().get_song(video_id))
-        vd    = data.get("videoDetails", {})
+        vd    = data.get("videoDetails") or {}
+        if not vd.get("videoId") or not vd.get("title"):
+            # YouTube responds 200 with an empty/playability-error payload for
+            # nonexistent or unavailable videos — surface it as a failure so
+            # hydration never fabricates a ghost "track" for a bad ID.
+            raise SearchError(f"Track not found or unavailable: {video_id}")
         thumb = vd.get("thumbnail", {}).get("thumbnails", [])
         vid   = _safe(vd.get("videoId", video_id))
         art   = _thumb_hires(thumb)
@@ -414,6 +427,21 @@ def _parse_count(value: object) -> int:
     return int(num)
 
 
+def _section_items(value: object) -> list[dict]:
+    """Normalize a ytmusicapi artist section.
+
+    Newer ytmusicapi returns sections as {"browseId": ..., "results": [...]};
+    older versions returned a bare list of item dicts. Some responses also
+    carry a trailing non-dict sentinel (e.g. a "More" row). Returns only the
+    dict entries so downstream parsers never hit "'str' object has no 'get'".
+    """
+    if isinstance(value, dict):
+        value = value.get("results") or []
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
 async def get_artist_with_content(artist_id: str) -> dict:
     """
     Full artist page payload: profile + top tracks + albums/singles + related.
@@ -430,16 +458,16 @@ async def get_artist_with_content(artist_id: str) -> dict:
 
     thumbs   = data.get("thumbnails") or []
     top_list = []
-    for s in data.get("songs") or []:
+    for s in _section_items(data.get("songs")):
         if not s.get("videoId"):
             continue
         t = _parse_track(s)
         t["playCount"] = _parse_count(s.get("playCount") or s.get("plays"))
         top_list.append(t)
 
-    albums  = [_parse_album(a) for a in (data.get("albums") or []) if a.get("browseId")]
-    singles = [_parse_album(a) for a in (data.get("singles") or []) if a.get("browseId")]
-    related = [_parse_artist(r) for r in (data.get("related") or []) if r.get("browseId")]
+    albums  = [_parse_album(a) for a in _section_items(data.get("albums")) if a.get("browseId")]
+    singles = [_parse_album(a) for a in _section_items(data.get("singles")) if a.get("browseId")]
+    related = [_parse_artist(r) for r in _section_items(data.get("related")) if r.get("browseId")]
     keywords = data.get("keywords") or data.get("genre") or ""
     if isinstance(keywords, str):
         genres = [g.strip() for g in keywords.split(",") if g.strip()]
@@ -464,6 +492,50 @@ async def get_artist_with_content(artist_id: str) -> dict:
         "albums":           albums[:12],
         "singles":          singles[:8],
         "related":          related[:8],
+    }
+
+
+async def get_album_with_content(album_id: str) -> dict:
+    """Full album payload (title, artwork, year, tracks) for a YT Music
+    browse ID. Powers the album detail page for remote albums."""
+    await _get_ytm_async()
+    loop = asyncio.get_event_loop()
+    try:
+        data = await loop.run_in_executor(None, lambda: _get_ytm().get_album(album_id))
+    except Exception as e:
+        _record_ytm_failure()
+        log.warning("ytmusic.get_album.failed", album_id=album_id, error=str(e))
+        raise SearchError(f"Album unavailable: {e}") from e
+
+    if not isinstance(data, dict) or not data.get("title"):
+        raise SearchError(f"Album not found: {album_id}")
+
+    artists = data.get("artists") or []
+    artist = {}
+    if isinstance(artists, list) and artists and isinstance(artists[0], dict):
+        artist = {
+            "id":   _safe(artists[0].get("id")),
+            "name": _safe(artists[0].get("name")),
+        }
+
+    tracks = [
+        _parse_track(t) for t in (data.get("tracks") or [])
+        if isinstance(t, dict) and t.get("videoId")
+    ]
+    try:
+        year = int(data.get("year") or 0)
+    except (ValueError, TypeError):
+        year = 0
+
+    return {
+        "id":          album_id,
+        "title":       _safe(data.get("title")),
+        "artworkUrl":  _thumb_hires(data.get("thumbnails") or []),
+        "releaseYear": year,
+        "year":        year,
+        "trackCount":  data.get("trackCount") or len(tracks),
+        "artist":      artist,
+        "tracks":      tracks,
     }
 
 

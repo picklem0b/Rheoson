@@ -97,6 +97,8 @@ def _new_job(
     quality:     str,
     job_id:      str | None = None,
     embed_metadata: bool = True,
+    embed_artwork: bool = True,
+    embed_lyrics: bool = True,
     file_naming:  str   = 'artist-title',
     custom_path:  Optional[str] = None,
     retries:      int   = 3,
@@ -116,8 +118,10 @@ def _new_job(
         'error':        None,
         'filePath':     None,
         'createdAt':    datetime.now(timezone.utc).isoformat(),
-        # Options recorded at enqueue time so retries reproduce them
+        # Options recorded at enqueue time so retries reproduce them exactly
         'embedMetadata': embed_metadata,
+        'embedArtwork':  embed_artwork,
+        'embedLyrics':   embed_lyrics,
         'fileNaming':    file_naming,
         'customPath':    custom_path,
         'retries':       retries,
@@ -259,7 +263,7 @@ async def _run_download(
     loop      = asyncio.get_event_loop()
     quality_q = '0' if quality == 'best' else quality
 
-    staging = Path(settings.DOWNLOADS_DIR) / f'.staging-{job_id}'
+    staging = _staging_dir(job_id)
     shutil.rmtree(staging, ignore_errors=True)
     staging.mkdir(parents=True, exist_ok=True)
     out_tmpl = str(staging / '%(title)s.%(ext)s')
@@ -349,6 +353,10 @@ async def _run_download(
 
 # ── Tag + finish ──────────────────────────────────────────────
 
+def _staging_dir(job_id: str) -> Path:
+    return Path(settings.DOWNLOADS_DIR) / f'.staging-{job_id}'
+
+
 async def _tag_and_finish(
     job_id:       str,
     file_path:    Path,
@@ -405,18 +413,19 @@ async def _download_task(
 
         # Invalidate the stream cache so the new file is found on the very
         # next play request without requiring a server restart.
+        # NOTE: module is stream_router (not stream) — the wrong import below
+        # used to fail silently, so newly downloaded files stayed invisible to
+        # /stream and /tracks until the 30-minute cron rescanned.
         try:
-            from app.routers.stream import invalidate_stream_cache
+            from app.routers.stream_router import invalidate_stream_cache
             invalidate_stream_cache()
         except Exception as e:
             log.warning('download.stream_cache.invalidate.failed', error=str(e))
 
         # Invalidate the track index so /tracks and /tracks/recently-played
-        # immediately reflect the new file.
-        # FIX: previously called a non-existent function silently. The function
-        # now exists in tracks.py and is imported correctly.
+        # immediately reflect the new file (module is track_router, not tracks).
         try:
-            from app.routers.tracks import invalidate_track_index
+            from app.routers.track_router import invalidate_track_index
             invalidate_track_index()
         except Exception as e:
             log.warning('download.track_index.invalidate.failed', error=str(e))
@@ -425,9 +434,13 @@ async def _download_task(
         # BUG #16: Use 'cancelled' status instead of generic 'error' so the
         # frontend can distinguish user-initiated cancellation from failures.
         _update(job_id, status='cancelled', error='Cancelled by user')
+        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
         await ws_manager.emit_download_error(job_id, 'Cancelled by user')
     except Exception as e:
         log.error('download.failed', job_id=job_id, error=str(e))
+        # Clean up the staging dir so failed/cancelled downloads can't leak
+        # partially-written files on disk.
+        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
         # BUG #16: Set the correct intermediate status based on where it failed
         current = _jobs.get(job_id, {}).get('status', 'error')
         if current == 'downloading':
@@ -472,7 +485,8 @@ async def enqueue_download(
     except Exception as e:
         job              = _new_job(
             track_id or '', url or '', '', '', fmt, quality, job_id,
-            embed_metadata=embed_metadata, file_naming=file_naming,
+            embed_metadata=embed_metadata, embed_artwork=embed_artwork,
+            embed_lyrics=embed_lyrics, file_naming=file_naming,
             custom_path=custom_path, retries=retries,
             speed_limit=speed_limit, concurrency=concurrency,
         )
@@ -484,7 +498,8 @@ async def enqueue_download(
 
     job              = _new_job(
         track_id or '', title, artist, artwork_url, fmt, quality, job_id,
-        embed_metadata=embed_metadata, file_naming=file_naming,
+        embed_metadata=embed_metadata, embed_artwork=embed_artwork,
+        embed_lyrics=embed_lyrics, file_naming=file_naming,
         custom_path=custom_path, retries=retries,
         speed_limit=speed_limit, concurrency=concurrency,
     )

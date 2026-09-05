@@ -313,6 +313,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._limits = limits
         self._hits: dict[str, collections.deque] = {}
+        self._max_keys = 10_000
+
+    def _prune(self, now: float, window: float) -> None:
+        """Drop stale buckets so per-IP keys don't leak forever."""
+        if len(self._hits) <= self._max_keys:
+            return
+        stale = [
+            k for k, dq in self._hits.items()
+            if not dq or dq[-1] < now - window
+        ]
+        for k in stale:
+            del self._hits[k]
 
     async def dispatch(self, request: StarletteRequest, call_next):
         client_ip = request.client.host if request.client else "unknown"
@@ -324,14 +336,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 limit = max_req
                 break
 
+        now = time.monotonic()
+        window = 60.0
+        self._prune(now, window)
+
         if limit is None:
             return await call_next(request)
 
         parts = path.split('/')
         segment = parts[2] if len(parts) > 2 else 'root'
         key = f'{client_ip}:{segment}'
-        now = time.monotonic()
-        window = 60.0
 
         if key not in self._hits:
             self._hits[key] = collections.deque()
@@ -563,6 +577,69 @@ async def library_artists():
             ),
         }
     return list(seen.values())
+
+
+@app.get("/api/library/albums/{album_id}", tags=["library"])
+async def library_album_detail(
+    album_id: str,
+    name: str = Query("", description="Fallback match by album title"),
+):
+    """Album detail page: cover + full track list.
+
+    Remote YouTube Music albums (browse IDs like MPREb…) are served from
+    ytmusicapi's get_album. Local library albums (md5-derived IDs or a
+    ?name= fallback) are aggregated from the file index so the Album page
+    works fully offline too.
+    """
+    from fastapi import HTTPException as _HTTP
+
+    # 1) Remote browse — only when the id is not a plain hex local file id
+    if album_id and not re.fullmatch(r"[0-9a-f]{1,32}", album_id):
+        try:
+            from app.services.ytmusic_service import get_album_with_content
+            data = await get_album_with_content(album_id)
+            if data.get("title"):
+                return data
+        except Exception:
+            pass  # fall through to the local aggregate below
+
+    # 2) Local library aggregate — match by album id, slugged title, or ?name=
+    from app.routers.track_router import _build_index
+    idx   = await _build_index()
+    slugs = {}
+    tracks: list[dict] = []
+    for t in idx.values():
+        alb     = t.get("album") or {}
+        aid     = alb.get("id") or ""
+        atitle  = alb.get("title") or ""
+        if aid and aid == album_id:
+            tracks.append(t)
+        elif atitle:
+            slug = _artist_slug(atitle)
+            if slug == album_id or (name and atitle.lower() == name.lower()):
+                tracks.append(t)
+                slugs.setdefault(aid, atitle)
+
+    if not tracks:
+        raise _HTTP(status_code=404, detail="Album not found")
+
+    first = tracks[0].get("album") or {}
+    art   = next((t.get("artworkUrl", "") for t in tracks if t.get("artworkUrl")), "")
+    try:
+        year = int(first.get("releaseYear") or 0)
+    except (ValueError, TypeError):
+        year = 0
+    tracks.sort(key=lambda t: (int((t.get("album") or {}).get("trackNumber") or 0), t.get("title", "").lower()))
+    return {
+        "id":          album_id,
+        "title":       first.get("title", ""),
+        "artworkUrl":  art,
+        "releaseYear": year,
+        "year":        year,
+        "trackCount":  len(tracks),
+        "artist":      first.get("artist", {}),
+        "tracks":      tracks,
+    }
 
 
 # ── Artist detail ─────────────────────────────────────────────

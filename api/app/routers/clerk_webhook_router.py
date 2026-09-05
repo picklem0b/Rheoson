@@ -72,10 +72,16 @@ def _verify_svix_signature(
     # Compute HMAC-SHA256
     expected = hmac.new(key, to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
 
-    # Compare each signature (Svix can send multiple, space-separated)
+    # Compare each signature (Svix can send multiple, space-separated). Each
+    # entry looks like "v1,<hexsig>" — splitting on ',' (not ':') matches the
+    # real Svix header format; splitting on ':' never matched anything, so
+    # every Clerk webhook was rejected as invalid.
     for sig in svix_signature.split(" "):
-        if ":" in sig:
-            sig_version, sig_value = sig.split(":", 1)
+        sig = sig.strip()
+        if not sig:
+            continue
+        if "," in sig:
+            _version, sig_value = sig.split(",", 1)
         else:
             sig_value = sig
 

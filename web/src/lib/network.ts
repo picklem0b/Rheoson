@@ -15,7 +15,7 @@
 // ── State ──────────────────────────────────────────────────────
 
 let _online = typeof navigator !== 'undefined' ? navigator.onLine : true;
-let _listeners: Set<(online: boolean) => void> = new Set();
+const _listeners: Set<(online: boolean) => void> = new Set();
 let _capacitorAvailable = false;
 
 // ── Capacitor detection ────────────────────────────────────────

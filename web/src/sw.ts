@@ -6,7 +6,6 @@ import { registerRoute, setCatchHandler } from "workbox-routing";
 import {
     CacheFirst,
     NetworkFirst,
-    StaleWhileRevalidate,
 } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";

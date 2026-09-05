@@ -2,11 +2,26 @@
 
 from __future__ import annotations
 
+import os
 import asyncio
+import tempfile
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock, patch
+
+# ── Isolate every test run from the dev machine's real music library ──
+# Must happen before app.core.config.Settings() is first constructed (i.e.
+# before any app module import inside the fixtures below). Without this the
+# file-backed mirrors (.liked.json / .history.json / .playlists.json) are
+# shared with the developer's real library and tests pollute each other.
+_test_base = tempfile.mkdtemp(prefix="rheoson-api-test-")
+os.environ["MUSIC_DIR"] = os.path.join(_test_base, "music")
+os.environ["DOWNLOADS_DIR"] = os.path.join(_test_base, "downloads")
+os.environ["EXTRA_MUSIC_DIRS"] = "[]"
+os.environ.setdefault(
+    "MONGODB_URL", "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=300"
+)
 
 
 # ── Mock database ──────────────────────────────────────────────
@@ -107,7 +122,13 @@ async def client():
         from app.main import app
 
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        # follow_redirects=True mirrors real browsers/axios/fetch: FastAPI issues
+        # a 307 for routes that differ only by a trailing slash (e.g. GET /api/tracks
+        # -> /api/tracks/). Without it every such test fails with 307 instead of
+        # exercising the endpoint the app actually uses.
+        async with AsyncClient(
+            transport=transport, base_url="http://test", follow_redirects=True
+        ) as ac:
             yield ac
 
 

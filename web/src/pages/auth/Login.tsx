@@ -18,8 +18,9 @@ export default function Login() {
     try {
       await login(email, password);
       navigate('/');
-    } catch (err: any) {
-      const detail = err?.detail || err?.message || 'Login failed';
+    } catch (err) {
+      const e = err as { detail?: string; message?: string };
+      const detail = e?.detail || e?.message || 'Login failed';
       setError(detail);
     }
   };
@@ -103,7 +104,7 @@ export default function Login() {
 
         <div className="mt-6 text-center space-y-3">
           <p className="text-sm text-[var(--text-muted)]">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link to="/register" className="font-semibold text-[var(--accent)] hover:underline">
               Create one
             </Link>

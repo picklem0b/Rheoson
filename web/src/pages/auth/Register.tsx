@@ -25,8 +25,9 @@ export default function Register() {
     try {
       await register(email, password, name || undefined);
       navigate('/');
-    } catch (err: any) {
-      const detail = err?.detail || err?.message || 'Registration failed';
+    } catch (err) {
+      const e = err as { detail?: string; message?: string };
+      const detail = e?.detail || e?.message || 'Registration failed';
       setError(detail);
     }
   };

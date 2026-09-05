@@ -24,7 +24,9 @@ def _sanitize_query(q: str) -> str:
 @router.get("", response_model=SearchResultsSchema)
 async def search_endpoint(
     q:      str        = Query(..., min_length=1),
-    filter: str | None = Query(None, regex="^(tracks|albums|artists|playlists)$"),
+    # 'songs' is accepted as an alias for 'tracks' — the service layer
+    # already branches on it, so the router must not reject it.
+    filter: str | None = Query(None, pattern="^(tracks|songs|albums|artists|playlists)$"),
 ):
     q = _sanitize_query(q)
     if not q:

@@ -16,6 +16,15 @@ from app.core.config import settings
 router = APIRouter()
 
 
+def _is_under(path: Path, base: Path) -> bool:
+    """True if `path` is `base` itself or nested below it."""
+    try:
+        path.relative_to(base)
+        return True
+    except ValueError:
+        return False
+
+
 # ── Spotify status (read-only) ────────────────────────────────
 
 @router.get("/spotify/status")
@@ -86,7 +95,17 @@ async def browse_directory(path: str):
     """List audio files in a given directory path."""
     p = Path(path).resolve()
     allowed_bases = [Path(d).resolve() for d in settings.all_music_dirs_configured]
-    if not any(str(p).startswith(str(base)) for base in allowed_bases):
+    # Resolve-symlink too so a symlink inside a base dir cannot escape it.
+    try:
+        p_real = p.resolve()
+        bases_real = [b.resolve() for b in allowed_bases]
+    except Exception:
+        p_real, bases_real = p, allowed_bases
+    # commonpath (not startswith) so a sibling like /music_evil does not
+    # count as being "under" /music.
+    if not any(
+        _is_under(p_real, base) for base in bases_real
+    ):
         raise HTTPException(status_code=403, detail="Access denied: path outside configured music directories")
     if not p.exists():
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")

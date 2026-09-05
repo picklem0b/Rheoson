@@ -31,7 +31,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(tracks|albums|artists|playlists)$"
+                  "pattern": "^(tracks|songs|albums|artists|playlists)$"
                 },
                 {
                   "type": "null"
@@ -1294,7 +1294,7 @@
           "playlists"
         ],
         "summary": "Update Playlist",
-        "description": "Update playlist title/description.",
+        "description": "Update playlist title/description/artwork.",
         "operationId": "update_playlist_api_playlists__playlist_id__patch",
         "parameters": [
           {
@@ -1353,7 +1353,7 @@
           "playlists"
         ],
         "summary": "Delete Playlist",
-        "description": "Delete a playlist.",
+        "description": "Delete a playlist.\n\nIdempotent: deleting a playlist that no longer exists is a success (204).\nThe frontend queues deletions for offline sync and replays them later \u2014 a\n404 on replay would surface as a spurious sync error.",
         "operationId": "delete_playlist_api_playlists__playlist_id__delete",
         "parameters": [
           {
@@ -1616,6 +1616,48 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/playlists/import": {
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Import Playlist Url",
+        "description": "Create a new playlist from a shared URL (Spotify/YouTube/SoundCloud\u2026).\n\nResolves the URL server-side and stores the resolved track IDs in a\nbrand-new playlist. This backs the Library \"Import playlist\" flow.",
+        "operationId": "import_playlist_url_api_playlists_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPlaylistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistSchema"
+                }
               }
             }
           },
@@ -2314,7 +2356,7 @@
           "share"
         ],
         "summary": "Share Card",
-        "description": "Return an OpenGraph HTML page for social media sharing previews.\n\nThe meta tags are read by Telegram, Discord, Twitter, WhatsApp, etc.\nto generate rich preview cards when the link is pasted.",
+        "description": "Return an OpenGraph HTML page for social media sharing previews.\n\nThe meta tags are read by Telegram, Discord, Twitter, WhatsApp, etc.\nto generate rich preview cards when the link is pasted.\n\nEvery interpolated value is HTML-escaped \u2014 title/artist come straight\nfrom the query string and were previously reflected raw (reflected XSS).",
         "operationId": "share_card_api_share__track_id__card_get",
         "parameters": [
           {
@@ -3012,6 +3054,59 @@
         }
       }
     },
+    "/api/library/albums/{album_id}": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Library Album Detail",
+        "description": "Album detail page: cover + full track list.\n\nRemote YouTube Music albums (browse IDs like MPREb\u2026) are served from\nytmusicapi's get_album. Local library albums (md5-derived IDs or a\n?name= fallback) are aggregated from the file index so the Album page\nworks fully offline too.",
+        "operationId": "library_album_detail_api_library_albums__album_id__get",
+        "parameters": [
+          {
+            "name": "album_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Album Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fallback match by album title",
+              "default": "",
+              "title": "Name"
+            },
+            "description": "Fallback match by album title"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/artists/{artist_id}": {
       "get": {
         "tags": [
@@ -3516,6 +3611,30 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImportPlaylistRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ImportPlaylistRequest"
       },
       "LoginRequest": {
         "properties": {

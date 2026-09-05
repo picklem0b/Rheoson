@@ -101,8 +101,14 @@ export const playlistsApi = {
       try {
          const remote = await api.patchQueued<Playlist>(`/playlists/${id}`, data);
          if (remote?.id) {
-            await playlistsStore.put(remote);
-            return remote;
+            // The PATCH response is the lightweight list shape (tracks: []) —
+            // keep the hydrated tracks we already hold locally so offline reads
+            // don't see an empty playlist after a rename/cover change.
+            await playlistsStore.put({
+               ...remote,
+               tracks: local?.tracks ?? remote.tracks ?? [],
+            });
+            return { ...remote, tracks: local?.tracks ?? [] };
          }
       } catch {
          // Will be synced later

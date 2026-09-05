@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.database import db_available, get_db
@@ -57,6 +58,35 @@ def _get_user_id(user=None) -> str:
     return "anonymous"
 
 
+def _stored_ids(pl: dict) -> list[str]:
+    """Return the stored string track IDs, ignoring any legacy embedded objects."""
+    out = []
+    for t in (pl.get("tracks", []) or []):
+        if isinstance(t, str):
+            out.append(t)
+        elif isinstance(t, dict):
+            tid = t.get("id") or t.get("youtubeId") or t.get("videoId")
+            if tid:
+                out.append(str(tid))
+    return out
+
+
+def _summarize(pl: dict) -> dict:
+    """Shape a playlist for grid/list responses.
+
+    Stored track IDs travel as `trackIds`; the raw IDs are never returned in
+    `tracks` because PlaylistSchema declares tracks: list[TrackSchema] and a
+    list of plain strings would fail response validation (500). Only the
+    detail endpoint hydrates tracks into full objects.
+    """
+    pl = dict(pl)
+    ids = _stored_ids(pl)
+    pl["tracks"] = []
+    pl["trackIds"] = ids
+    pl["trackCount"] = len(ids)
+    return pl
+
+
 # ── Routes ─────────────────────────────────────────────────────
 
 @router.get("/", response_model=list[PlaylistSchema])
@@ -64,27 +94,17 @@ async def list_playlists(user=None):
     """List all playlists for the current user."""
     data = _load()
     user_id = _get_user_id(user)
-    
+
     # Filter by user_id if present, otherwise return all (for anonymous)
     playlists = []
     for pl in data.values():
         pl_user = pl.get("user_id", "anonymous")
         if pl_user == user_id or user_id == "anonymous":
             playlists.append(pl)
-    
+
     # Sort by updatedAt descending
     playlists.sort(key=lambda p: p.get("updatedAt", ""), reverse=True)
-
-    # Grid views only need id/title/artwork/trackCount — sending the raw
-    # track-ID strings here would fail PlaylistSchema validation (tracks is
-    # list[TrackSchema]) and 500 the whole endpoint. Track IDs travel as
-    # trackIds; the detail endpoint hydrates them into full tracks.
-    for pl in playlists:
-        ids = [t for t in (pl.get("tracks", []) or []) if isinstance(t, str)]
-        pl["trackIds"] = ids
-        pl["trackCount"] = len(ids)
-        pl["tracks"] = []
-    return playlists
+    return [_summarize(pl) for pl in playlists]
 
 
 @router.get("/{playlist_id}", response_model=PlaylistSchema)
@@ -161,18 +181,18 @@ async def create_playlist(req: CreatePlaylistSchema, user=None):
 
 @router.patch("/{playlist_id}", response_model=PlaylistSchema)
 async def update_playlist(playlist_id: str, req: UpdatePlaylistSchema, user=None):
-    """Update playlist title/description."""
+    """Update playlist title/description/artwork."""
     data = _load()
     pl = data.get(playlist_id)
-    
+
     if not pl:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    
+
     user_id = _get_user_id(user)
     pl_user = pl.get("user_id", "anonymous")
     if user_id != "anonymous" and pl_user != user_id:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    
+
     now = datetime.now(timezone.utc).isoformat()
     if req.title is not None:
         pl["title"] = req.title
@@ -181,43 +201,50 @@ async def update_playlist(playlist_id: str, req: UpdatePlaylistSchema, user=None
     if req.artworkUrl:
         pl["artworkUrl"] = req.artworkUrl
     pl["updatedAt"] = now
-    
+
     data[playlist_id] = pl
     _save(data)
-    
-    # Sync to MongoDB if available
+
+    # Sync to MongoDB if available — store a clean copy with normalized tracks
     if db_available():
         try:
             db = get_db()
+            mongo_pl = dict(pl)
+            mongo_pl["tracks"] = _stored_ids(pl)
+            mongo_pl["trackIds"] = _stored_ids(pl)
+            mongo_pl["trackCount"] = len(_stored_ids(pl))
             await db.playlists.update_one(
                 {"_id": playlist_id},
-                {"$set": pl},
+                {"$set": mongo_pl},
                 upsert=True,
             )
         except Exception:
             pass
-    
-    return pl
+
+    # Response must match PlaylistSchema — never return raw stored string IDs
+    return _summarize(pl)
 
 
 @router.delete("/{playlist_id}", status_code=204)
 async def delete_playlist(playlist_id: str, user=None):
-    """Delete a playlist."""
+    """Delete a playlist.
+
+    Idempotent: deleting a playlist that no longer exists is a success (204).
+    The frontend queues deletions for offline sync and replays them later — a
+    404 on replay would surface as a spurious sync error.
+    """
     data = _load()
     pl = data.get(playlist_id)
-    
-    if not pl:
-        raise HTTPException(status_code=404, detail="Playlist not found")
-    
+
     user_id = _get_user_id(user)
-    pl_user = pl.get("user_id", "anonymous")
-    if user_id != "anonymous" and pl_user != user_id:
-        raise HTTPException(status_code=404, detail="Playlist not found")
-    
-    del data[playlist_id]
-    _save(data)
-    
-    # Sync to MongoDB if available
+    if pl is not None:
+        pl_user = pl.get("user_id", "anonymous")
+        if user_id != "anonymous" and pl_user != user_id:
+            raise HTTPException(status_code=404, detail="Playlist not found")
+        del data[playlist_id]
+        _save(data)
+
+    # Sync to MongoDB if available (no-op if the doc is already gone)
     if db_available():
         try:
             db = get_db()
@@ -232,39 +259,39 @@ async def add_track(playlist_id: str, body: dict, user=None):
     track_id = body.get("trackId")
     if not track_id:
         raise HTTPException(status_code=400, detail="trackId required")
-    
+
     data = _load()
     pl = data.get(playlist_id)
-    
+
     if not pl:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    
-    tracks = [t for t in (pl.get("tracks", []) or []) if isinstance(t, str)]
-    
+
+    tracks = _stored_ids(pl)
+
     # Deduplicate — don't add the same track twice
     if track_id in tracks:
         return {"ok": True, "message": "Track already in playlist"}
-    
+
     tracks.append(track_id)
     pl["tracks"] = tracks
     pl["trackIds"] = tracks
     pl["trackCount"] = len(tracks)
     pl["updatedAt"] = datetime.now(timezone.utc).isoformat()
-    
+
     data[playlist_id] = pl
     _save(data)
-    
+
     # Sync to MongoDB if available
     if db_available():
         try:
             db = get_db()
             await db.playlists.update_one(
                 {"_id": playlist_id},
-                {"$set": {"tracks": tracks, "trackCount": len(tracks), "updatedAt": pl["updatedAt"]}},
+                {"$set": {"tracks": tracks, "trackIds": tracks, "trackCount": len(tracks), "updatedAt": pl["updatedAt"]}},
             )
         except Exception:
             pass
-    
+
     return {"ok": True}
 
 
@@ -273,30 +300,30 @@ async def remove_track(playlist_id: str, track_id: str, user=None):
     """Remove a track from a playlist."""
     data = _load()
     pl = data.get(playlist_id)
-    
+
     if not pl:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    
-    tracks = [t for t in (pl.get("tracks", []) or []) if t != track_id and isinstance(t, str)]
+
+    tracks = [t for t in _stored_ids(pl) if t != track_id]
     pl["tracks"] = tracks
     pl["trackIds"] = tracks
     pl["trackCount"] = len(tracks)
     pl["updatedAt"] = datetime.now(timezone.utc).isoformat()
-    
+
     data[playlist_id] = pl
     _save(data)
-    
+
     # Sync to MongoDB if available
     if db_available():
         try:
             db = get_db()
             await db.playlists.update_one(
                 {"_id": playlist_id},
-                {"$set": {"tracks": tracks, "trackCount": len(tracks), "updatedAt": pl["updatedAt"]}},
+                {"$set": {"tracks": tracks, "trackIds": tracks, "trackCount": len(tracks), "updatedAt": pl["updatedAt"]}},
             )
         except Exception:
             pass
-    
+
     return {"ok": True}
 
 
@@ -304,21 +331,23 @@ async def remove_track(playlist_id: str, track_id: str, user=None):
 async def reorder_tracks(playlist_id: str, body: dict, user=None):
     """Reorder tracks in a playlist."""
     track_ids = body.get("trackIds", [])
-    
+    if not isinstance(track_ids, list) or not all(isinstance(t, str) for t in track_ids):
+        raise HTTPException(status_code=400, detail="trackIds must be a list of strings")
+
     data = _load()
     pl = data.get(playlist_id)
-    
+
     if not pl:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    
+
     pl["tracks"] = track_ids
     pl["trackIds"] = track_ids
     pl["trackCount"] = len(track_ids)
     pl["updatedAt"] = datetime.now(timezone.utc).isoformat()
-    
+
     data[playlist_id] = pl
     _save(data)
-    
+
     return {"ok": True}
 
 
@@ -356,6 +385,86 @@ async def import_spotify(playlist_id: str, body: dict, user=None):
     return {"imported": len(tracks), "total": len(existing)}
 
 
+class ImportPlaylistRequest(BaseModel):
+    url: str
+    title: str | None = None
+
+
+@router.post("/import", response_model=PlaylistSchema, status_code=201)
+async def import_playlist_url(req: ImportPlaylistRequest):
+    """Create a new playlist from a shared URL (Spotify/YouTube/SoundCloud…).
+
+    Resolves the URL server-side and stores the resolved track IDs in a
+    brand-new playlist. This backs the Library "Import playlist" flow.
+    """
+    url = (req.url or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="url required")
+    if len(url) > 2048:
+        raise HTTPException(status_code=400, detail="URL too long")
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+
+    try:
+        from app.services.search_service import resolve_url
+        result = await resolve_url(url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not resolve URL: {e}") from e
+
+    tracks = result.get("tracks", [])
+    if not tracks:
+        raise HTTPException(status_code=400, detail="No playable tracks found at that URL")
+
+    ids: list[str] = []
+    for t in tracks:
+        tid = t.get("youtubeId") or t.get("id")
+        if tid and tid not in ids:
+            ids.append(str(tid))
+    if not ids:
+        raise HTTPException(status_code=400, detail="No playable tracks found at that URL")
+
+    playlists = result.get("playlists") or []
+    source_title = ""
+    if playlists and isinstance(playlists[0], dict):
+        source_title = playlists[0].get("title") or playlists[0].get("name") or ""
+    title = (req.title or source_title or "Imported playlist").strip()[:120] or "Imported playlist"
+
+    data = _load()
+    pl_id = str(uuid.uuid4())[:8]
+    now = datetime.now(timezone.utc).isoformat()
+    user_id = _get_user_id(None)
+    pl = {
+        "id": pl_id,
+        "_id": pl_id,
+        "user_id": user_id,
+        "title": title,
+        "description": "",
+        "artworkUrl": None,
+        "tracks": ids,
+        "trackIds": ids,
+        "trackCount": len(ids),
+        "isLocal": True,
+        "spotifyId": None,
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    data[pl_id] = pl
+    _save(data)
+
+    if db_available():
+        try:
+            db = get_db()
+            await db.playlists.update_one(
+                {"_id": pl_id},
+                {"$set": dict(pl)},
+                upsert=True,
+            )
+        except Exception:
+            pass
+
+    return _summarize(pl)
+
+
 @router.get("/{playlist_id}/export")
 async def export_playlist(playlist_id: str, user=None):
     """Export playlist as JSON with hydrated track metadata."""
@@ -366,8 +475,8 @@ async def export_playlist(playlist_id: str, user=None):
         raise HTTPException(status_code=404, detail="Playlist not found")
     
     from app.routers.track_router import _hydrate_track
-    
-    track_ids = pl.get("tracks", [])
+
+    track_ids = _stored_ids(pl)
     sem = asyncio.Semaphore(10)
     
     async def _safe(tid: str):

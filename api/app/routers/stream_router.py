@@ -25,6 +25,40 @@ MIME_MAP   = {
     ".opus": "audio/ogg; codecs=opus",
     ".wav":  "audio/wav",
 }
+
+# ── Artwork proxy allowlist ──────────────────────────────────
+# Only known image CDNs used by YouTube Music / Spotify artwork may be
+# fetched through the proxy. Anything else (arbitrary http/https URLs)
+# is refused — otherwise the endpoint is an open SSRF relay into the
+# server's network (cloud metadata, internal services).
+_ARTWORK_ALLOWED_HOSTS = {
+    "i.ytimg.com",
+    "yt3.ggpht.com",
+    "yt3.googleusercontent.com",
+    "lh3.googleusercontent.com",
+    "lh5.googleusercontent.com",
+    "lirp.cdn-website.com",
+    "i.scdn.co",   # Spotify CDN
+    "mosaic.scdn.co",
+    "image-cdn-ak.spotifycdn.com",
+    "image-cdn-fa.spotifycdn.com",
+    "seed-mix-image.spotifycdn.com",
+    "charts-images.scdn.co",
+}
+
+def _artwork_url_allowed(url: str) -> bool:
+    """Allow only https image URLs from the known CDN hosts."""
+    try:
+        from urllib.parse import urlparse
+        parts = urlparse(url)
+    except Exception:
+        return False
+    if parts.scheme != "https" or not parts.hostname:
+        return False
+    host = parts.hostname.lower()
+    if host in _ARTWORK_ALLOWED_HOSTS:
+        return True
+    return any(host.endswith("." + d) for d in _ARTWORK_ALLOWED_HOSTS)
 # BUG #23: Make chunk size configurable (default 64KB)
 CHUNK = int(os.environ.get("STREAM_CHUNK_SIZE", "65536"))
 
@@ -280,6 +314,12 @@ async def stream_audio(track_id: str, request: Request):
         log.debug("stream.remote_cache.hit", track_id=track_id)
         return _serve_local(cached, request)
 
+    # Not a local file and not cached — this would spawn yt-dlp against a
+    # YouTube URL. Fail fast on malformed remote ids instead of burning a
+    # yt-dlp process (and a 30 s spawn timeout) for garbage input.
+    if len(track_id) != 11:
+        raise HTTPException(status_code=404, detail="Track not found locally and id is not a valid remote track")
+
     return await _serve_ytdlp(track_id, request)
 
 
@@ -339,9 +379,11 @@ async def proxy_artwork(
             art.headers["Cache-Control"] = "public, max-age=86400"
             return art
 
-    # Fall back to proxying the remote URL
+    # Fall back to proxying the remote URL — only known artwork CDNs allowed.
     if not url:
         return Response(status_code=204)
+    if not _artwork_url_allowed(url):
+        raise HTTPException(status_code=400, detail="Artwork URL not allowed")
 
     data = await fetch_remote_artwork(url)
     if not data:
@@ -462,6 +504,40 @@ def _serve_warming_file(track_id: str, warm: asyncio.Task) -> StreamingResponse:
 
 # ── Local file serving ────────────────────────────────────────
 
+def _parse_range(rng: str, file_size: int) -> tuple[int, int]:
+    """Parse an HTTP Range header into inclusive (start, end).
+
+    Supports `bytes=START-END`, `bytes=START-` and suffix `bytes=-N`.
+    Raises HTTPException(416) for malformed or unsatisfiable ranges.
+    """
+    try:
+        spec = rng.split("=", 1)[1].strip() if "=" in rng else rng.strip()
+        if "," in spec:
+            # Multi-range requests are not supported — take the first only
+            spec = spec.split(",")[0].strip()
+        if not spec:
+            raise ValueError("empty")
+        s, e = spec.split("-", 1)
+        if e and int(e) < 0:
+            raise ValueError("negative end")
+        if s == "":
+            # Suffix range: last N bytes
+            n = int(e)
+            if n <= 0:
+                raise ValueError("bad suffix")
+            if n >= file_size:
+                return (0, file_size - 1)
+            return (file_size - n, file_size - 1)
+        start = int(s)
+        end   = int(e) if e else file_size - 1
+    except Exception:
+        raise HTTPException(status_code=416, detail="Bad Range header")
+    if start >= file_size or start > end:
+        raise HTTPException(status_code=416, detail="Range not satisfiable")
+    end = min(end, file_size - 1)
+    return (start, end)
+
+
 def _serve_local(path: Path, request: Request) -> Response:
     mime      = MIME_MAP.get(path.suffix.lower(), "audio/mpeg")
     file_size = path.stat().st_size
@@ -485,14 +561,8 @@ def _serve_local(path: Path, request: Request) -> Response:
             "Cache-Control":  "no-cache",
         })
 
-    try:
-        s, e  = rng.replace("bytes=", "").split("-")
-        start = int(s)
-        end   = int(e) if e else file_size - 1
-        end   = min(end, file_size - 1)
-        clen  = end - start + 1
-    except Exception:
-        raise HTTPException(status_code=416, detail="Bad Range header")
+    start, end = _parse_range(rng, file_size)
+    clen = end - start + 1
 
     def _range():
         with open(path, "rb") as f:
@@ -851,14 +921,8 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
                         "X-Content-Type-Options": "nosniff",
                     })
                 # Range request on cached buffer
-                try:
-                    s, e = rng.replace("bytes=", "").split("-")
-                    start = int(s)
-                    end   = int(e) if e else file_size - 1
-                    end   = min(end, file_size - 1)
-                    clen  = end - start + 1
-                except Exception:
-                    raise HTTPException(status_code=416, detail="Bad Range header")
+                start, end = _parse_range(rng, file_size)
+                clen = end - start + 1
                 def _range_cached():
                     with open(buf["path"], "rb") as f:
                         f.seek(start)
