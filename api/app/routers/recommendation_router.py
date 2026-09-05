@@ -6,57 +6,45 @@ Provides endpoints for:
 - Discovery/random recommendations
 - Taste profile info
 
-Uses optional Clerk auth — guests get trending/cold-start recommendations,
-authenticated users get personalized recommendations.
-
-Works WITHOUT MongoDB — falls back to local play history + library scan
-when the database is unavailable.
+Guest mode removed: every endpoint requires a verified Clerk session and
+operates on THAT user's signals/history. Works WITHOUT MongoDB — falls back
+to the user's local per-user history + library scan when the database is
+unavailable.
 """
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 
-from app.core.config import settings
 from app.core.database import db_available, get_db
-from app.core.deps import get_optional_user
+from app.core.deps import get_current_user
 from app.services.taste_utils import compute_persona
 
 router = APIRouter()
 
 
-def _get_user_id(user: dict | None) -> str:
-    """Extract user ID from Clerk claims, or return 'anonymous' for guests."""
-    if user and user.get("sub"):
-        return user["sub"]
-    return "anonymous"
-
-
-# ── Local play history helpers ─────────────────────────────────
-# Reads come from app.services.local_history — the JSON mirror every
+# ── Per-user local play history helpers ───────────────────────
+# Reads come from app.services.local_history — the per-user JSON mirror every
 # play/like write also lands in, so local mode reflects real activity.
 
 
-async def _load_local_history() -> list[dict]:
+async def _load_local_history(user_id: str) -> list[dict]:
     from app.services.local_history import read_history_local
-    return await read_history_local()
+    return await read_history_local(user_id)
 
 
-async def _load_local_liked() -> list[str]:
+async def _load_local_liked(user_id: str) -> list[str]:
     from app.services.local_history import read_liked_local
-    return await read_liked_local()
+    return await read_liked_local(user_id)
 
 
-async def _build_local_taste() -> dict:
-    """Build a simple taste profile from local play history + liked tracks."""
-    history = await _load_local_history()
-    liked = await _load_local_liked()
+async def _build_local_taste(user_id: str) -> dict:
+    """Build a simple taste profile from the user's local history + likes."""
+    history = await _load_local_history(user_id)
+    liked = await _load_local_liked(user_id)
 
-    # Count plays per track
     play_counts: dict[str, int] = {}
     for entry in history:
         tid = entry.get("trackId") or entry.get("id", "")
@@ -76,13 +64,10 @@ async def _build_local_taste() -> dict:
 @router.get("/home")
 async def get_home_recommendations(
     force: bool = Query(False, description="Force refresh recommendations"),
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
-    """Get personalized home page recommendations.
-
-    Works without MongoDB — uses local play history + library + YTMusic trending.
-    """
-    user_id = _get_user_id(user)
+    """Get personalized home page recommendations for the current user."""
+    user_id = user["sub"]
 
     if db_available():
         # Full personalized recommendations via MongoDB
@@ -98,12 +83,10 @@ async def get_home_recommendations(
             pass  # Fall through to local mode
 
     # ── Local mode: no MongoDB ─────────────────────────────────
-    taste = await _build_local_taste()
+    taste = await _build_local_taste(user_id)
     sections = []
 
-    # Section 1: For You — based on play history
     if taste["total_plays"] > 0:
-        # Get top played track IDs
         top_played = sorted(
             taste["play_counts"].items(),
             key=lambda x: x[1],
@@ -117,7 +100,6 @@ async def get_home_recommendations(
             "generated_at": datetime.now(timezone.utc).isoformat(),
         })
 
-    # Section 2: Trending — always available via YTMusic
     try:
         from app.services.ytmusic_service import get_trending
         trending = await get_trending()
@@ -132,7 +114,6 @@ async def get_home_recommendations(
     except Exception:
         pass
 
-    # Section 3: Discover — diverse mix from library + trending
     try:
         from app.routers.track_router import _build_index
         idx = await _build_index()
@@ -147,7 +128,6 @@ async def get_home_recommendations(
     except Exception:
         pass
 
-    # Section 4: Liked tracks
     if taste["liked_ids"]:
         sections.append({
             "section_id": "recent_favorites",
@@ -166,13 +146,10 @@ async def get_home_recommendations(
 async def get_autoplay(
     track_id: str = Query(..., description="Current track ID"),
     limit: int = Query(5, ge=1, le=20),
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
-    """Get autoplay candidates when the current track ends.
-
-    Works without MongoDB — searches YTMusic for similar tracks.
-    """
-    user_id = _get_user_id(user)
+    """Get autoplay candidates when the current track ends."""
+    user_id = user["sub"]
 
     if db_available():
         try:
@@ -217,10 +194,10 @@ async def get_autoplay(
 @router.get("/discover")
 async def get_discover(
     limit: int = Query(20, ge=1, le=50),
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
     """Get discovery recommendations — diverse, exploratory tracks."""
-    user_id = _get_user_id(user)
+    user_id = user["sub"]
 
     if db_available():
         try:
@@ -245,15 +222,10 @@ async def get_discover(
 
 @router.get("/taste")
 async def get_taste_profile(
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
-    """Get the user's current taste profile.
-
-    Returns most-replayed tracks, favourite artists and genres, and a
-    listener persona — from MongoDB signals when available, otherwise
-    from the local history/liked mirror files.
-    """
-    user_id = _get_user_id(user)
+    """Get the current user's taste profile (Mongo signals or local mirror)."""
+    user_id = user["sub"]
 
     if db_available():
         try:
@@ -295,14 +267,14 @@ async def get_taste_profile(
         except Exception:
             pass
 
-    # ── Local mode: derive everything from the mirror files ────
-    return await _local_taste_profile()
+    # ── Local mode: derive everything from the user's mirror files ────
+    return await _local_taste_profile(user_id)
 
 
 # ── Taste helpers ─────────────────────────────────────────────
 
 async def _top_tracks_mongo(db, user_id: str, limit: int = 5) -> list[dict]:
-    """Most replayed tracks from Mongo signals (play_start counts)."""
+    """Most replayed tracks from the user's Mongo signals."""
     from app.routers.track_router import _hydrate_many
 
     pipeline = [
@@ -334,16 +306,15 @@ async def _top_tracks_mongo(db, user_id: str, limit: int = 5) -> list[dict]:
     return out
 
 
-async def _local_taste_profile() -> dict:
-    """Taste profile derived from the local history/liked mirror files."""
+async def _local_taste_profile(user_id: str) -> dict:
+    """Taste profile derived from the user's local history/liked mirrors."""
     from app.routers.track_router import _hydrate_many
     from app.services.taste_utils import classify_artist_genres
 
-    history = await _load_local_history()
-    liked_ids = set(await _load_local_liked())
+    history = await _load_local_history(user_id)
+    liked_ids = set(await _load_local_liked(user_id))
     total_plays = len(history)
 
-    # Recency-weighted score per track id (history is most-recent-first)
     plays_by_id: dict[str, int] = {}
     score_by_id: dict[str, float] = {}
     for idx, entry in enumerate(history):
@@ -387,7 +358,6 @@ async def _local_taste_profile() -> dict:
     top_artists.sort(key=lambda x: x["score"], reverse=True)
     top_artists = top_artists[:10]
 
-    # Genres inferred from each artist's classification
     genre_stats: dict[str, dict] = {}
     for a, st in artist_stats.items():
         genres = classify_artist_genres(a)
@@ -432,10 +402,10 @@ async def _local_taste_profile() -> dict:
 
 @router.post("/refresh")
 async def force_refresh(
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
-    """Force a full recommendation refresh."""
-    user_id = _get_user_id(user)
+    """Force a full recommendation refresh for the current user."""
+    user_id = user["sub"]
 
     if db_available():
         try:

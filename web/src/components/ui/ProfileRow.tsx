@@ -28,15 +28,13 @@ function getInitials(name: string): string {
 
 /**
  * Profile summary card — shown pinned above the Settings groups.
- * Opens the Profile page; guests get the same entry point so they can
- * sign in from there.
+ * Opens the Profile page. AuthGuard guarantees a signed-in user here.
  */
 export function ProfileRow() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
-  const name = user?.name ?? 'Guest'
+  const name = user?.name ?? 'Your account'
   const initials = getInitials(name)
   const gradient = getGradient(name)
 
@@ -72,9 +70,7 @@ export function ProfileRow() {
           {name}
         </p>
         <p className="text-[12px] text-[var(--text-muted)] truncate leading-snug mt-[2px]">
-          {isAuthenticated
-            ? user?.email ?? 'View profile'
-            : 'Guest mode — sign in to sync'}
+          {user?.email ?? 'View profile'}
         </p>
       </div>
 

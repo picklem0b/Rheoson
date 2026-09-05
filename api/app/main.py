@@ -15,9 +15,11 @@ from pathlib import Path
 import httpx
 import socketio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from app.core.deps import get_current_user
 
 from app.core.config import settings, validate_startup
 from app.core.logging_config import configure_logging
@@ -519,9 +521,12 @@ async def version_info():
 # ── Library aggregates ────────────────────────────────────────
 
 @app.get("/api/library/featured", tags=["library"])
-async def library_featured(limit: int = Query(10, ge=1, le=50)):
+async def library_featured(
+    limit: int = Query(10, ge=1, le=50),
+    user: dict = Depends(get_current_user),
+):
     from app.routers.playlist_router import _load
-    data = list(_load().values())[:limit]
+    data = list(_load(user["sub"]).values())[:limit]
     return [
         {
             "id":         pl["id"],
@@ -535,7 +540,7 @@ async def library_featured(limit: int = Query(10, ge=1, le=50)):
 
 
 @app.get("/api/library/albums", tags=["library"])
-async def library_albums():
+async def library_albums(_user: dict = Depends(get_current_user)):
     from app.routers.track_router import _build_index
     idx  = await _build_index()
     seen: dict[str, dict] = {}
@@ -558,7 +563,7 @@ async def library_albums():
 
 
 @app.get("/api/library/artists", tags=["library"])
-async def library_artists():
+async def library_artists(_user: dict = Depends(get_current_user)):
     from app.routers.track_router import _build_index
     idx  = await _build_index()
     seen: dict[str, dict] = {}
@@ -583,6 +588,7 @@ async def library_artists():
 async def library_album_detail(
     album_id: str,
     name: str = Query("", description="Fallback match by album title"),
+    _user: dict = Depends(get_current_user),
 ):
     """Album detail page: cover + full track list.
 
@@ -653,7 +659,11 @@ def _artist_slug(name: str) -> str:
 
 
 @app.get("/api/artists/{artist_id}", tags=["artists"])
-async def artist_detail(artist_id: str, name: str = Query("", description="Fallback match by artist name")):
+async def artist_detail(
+    artist_id: str,
+    name: str = Query("", description="Fallback match by artist name"),
+    _user: dict = Depends(get_current_user),
+):
     from fastapi import HTTPException as _HTTP
 
     # 1) YouTube Music browse (browse ids look like UCaBtyDC... or channel ids)

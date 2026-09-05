@@ -32,15 +32,11 @@ from app.core.exceptions import SearchError
 # ── Playlist PATCH after tracks added ──────────────────────────
 
 @pytest.mark.asyncio
-async def test_playlist_patch_does_not_500_with_tracks(client, tmp_path, monkeypatch):
+async def test_playlist_patch_does_not_500_with_tracks(client):
     """Regression: PATCHing a playlist that already contains track IDs used to
     return the raw stored string IDs in `tracks`, failing PlaylistSchema
-    response validation with a 500."""
-    import app.routers.playlist_router as pr
-
-    # Isolate playlist storage to a temp file
-    target = tmp_path / ".playlists.json"
-    monkeypatch.setattr(pr, "_PLAYLISTS_FILE", target)
+    response validation with a 500. Storage is already isolated per-user under
+    the temp MUSIC_DIR from conftest."""
 
     # Fresh playlist
     resp = await client.post("/api/playlists", json={"title": "T", "description": "d"})
@@ -76,12 +72,7 @@ async def test_playlist_patch_does_not_500_with_tracks(client, tmp_path, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_playlist_reorder_validates_input(client, tmp_path, monkeypatch):
-    import app.routers.playlist_router as pr
-
-    target = tmp_path / ".playlists.json"
-    monkeypatch.setattr(pr, "_PLAYLISTS_FILE", target)
-
+async def test_playlist_reorder_validates_input(client):
     resp = await client.post("/api/playlists", json={"title": "T"})
     pid = resp.json()["id"]
     r = await client.put(

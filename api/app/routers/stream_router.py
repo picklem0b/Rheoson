@@ -7,11 +7,20 @@ import os
 import structlog
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse, Response
 from app.core.config import settings
+from app.core.deps import get_current_user
 from app.services.artwork_service import extract_artwork, fetch_remote_artwork
 from app.services.metadata_service import _file_id
+
+# NOTE on auth for byte routes: the four content routes below (audio,
+# artwork, artwork-proxy) must stay reachable by <audio>/<img> elements,
+# which cannot attach Authorization headers. They are read-only byte
+# streams for a specific, validated resource id — either an instance
+# library file or an 11-char YouTube id — and are intentionally treated as
+# instance-shared content. Every mutating/stateful endpoint in this router
+# (warm, cache clears) requires a verified session.
 
 log    = structlog.get_logger()
 router = APIRouter()
@@ -246,7 +255,7 @@ async def _warm_track(track_id: str) -> None:
 
 
 @router.post("/{track_id}/warm")
-async def warm_stream(track_id: str):
+async def warm_stream(track_id: str, _user: dict = Depends(get_current_user)):
     """Start buffering a remote track in the background.
 
     Idempotent: dedupes against the remote cache and any warm already
@@ -402,21 +411,21 @@ async def proxy_artwork(
 
 
 @router.post("/cache/clear")
-async def clear_stream_cache():
+async def clear_stream_cache(_user: dict = Depends(get_current_user)):
     """Clear the in-memory stream file index — forces a rescan on next request."""
     invalidate_stream_cache()
     return {"ok": True, "message": "Stream cache cleared"}
 
 
 @router.post("/remote-cache/clear")
-async def clear_remote_cache():
+async def clear_remote_cache(_user: dict = Depends(get_current_user)):
     """Clear the in-memory remote stream cache (cached yt-dlp audio files)."""
     _remote_cache_clear()
     return {"ok": True, "message": "Remote stream cache cleared"}
 
 
 @router.post("/artwork/cache/clear")
-async def clear_artwork_cache():
+async def clear_artwork_cache(_user: dict = Depends(get_current_user)):
     """Clear the in-memory artwork proxy cache."""
     _artwork_cache.clear()
     return {"ok": True, "message": "Artwork cache cleared", "cleared": len(_artwork_cache)}

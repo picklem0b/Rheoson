@@ -10,8 +10,9 @@ from __future__ import annotations
 import html as html_lib
 from urllib.parse import urlencode, urlparse
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
+from app.core.deps import get_current_user
 
 router = APIRouter()
 
@@ -98,7 +99,12 @@ async def share_card(
 
 
 @router.get("/{track_id}/link")
-async def share_link(track_id: str, title: str = "", artist: str = ""):
+async def share_link(
+    track_id: str,
+    title: str = "",
+    artist: str = "",
+    _user: dict = Depends(get_current_user),
+):
     """Return a clean shareable URL for a track."""
     q = f"{title} {artist}".strip()
     params = urlencode({"q": q}) if q else ""

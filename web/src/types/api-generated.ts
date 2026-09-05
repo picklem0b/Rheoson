@@ -68,7 +68,7 @@ export interface paths {
         };
         /**
          * List Tracks
-         * @description All files currently on disk in MUSIC_DIR.
+         * @description All files currently on disk — shared instance library.
          */
         get: operations["list_tracks_api_tracks__get"];
         put?: never;
@@ -181,6 +181,7 @@ export interface paths {
          * @description Record a behavioral signal from the frontend.
          *
          *     Accepts: { signal, track_id?, artist?, progress?, context? }
+         *     Requires the database (signals drive the Mongo recommendation profiler).
          */
         post: operations["report_signal_api_tracks_signals_post"];
         delete?: never;
@@ -198,7 +199,7 @@ export interface paths {
         };
         /**
          * Get Track Stats
-         * @description Return play count, like count, and last played for a track.
+         * @description Return play count, like count, and last played for a track (per user).
          */
         get: operations["get_track_stats_api_tracks_stats__track_id__get"];
         put?: never;
@@ -384,13 +385,13 @@ export interface paths {
             cookie?: never;
         };
         /** Stream Audio */
-        get: operations["stream_audio_api_stream__track_id__audio_get"];
+        get: operations["stream_audio_api_stream__track_id__audio_head_1"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         /** Stream Audio */
-        head: operations["stream_audio_api_stream__track_id__audio_get_1"];
+        head: operations["stream_audio_api_stream__track_id__audio_head"];
         patch?: never;
         trace?: never;
     };
@@ -532,15 +533,32 @@ export interface paths {
         };
         /**
          * List Playlists
-         * @description List all playlists for the current user.
+         * @description List the current user's playlists, most recently updated first.
          */
         get: operations["list_playlists_api_playlists__get"];
         put?: never;
-        /**
-         * Create Playlist
-         * @description Create a new playlist.
-         */
+        /** Create Playlist */
         post: operations["create_playlist_api_playlists__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/playlists/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Playlist Url
+         * @description Create a new playlist from a shared URL (Spotify/YouTube/SoundCloud…).
+         */
+        post: operations["import_playlist_url_api_playlists_import_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -556,7 +574,7 @@ export interface paths {
         };
         /**
          * Get Playlist
-         * @description Get a single playlist by ID.
+         * @description Get one playlist with fully hydrated track objects.
          */
         get: operations["get_playlist_api_playlists__playlist_id__get"];
         put?: never;
@@ -564,13 +582,17 @@ export interface paths {
         /**
          * Delete Playlist
          * @description Delete a playlist.
+         *
+         *     Idempotent: deleting a playlist that no longer exists is a success (204).
+         *     The frontend queues deletions for offline sync and replays them later — a
+         *     404 on replay would surface as a spurious sync error.
          */
         delete: operations["delete_playlist_api_playlists__playlist_id__delete"];
         options?: never;
         head?: never;
         /**
          * Update Playlist
-         * @description Update playlist title/description.
+         * @description Update playlist title/description/artwork.
          */
         patch: operations["update_playlist_api_playlists__playlist_id__patch"];
         trace?: never;
@@ -645,10 +667,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import Spotify
-         * @description Import a Spotify playlist into a local playlist.
+         * Import Into Playlist
+         * @description Import tracks from a shared URL into an existing playlist.
          */
-        post: operations["import_spotify_api_playlists__playlist_id__import_post"];
+        post: operations["import_into_playlist_api_playlists__playlist_id__import_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -708,10 +730,7 @@ export interface paths {
          */
         get: operations["get_directories_api_settings_directories_get"];
         put?: never;
-        /**
-         * Save Directories
-         * @description Persist the frontend's directory list to settings.
-         */
+        /** Save Directories */
         post: operations["save_directories_api_settings_directories_post"];
         delete?: never;
         options?: never;
@@ -748,10 +767,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Rescan Library
-         * @description Re-index all active directories.
-         */
+        /** Rescan Library */
         post: operations["rescan_library_api_settings_rescan_post"];
         delete?: never;
         options?: never;
@@ -790,14 +806,34 @@ export interface paths {
         put?: never;
         /**
          * Login
-         * @description Login via Clerk — verify credentials and create session.
+         * @description Login via Clerk — verify credentials and create a session.
          *
-         *     Note: Clerk's Backend API doesn't have a direct "login" endpoint.
-         *     The frontend should use Clerk's signIn.create() to authenticate,
-         *     then pass the resulting session token. This endpoint exists as a
-         *     fallback for API-only authentication.
+         *     Clerk's Backend API has no password-check endpoint, so we create a
+         *     real session for the matching Clerk account and hand its JWT back.
+         *     Clerk enforces the password on session creation: unknown credentials
+         *     return 404/422 here, which maps to a generic 401 for the client.
          */
         post: operations["login_api_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Revoke the Clerk session so the JWT dies server-side, not just locally.
+         */
+        post: operations["logout_api_auth_logout_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -828,26 +864,6 @@ export interface paths {
         patch: operations["update_profile_api_auth_me_patch"];
         trace?: never;
     };
-    "/api/auth/guest-visit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Record Guest Visit
-         * @description Record a guest visit. Called once per session on app load.
-         */
-        post: operations["record_guest_visit_api_auth_guest_visit_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/auth/visitor-count": {
         parameters: {
             query?: never;
@@ -857,7 +873,7 @@ export interface paths {
         };
         /**
          * Visitor Count
-         * @description Get total visitors (guests + authed). For the landing page.
+         * @description Get the registered-account total. Session required (no guest counting).
          */
         get: operations["visitor_count_api_auth_visitor_count_get"];
         put?: never;
@@ -877,9 +893,7 @@ export interface paths {
         };
         /**
          * Get Home Recommendations
-         * @description Get personalized home page recommendations.
-         *
-         *     Works without MongoDB — uses local play history + library + YTMusic trending.
+         * @description Get personalized home page recommendations for the current user.
          */
         get: operations["get_home_recommendations_api_recommendations_home_get"];
         put?: never;
@@ -900,8 +914,6 @@ export interface paths {
         /**
          * Get Autoplay
          * @description Get autoplay candidates when the current track ends.
-         *
-         *     Works without MongoDB — searches YTMusic for similar tracks.
          */
         get: operations["get_autoplay_api_recommendations_autoplay_get"];
         put?: never;
@@ -941,11 +953,7 @@ export interface paths {
         };
         /**
          * Get Taste Profile
-         * @description Get the user's current taste profile.
-         *
-         *     Returns most-replayed tracks, favourite artists and genres, and a
-         *     listener persona — from MongoDB signals when available, otherwise
-         *     from the local history/liked mirror files.
+         * @description Get the current user's taste profile (Mongo signals or local mirror).
          */
         get: operations["get_taste_profile_api_recommendations_taste_get"];
         put?: never;
@@ -967,7 +975,7 @@ export interface paths {
         put?: never;
         /**
          * Force Refresh
-         * @description Force a full recommendation refresh.
+         * @description Force a full recommendation refresh for the current user.
          */
         post: operations["force_refresh_api_recommendations_refresh_post"];
         delete?: never;
@@ -1029,6 +1037,9 @@ export interface paths {
          *
          *     The meta tags are read by Telegram, Discord, Twitter, WhatsApp, etc.
          *     to generate rich preview cards when the link is pasted.
+         *
+         *     Every interpolated value is HTML-escaped — title/artist come straight
+         *     from the query string and were previously reflected raw (reflected XSS).
          */
         get: operations["share_card_api_share__track_id__card_get"];
         put?: never;
@@ -1068,7 +1079,7 @@ export interface paths {
         };
         /**
          * Listening Stats
-         * @description Get overall listening statistics for the user.
+         * @description Get overall listening statistics for the current user.
          */
         get: operations["listening_stats_api_analytics_stats_get"];
         put?: never;
@@ -1188,7 +1199,7 @@ export interface paths {
         };
         /**
          * Recently Added
-         * @description Most recently downloaded/added tracks, sorted by file modification time.
+         * @description Most recently downloaded/added tracks — shared instance library.
          */
         get: operations["recently_added_api_smart_playlists_recently_added_get"];
         put?: never;
@@ -1343,6 +1354,31 @@ export interface paths {
         };
         /** Library Artists */
         get: operations["library_artists_api_library_artists_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/albums/{album_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Library Album Detail
+         * @description Album detail page: cover + full track list.
+         *
+         *     Remote YouTube Music albums (browse IDs like MPREb…) are served from
+         *     ytmusicapi's get_album. Local library albums (md5-derived IDs or a
+         *     ?name= fallback) are aggregated from the file index so the Album page
+         *     works fully offline too.
+         */
+        get: operations["library_album_detail_api_library_albums__album_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1637,6 +1673,13 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** ImportPlaylistRequest */
+        ImportPlaylistRequest: {
+            /** Url */
+            url: string;
+            /** Title */
+            title?: string | null;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -2589,7 +2632,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_api_stream__track_id__audio_get: {
+    stream_audio_api_stream__track_id__audio_head_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2620,7 +2663,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_api_stream__track_id__audio_get_1: {
+    stream_audio_api_stream__track_id__audio_head: {
         parameters: {
             query?: never;
             header?: never;
@@ -2812,9 +2855,7 @@ export interface operations {
     };
     list_playlists_api_playlists__get: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -2830,22 +2871,11 @@ export interface operations {
                     "application/json": components["schemas"]["PlaylistSchema"][];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     create_playlist_api_playlists__post: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -2876,11 +2906,42 @@ export interface operations {
             };
         };
     };
+    import_playlist_url_api_playlists_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportPlaylistRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_playlist_api_playlists__playlist_id__get: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path: {
                 playlist_id: string;
@@ -2911,9 +2972,7 @@ export interface operations {
     };
     delete_playlist_api_playlists__playlist_id__delete: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path: {
                 playlist_id: string;
@@ -2942,9 +3001,7 @@ export interface operations {
     };
     update_playlist_api_playlists__playlist_id__patch: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path: {
                 playlist_id: string;
@@ -2979,9 +3036,7 @@ export interface operations {
     };
     add_track_api_playlists__playlist_id__tracks_post: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path: {
                 playlist_id: string;
@@ -3018,9 +3073,7 @@ export interface operations {
     };
     remove_track_api_playlists__playlist_id__tracks__track_id__delete: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path: {
                 playlist_id: string;
@@ -3052,9 +3105,7 @@ export interface operations {
     };
     reorder_tracks_api_playlists__playlist_id__tracks_reorder_put: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path: {
                 playlist_id: string;
@@ -3089,11 +3140,9 @@ export interface operations {
             };
         };
     };
-    import_spotify_api_playlists__playlist_id__import_post: {
+    import_into_playlist_api_playlists__playlist_id__import_post: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path: {
                 playlist_id: string;
@@ -3130,9 +3179,7 @@ export interface operations {
     };
     export_playlist_api_playlists__playlist_id__export_get: {
         parameters: {
-            query?: {
-                user?: unknown;
-            };
+            query?: never;
             header?: never;
             path: {
                 playlist_id: string;
@@ -3364,6 +3411,26 @@ export interface operations {
             };
         };
     };
+    logout_api_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     get_profile_api_auth_me_get: {
         parameters: {
             query?: never;
@@ -3413,26 +3480,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    record_guest_visit_api_auth_guest_visit_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
         };
@@ -4111,6 +4158,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    library_album_detail_api_library_albums__album_id__get: {
+        parameters: {
+            query?: {
+                /** @description Fallback match by album title */
+                name?: string;
+            };
+            header?: never;
+            path: {
+                album_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

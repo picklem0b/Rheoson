@@ -18,14 +18,16 @@ _YTDLP_HOSTS = re.compile(
     r'audiomack\.com|reverbnation\.com)'
 )
 
-def _is_url(s: str) -> bool:
-    return s.strip().startswith(("http://", "https://"))
+def _is_url(text: str) -> bool:
+    return bool(re.match(r"^https?://", text.strip(), re.IGNORECASE))
+
 
 def _detect_url_type(url: str) -> str:
     if _YOUTUBE_RE.search(url):  return "youtube"
     if _SPOTIFY_RE.search(url):  return "spotify"
     if _YTDLP_HOSTS.search(url): return "ytdlp"
-    if _is_url(url):              return "ytdlp"
+    # Deliberately NOT a catch-all: an arbitrary http(s) URL must not be
+    # handed to yt-dlp (SSRF). Unknown hosts → "unknown" → 400.
     return "unknown"
 
 # ── Prewarm ───────────────────────────────────────────────────
@@ -68,6 +70,13 @@ async def search(query: str, filter: str | None = None) -> dict:
     return results
 
 async def resolve_url(url: str) -> dict:
+    # Defense in depth: allowlist + public-IP check before any fetch/extract
+    try:
+        from app.services.netguard import ensure_safe_media_url
+        ensure_safe_media_url(url)
+    except ValueError:
+        raise UnsupportedURLError(url)
+
     kind = _detect_url_type(url)
 
     if kind == "spotify":
@@ -162,7 +171,16 @@ async def _resolve_ytdlp(url: str) -> dict:
     import yt_dlp
     loop = asyncio.get_event_loop()
     def _extract():
-        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "extract_flat": "in_playlist", "skip_download": True}) as ydl:
+        # yt-dlp otherwise follows redirects to wherever the remote wants;
+        # bound it so a hostile response cannot bounce us into a private net.
+        with yt_dlp.YoutubeDL({
+            "quiet": True,
+            "no_warnings": True,
+            "extract_flat": "in_playlist",
+            "skip_download": True,
+            "max_redirects": 3,
+            "socket_timeout": 15,
+        }) as ydl:
             return ydl.extract_info(url, download=False)
     try:
         info = await loop.run_in_executor(None, _extract)

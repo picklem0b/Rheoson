@@ -68,97 +68,66 @@ def _b64url_decode(data: str) -> bytes:
     return urlsafe_b64decode(data)
 
 
-def _verify_jwt_signature(token: str, jwks: dict) -> dict | None:
-    """Verify a JWT's signature using Clerk's JWKS. Returns payload or None."""
-    parts = token.split(".")
-    if len(parts) != 3:
-        return None
-
-    header_b64, payload_b64, signature_b64 = parts
-
-    # Decode header to get kid
-    try:
-        header = json.loads(_b64url_decode(header_b64))
-    except Exception:
-        return None
-
-    kid = header.get("kid")
-    alg = header.get("alg")
-    if not kid or alg != "RS256":
-        return None
-
-    # Find the matching key in JWKS
-    keys = jwks.get("keys", [])
-    matching_key = None
-    for key in keys:
-        if key.get("kid") == kid:
-            matching_key = key
-            break
-
-    if not matching_key:
-        return None
-
-    # Verify signature using Python's built-in hmac + hashlib won't work for RSA.
-    # We use a lightweight verification approach.
-    try:
-        from jose import jwt as jose_jwt
-        return jose_jwt.get_unverified_claims(token)
-    except ImportError:
-        # Fallback: decode without verification (less secure but functional)
-        log.warning("clerk.jwt.no_signature_verification", note="python-jose not installed")
-        try:
-            return json.loads(_b64url_decode(payload_b64))
-        except Exception:
-            return None
-
-
 async def verify_clerk_token(token: str) -> dict | None:
     """Verify a Clerk session JWT and return the decoded claims.
 
     Returns dict with at minimum:
       - sub: the Clerk user ID
-      - email: the user's email (if present)
       - exp: expiration timestamp
 
-    Returns None if the token is invalid or expired.
+    Returns None if the token is invalid or expired. There is deliberately no
+    "decode without verification" fallback: python-jose is a hard dependency,
+    and unauthenticated decode would make this auth path decorative.
     """
     if not settings.has_clerk:
         return None
 
-    # Quick expiry check
+    # Fast structural checks before any network work
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
     try:
-        payload = json.loads(_b64url_decode(token.split(".")[1]))
-        if payload.get("exp", 0) < time.time():
-            return None
+        header = json.loads(_b64url_decode(parts[0]))
     except Exception:
         return None
-
-    # Try python-jose first (most reliable)
-    try:
-        from jose import jwt, JWTError
-        jwks = await _get_jwks()
-        if not jwks:
-            return None
-
-        # Build the signing key from JWKS
-        keys = jwks.get("keys", [])
-        for key_data in keys:
-            try:
-                from jose import jwk
-                signing_key = jwk.construct(key_data)
-                claims = jwt.decode(
-                    token,
-                    signing_key,
-                    algorithms=["RS256"],
-                    options={"verify_aud": False},
-                )
-                return claims
-            except Exception:
-                continue
+    if header.get("alg") != "RS256" or not header.get("kid"):
         return None
+
+    try:
+        from jose import jwt, jwk
     except ImportError:
-        # Fallback: decode without verification
-        return _verify_jwt_signature(token, await _get_jwks())
+        log.error("clerk.jwt.python_jose_missing")
+        return None
+
+    jwks = await _get_jwks()
+    if not jwks:
+        return None
+
+    # Build the signing key from JWKS and verify the signature + exp/nbf/iss
+    for key_data in jwks.get("keys", []):
+        if key_data.get("kid") != header.get("kid"):
+            continue
+        try:
+            signing_key = jwk.construct(key_data)
+            claims = jwt.decode(
+                token,
+                signing_key,
+                algorithms=["RS256"],
+                options={"verify_aud": False},  # Clerk tokens carry no aud claim
+            )
+        except Exception:
+            continue
+        if not claims.get("sub"):
+            continue
+        # Clerk session JWTs assert iss = https://<instance>.clerk.accounts.dev
+        iss = claims.get("iss") or ""
+        if iss and not (
+            iss.startswith("https://")
+            and ("clerk.accounts.dev" in iss or "clerk.dev" in iss or "clerk.com" in iss)
+        ):
+            continue
+        return claims
+    return None
 
 
 async def clerk_get_user(user_id: str) -> dict | None:
@@ -177,6 +146,36 @@ async def clerk_get_user(user_id: str) -> dict | None:
             return None
     except Exception as e:
         log.warning("clerk.user.fetch_failed", user_id=user_id, error=str(e))
+        return None
+
+
+async def clerk_find_user_by_email(email: str) -> dict | None:
+    """Look up a Clerk user by email address via the Backend API.
+
+    Returns the full user object or None when the address is unknown.
+    Clerk may return several users for one address (multiple identities);
+    we take the first non-deleted account.
+    """
+    if not settings.CLERK_SECRET_KEY:
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                _CLERK_USER_URL,
+                params={"email_address": [email]},
+                headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
+            )
+            if resp.status_code != 200:
+                log.warning("clerk.user.list_by_email_failed", status=resp.status_code)
+                return None
+            users = resp.json().get("data", [])
+            for u in users:
+                if not u.get("deleted"):
+                    return u
+            return None
+    except Exception as e:
+        log.warning("clerk.user.list_by_email_error", error=str(e))
         return None
 
 
@@ -227,3 +226,23 @@ async def clerk_create_session(user_id: str) -> dict | None:
     except Exception as e:
         log.warning("clerk.session.create_error", error=str(e))
         return None
+
+
+async def clerk_revoke_session(user_id: str, session_id: str) -> bool:
+    """Revoke a Clerk session server-side. Returns True when revoked."""
+    if not settings.CLERK_SECRET_KEY or not session_id:
+        return False
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{_CLERK_USER_URL}/{user_id}/sessions/{session_id}/revoke",
+                headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
+            )
+            if resp.status_code in (200, 201):
+                return True
+            log.warning("clerk.session.revoke_failed", status=resp.status_code)
+            return False
+    except Exception as e:
+        log.warning("clerk.session.revoke_error", error=str(e))
+        return False

@@ -38,13 +38,12 @@ interface SpotifyStatus {
 export default function AccountSection() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const [status, setStatus] = useState<SpotifyStatus | null>(null);
   const [checking, setChecking] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const name = user?.name ?? "Guest";
+  const name = user?.name ?? "Your account";
   const initials = getInitials(name);
   const gradient = getGradient(name);
 
@@ -95,9 +94,7 @@ export default function AccountSection() {
               {name}
             </p>
             <p className="text-[14px] text-[var(--text-muted)] truncate">
-              {isAuthenticated
-                ? user?.email ?? "View profile"
-                : "Guest mode — sign in to sync"}
+              {user?.email ?? "View profile"}
             </p>
             <div className="flex items-center gap-1.5 mt-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-green-400" />

@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     RATE_LIMIT_SEARCH:   int = 30   # requests per minute per IP
     RATE_LIMIT_DOWNLOAD: int = 10   # requests per minute per IP
 
+    # ── Instance administration ────────────────────────────────
+    # Clerk subs allowed to mutate instance-level configuration (music
+    # directories, library rescan). Leave empty for single-admin dev setups.
+    ADMIN_SUBS: list[str] = []
+
     # CORS_ORIGINS is an ADDITIVE override — extra origins beyond the
     # hardcoded builtins in main.py.
     CORS_ORIGINS: list[str] = [

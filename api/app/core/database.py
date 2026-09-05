@@ -102,5 +102,15 @@ def get_db() -> AsyncIOMotorDatabase:
 
 
 def db_available() -> bool:
-    """Check if the database connection is active."""
+    """Check if the database connection is active.
+
+    RHEOSON_MOCK_DB=1 (set by the test suite) treats the injected mock
+    database as available. That keeps per-user data (likes, history,
+    playlists) isolated per test — the mock is recreated for every fixture
+    — instead of leaking through the real MUSIC_DIR file mirrors, which
+    live at a single per-session temp path shared by all tests.
+    """
+    import os as _os
+    if _os.environ.get("RHEOSON_MOCK_DB") == "1":
+        return True
     return _db is not None and _connected

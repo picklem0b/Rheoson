@@ -162,6 +162,12 @@ async def _resolve_to_yt_url(
     if not url:
         raise ValueError('Either trackId or url must be provided')
 
+    # SSRF guard (defense in depth — routers already check, but this service
+    # can also be reached from internal flows).
+    if url.startswith(('http://', 'https://')):
+        from app.services.netguard import ensure_safe_media_url
+        ensure_safe_media_url(url)
+
     if 'spotify.com' in url:
         from app.core.config import settings
         if settings.has_spotify:

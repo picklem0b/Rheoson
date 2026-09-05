@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import {
-  User, Mail, Calendar, Music2, Clock, Heart, TrendingUp,
+  Mail, Calendar, Music2, Clock, Heart, TrendingUp,
   ChevronRight, LogOut, Settings, Palette, HardDrive,
   Pencil, Check, X, Shield, BarChart3,
 } from 'lucide-react'
@@ -93,7 +93,7 @@ function QuickLink({ icon: Icon, label, description, to, color }: {
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { user, isAuthenticated, logout } = useAuthStore()
+  const { user, logout } = useAuthStore()
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -104,7 +104,6 @@ export default function Profile() {
     queryFn: analyticsApi.getStats,
     staleTime: 60_000,
     retry: false,
-    enabled: isAuthenticated,
   })
 
   // Library count
@@ -125,7 +124,7 @@ export default function Profile() {
     retry: 0,
   })
 
-  const displayName = user?.name ?? 'Guest'
+  const displayName = user?.name ?? 'Your account'
   const email = user?.email ?? ''
   const initials = getInitials(displayName)
   const gradient = getAvatarGradient(displayName)
@@ -183,9 +182,7 @@ export default function Profile() {
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Profile</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-0.5">
-            {isAuthenticated ? 'Your Rheoson account' : 'Using Rheoson as a guest'}
-          </p>
+          <p className="text-sm text-[var(--text-muted)] mt-0.5">Your Rheoson account</p>
         </motion.div>
 
         {/* Avatar + Name card */}
@@ -274,15 +271,13 @@ export default function Profile() {
                     <h2 className="text-2xl font-black text-[var(--text-primary)] truncate">
                       {displayName}
                     </h2>
-                    {isAuthenticated && (
-                      <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={startEditName}
-                        className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0"
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                      </motion.button>
-                    )}
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={startEditName}
+                      className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                    </motion.button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -295,17 +290,9 @@ export default function Profile() {
               )}
 
               <div className="flex items-center gap-3 mt-2">
-                <div className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold',
-                  isAuthenticated
-                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                    : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
-                )}>
-                  <div className={cn(
-                    'w-1.5 h-1.5 rounded-full',
-                    isAuthenticated ? 'bg-green-400' : 'bg-yellow-400',
-                  )} />
-                  {isAuthenticated ? 'Signed in' : 'Guest'}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                  Signed in
                 </div>
 
                 {memberSince && (
@@ -357,57 +344,27 @@ export default function Profile() {
         </motion.div>
 
         {/* Sign out */}
-        {isAuthenticated && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="bg-[var(--bg-surface)] rounded-[18px] overflow-hidden border border-[var(--border)]/30">
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
-              >
-                <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                  <LogOut className="w-4 h-4 text-red-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-red-400">Sign out</p>
-                  <p className="text-xs text-[var(--text-muted)]">You&apos;ll need to sign in again</p>
-                </div>
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Guest CTA */}
-        {!isAuthenticated && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="rounded-[20px] overflow-hidden border border-[var(--accent)]/20 bg-gradient-to-br from-[var(--accent)]/5 to-transparent p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/10 flex items-center justify-center">
-                  <User className="w-5 h-5 text-[var(--accent)]" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">Create an account</p>
-                  <p className="text-xs text-[var(--text-muted)]">Sync playlists and stats across devices</p>
-                </div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div className="bg-[var(--bg-surface)] rounded-[18px] overflow-hidden border border-[var(--border)]/30">
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+            >
+              <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <LogOut className="w-4 h-4 text-red-400" />
               </div>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => navigate('/register')}
-                className="w-full h-10 rounded-xl bg-[var(--accent)] text-white text-sm font-bold"
-              >
-                Get started
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-400">Sign out</p>
+                <p className="text-xs text-[var(--text-muted)]">You&apos;ll need to sign in again</p>
+              </div>
+            </motion.button>
+          </div>
+        </motion.div>
 
         {/* Footer */}
         <motion.div

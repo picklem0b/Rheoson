@@ -38,8 +38,7 @@ function getInitials(name: string): string {
 function ProfileButton() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const name = user?.name ?? 'Guest'
+  const name = user?.name ?? 'Your account'
   const initials = getInitials(name)
   const gradient = getGradient(name)
 
@@ -58,9 +57,7 @@ function ProfileButton() {
       )}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{name}</p>
-        <p className="text-[10px] text-[var(--text-muted)] truncate">
-          {isAuthenticated ? 'View profile' : 'Guest mode'}
-        </p>
+        <p className="text-[10px] text-[var(--text-muted)] truncate">View profile</p>
       </div>
       <User className="w-4 h-4 text-[var(--text-muted)]/40 flex-shrink-0" />
     </motion.button>

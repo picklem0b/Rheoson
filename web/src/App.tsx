@@ -13,7 +13,6 @@ import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
 import { startVersionCheck } from '@/lib/versionCheck'
 import OfflineBanner from '@/components/ui/OfflineBanner'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
-import { authApi } from '@/api/auth.api'
 import { initNetwork } from '@/lib/network'
 import { initAutoSync } from '@/lib/offlineQueue'
 
@@ -37,24 +36,11 @@ function usePlayerErrorToast() {
   }, [toast])
 }
 
-// ── Guest visit tracker ───────────────────────────────────────
-function useGuestTracker() {
-  useEffect(() => {
-    // Record one guest visit per session
-    const visited = sessionStorage.getItem('rheoson-guest-visited')
-    if (!visited) {
-      authApi.recordGuestVisit().catch(() => {})
-      sessionStorage.setItem('rheoson-guest-visited', '1')
-    }
-  }, [])
-}
-
 // ── Inner app — hooks that need router context ────────────────
 function AppInner() {
   useKeyboardShortcuts()
   useMediaSession()
   usePlayerErrorToast()
-  useGuestTracker()
   return (
     <ErrorBoundary>
       <OfflineBanner />

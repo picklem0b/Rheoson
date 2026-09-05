@@ -114,8 +114,14 @@ async function request<T>(
    }
 
    if (!res.ok) {
-      // Auto-redirect to login on 401
-      if (res.status === 401 && !endpoint.includes("/api/auth/")) {
+      // Auto-redirect to login on 401 — but only when we believed we had a
+      // session. Auth endpoints (login/register) return 401 for bad
+      // credentials and must surface that to the form, not redirect.
+      if (
+         res.status === 401 &&
+         !endpoint.includes("/api/auth/") &&
+         getAuthToken()
+      ) {
          localStorage.removeItem("rheoson-auth");
          window.location.href = "/login";
       }
