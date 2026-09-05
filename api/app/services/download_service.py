@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import shutil
 import structlog
 import uuid
 import yt_dlp
@@ -21,7 +22,38 @@ _JOBS_FILE = Path(settings.DOWNLOADS_DIR) / ".download_jobs.json"
 
 _jobs:  dict[str, dict]          = {}
 _tasks: dict[str, asyncio.Task]  = {}
-_sem:   asyncio.Semaphore | None = None
+
+# ── Dynamic concurrency limiter ───────────────────────────────
+# Each job declares the max simultaneous downloads for its device
+# (Settings → Downloads → Concurrent downloads). Instead of a fixed
+# semaphore sized at startup, a condition tracks the live count so the
+# limit can change between enqueues without a restart.
+
+_slot_cond: asyncio.Condition | None = None
+_active_downloads = 0
+
+
+def _get_slot_cond() -> asyncio.Condition:
+    global _slot_cond
+    if _slot_cond is None:
+        _slot_cond = asyncio.Condition()
+    return _slot_cond
+
+
+async def _acquire_slot(limit: int) -> None:
+    cond = _get_slot_cond()
+    async with cond:
+        await cond.wait_for(lambda: _active_downloads < limit)
+        global _active_downloads
+        _active_downloads += 1
+
+
+async def _release_slot() -> None:
+    cond = _get_slot_cond()
+    async with cond:
+        global _active_downloads
+        _active_downloads = max(0, _active_downloads - 1)
+        cond.notify_all()
 
 
 def _load_jobs() -> None:
@@ -50,13 +82,6 @@ def _persist_jobs() -> None:
         log.warning("download.jobs.persist_failed", error=str(e))
 
 
-def _get_sem() -> asyncio.Semaphore:
-    global _sem
-    if _sem is None:
-        _sem = asyncio.Semaphore(settings.MAX_CONCURRENT_DOWNLOADS)
-    return _sem
-
-
 def _sanitize(name: str) -> str:
     """Strip characters that break file names on Android / Termux / Windows."""
     name = re.sub(r'[<>:"/\\|?*]', '', name).strip()
@@ -71,20 +96,37 @@ def _new_job(
     fmt:         str,
     quality:     str,
     job_id:      str | None = None,
+    embed_metadata: bool = True,
+    embed_artwork: bool = True,
+    embed_lyrics: bool = True,
+    file_naming:  str   = 'artist-title',
+    custom_path:  Optional[str] = None,
+    retries:      int   = 3,
+    speed_limit:  int   = 0,
+    concurrency:  int   = 3,
 ) -> dict:
     return {
-        'id':         job_id or str(uuid.uuid4()),
-        'trackId':    track_id,
-        'title':      title,
-        'artist':     artist,
-        'artworkUrl': artwork_url,
-        'status':     'downloading',
-        'progress':   0.0,
-        'format':     fmt,
-        'quality':    quality,
-        'error':      None,
-        'filePath':   None,
-        'createdAt':  datetime.now(timezone.utc).isoformat(),
+        'id':           job_id or str(uuid.uuid4()),
+        'trackId':      track_id,
+        'title':        title,
+        'artist':       artist,
+        'artworkUrl':   artwork_url,
+        'status':       'downloading',
+        'progress':     0.0,
+        'format':       fmt,
+        'quality':      quality,
+        'error':        None,
+        'filePath':     None,
+        'createdAt':    datetime.now(timezone.utc).isoformat(),
+        # Options recorded at enqueue time so retries reproduce them exactly
+        'embedMetadata': embed_metadata,
+        'embedArtwork':  embed_artwork,
+        'embedLyrics':   embed_lyrics,
+        'fileNaming':    file_naming,
+        'customPath':    custom_path,
+        'retries':       retries,
+        'speedLimit':    speed_limit,
+        'concurrency':   concurrency,
     }
 
 
@@ -119,6 +161,12 @@ async def _resolve_to_yt_url(
 
     if not url:
         raise ValueError('Either trackId or url must be provided')
+
+    # SSRF guard (defense in depth — routers already check, but this service
+    # can also be reached from internal flows).
+    if url.startswith(('http://', 'https://')):
+        from app.services.netguard import ensure_safe_media_url
+        ensure_safe_media_url(url)
 
     if 'spotify.com' in url:
         from app.core.config import settings
@@ -191,29 +239,46 @@ def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
 # Previously files were written to DOWNLOADS_DIR which nothing ever read.
 # That is the "downloads don't appear in library" bug fix.
 
+_AUDIO_EXTS = {'.mp3', '.m4a', '.flac', '.opus', '.wav', '.ogg'}
+
+
 async def _run_download(
     job_id:        str,
     yt_url:        str,
-    fmt:           str,
-    quality:       str,
-    embed_artwork: bool,
     artist:        str,
     playlist_name: Optional[str] = None,
 ) -> Optional[Path]:
-    music_dir = Path(settings.MUSIC_DIR)
+    """Download + convert one job, honoring its recorded options.
 
-    base_dir   = (music_dir / _sanitize(playlist_name)) if playlist_name else music_dir
-    artist_dir = base_dir / _sanitize(artist or 'Unknown Artist')
-    artist_dir.mkdir(parents=True, exist_ok=True)
+    The file is first written to a per-job staging directory inside
+    DOWNLOADS_DIR, then moved to its final location. This makes custom
+    paths and naming rules exact — the server composes the final file
+    from the resolved title/artist instead of trusting yt-dlp's template.
+    """
+    job = _jobs.get(job_id, {})
+    fmt            = job.get('format', 'mp3')
+    quality        = job.get('quality', '320')
+    embed_artwork  = job.get('embedArtwork', True)
+    embed_metadata = job.get('embedMetadata', True)
+    retries        = max(0, int(job.get('retries', 3)))
+    speed_limit    = max(0, int(job.get('speedLimit', 0)))
+    file_naming    = job.get('fileNaming', 'artist-title')
+    custom_path    = (job.get('customPath') or '').strip() or None
+    concurrency    = max(1, int(job.get('concurrency', settings.MAX_CONCURRENT_DOWNLOADS)))
 
     loop      = asyncio.get_event_loop()
     quality_q = '0' if quality == 'best' else quality
-    out_tmpl  = str(artist_dir / '%(title)s.%(ext)s')
+
+    staging = _staging_dir(job_id)
+    shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True, exist_ok=True)
+    out_tmpl = str(staging / '%(title)s.%(ext)s')
 
     postprocessors: list[dict] = [
         {'key': 'FFmpegExtractAudio', 'preferredcodec': fmt, 'preferredquality': quality_q},
-        {'key': 'FFmpegMetadata'},
     ]
+    if embed_metadata:
+        postprocessors.append({'key': 'FFmpegMetadata'})
     if embed_artwork:
         postprocessors.append({'key': 'EmbedThumbnail'})
 
@@ -227,26 +292,76 @@ async def _run_download(
         'postprocessors':   postprocessors,
         'writethumbnail':   embed_artwork,
         'embedthumbnail':   embed_artwork,
-        'addmetadata':      True,
-        'retries':          3,
-        'fragment_retries': 3,
+        'addmetadata':      embed_metadata,
+        'retries':          retries,
+        'fragment_retries': retries,
     }
+    if speed_limit > 0:
+        ydl_opts['limit_rate'] = f'{speed_limit}K'
 
     def _do() -> Optional[Path]:
-        before = {p for p in artist_dir.glob(f'*.{fmt}')}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(yt_url, download=True)
-        after    = {p for p in artist_dir.glob(f'*.{fmt}')}
-        new_files = after - before
-        if new_files:
-            return max(new_files, key=lambda p: p.stat().st_mtime)
-        files = sorted(artist_dir.glob(f'*.{fmt}'), key=lambda p: p.stat().st_mtime, reverse=True)
-        return files[0] if files else None
+        files = [
+            p for p in staging.iterdir()
+            if p.is_file() and p.suffix.lower() in _AUDIO_EXTS
+        ]
+        return max(files, key=lambda p: p.stat().st_mtime) if files else None
 
-    async with _get_sem():
-        return await loop.run_in_executor(None, _do)
+    await _acquire_slot(concurrency)
+    try:
+        raw = await loop.run_in_executor(None, _do)
+    finally:
+        await _release_slot()
+
+    if not raw or not raw.exists():
+        shutil.rmtree(staging, ignore_errors=True)
+        return None
+
+    # ── Compose final location from resolved metadata ─────────
+    music_dir = Path(settings.MUSIC_DIR)
+    title_s   = _sanitize(job.get('title', 'Unknown Title'))
+    artist_s  = _sanitize(artist or 'Unknown Artist')
+    track_id  = _sanitize(job.get('trackId', ''))
+
+    # Default library layout (no custom path): keep the Artist/ folder
+    # structure the library scanner expects; the naming option only picks
+    # the file name inside it.
+    if custom_path:
+        final_dir = Path(custom_path).expanduser()
+        stem = {
+            'artist-title': f'{artist_s} - {title_s}',
+            'title-artist': f'{title_s} - {artist_s}',
+            'id':           track_id or title_s,
+        }.get(file_naming, f'{artist_s} - {title_s}')
+    elif playlist_name:
+        final_dir = music_dir / _sanitize(playlist_name) / artist_s
+        stem = track_id if file_naming == 'id' else title_s
+    else:
+        final_dir = music_dir / artist_s
+        stem = track_id if file_naming == 'id' else title_s
+
+    final_dir.mkdir(parents=True, exist_ok=True)
+    ext        = raw.suffix.lower() or f'.{fmt}'
+    final_path = final_dir / f'{stem}{ext}'
+    counter    = 1
+    while final_path.exists():
+        final_path = final_dir / f'{stem} ({counter}){ext}'
+        counter   += 1
+
+    # shutil.move handles cross-device moves (Termux: cache → sdcard)
+    shutil.move(str(raw), str(final_path))
+    try:
+        shutil.rmtree(staging, ignore_errors=True)
+    except Exception:
+        pass
+    return final_path
 
 # ── Tag + finish ──────────────────────────────────────────────
+
+def _staging_dir(job_id: str) -> Path:
+    return Path(settings.DOWNLOADS_DIR) / f'.staging-{job_id}'
+
 
 async def _tag_and_finish(
     job_id:       str,
@@ -280,10 +395,6 @@ async def _tag_and_finish(
 async def _download_task(
     job_id:        str,
     yt_url:        str,
-    fmt:           str,
-    quality:       str,
-    embed_lyrics:  bool,
-    embed_artwork: bool,
     artist:        str,
     playlist_name: Optional[str] = None,
 ) -> None:
@@ -291,7 +402,7 @@ async def _download_task(
         _update(job_id, status='downloading', progress=0.0)
         await ws_manager.emit_download_progress(job_id, 0.0, 'downloading')
 
-        file_path = await _run_download(job_id, yt_url, fmt, quality, embed_artwork, artist, playlist_name)
+        file_path = await _run_download(job_id, yt_url, artist, playlist_name)
         if not file_path or not file_path.exists():
             raise RuntimeError('Output file not found after download')
 
@@ -299,7 +410,7 @@ async def _download_task(
         await _tag_and_finish(
             job_id, file_path,
             job.get('title', ''), job.get('artist', ''),
-            job.get('artworkUrl', ''), embed_lyrics,
+            job.get('artworkUrl', ''), job.get('embedLyrics', True),
         )
 
         _update(job_id, status='done', progress=100.0, filePath=str(file_path))
@@ -308,18 +419,19 @@ async def _download_task(
 
         # Invalidate the stream cache so the new file is found on the very
         # next play request without requiring a server restart.
+        # NOTE: module is stream_router (not stream) — the wrong import below
+        # used to fail silently, so newly downloaded files stayed invisible to
+        # /stream and /tracks until the 30-minute cron rescanned.
         try:
-            from app.routers.stream import invalidate_stream_cache
+            from app.routers.stream_router import invalidate_stream_cache
             invalidate_stream_cache()
         except Exception as e:
             log.warning('download.stream_cache.invalidate.failed', error=str(e))
 
         # Invalidate the track index so /tracks and /tracks/recently-played
-        # immediately reflect the new file.
-        # FIX: previously called a non-existent function silently. The function
-        # now exists in tracks.py and is imported correctly.
+        # immediately reflect the new file (module is track_router, not tracks).
         try:
-            from app.routers.tracks import invalidate_track_index
+            from app.routers.track_router import invalidate_track_index
             invalidate_track_index()
         except Exception as e:
             log.warning('download.track_index.invalidate.failed', error=str(e))
@@ -328,9 +440,13 @@ async def _download_task(
         # BUG #16: Use 'cancelled' status instead of generic 'error' so the
         # frontend can distinguish user-initiated cancellation from failures.
         _update(job_id, status='cancelled', error='Cancelled by user')
+        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
         await ws_manager.emit_download_error(job_id, 'Cancelled by user')
     except Exception as e:
         log.error('download.failed', job_id=job_id, error=str(e))
+        # Clean up the staging dir so failed/cancelled downloads can't leak
+        # partially-written files on disk.
+        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
         # BUG #16: Set the correct intermediate status based on where it failed
         current = _jobs.get(job_id, {}).get('status', 'error')
         if current == 'downloading':
@@ -350,14 +466,20 @@ _jobs_loaded = False
 
 
 async def enqueue_download(
-    track_id:      Optional[str] = None,
-    url:           Optional[str] = None,
-    fmt:           str           = 'mp3',
-    quality:       str           = '320',
-    embed_artwork: bool          = True,
-    embed_lyrics:  bool          = True,
-    job_id:        Optional[str] = None,
-    playlist_name: Optional[str] = None,
+    track_id:        Optional[str] = None,
+    url:             Optional[str] = None,
+    fmt:             str           = 'mp3',
+    quality:         str           = '320',
+    embed_artwork:   bool          = True,
+    embed_lyrics:    bool          = True,
+    embed_metadata:  bool          = True,
+    file_naming:     str           = 'artist-title',
+    custom_path:     Optional[str] = None,
+    retries:         int           = 3,
+    speed_limit:     int           = 0,
+    concurrency:     int           = 3,
+    job_id:          Optional[str] = None,
+    playlist_name:   Optional[str] = None,
 ) -> dict:
     global _jobs_loaded
     # BUG #21: Load persisted jobs on first use
@@ -367,21 +489,30 @@ async def enqueue_download(
     try:
         yt_url, title, artist, artwork_url = await _resolve_to_yt_url(track_id, url)
     except Exception as e:
-        job              = _new_job(track_id or '', url or '', '', '', fmt, quality, job_id)
+        job              = _new_job(
+            track_id or '', url or '', '', '', fmt, quality, job_id,
+            embed_metadata=embed_metadata, embed_artwork=embed_artwork,
+            embed_lyrics=embed_lyrics, file_naming=file_naming,
+            custom_path=custom_path, retries=retries,
+            speed_limit=speed_limit, concurrency=concurrency,
+        )
         job['status']    = 'error'
         job['error']     = str(e)
         _jobs[job['id']] = job
         log.error('download.resolve.failed', error=str(e))
         return job
 
-    job              = _new_job(track_id or '', title, artist, artwork_url, fmt, quality, job_id)
+    job              = _new_job(
+        track_id or '', title, artist, artwork_url, fmt, quality, job_id,
+        embed_metadata=embed_metadata, embed_artwork=embed_artwork,
+        embed_lyrics=embed_lyrics, file_naming=file_naming,
+        custom_path=custom_path, retries=retries,
+        speed_limit=speed_limit, concurrency=concurrency,
+    )
     _jobs[job['id']] = job
 
     task = asyncio.create_task(
-        _download_task(
-            job['id'], yt_url, fmt, quality, embed_lyrics, embed_artwork,
-            artist, playlist_name,
-        ),
+        _download_task(job['id'], yt_url, artist, playlist_name),
     )
     _tasks[job['id']] = task
     log.info('download.enqueued', job_id=job['id'], title=title, playlist=playlist_name)
@@ -424,7 +555,13 @@ async def retry_job(job_id: str) -> Optional[dict]:
         track_id=job.get('trackId') or None,
         fmt=job.get('format', 'mp3'),
         quality=job.get('quality', '320'),
-        embed_artwork=True,
-        embed_lyrics=True,
+        embed_artwork=job.get('embedArtwork', True),
+        embed_lyrics=job.get('embedLyrics', True),
+        embed_metadata=job.get('embedMetadata', True),
+        file_naming=job.get('fileNaming', 'artist-title'),
+        custom_path=job.get('customPath') or None,
+        retries=int(job.get('retries', 3)),
+        speed_limit=int(job.get('speedLimit', 0)),
+        concurrency=int(job.get('concurrency', settings.MAX_CONCURRENT_DOWNLOADS)),
         job_id=job_id,
     )

@@ -1,219 +1,226 @@
-import { useState, useEffect } from "react";
-import { Check, AlertCircle, ExternalLink, Trash2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+import { Check, AlertCircle, ExternalLink, Trash2, ChevronRight, RefreshCw } from "lucide-react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { api } from "@/api/client.api";
-import { useSpotifyCredentials } from "@/hooks/spotifyCredentials.hook";
+import { useAuthStore } from "@/store/auth.store";
 import { SettingsGroup, SettingsRow } from "../components/SettingsPrimitives";
+import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+const AVATAR_GRADIENTS = [
+  "from-violet-600 to-fuchsia-500",
+  "from-blue-600 to-cyan-500",
+  "from-emerald-600 to-teal-500",
+  "from-rose-600 to-pink-500",
+  "from-amber-600 to-orange-500",
+];
+
+function getGradient(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++)
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0]?.[0] ?? "U").toUpperCase();
+}
+
+interface SpotifyStatus {
+  connected: boolean;
+  clientId?: string;
+}
 
 export default function AccountSection() {
-   const { clientId, clientSecret, hasCredentials, save, clear } =
-      useSpotifyCredentials();
-   const [editId, setEditId] = useState(clientId);
-   const [editSecret, setEditSecret] = useState(clientSecret);
-   const [showSecret, setShowSecret] = useState(false);
-   const [saveState, setSaveState] = useState<SaveState>("idle");
-   const [serverLinked, setServerLinked] = useState<boolean | null>(null);
-   const justSaved = saveState === "saved";
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
 
-   useEffect(() => {
-      api.get<{ connected: boolean }>("/settings/spotify/status")
-         .then(r => setServerLinked(r.connected))
-         .catch(() => setServerLinked(null));
-   }, [justSaved]);
+  const [status, setStatus] = useState<SpotifyStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
-   const handleSave = async () => {
-      if (!editId.trim() || !editSecret.trim()) return;
-      setSaveState("saving");
-      try {
-         await api.post("/settings/spotify", {
-            clientId: editId.trim(),
-            clientSecret: editSecret.trim()
-         });
-         save(editId.trim(), editSecret.trim());
-         setSaveState("saved");
-         setServerLinked(true);
-         setTimeout(() => setSaveState("idle"), 3000);
-      } catch {
-         setSaveState("error");
-         setTimeout(() => setSaveState("idle"), 3000);
-      }
-   };
+  const name = user?.name ?? "Your account";
+  const initials = getInitials(name);
+  const gradient = getGradient(name);
 
-   const handleClear = () => {
-      clear();
-      setEditId("");
-      setEditSecret("");
-      setServerLinked(false);
-   };
+  const fetchStatus = useCallback(() => {
+    setChecking(true);
+    api
+      .get<SpotifyStatus>("/settings/spotify/status")
+      .then((r) => setStatus(r))
+      .catch(() => setStatus(null))
+      .finally(() => setChecking(false));
+  }, []);
 
-   const spotifyOk = serverLinked ?? hasCredentials;
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
 
-   return (
-      <div className='pb-4'>
-         {/* Profile */}
-         <div className='mb-7 rounded-[20px] overflow-hidden border border-[var(--border)]/30 bg-[var(--bg-surface)]'>
-            <div className='px-5 py-5 flex items-center gap-4'>
-               <div
-                  className='w-[64px] h-[64px] rounded-[18px] flex items-center justify-center text-[26px] font-black text-white shadow-lg flex-shrink-0'
-                  style={{
-                     background:
-                        "linear-gradient(135deg, var(--accent), var(--accent-bright, var(--accent)))"
-                  }}>
-                  L
-               </div>
-               <div className='min-w-0'>
-                  <p className='text-[20px] font-bold text-[var(--text-primary)] leading-tight'>
-                     LethaboK
-                  </p>
-                  <p className='text-[14px] text-[var(--text-muted)]'>
-                     picklem0b
-                  </p>
-                  <div className='flex items-center gap-1.5 mt-1.5'>
-                     <div className='w-1.5 h-1.5 rounded-full bg-green-400' />
-                     <span className='text-[12px] text-green-400 font-semibold'>
-                        Self-hosted · Local
-                     </span>
-                  </div>
-               </div>
-            </div>
-         </div>
+  const spotifyOk = status?.connected ?? false;
 
-         {/* Spotify */}
-         <SettingsGroup
-            title='Spotify credentials'
-            footer='Used only for metadata, cover art, and link resolution. Rheoson never streams from Spotify.'>
-            {/* Status */}
-            <div
-               className={cn(
-                  "flex items-center gap-2.5 px-4 py-3 text-[13px] font-medium border-b border-[var(--border)]/50",
-                  spotifyOk
-                     ? "text-green-400 bg-green-500/5"
-                     : "text-orange-400 bg-orange-500/5"
-               )}>
-               {spotifyOk ? (
-                  <Check className='w-4 h-4 flex-shrink-0' />
-               ) : (
-                  <AlertCircle className='w-4 h-4 flex-shrink-0' />
-               )}
-               {spotifyOk
-                  ? `Connected · ${(serverLinked ? clientId : editId).slice(0, 12) || "—"}…`
-                  : "Not connected — add your credentials below"}
-            </div>
-
-            <div className='px-4 py-4 space-y-4'>
-               {/* Client ID */}
-               <div className='space-y-1.5'>
-                  <label className='text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]'>
-                     Client ID
-                  </label>
-                  <input
-                     type='text'
-                     value={editId}
-                     onChange={e => setEditId(e.target.value)}
-                     placeholder='c6081b467a154fd69ba432261b973cd5'
-                     className='w-full h-11 px-3 text-[14px] font-mono rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/40 outline-none focus:border-[var(--accent)] transition-colors'
-                  />
-               </div>
-
-               {/* Client Secret */}
-               <div className='space-y-1.5'>
-                  <label className='text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]'>
-                     Client Secret
-                  </label>
-                  <div className='relative'>
-                     <input
-                        type={showSecret ? "text" : "password"}
-                        value={editSecret}
-                        onChange={e => setEditSecret(e.target.value)}
-                        placeholder='82ec996a6dba4218965bfea6483bd9c5'
-                        className='w-full h-11 px-3 pr-16 text-[14px] font-mono rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/40 outline-none focus:border-[var(--accent)] transition-colors'
-                     />
-                     <button
-                        onClick={() => setShowSecret(!showSecret)}
-                        className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors'>
-                        {showSecret ? "Hide" : "Show"}
-                     </button>
-                  </div>
-               </div>
-
-               {/* Save button */}
-               <div className='flex gap-2'>
-                  <motion.button
-                     whileTap={{ scale: 0.97 }}
-                     onClick={handleSave}
-                     disabled={
-                        saveState === "saving" ||
-                        !editId.trim() ||
-                        !editSecret.trim()
-                     }
-                     className={cn(
-                        "flex-1 h-11 rounded-2xl text-[14px] font-semibold transition-colors flex items-center justify-center gap-2",
-                        saveState === "saved"
-                           ? "bg-green-500 text-white"
-                           : saveState === "error"
-                             ? "bg-red-500   text-white"
-                             : "bg-[var(--accent)] text-white disabled:opacity-40"
-                     )}>
-                     <AnimatePresence mode='wait' initial={false}>
-                        <motion.span
-                           key={saveState}
-                           initial={{ opacity: 0, y: 5 }}
-                           animate={{ opacity: 1, y: 0 }}
-                           exit={{ opacity: 0, y: -5 }}
-                           transition={{ duration: 0.12 }}
-                           className='flex items-center gap-1.5'>
-                           {saveState === "saving" && "Saving…"}
-                           {saveState === "saved" && (
-                              <>
-                                 <Check className='w-4 h-4' /> Saved
-                              </>
-                           )}
-                           {saveState === "error" && "Error — try again"}
-                           {saveState === "idle" && "Save credentials"}
-                        </motion.span>
-                     </AnimatePresence>
-                  </motion.button>
-                  {hasCredentials && (
-                     <motion.button
-                        whileTap={{ scale: 0.97 }}
-                        onClick={handleClear}
-                        className='px-4 h-11 rounded-2xl text-[14px] font-semibold bg-red-500/10 text-red-400'>
-                        Disconnect
-                     </motion.button>
-                  )}
-               </div>
-
-               <SettingsRow
-                  label='Get credentials'
-                  description='developer.spotify.com/dashboard'
-                  onClick={() =>
-                     window.open(
-                        "https://developer.spotify.com/dashboard",
-                        "_blank"
-                     )
-                  }>
-                  <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
-               </SettingsRow>
-            </div>
-         </SettingsGroup>
-
-         {/* Danger */}
-         <SettingsGroup title='Danger zone'>
-            <SettingsRow
-               label='Clear all app data'
-               description='Wipes all settings, theme, history, playlists and credentials. Cannot be undone.'
-               danger
-               onClick={() => {
-                  localStorage.clear();
-                  window.location.reload();
-               }}
-               icon={<Trash2 className='w-[14px] h-[14px]' />}
-               iconBg='#EF4444'
+  return (
+    <div className="pb-4">
+      {/* ── Profile ─────────────────────────────────────────── */}
+      <motion.button
+        whileTap={{ scale: 0.99, opacity: 0.85 }}
+        onClick={() => navigate("/profile")}
+        className="w-full mb-7 rounded-[20px] overflow-hidden border border-[var(--border)]/30 bg-[var(--bg-surface)] text-left"
+      >
+        <div className="px-5 py-5 flex items-center gap-4">
+          {user?.image_url ? (
+            <img
+              src={user.image_url}
+              alt={name}
+              className="w-[64px] h-[64px] rounded-[18px] object-cover shadow-lg flex-shrink-0"
             />
-         </SettingsGroup>
-      </div>
-   );
+          ) : (
+            <div
+              className={cn(
+                "w-[64px] h-[64px] rounded-[18px] flex items-center justify-center",
+                "text-[26px] font-black text-white shadow-lg flex-shrink-0",
+                "bg-gradient-to-br",
+                gradient
+              )}
+            >
+              {initials}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[20px] font-bold text-[var(--text-primary)] leading-tight truncate">
+              {name}
+            </p>
+            <p className="text-[14px] text-[var(--text-muted)] truncate">
+              {user?.email ?? "View profile"}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              <span className="text-[12px] text-green-400 font-semibold">
+                Self-hosted · Local
+              </span>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-[var(--text-muted)]/40 flex-shrink-0" />
+        </div>
+      </motion.button>
+
+      {/* ── Spotify status ──────────────────────────────────── */}
+      <SettingsGroup
+        title="Spotify"
+        footer="Spotify credentials live in the server environment (.env or Render dashboard) — they are never sent from this device."
+      >
+        {/* Status banner */}
+        <div
+          className={cn(
+            "flex items-center gap-2.5 px-4 py-3 text-[13px] font-medium border-b border-[var(--border)]/50",
+            spotifyOk
+              ? "text-green-400 bg-green-500/5"
+              : "text-orange-400 bg-orange-500/5"
+          )}
+        >
+          {spotifyOk ? (
+            <Check className="w-4 h-4 flex-shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          )}
+          <span className="flex-1 min-w-0">
+            {spotifyOk
+              ? `Connected · ${status?.clientId || "credentials set"}`
+              : "Not connected"}
+          </span>
+          <button
+            onClick={fetchStatus}
+            disabled={checking}
+            aria-label="Refresh status"
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
+          >
+            <RefreshCw className={cn("w-4 h-4", checking && "animate-spin")} />
+          </button>
+        </div>
+
+        {!spotifyOk && (
+          <div className="px-4 py-4 text-[13px] text-[var(--text-secondary)] leading-relaxed space-y-3">
+            <p>
+              With Spotify credentials connected you can paste Spotify links
+              and get higher-quality artwork. Set these on the server:
+            </p>
+            <div className="rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] px-3.5 py-3 font-mono text-[12px] text-[var(--text-primary)] space-y-1 overflow-x-auto">
+              <p>SPOTIFY_CLIENT_ID=...</p>
+              <p>SPOTIFY_CLIENT_SECRET=...</p>
+            </div>
+            <p className="text-[12px] text-[var(--text-muted)]">
+              Termux users: add them to <span className="font-mono">api/.env</span>{" "}
+              and restart the server. Render users: add them in the dashboard.
+            </p>
+            <SettingsRow
+              label="Spotify setup guide"
+              description="github.com/picklem0b/Rheoson"
+              onClick={() =>
+                window.open(
+                  "https://github.com/picklem0b/Rheoson#4--spotify-optional",
+                  "_blank"
+                )
+              }
+            >
+              <ExternalLink className="w-4 h-4 text-[var(--text-muted)]/40" />
+            </SettingsRow>
+          </div>
+        )}
+
+        {spotifyOk && (
+          <SettingsRow
+            label="How it's used"
+            description="Metadata, artwork, and link resolution only — audio never comes from Spotify"
+          >
+            <Check className="w-4 h-4 text-green-400" />
+          </SettingsRow>
+        )}
+      </SettingsGroup>
+
+      {/* ── Danger ──────────────────────────────────────────── */}
+      <SettingsGroup title="Danger zone">
+        <SettingsRow
+          label="Clear all app data"
+          description="Wipes settings, theme, history, playlists and credentials on this device. Cannot be undone."
+          danger
+          onClick={() => setConfirmClear(true)}
+          icon={<Trash2 className="w-[14px] h-[14px]" />}
+          iconBg="#EF4444"
+        />
+      </SettingsGroup>
+
+      {/* ── Confirm destructive action ──────────────────────── */}
+      <Modal open={confirmClear} onClose={() => setConfirmClear(false)} title="Clear all app data?" size="sm">
+        <div className="space-y-5">
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            This permanently erases every local setting, theme, playlist
+            reference, history, and stored credential on this device. Server
+            downloads and your account are not affected.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => setConfirmClear(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              fullWidth
+              onClick={() => {
+                localStorage.clear();
+                window.location.reload();
+              }}
+            >
+              Erase everything
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
 }

@@ -7,19 +7,50 @@ been removed for security.
 
 from __future__ import annotations
 import asyncio
+import json
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.deps import get_current_user
 
 router = APIRouter()
+
+
+def _is_under(path: Path, base: Path) -> bool:
+    """True if `path` is `base` itself or nested below it."""
+    try:
+        path.relative_to(base)
+        return True
+    except ValueError:
+        return False
+
+
+def _require_admin(user: dict) -> None:
+    """Instance-level config (music dirs, rescan) is admin-only.
+
+    ADMIN_SUBS (env) lists the Clerk user ids allowed to mutate instance
+    config. When unset: allowed in development (lab box), denied in
+    production with a clear message — an empty allowlist must not silently
+    mean "everyone is admin".
+    """
+    admins = settings.ADMIN_SUBS
+    if not admins:
+        if settings.is_dev:
+            return
+        raise HTTPException(
+            status_code=403,
+            detail="Instance configuration requires an admin user. Set ADMIN_SUBS in the server environment.",
+        )
+    if user.get("sub") not in admins:
+        raise HTTPException(status_code=403, detail="Not an instance admin")
 
 
 # ── Spotify status (read-only) ────────────────────────────────
 
 @router.get("/spotify/status")
-async def spotify_status():
+async def spotify_status(_user: dict = Depends(get_current_user)):
     """Check if Spotify credentials are configured via environment."""
     return {
         "connected": settings.has_spotify,
@@ -34,7 +65,7 @@ class DirectoriesSchema(BaseModel):
 
 
 @router.get("/directories")
-async def get_directories():
+async def get_directories(_user: dict = Depends(get_current_user)):
     """Return all configured music directories and whether each actually exists."""
     configured = [settings.MUSIC_DIR] + list(settings.EXTRA_MUSIC_DIRS)
     result = []
@@ -48,19 +79,14 @@ async def get_directories():
     return {"directories": result}
 
 
-@router.post("/directories")
-async def save_directories(body: DirectoriesSchema):
-    """Persist the frontend's directory list to settings."""
-    if not body.dirs:
-        raise HTTPException(status_code=400, detail="At least one directory is required")
+def _persist_dirs_to_env(env_path: Path, primary: str, extra: list[str]) -> None:
+    """Rewrite MUSIC_DIR / EXTRA_MUSIC_DIRS inside the .env file.
 
-    primary = body.dirs[0]
-    extra = body.dirs[1:]
-
-    settings.MUSIC_DIR = primary
-    settings.EXTRA_MUSIC_DIRS = extra
-
-    env_path = Path(__file__).parent.parent.parent / ".env"
+    EXTRA_MUSIC_DIRS is written as a JSON array (pydantic-settings parses
+    list[str] env values with json.loads) — a naive comma join produces a
+    value that fails Settings() parsing and the API refuses to boot on the
+    next restart.
+    """
     lines: list[str] = []
     if env_path.exists():
         lines = env_path.read_text().splitlines()
@@ -73,8 +99,28 @@ async def save_directories(body: DirectoriesSchema):
         lines.append(f"{key}={value}")
 
     _set("MUSIC_DIR", primary)
-    _set("EXTRA_MUSIC_DIRS", ",".join(extra))
+    _set("EXTRA_MUSIC_DIRS", json.dumps(extra))
     env_path.write_text("\n".join(lines) + "\n")
+
+
+@router.post("/directories")
+async def save_directories(body: DirectoriesSchema, user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    """Persist the frontend's directory list to settings."""
+    if not body.dirs:
+        raise HTTPException(status_code=400, detail="At least one directory is required")
+
+    primary = body.dirs[0]
+    extra = body.dirs[1:]
+
+    settings.MUSIC_DIR = primary
+    settings.EXTRA_MUSIC_DIRS = extra
+
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    try:
+        _persist_dirs_to_env(env_path, primary, extra)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Could not persist directories: {e}") from e
 
     return {"ok": True, "directories": body.dirs}
 
@@ -82,11 +128,21 @@ async def save_directories(body: DirectoriesSchema):
 # ── Directory browse ──────────────────────────────────────────
 
 @router.get("/directories/browse")
-async def browse_directory(path: str):
+async def browse_directory(path: str, _user: dict = Depends(get_current_user)):
     """List audio files in a given directory path."""
     p = Path(path).resolve()
     allowed_bases = [Path(d).resolve() for d in settings.all_music_dirs_configured]
-    if not any(str(p).startswith(str(base)) for base in allowed_bases):
+    # Resolve-symlink too so a symlink inside a base dir cannot escape it.
+    try:
+        p_real = p.resolve()
+        bases_real = [b.resolve() for b in allowed_bases]
+    except Exception:
+        p_real, bases_real = p, allowed_bases
+    # commonpath (not startswith) so a sibling like /music_evil does not
+    # count as being "under" /music.
+    if not any(
+        _is_under(p_real, base) for base in bases_real
+    ):
         raise HTTPException(status_code=403, detail="Access denied: path outside configured music directories")
     if not p.exists():
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
@@ -114,7 +170,8 @@ class RescanSchema(BaseModel):
 
 
 @router.post("/rescan")
-async def rescan_library(body: RescanSchema | None = None):
+async def rescan_library(body: RescanSchema | None = None, user: dict = Depends(get_current_user)):
+    _require_admin(user)
     """Re-index all active directories."""
     from app.routers.track_router import invalidate_track_index
 

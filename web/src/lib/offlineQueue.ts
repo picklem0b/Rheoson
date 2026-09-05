@@ -15,7 +15,7 @@ import { API_BASE } from './constants';
 // ── State ──────────────────────────────────────────────────────
 
 let _syncing = false;
-let _listeners: Set<() => void> = new Set();
+const _listeners: Set<() => void> = new Set();
 
 // ── Queue a mutation ───────────────────────────────────────────
 

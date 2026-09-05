@@ -37,7 +37,9 @@ let _sessionId = crypto.randomUUID();
  * Fire-and-forget — errors are silently swallowed.
  */
 export function reportSignal(payload: SignalPayload): void {
-  api.post('/api/tracks/signals', {
+  // api client already prefixes API_BASE (which ends in /api) — the
+  // route here must NOT include the /api segment or it doubles up.
+  api.post('/tracks/signals', {
     ...payload,
     session_id: _sessionId,
   }).catch(() => {}); // Best-effort
@@ -45,31 +47,31 @@ export function reportSignal(payload: SignalPayload): void {
 
 /** Convenience wrappers for common signals */
 
-export function signalPlayStart(trackId: string, artist?: string) {
+export function signalPlayStart(trackId?: string, artist?: string) {
   reportSignal({ signal: 'play_start', track_id: trackId, artist });
 }
 
-export function signalPlayComplete(trackId: string, artist?: string) {
+export function signalPlayComplete(trackId?: string, artist?: string) {
   reportSignal({ signal: 'play_complete', track_id: trackId, artist });
 }
 
-export function signalSkip(trackId: string, progress: number, artist?: string) {
+export function signalSkip(trackId: string | undefined, progress: number, artist?: string) {
   reportSignal({ signal: 'skip', track_id: trackId, progress, artist });
 }
 
-export function signalProgress(trackId: string, progress: number) {
+export function signalProgress(trackId: string | undefined, progress: number) {
   reportSignal({ signal: 'play_progress', track_id: trackId, progress });
 }
 
-export function signalRepeat(trackId: string, artist?: string) {
+export function signalRepeat(trackId?: string, artist?: string) {
   reportSignal({ signal: 'repeat', track_id: trackId, artist });
 }
 
-export function signalLike(trackId: string, artist?: string) {
+export function signalLike(trackId?: string, artist?: string) {
   reportSignal({ signal: 'like', track_id: trackId, artist });
 }
 
-export function signalUnlike(trackId: string) {
+export function signalUnlike(trackId?: string) {
   reportSignal({ signal: 'unlike', track_id: trackId });
 }
 
@@ -77,8 +79,12 @@ export function signalSearch(query: string) {
   reportSignal({ signal: 'search', context: { query } });
 }
 
-export function signalQueueAdd(trackId: string, artist?: string) {
+export function signalQueueAdd(trackId?: string, artist?: string) {
   reportSignal({ signal: 'queue_add', track_id: trackId, artist });
+}
+
+export function signalDownload(trackId?: string, artist?: string) {
+  reportSignal({ signal: 'download', track_id: trackId, artist });
 }
 
 /** Reset session (e.g. on app restart) */

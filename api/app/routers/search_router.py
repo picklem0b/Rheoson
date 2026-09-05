@@ -1,7 +1,8 @@
 from __future__ import annotations
 import re
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
+from app.core.deps import get_current_user
 from app.services.search_service import search, resolve_url
 from app.services.ytmusic_service import get_suggestions
 from app.schemas.search_schema import SearchResultsSchema, ResolveResponseSchema
@@ -24,7 +25,10 @@ def _sanitize_query(q: str) -> str:
 @router.get("", response_model=SearchResultsSchema)
 async def search_endpoint(
     q:      str        = Query(..., min_length=1),
-    filter: str | None = Query(None, regex="^(tracks|albums|artists|playlists)$"),
+    # 'songs' is accepted as an alias for 'tracks' — the service layer
+    # already branches on it, so the router must not reject it.
+    filter: str | None = Query(None, pattern="^(tracks|songs|albums|artists|playlists)$"),
+    _user:  dict       = Depends(get_current_user),
 ):
     q = _sanitize_query(q)
     if not q:
@@ -33,7 +37,10 @@ async def search_endpoint(
 
 
 @router.get("/suggest")
-async def suggest_endpoint(q: str = Query(..., min_length=1)) -> list[str]:
+async def suggest_endpoint(
+    q: str = Query(..., min_length=1),
+    _user: dict = Depends(get_current_user),
+) -> list[str]:
     """
     Instant autocomplete — returns in ~80ms.
     No debounce needed — call on every keystroke.
@@ -49,7 +56,10 @@ class ResolveRequest(BaseModel):
 
 
 @router.post("/resolve", response_model=ResolveResponseSchema)
-async def resolve_endpoint(body: ResolveRequest):
+async def resolve_endpoint(
+    body: ResolveRequest,
+    _user: dict = Depends(get_current_user),
+):
     url = body.url.strip()
     if not url:
         raise HTTPException(status_code=400, detail="url is required")
@@ -57,4 +67,11 @@ async def resolve_endpoint(body: ResolveRequest):
         raise HTTPException(status_code=400, detail="URL too long")
     if not _URL_PATTERN.match(url):
         raise HTTPException(status_code=400, detail="Invalid URL format")
+
+    # Only known media hosts may be fetched server-side (SSRF guard).
+    from app.services.netguard import ensure_safe_media_url
+    try:
+        ensure_safe_media_url(url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return await resolve_url(url)

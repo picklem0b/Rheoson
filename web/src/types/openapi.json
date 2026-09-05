@@ -12,6 +12,11 @@
         ],
         "summary": "Search Endpoint",
         "operationId": "search_endpoint_api_search_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "q",
@@ -31,7 +36,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(tracks|albums|artists|playlists)$"
+                  "pattern": "^(tracks|songs|albums|artists|playlists)$"
                 },
                 {
                   "type": "null"
@@ -73,6 +78,11 @@
         "summary": "Suggest Endpoint",
         "description": "Instant autocomplete \u2014 returns in ~80ms.\nNo debounce needed \u2014 call on every keystroke.",
         "operationId": "suggest_endpoint_api_search_suggest_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "q",
@@ -151,7 +161,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/tracks/": {
@@ -160,7 +175,7 @@
           "tracks"
         ],
         "summary": "List Tracks",
-        "description": "All files currently on disk in MUSIC_DIR.",
+        "description": "All files currently on disk \u2014 shared instance library.",
         "operationId": "list_tracks_api_tracks__get",
         "responses": {
           "200": {
@@ -177,7 +192,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/tracks/liked/count": {
@@ -197,7 +217,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/tracks/liked": {
@@ -222,7 +247,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/tracks/recently-played": {
@@ -247,7 +277,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/tracks/trending": {
@@ -272,7 +307,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/tracks/history": {
@@ -291,7 +331,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/tracks/signals": {
@@ -300,7 +345,7 @@
           "tracks"
         ],
         "summary": "Report Signal",
-        "description": "Record a behavioral signal from the frontend.\n\nAccepts: { signal, track_id?, artist?, progress?, context? }",
+        "description": "Record a behavioral signal from the frontend.\n\nAccepts: { signal, track_id?, artist?, progress?, context? }\nRequires the database (signals drive the Mongo recommendation profiler).",
         "operationId": "report_signal_api_tracks_signals_post",
         "requestBody": {
           "content": {
@@ -333,7 +378,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/tracks/stats/{track_id}": {
@@ -342,8 +392,13 @@
           "tracks"
         ],
         "summary": "Get Track Stats",
-        "description": "Return play count, like count, and last played for a track.",
+        "description": "Return play count, like count, and last played for a track (per user).",
         "operationId": "get_track_stats_api_tracks_stats__track_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "track_id",
@@ -384,6 +439,11 @@
         ],
         "summary": "Get Track",
         "operationId": "get_track_api_tracks__track_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "track_id",
@@ -426,6 +486,11 @@
         ],
         "summary": "Like Track",
         "operationId": "like_track_api_tracks__track_id__like_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "track_id",
@@ -464,6 +529,11 @@
         ],
         "summary": "Unlike Track",
         "operationId": "unlike_track_api_tracks__track_id__like_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "track_id",
@@ -504,6 +574,11 @@
         ],
         "summary": "Record Play",
         "operationId": "record_play_api_tracks__track_id__play_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "track_id",
@@ -559,7 +634,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -598,7 +678,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/downloads/{job_id}": {
@@ -608,6 +693,11 @@
         ],
         "summary": "Get Download",
         "operationId": "get_download_api_downloads__job_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "job_id",
@@ -648,6 +738,11 @@
         ],
         "summary": "Delete Download",
         "operationId": "delete_download_api_downloads__job_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "job_id",
@@ -688,6 +783,11 @@
         ],
         "summary": "Cancel Download",
         "operationId": "cancel_download_api_downloads__job_id__cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "job_id",
@@ -728,6 +828,11 @@
         ],
         "summary": "Retry Download",
         "operationId": "retry_download_api_downloads__job_id__retry_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "job_id",
@@ -793,6 +898,57 @@
                   "type": "array",
                   "title": "Response Batch Download Api Downloads Batch Post"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/stream/{track_id}/warm": {
+      "post": {
+        "tags": [
+          "stream"
+        ],
+        "summary": "Warm Stream",
+        "description": "Start buffering a remote track in the background.\n\nIdempotent: dedupes against the remote cache and any warm already\nin flight. Bounded by _WARM_LIMIT concurrent downloads \u2014 when the\nlimit is reached the request is a cheap no-op (\"busy\") and the next\nGET falls back to the live-stream path.",
+        "operationId": "warm_stream_api_stream__track_id__warm_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -997,7 +1153,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/stream/remote-cache/clear": {
@@ -1017,7 +1178,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/stream/artwork/cache/clear": {
@@ -1037,7 +1203,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/lyrics/{track_id}": {
@@ -1047,6 +1218,11 @@
         ],
         "summary": "Fetch Lyrics",
         "operationId": "fetch_lyrics_api_lyrics__track_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "track_id",
@@ -1108,71 +1284,45 @@
           "playlists"
         ],
         "summary": "List Playlists",
-        "description": "List all playlists for the current user.",
+        "description": "List the current user's playlists, most recently updated first.",
         "operationId": "list_playlists_api_playlists__get",
-        "parameters": [
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/PlaylistSchema"
                   },
+                  "type": "array",
                   "title": "Response List Playlists Api Playlists  Get"
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
           "playlists"
         ],
         "summary": "Create Playlist",
-        "description": "Create a new playlist.",
         "operationId": "create_playlist_api_playlists__post",
-        "parameters": [
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreatePlaylistSchema"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "201": {
@@ -1195,7 +1345,59 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/playlists/import": {
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Import Playlist Url",
+        "description": "Create a new playlist from a shared URL (Spotify/YouTube/SoundCloud\u2026).",
+        "operationId": "import_playlist_url_api_playlists_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPlaylistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/playlists/{playlist_id}": {
@@ -1204,8 +1406,13 @@
           "playlists"
         ],
         "summary": "Get Playlist",
-        "description": "Get a single playlist by ID.",
+        "description": "Get one playlist with fully hydrated track objects.",
         "operationId": "get_playlist_api_playlists__playlist_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "playlist_id",
@@ -1214,14 +1421,6 @@
             "schema": {
               "type": "string",
               "title": "Playlist Id"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
             }
           }
         ],
@@ -1253,8 +1452,13 @@
           "playlists"
         ],
         "summary": "Update Playlist",
-        "description": "Update playlist title/description.",
+        "description": "Update playlist title/description/artwork.",
         "operationId": "update_playlist_api_playlists__playlist_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "playlist_id",
@@ -1263,14 +1467,6 @@
             "schema": {
               "type": "string",
               "title": "Playlist Id"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
             }
           }
         ],
@@ -1312,8 +1508,13 @@
           "playlists"
         ],
         "summary": "Delete Playlist",
-        "description": "Delete a playlist.",
+        "description": "Delete a playlist.\n\nIdempotent: deleting a playlist that no longer exists is a success (204).\nThe frontend queues deletions for offline sync and replays them later \u2014 a\n404 on replay would surface as a spurious sync error.",
         "operationId": "delete_playlist_api_playlists__playlist_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "playlist_id",
@@ -1322,14 +1523,6 @@
             "schema": {
               "type": "string",
               "title": "Playlist Id"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
             }
           }
         ],
@@ -1358,6 +1551,11 @@
         "summary": "Add Track",
         "description": "Add a track to a playlist.",
         "operationId": "add_track_api_playlists__playlist_id__tracks_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "playlist_id",
@@ -1366,14 +1564,6 @@
             "schema": {
               "type": "string",
               "title": "Playlist Id"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
             }
           }
         ],
@@ -1419,6 +1609,11 @@
         "summary": "Remove Track",
         "description": "Remove a track from a playlist.",
         "operationId": "remove_track_api_playlists__playlist_id__tracks__track_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "playlist_id",
@@ -1436,14 +1631,6 @@
             "schema": {
               "type": "string",
               "title": "Track Id"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
             }
           }
         ],
@@ -1477,6 +1664,11 @@
         "summary": "Reorder Tracks",
         "description": "Reorder tracks in a playlist.",
         "operationId": "reorder_tracks_api_playlists__playlist_id__tracks_reorder_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "playlist_id",
@@ -1485,14 +1677,6 @@
             "schema": {
               "type": "string",
               "title": "Playlist Id"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
             }
           }
         ],
@@ -1535,9 +1719,14 @@
         "tags": [
           "playlists"
         ],
-        "summary": "Import Spotify",
-        "description": "Import a Spotify playlist into a local playlist.",
-        "operationId": "import_spotify_api_playlists__playlist_id__import_post",
+        "summary": "Import Into Playlist",
+        "description": "Import tracks from a shared URL into an existing playlist.",
+        "operationId": "import_into_playlist_api_playlists__playlist_id__import_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "playlist_id",
@@ -1546,14 +1735,6 @@
             "schema": {
               "type": "string",
               "title": "Playlist Id"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
             }
           }
         ],
@@ -1599,6 +1780,11 @@
         "summary": "Export Playlist",
         "description": "Export playlist as JSON with hydrated track metadata.",
         "operationId": "export_playlist_api_playlists__playlist_id__export_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "playlist_id",
@@ -1607,14 +1793,6 @@
             "schema": {
               "type": "string",
               "title": "Playlist Id"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "User"
             }
           }
         ],
@@ -1657,7 +1835,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/settings/directories": {
@@ -1677,14 +1860,18 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
           "settings"
         ],
         "summary": "Save Directories",
-        "description": "Persist the frontend's directory list to settings.",
         "operationId": "save_directories_api_settings_directories_post",
         "requestBody": {
           "content": {
@@ -1715,7 +1902,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/settings/directories/browse": {
@@ -1726,6 +1918,11 @@
         "summary": "Browse Directory",
         "description": "List audio files in a given directory path.",
         "operationId": "browse_directory_api_settings_directories_browse_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "path",
@@ -1765,7 +1962,6 @@
           "settings"
         ],
         "summary": "Rescan Library",
-        "description": "Re-index all active directories.",
         "operationId": "rescan_library_api_settings_rescan_post",
         "requestBody": {
           "content": {
@@ -1803,7 +1999,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/auth/register": {
@@ -1854,7 +2055,7 @@
           "auth"
         ],
         "summary": "Login",
-        "description": "Login via Clerk \u2014 verify credentials and create session.\n\nNote: Clerk's Backend API doesn't have a direct \"login\" endpoint.\nThe frontend should use Clerk's signIn.create() to authenticate,\nthen pass the resulting session token. This endpoint exists as a\nfallback for API-only authentication.",
+        "description": "Login via Clerk \u2014 verify credentials and create a session.\n\nClerk's Backend API has no password-check endpoint, so we create a\nreal session for the matching Clerk account and hand its JWT back.\nClerk enforces the password on session creation: unknown credentials\nreturn 404/422 here, which maps to a generic 401 for the client.",
         "operationId": "login_api_auth_login_post",
         "requestBody": {
           "content": {
@@ -1888,6 +2089,31 @@
             }
           }
         }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "Revoke the Clerk session so the JWT dies server-side, not just locally.",
+        "operationId": "logout_api_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/auth/me": {
@@ -1958,33 +2184,13 @@
         ]
       }
     },
-    "/api/auth/guest-visit": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Record Guest Visit",
-        "description": "Record a guest visit. Called once per session on app load.",
-        "operationId": "record_guest_visit_api_auth_guest_visit_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/auth/visitor-count": {
       "get": {
         "tags": [
           "auth"
         ],
         "summary": "Visitor Count",
-        "description": "Get total visitors (guests + authed). For the landing page.",
+        "description": "Get the registered-account total. Session required (no guest counting).",
         "operationId": "visitor_count_api_auth_visitor_count_get",
         "responses": {
           "200": {
@@ -1995,7 +2201,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/recommendations/home": {
@@ -2004,7 +2215,7 @@
           "recommendations"
         ],
         "summary": "Get Home Recommendations",
-        "description": "Get personalized home page recommendations.\n\nWorks without MongoDB \u2014 uses local play history + library + YTMusic trending.",
+        "description": "Get personalized home page recommendations for the current user.",
         "operationId": "get_home_recommendations_api_recommendations_home_get",
         "security": [
           {
@@ -2053,7 +2264,7 @@
           "recommendations"
         ],
         "summary": "Get Autoplay",
-        "description": "Get autoplay candidates when the current track ends.\n\nWorks without MongoDB \u2014 searches YTMusic for similar tracks.",
+        "description": "Get autoplay candidates when the current track ends.",
         "operationId": "get_autoplay_api_recommendations_autoplay_get",
         "security": [
           {
@@ -2162,7 +2373,7 @@
           "recommendations"
         ],
         "summary": "Get Taste Profile",
-        "description": "Get the user's current taste profile.",
+        "description": "Get the current user's taste profile (Mongo signals or local mirror).",
         "operationId": "get_taste_profile_api_recommendations_taste_get",
         "responses": {
           "200": {
@@ -2187,7 +2398,7 @@
           "recommendations"
         ],
         "summary": "Force Refresh",
-        "description": "Force a full recommendation refresh.",
+        "description": "Force a full recommendation refresh for the current user.",
         "operationId": "force_refresh_api_recommendations_refresh_post",
         "responses": {
           "200": {
@@ -2223,7 +2434,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/equalizer/presets/{preset_id}": {
@@ -2234,6 +2450,11 @@
         "summary": "Get Preset",
         "description": "Return full band configuration for a preset.",
         "operationId": "get_preset_api_equalizer_presets__preset_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "preset_id",
@@ -2273,7 +2494,7 @@
           "share"
         ],
         "summary": "Share Card",
-        "description": "Return an OpenGraph HTML page for social media sharing previews.\n\nThe meta tags are read by Telegram, Discord, Twitter, WhatsApp, etc.\nto generate rich preview cards when the link is pasted.",
+        "description": "Return an OpenGraph HTML page for social media sharing previews.\n\nThe meta tags are read by Telegram, Discord, Twitter, WhatsApp, etc.\nto generate rich preview cards when the link is pasted.\n\nEvery interpolated value is HTML-escaped \u2014 title/artist come straight\nfrom the query string and were previously reflected raw (reflected XSS).",
         "operationId": "share_card_api_share__track_id__card_get",
         "parameters": [
           {
@@ -2346,6 +2567,11 @@
         "summary": "Share Link",
         "description": "Return a clean shareable URL for a track.",
         "operationId": "share_link_api_share__track_id__link_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "track_id",
@@ -2405,7 +2631,7 @@
           "analytics"
         ],
         "summary": "Listening Stats",
-        "description": "Get overall listening statistics for the user.",
+        "description": "Get overall listening statistics for the current user.",
         "operationId": "listening_stats_api_analytics_stats_get",
         "responses": {
           "200": {
@@ -2652,6 +2878,11 @@
         "summary": "Most Played",
         "description": "Tracks with highest play count in the given time window.",
         "operationId": "most_played_api_smart_playlists_most_played_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -2706,8 +2937,13 @@
           "smart-playlists"
         ],
         "summary": "Recently Added",
-        "description": "Most recently downloaded/added tracks, sorted by file modification time.",
+        "description": "Most recently downloaded/added tracks \u2014 shared instance library.",
         "operationId": "recently_added_api_smart_playlists_recently_added_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -2752,6 +2988,11 @@
         "summary": "Discover",
         "description": "Tracks the user has in their library but rarely plays \u2014 hidden gems.",
         "operationId": "discover_api_smart_playlists_discover_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -2796,6 +3037,11 @@
         "summary": "Time Capsule",
         "description": "Tracks you listened to exactly N days ago \u2014 nostalgic rediscovery.",
         "operationId": "time_capsule_api_smart_playlists_time_capsule_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "days_ago",
@@ -2970,6 +3216,111 @@
           }
         }
       }
+    },
+    "/api/library/albums/{album_id}": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Library Album Detail",
+        "description": "Album detail page: cover + full track list.\n\nRemote YouTube Music albums (browse IDs like MPREb\u2026) are served from\nytmusicapi's get_album. Local library albums (md5-derived IDs or a\n?name= fallback) are aggregated from the file index so the Album page\nworks fully offline too.",
+        "operationId": "library_album_detail_api_library_albums__album_id__get",
+        "parameters": [
+          {
+            "name": "album_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Album Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fallback match by album title",
+              "default": "",
+              "title": "Name"
+            },
+            "description": "Fallback match by album title"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/artists/{artist_id}": {
+      "get": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Artist Detail",
+        "operationId": "artist_detail_api_artists__artist_id__get",
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fallback match by artist name",
+              "default": "",
+              "title": "Name"
+            },
+            "description": "Fallback match by artist name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3118,6 +3469,42 @@
             "type": "boolean",
             "title": "Embed Lyrics",
             "default": true
+          },
+          "embed_metadata": {
+            "type": "boolean",
+            "title": "Embed Metadata",
+            "default": true
+          },
+          "file_naming": {
+            "type": "string",
+            "title": "File Naming",
+            "default": "artist-title"
+          },
+          "custom_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Path"
+          },
+          "retries": {
+            "type": "integer",
+            "title": "Retries",
+            "default": 3
+          },
+          "speed_limit": {
+            "type": "integer",
+            "title": "Speed Limit",
+            "default": 0
+          },
+          "concurrency": {
+            "type": "integer",
+            "title": "Concurrency",
+            "default": 3
           }
         },
         "type": "object",
@@ -3323,6 +3710,53 @@
             "type": "boolean",
             "title": "Embedlyrics",
             "default": true
+          },
+          "embedMetadata": {
+            "type": "boolean",
+            "title": "Embedmetadata",
+            "default": true
+          },
+          "retries": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Retries",
+            "default": 3
+          },
+          "speedLimit": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Speedlimit",
+            "default": 0
+          },
+          "concurrency": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Concurrency",
+            "default": 3
+          },
+          "fileNaming": {
+            "type": "string",
+            "enum": [
+              "artist-title",
+              "title-artist",
+              "id"
+            ],
+            "title": "Filenaming",
+            "default": "artist-title"
+          },
+          "customPath": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custompath"
           }
         },
         "type": "object",
@@ -3340,6 +3774,30 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImportPlaylistRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ImportPlaylistRequest"
       },
       "LoginRequest": {
         "properties": {
@@ -3471,6 +3929,13 @@
             },
             "type": "array",
             "title": "Tracks"
+          },
+          "trackIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Trackids"
           },
           "trackCount": {
             "type": "integer",
@@ -3790,6 +4255,11 @@
           "description": {
             "type": "string",
             "title": "Description",
+            "default": ""
+          },
+          "artworkUrl": {
+            "type": "string",
+            "title": "Artworkurl",
             "default": ""
           }
         },

@@ -6,11 +6,12 @@ interface AuthState {
   token: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
+  /** True once mount-time token validation has finished. */
+  ready: boolean;
   isLoading: boolean;
-  isGuest: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   initialize: () => Promise<void>;
   setToken: (token: string) => void;
 }
@@ -21,8 +22,8 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       isAuthenticated: false,
+      ready: false,
       isLoading: false,
-      isGuest: true,
 
       login: async (email, password) => {
         set({ isLoading: true });
@@ -32,7 +33,7 @@ export const useAuthStore = create<AuthState>()(
             token: res.session_token,
             user: res.user,
             isAuthenticated: true,
-            isGuest: false,
+            ready: true,
             isLoading: false,
           });
         } catch (err) {
@@ -49,7 +50,7 @@ export const useAuthStore = create<AuthState>()(
             token: res.session_token,
             user: res.user,
             isAuthenticated: true,
-            isGuest: false,
+            ready: true,
             isLoading: false,
           });
         } catch (err) {
@@ -58,19 +59,35 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
-        set({ token: null, user: null, isAuthenticated: false, isGuest: true });
+      logout: async () => {
+        const { token } = get();
+        // Revoke the Clerk session server-side first — best effort, so a
+        // network failure still signs the device out locally.
+        if (token) {
+          try {
+            await authApi.logout();
+          } catch {
+            /* token may already be dead — drop it locally anyway */
+          }
+        }
+        set({ token: null, user: null, isAuthenticated: false, ready: true });
       },
 
       initialize: async () => {
-        const { token } = get();
-        if (!token) return;
+        const { token, ready } = get();
+        if (ready) return;
+        if (!token) {
+          // No stored session — nothing to validate. AuthGuard sends the
+          // user to /login; guest mode no longer exists.
+          set({ ready: true, isAuthenticated: false, user: null });
+          return;
+        }
         try {
           const user = await authApi.getProfile();
-          set({ user, isAuthenticated: true, isGuest: false });
+          set({ user, isAuthenticated: true, ready: true });
         } catch {
-          // Token expired or invalid — fall back to guest mode
-          set({ token: null, user: null, isAuthenticated: false, isGuest: true });
+          // Token expired or invalid — drop it and require sign-in.
+          set({ token: null, user: null, isAuthenticated: false, ready: true });
         }
       },
 

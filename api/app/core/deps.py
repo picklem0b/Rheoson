@@ -29,6 +29,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.auth import verify_clerk_token
 
+# Deprecated alias removed. Authentication is mandatory: there is no guest
+# identity anymore, so every dependency must resolve to a real Clerk sub.
+
 _bearer = HTTPBearer(auto_error=False)
 
 
@@ -54,12 +57,6 @@ async def get_current_user(
     return claims
 
 
-async def get_optional_user(
-    cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> dict[str, Any] | None:
-    """Return user claims if a valid token is present, None otherwise."""
-    if cred is None:
-        return None
-
-    claims = await verify_clerk_token(cred.credentials)
-    return claims
+def user_sub(claims: dict[str, Any]) -> str:
+    """The canonical per-user key for every user-scoped store."""
+    return claims["sub"]

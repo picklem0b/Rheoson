@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatDuration, formatFileSize, formatRelativeTime, formatCount, formatTrackCount, truncate, capitalize, formatTotalDuration } from '@/lib/formatters'
+import { formatDuration, formatFileSize, formatCount, formatTrackCount, truncate, capitalize, formatTotalDuration } from '@/lib/formatters'
 
 describe('formatDuration', () => {
   it('formats seconds to mm:ss', () => {

@@ -25,7 +25,6 @@ from app.models.recommendation import (
 )
 from app.services.signal_service import (
     get_artist_stats,
-    get_genre_stats,
     get_time_of_day_preferences,
     get_total_signals,
     get_play_history,
@@ -95,8 +94,11 @@ async def build_taste_profile(
     top_artists = _compute_artist_preferences(artist_stats, now)
 
     # ── Genre preferences ─────────────────────────────────────
-    genre_stats = await get_genre_stats(db, user_id, days=90)
-    top_genres = _compute_genre_preferences(genre_stats)
+    # Signals almost never carry a genre, so infer genres from the artist
+    # names we do have (curated map + keyword rules). Without this the
+    # genre half of the profile stayed empty and genre affinity scoring
+    # and genre discovery never fired.
+    top_genres = _genres_from_artist_stats(artist_stats)
 
     # ── Time-of-day patterns ──────────────────────────────────
     active_hours = await get_time_of_day_preferences(db, user_id, days=30)
@@ -177,23 +179,37 @@ def _compute_artist_preferences(
     return scored
 
 
-def _compute_genre_preferences(
-    genre_stats: dict[str, dict],
-) -> list[GenrePreference]:
-    """Compute weighted affinity scores for each genre."""
-    scored = []
-    for genre, stats in genre_stats.items():
+def _genres_from_artist_stats(artist_stats: dict[str, dict]) -> list[GenrePreference]:
+    """Infer genre preferences from per-artist stats via genre classification."""
+    from app.services.taste_utils import classify_artist_genres
+
+    agg_scores: dict[str, float] = {}
+    agg_plays: dict[str, int] = {}
+
+    for artist, stats in artist_stats.items():
+        genres = classify_artist_genres(artist)
+        if not genres:
+            continue
         score = (
             stats["plays"] * WEIGHTS["play_start"]
             + stats["likes"] * WEIGHTS["like"]
             + stats["skips"] * WEIGHTS["skip"]
+            + stats.get("completions", 0) * WEIGHTS["play_complete"]
         )
-        scored.append(GenrePreference(
+        # Distribute an artist's weight across each of their genres
+        share = 1.0 / len(genres)
+        for genre in genres:
+            agg_scores[genre] = agg_scores.get(genre, 0.0) + score * share
+            agg_plays[genre] = agg_plays.get(genre, 0) + round(stats["plays"] * share)
+
+    scored = [
+        GenrePreference(
             genre=genre,
             score=round(score, 3),
-            play_count=stats["plays"],
-        ))
-
+            play_count=agg_plays[genre],
+        )
+        for genre, score in agg_scores.items()
+    ]
     scored.sort(key=lambda x: x.score, reverse=True)
     return scored
 

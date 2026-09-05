@@ -6,9 +6,10 @@ preset configurations are managed server-side so they sync across devices.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from app.core.deps import get_current_user
 
 router = APIRouter()
 
@@ -141,7 +142,7 @@ class EQPreset(BaseModel):
 
 
 @router.get("/presets")
-async def list_presets():
+async def list_presets(_user: dict = Depends(get_current_user)):
     """Return all built-in equalizer presets."""
     return {
         "presets": [
@@ -152,7 +153,7 @@ async def list_presets():
 
 
 @router.get("/presets/{preset_id}")
-async def get_preset(preset_id: str):
+async def get_preset(preset_id: str, _user: dict = Depends(get_current_user)):
     """Return full band configuration for a preset."""
     preset = PRESETS.get(preset_id)
     if not preset:

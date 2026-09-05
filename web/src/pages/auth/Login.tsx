@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import { motion } from 'framer-motion';
@@ -9,8 +9,13 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, isLoading } = useAuthStore();
+  const { login, isAuthenticated, isLoading } = useAuthStore();
   const navigate = useNavigate();
+
+  // Already signed in? No guest mode anymore — send them straight in.
+  useEffect(() => {
+    if (isAuthenticated) navigate('/', { replace: true });
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,14 +23,11 @@ export default function Login() {
     try {
       await login(email, password);
       navigate('/');
-    } catch (err: any) {
-      const detail = err?.detail || err?.message || 'Login failed';
+    } catch (err) {
+      const e = err as { detail?: string; message?: string };
+      const detail = e?.detail || e?.message || 'Login failed';
       setError(detail);
     }
-  };
-
-  const handleGuestSkip = () => {
-    navigate('/');
   };
 
   return (
@@ -103,28 +105,11 @@ export default function Login() {
 
         <div className="mt-6 text-center space-y-3">
           <p className="text-sm text-[var(--text-muted)]">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link to="/register" className="font-semibold text-[var(--accent)] hover:underline">
               Create one
             </Link>
           </p>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[var(--border)]" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="px-2 bg-[var(--bg-base)] text-[var(--text-muted)]">or</span>
-            </div>
-          </div>
-
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={handleGuestSkip}
-            className="w-full py-2.5 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] transition-colors"
-          >
-            Continue as guest
-          </motion.button>
         </div>
       </motion.div>
     </div>

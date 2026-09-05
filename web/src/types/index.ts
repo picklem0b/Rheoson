@@ -92,11 +92,20 @@ export interface SearchSuggestion {
   type: 'recent' | 'trending'
 }
 
+export type FileNaming = 'artist-title' | 'title-artist' | 'id'
+
 export interface DownloadOptions {
   format: AudioFormat
   quality: AudioQuality
   embedArtwork: boolean
   embedLyrics: boolean
+  // Advanced options — defaults come from Settings → Downloads
+  embedMetadata?: boolean
+  fileNaming?: FileNaming
+  customPath?: string
+  retries?: number
+  speedLimit?: number
+  concurrency?: number
 }
 
 // ── API path types (for type-safe fetch calls) ────────────────

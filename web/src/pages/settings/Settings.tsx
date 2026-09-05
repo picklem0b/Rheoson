@@ -6,6 +6,7 @@ import {
   HardDrive, Layout, BarChart3,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
+import { ProfileRow } from '@/components/ui/ProfileRow'
 import { APP_VERSION } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
@@ -100,10 +101,11 @@ export default function Settings() {
         'flex-shrink-0 w-full lg:w-[310px] flex flex-col border-r border-[var(--border)]/40',
         active ? 'hidden lg:flex' : 'flex',
       )}>
-        <div className="px-5 pt-12 pb-2 flex-shrink-0">
-          <h1 className="text-[32px] font-bold tracking-tight text-[var(--text-primary)]">
+        <div className="px-5 pt-12 pb-3 flex-shrink-0 space-y-4">
+          <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[var(--text-primary)] leading-tight">
             Settings
           </h1>
+          <ProfileRow />
         </div>
 
         <ScrollArea className="flex-1 px-4 pb-6 pt-3">
@@ -195,8 +197,12 @@ export default function Settings() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 px-4 lg:px-5 pb-10 pt-3">
-                <SectionContent id={active} />
+              {/* Content is capped + centred on wide screens so groups
+                  don't stretch edge-to-edge on large monitors. */}
+              <ScrollArea className="flex-1 px-4 lg:px-6 pb-10 pt-3">
+                <div className="mx-auto w-full max-w-3xl">
+                  <SectionContent id={active} />
+                </div>
               </ScrollArea>
             </motion.div>
           ) : (

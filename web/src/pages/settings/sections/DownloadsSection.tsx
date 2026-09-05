@@ -130,8 +130,8 @@ export default function DownloadsSection() {
             </SettingsRow>
             <SettingsRow
                label='Split chapters'
-               description='For long videos — create a separate file per chapter'>
-               <Toggle value={chapters} onChange={setChapters} />
+               description='Not available yet — long videos download as a single file'>
+               <Toggle value={chapters} onChange={setChapters} disabled />
             </SettingsRow>
          </SettingsGroup>
 
@@ -160,7 +160,7 @@ export default function DownloadsSection() {
          <SettingsGroup title='Save location'>
             <SettingsRow
                label='Custom path'
-               description={customPath || "Default Rheoson music directory"}
+               description={customPath || "Default Rheoson music directory — Artist/Track layout"}
                onClick={() => {
                   setPathInput(customPath);
                   setEditingPath(!editingPath);

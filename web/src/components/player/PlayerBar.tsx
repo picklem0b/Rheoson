@@ -10,12 +10,14 @@ import {
    WifiOff
 } from "lucide-react";
 import { usePlayerStore } from "@/store/player.store";
+import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { useUIStore } from "@/store/ui.store";
 import { tracksApi } from "@/api/tracks.api";
 import PlayerControls from "./PlayerControls";
 import ProgressBar from "./ProgressBar";
 import VolumeControl from "./VolumeControl";
 import { IconButton } from "@/components/ui/IconButton";
+import { useToast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/utils";
 import { truncate } from "@/lib/formatters";
 
@@ -26,11 +28,17 @@ export default function PlayerBar() {
    const isLoading = usePlayerStore(s => s.isLoading);
    const {
       showQueue,
-      showLyrics,
       toggleQueue,
-      toggleLyrics,
       openDownloadModal
    } = useUIStore();
+
+   // Lyrics lives in the full-player view (Lyrics tab) — open it there.
+   const openLyrics = useCallback(() => {
+      navigate("/full-player");
+      window.dispatchEvent(
+         new CustomEvent("rheoson:show-tab", { detail: "lyric" })
+      );
+   }, [navigate]);
 
    // Local liked state — kept in sync with the track's isLiked flag.
    const [liked, setLiked] = useState(currentTrack?.isLiked ?? false);
@@ -66,6 +74,26 @@ export default function PlayerBar() {
             setLiked(!next); // revert on failure
          }
       }, [currentTrack?.id, liked]); // eslint-disable-line react-hooks/exhaustive-deps -- track ID change is sufficient
+
+   const { toast } = useToast();
+
+   // Tell the user when autoplay kicked in at the end of the queue
+   useEffect(() => {
+      const handler = (e: Event) => {
+         const d = (e as CustomEvent<{ title?: string; count?: number }>).detail;
+         toast(
+            `Autoplaying similar music — ${truncate(d?.title ?? "", 22)}`,
+            "info",
+            3000
+         );
+      };
+      window.addEventListener("rheoson:autoplay-started", handler);
+      return () =>
+         window.removeEventListener("rheoson:autoplay-started", handler);
+   }, [toast]);
+
+   // Universal context menu on the track info area (right-click / long-press)
+   const contextMenu = useTrackContextMenu(currentTrack);
 
    if (!currentTrack) return null;
 
@@ -104,10 +132,12 @@ export default function PlayerBar() {
                </div>
 
                <div className='flex items-center gap-3 px-4 py-2.5'>
-                  {/* Track info → taps to Now Playing */}
+                  {/* Track info → taps to Now Playing; right-click /
+                      long-press opens the universal context menu */}
                   <motion.button
                      whileTap={{ scale: 0.97 }}
-                     onClick={() => navigate("/now-playing")}
+                     onClick={() => navigate("/full-player")}
+                     {...contextMenu}
                      className='flex items-center gap-3 flex-1 min-w-0 text-left'>
                      {/* Artwork */}
                      <div className='relative flex-shrink-0'>
@@ -191,8 +221,7 @@ export default function PlayerBar() {
                      <IconButton
                         size='sm'
                         variant='ghost'
-                        active={showLyrics}
-                        onClick={toggleLyrics}
+                        onClick={openLyrics}
                         title='Lyrics'>
                         <Mic2 />
                      </IconButton>
@@ -258,12 +287,10 @@ export default function PlayerBar() {
                                     }
                                  },
                                  {
-                                    label: showLyrics
-                                       ? "Hide lyrics"
-                                       : "Show lyrics",
+                                    label: "View lyrics",
                                     icon: <Mic2 className='w-4 h-4' />,
                                     action: () => {
-                                       toggleLyrics();
+                                       openLyrics();
                                        setMenuOpen(false);
                                     }
                                  },

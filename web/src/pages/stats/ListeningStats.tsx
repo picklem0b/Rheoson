@@ -6,7 +6,7 @@ import {
 import { analyticsApi } from '@/api/analytics.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { formatCount, formatDuration } from '@/lib/formatters'
+import { formatCount } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 
 function StatCard({ icon: Icon, label, value, color }: {

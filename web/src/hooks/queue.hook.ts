@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useQueueStore } from '@/store/queue.store'
 import { usePlayerStore } from '@/store/player.store'
+import { signalQueueAdd } from '@/lib/signals'
 import type { Track } from '@/types/track.types'
 
 interface PlayAllOptions {
@@ -45,10 +46,20 @@ export function useQueue() {
     }
   }, [store, setTrack])
 
+  // Wrapper so queueing also reports a signal to the rec engine
+  const addToQueue = useCallback(
+    (track: Track) => {
+      const added = store.addToQueue(track)
+      if (added) signalQueueAdd(track.id, track.artist?.name)
+      return added
+    },
+    [store]
+  )
+
   return {
     queue:           store.queue,
     history:         store.history,
-    addToQueue:      store.addToQueue,
+    addToQueue,
     removeFromQueue: store.removeFromQueue,
     clearQueue:      store.clearQueue,
     moveItem:        store.moveItem,

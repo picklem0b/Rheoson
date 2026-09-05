@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { searchApi, resolveToTracks } from "@/api/search.api";
 import { isAbortError } from "@/api/client.api";
-import { API_BASE } from "@/lib/constants";
 import { prefetchSearchResults } from "@/lib/prefetch";
 import type { SearchResults, SearchFilter } from "@/types/search.types";
 import type { Track } from "@/types/track.types";
@@ -23,7 +22,19 @@ const SUGGEST_MS = 100;
 
 const SESSION_KEY = "rheoson-last-search";
 
+// Settings → Privacy → "Save search history". When disabled the last
+// search is neither restored nor written.
+function searchLoggingEnabled(): boolean {
+   try {
+      const raw = localStorage.getItem("rheoson-save-search-log");
+      return raw === null ? true : JSON.parse(raw) === true;
+   } catch {
+      return true;
+   }
+}
+
 function readSession(): { query: string; filter: SearchFilter } {
+   if (!searchLoggingEnabled()) return { query: "", filter: "all" };
    try {
       const raw = sessionStorage.getItem(SESSION_KEY);
       return raw ? JSON.parse(raw) : { query: "", filter: "all" };
@@ -33,6 +44,7 @@ function readSession(): { query: string; filter: SearchFilter } {
 }
 
 function writeSession(query: string, filter: SearchFilter) {
+   if (!searchLoggingEnabled()) return;
    try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({ query, filter }));
    } catch (error) {

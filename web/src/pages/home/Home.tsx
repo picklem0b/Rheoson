@@ -2,9 +2,19 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { TrendingUp, Clock, Sparkles, Play, ChevronRight } from 'lucide-react'
+import {
+  TrendingUp,
+  Clock,
+  Sparkles,
+  Play,
+  ChevronRight,
+  Heart,
+  Compass,
+  Music2,
+} from 'lucide-react'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
+import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { tracksApi } from '@/api/tracks.api'
 import { libraryApi } from '@/api/library.api'
 import { recommendationsApi, type RecommendationSection } from '@/api/recommendations.api'
@@ -65,6 +75,70 @@ function SectionHeader({ icon: Icon, title, subtitle, onSeeAll }: {
 
 // ── Quick picks — 2-col grid ──────────────────────────────────
 
+function QuickPickTile({
+  track,
+  index,
+  active,
+  isPlaying,
+  onPlay,
+}: {
+  track: Track
+  index: number
+  active: boolean
+  isPlaying: boolean
+  onPlay: () => void
+}) {
+  const contextMenu = useTrackContextMenu(track)
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04 }}
+      whileTap={{ scale: 0.97 }}
+      onClick={onPlay}
+      {...contextMenu}
+      className={cn(
+        'group flex items-center gap-0 rounded-2xl overflow-hidden text-left transition-colors',
+        active
+          ? 'bg-[var(--accent-subtle)] border border-[var(--accent-border)]'
+          : 'bg-[var(--bg-surface)] border border-[var(--border)] hover:bg-[var(--bg-elevated)]',
+      )}
+    >
+      <div className="relative flex-shrink-0 w-14 h-14">
+        {track.artworkUrl
+          ? <img src={track.artworkUrl} alt={track.title} className="w-full h-full object-cover" />
+          : <div className="w-full h-full bg-[var(--bg-elevated)]" />
+        }
+        {active && isPlaying && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <div className="flex gap-[2px] items-end h-3">
+              {[0, 1, 2].map((j) => (
+                <motion.div
+                  key={j}
+                  className="w-[2px] bg-white rounded-full"
+                  animate={{ height: ['40%', '100%', '60%'] }}
+                  transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 px-2.5">
+        <p className={cn(
+          'text-xs font-bold truncate leading-tight',
+          active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
+        )}>
+          {track.title}
+        </p>
+        <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
+          {track.artist?.name ?? 'Unknown Artist'}
+        </p>
+      </div>
+    </motion.button>
+  )
+}
+
 function QuickPicks({ tracks }: { tracks: Track[] }) {
   const { playTrack }  = useQueue()
   const currentTrack   = usePlayerStore((s) => s.currentTrack)
@@ -72,57 +146,16 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
 
   return (
     <div className="grid grid-cols-2 gap-2">
-      {tracks.slice(0, 8).map((track, i) => {
-        const active = currentTrack?.id === track.id
-        return (
-          <motion.button
-            key={track.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => playTrack(track, tracks)}
-            className={cn(
-              'group flex items-center gap-0 rounded-2xl overflow-hidden text-left transition-colors',
-              active
-                ? 'bg-[var(--accent-subtle)] border border-[var(--accent-border)]'
-                : 'bg-[var(--bg-surface)] border border-[var(--border)] hover:bg-[var(--bg-elevated)]',
-            )}
-          >
-            <div className="relative flex-shrink-0 w-14 h-14">
-              {track.artworkUrl
-                ? <img src={track.artworkUrl} alt={track.title} className="w-full h-full object-cover" />
-                : <div className="w-full h-full bg-[var(--bg-elevated)]" />
-              }
-              {active && isPlaying && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <div className="flex gap-[2px] items-end h-3">
-                    {[0, 1, 2].map((j) => (
-                      <motion.div
-                        key={j}
-                        className="w-[2px] bg-white rounded-full"
-                        animate={{ height: ['40%', '100%', '60%'] }}
-                        transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0 px-2.5">
-              <p className={cn(
-                'text-xs font-bold truncate leading-tight',
-                active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
-              )}>
-                {track.title}
-              </p>
-              <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
-                {track.artist?.name ?? 'Unknown Artist'}
-              </p>
-            </div>
-          </motion.button>
-        )
-      })}
+      {tracks.slice(0, 8).map((track, i) => (
+        <QuickPickTile
+          key={track.id}
+          track={track}
+          index={i}
+          active={currentTrack?.id === track.id}
+          isPlaying={isPlaying}
+          onPlay={() => playTrack(track, tracks)}
+        />
+      ))}
     </div>
   )
 }
@@ -176,6 +209,75 @@ function FeaturedCarousel({ items }: {
 
 // ── Trending list ─────────────────────────────────────────────
 
+function TrendingTrackRow({
+  track,
+  index,
+  active,
+  isPlaying,
+  onPlay,
+}: {
+  track: Track
+  index: number
+  active: boolean
+  isPlaying: boolean
+  onPlay: () => void
+}) {
+  const contextMenu = useTrackContextMenu(track)
+  return (
+    <motion.button
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.04 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onPlay}
+      {...contextMenu}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
+        active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',
+      )}
+    >
+      <span className={cn(
+        'text-sm tabular-nums w-5 text-center font-bold flex-shrink-0',
+        active ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
+      )}>
+        {index + 1}
+      </span>
+      <div className="relative flex-shrink-0">
+        {track.artworkUrl
+          ? <img src={track.artworkUrl} alt={track.title} className="w-11 h-11 rounded-xl object-cover" />
+          : <div className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)]" />
+        }
+        {active && isPlaying && (
+          <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center">
+            <div className="flex gap-[2px] items-end h-3">
+              {[0, 1, 2].map((j) => (
+                <motion.div
+                  key={j}
+                  className="w-[2px] bg-white rounded-full"
+                  animate={{ height: ['40%', '100%', '60%'] }}
+                  transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={cn(
+          'text-sm font-semibold truncate',
+          active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
+        )}>
+          {track.title}
+        </p>
+        <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist?.name ?? 'Unknown Artist'}</p>
+      </div>
+      <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
+        {formatDuration(track.duration)}
+      </span>
+    </motion.button>
+  )
+}
+
 function TrendingList({ tracks }: { tracks: Track[] }) {
   const { playTrack }  = useQueue()
   const currentTrack   = usePlayerStore((s) => s.currentTrack)
@@ -183,62 +285,16 @@ function TrendingList({ tracks }: { tracks: Track[] }) {
 
   return (
     <div className="space-y-1">
-      {tracks.slice(0, 10).map((track, i) => {
-        const active = currentTrack?.id === track.id
-        return (
-          <motion.button
-            key={track.id}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.04 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => playTrack(track, tracks)}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
-              active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',
-            )}
-          >
-            <span className={cn(
-              'text-sm tabular-nums w-5 text-center font-bold flex-shrink-0',
-              active ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
-            )}>
-              {i + 1}
-            </span>
-            <div className="relative flex-shrink-0">
-              {track.artworkUrl
-                ? <img src={track.artworkUrl} alt={track.title} className="w-11 h-11 rounded-xl object-cover" />
-                : <div className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)]" />
-              }
-              {active && isPlaying && (
-                <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center">
-                  <div className="flex gap-[2px] items-end h-3">
-                    {[0, 1, 2].map((j) => (
-                      <motion.div
-                        key={j}
-                        className="w-[2px] bg-white rounded-full"
-                        animate={{ height: ['40%', '100%', '60%'] }}
-                        transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className={cn(
-                'text-sm font-semibold truncate',
-                active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
-              )}>
-                {track.title}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist?.name ?? 'Unknown Artist'}</p>
-            </div>
-            <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
-              {formatDuration(track.duration)}
-            </span>
-          </motion.button>
-        )
-      })}
+      {tracks.slice(0, 10).map((track, i) => (
+        <TrendingTrackRow
+          key={track.id}
+          track={track}
+          index={i}
+          active={currentTrack?.id === track.id}
+          isPlaying={isPlaying}
+          onPlay={() => playTrack(track, tracks)}
+        />
+      ))}
     </div>
   )
 }
@@ -274,90 +330,66 @@ function EmptyHome() {
   )
 }
 
-// ── Recommended tracks list ─────────────────────────────────
+// ── Hydrated recommendation sections ─────────────────────────
 
-function RecommendedTracks({ trackIds, title }: { trackIds: string[]; title: string }) {
-  const { playTrack }  = useQueue()
-  const currentTrack   = usePlayerStore((s) => s.currentTrack)
-  const isPlaying      = usePlayerStore((s) => s.isPlaying)
-  const [tracks, setTracks] = useState<Track[]>([])
+function useHydratedTracks(ids: string[] | undefined, max = 10) {
+  const key = (ids ?? []).slice(0, max).join('|')
+  const [state, setState] = useState<{ loading: boolean; tracks: Track[] }>({
+    loading: false,
+    tracks:  [],
+  })
 
-  // Hydrate track IDs into full track objects
   useEffect(() => {
-    if (!trackIds.length) return
+    if (!key) {
+      setState({ loading: false, tracks: [] })
+      return
+    }
     let cancelled = false
+    setState((s) => ({ loading: true, tracks: s.tracks }))
     Promise.all(
-      trackIds.slice(0, 12).map(id => tracksApi.getTrack(id).catch(() => null))
-    ).then(results => {
-      if (!cancelled) setTracks(results.filter(Boolean) as Track[])
+      key
+        .split('|')
+        .map((id) => tracksApi.getTrack(id).catch(() => null))
+    ).then((results) => {
+      if (!cancelled) {
+        setState({
+          loading: false,
+          tracks:  results.filter((t): t is Track => t !== null),
+        })
+      }
     })
     return () => { cancelled = true }
-  }, [trackIds])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
 
-  if (!tracks.length) return null
-
-  return (
-    <div className="space-y-1">
-      {tracks.map((track, i) => {
-        const active = currentTrack?.id === track.id
-        return (
-          <motion.button
-            key={track.id}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.04 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => playTrack(track, tracks)}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
-              active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',
-            )}
-          >
-            <div className="relative flex-shrink-0">
-              {track.artworkUrl
-                ? <img src={track.artworkUrl} alt={track.title} className="w-11 h-11 rounded-xl object-cover" />
-                : <div className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)]" />
-              }
-              {active && isPlaying && (
-                <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center">
-                  <div className="flex gap-[2px] items-end h-3">
-                    {[0, 1, 2].map((j) => (
-                      <motion.div
-                        key={j}
-                        className="w-[2px] bg-white rounded-full"
-                        animate={{ height: ['40%', '100%', '60%'] }}
-                        transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className={cn(
-                'text-sm font-semibold truncate',
-                active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
-              )}>
-                {track.title}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] truncate">{track.artist?.name ?? 'Unknown Artist'}</p>
-            </div>
-            <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
-              {formatDuration(track.duration)}
-            </span>
-          </motion.button>
-        )
-      })}
-    </div>
-  )
+  return state
 }
 
 // ── Page ──────────────────────────────────────────────────────
 
+const SECTION_ICONS: Record<string, React.ElementType> = {
+  for_you:          Sparkles,
+  recent_favorites: Heart,
+  discover:         Compass,
+  trending:         TrendingUp,
+}
+
+const SECTION_SUBTITLES: Record<string, string> = {
+  for_you:          'Based on your listening',
+  recent_favorites: 'Songs you loved',
+  discover:         'Something new',
+}
+
+// Filters junk/placeholder rows that normalization can't always remove
+// (e.g. offline fallback entries that were never fully cached).
+function isRealTrack(t: Track | undefined | null): t is Track {
+  return !!t && !!t.id && !t.id.startsWith('unknown-') && !!t.title && t.title !== 'Unknown Track'
+}
+
 export default function Home() {
   const navigate = useNavigate()
 
-  const { data: recent, isLoading: loadingRecent } = useQuery({
+  const { data: recentRaw, isLoading: loadingRecent } = useQuery({
     queryKey:  ['recently-played'],
     queryFn:   () => tracksApi.getRecentlyPlayed(16),
     staleTime: 30_000,
@@ -371,7 +403,7 @@ export default function Home() {
     retry:     1,
   })
 
-  const { data: trending, isLoading: loadingTrending } = useQuery({
+  const { data: trendingRaw, isLoading: loadingTrending } = useQuery({
     queryKey:  ['trending'],
     queryFn:   () => tracksApi.getTrending(20),
     staleTime: 5 * 60_000,
@@ -385,17 +417,36 @@ export default function Home() {
     retry:     0,
   })
 
-  // Strip out placeholder/junk entries before they ever reach the UI
+  // Strip junk before it reaches the UI
+  const recent   = (recentRaw ?? []).filter(isRealTrack)
+  const trending = (trendingRaw ?? []).filter(isRealTrack)
   const featured = (featuredRaw ?? []).filter(isRealFeaturedItem)
 
-  const hasRecent   = (recent?.length   ?? 0) > 0
-  const hasTrending = (trending?.length ?? 0) > 0
+  const hasRecent   = recent.length > 0
+  const hasTrending = trending.length > 0
   const hasFeatured = featured.length > 0
+  const allDone     = !loadingRecent && !loadingTrending && !loadingFeatured && !loadingRecs
   const hasAnything = hasRecent || hasTrending || hasFeatured
-  const allDone     = !loadingRecent && !loadingTrending && !loadingFeatured
 
-  // Find personalized "for you" section from recommendation engine
-  const forYouSection = recs?.sections?.find((s: RecommendationSection) => s.section_id === 'for_you')
+  // Every section the recommendation engine returned, in order. The
+  // standalone trending rail covers section_id 'trending' below (full
+  // hydrated tracks from the API), so we skip its id-only duplicate.
+  const recSections = (recs?.sections ?? []).filter(
+    (s: RecommendationSection) => s.section_id !== 'trending' && s.track_ids.length > 0
+  )
+
+  // Standalone trending is preferred; if it came back empty, fall back
+  // to the engine's trending section ids (same source, different moment).
+  const recTrendingIds = (recs?.sections ?? []).find(
+    (s: RecommendationSection) => s.section_id === 'trending'
+  )?.track_ids
+  const trendingFallback = useHydratedTracks(
+    hasTrending || !recTrendingIds?.length ? undefined : recTrendingIds,
+    10
+  )
+  const trendingTracks = hasTrending ? trending : trendingFallback.tracks
+  const showTrending =
+    loadingTrending || trendingTracks.length > 0 || trendingFallback.loading
 
   return (
     <ScrollArea className="h-full">
@@ -406,7 +457,7 @@ export default function Home() {
           <p className="text-sm text-[var(--text-muted)] mt-0.5">What do you want to hear?</p>
         </motion.div>
 
-        {allDone && !hasAnything && <EmptyHome />}
+        {allDone && !hasAnything && recSections.length === 0 && <EmptyHome />}
 
         {(loadingRecent || hasRecent) && (
           <section>
@@ -418,7 +469,7 @@ export default function Home() {
             />
             {loadingRecent
               ? <div className="grid grid-cols-2 gap-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
-              : <QuickPicks tracks={recent!} />
+              : <QuickPicks tracks={recent} />
             }
           </section>
         )}
@@ -428,7 +479,7 @@ export default function Home() {
             <SectionHeader
               icon={Sparkles}
               title="Featured"
-              subtitle="Curated for you"
+              subtitle="From your library"
               onSeeAll={hasFeatured ? () => navigate('/featured') : undefined}
             />
             {loadingFeatured
@@ -438,33 +489,150 @@ export default function Home() {
           </section>
         )}
 
-        {(!loadingRecs && forYouSection && forYouSection.track_ids.length > 0) && (
-          <section>
-            <SectionHeader
-              icon={Sparkles}
-              title={forYouSection.title}
-              subtitle="Based on your listening"
-            />
-            <RecommendedTracks trackIds={forYouSection.track_ids} title={forYouSection.title} />
-          </section>
+        {/* Personalized recommendation rails — every section the engine
+            returned renders here (not just "for you"), so the page always
+            reflects whatever signals exist. */}
+        {!loadingRecs && recSections.length > 0 && (
+          <div className="space-y-8">
+            {recSections.slice(0, 4).map((section) => (
+              <SectionRail key={section.section_id} section={section} />
+            ))}
+          </div>
         )}
 
-        {(loadingTrending || hasTrending) && (
+        {showTrending && (
           <section>
             <SectionHeader
               icon={TrendingUp}
               title="Trending"
               subtitle="Popular right now"
-              onSeeAll={hasTrending ? () => navigate('/trending') : undefined}
+              onSeeAll={
+                trendingTracks.length > 0 ? () => navigate('/trending') : undefined
+              }
             />
-            {loadingTrending
+            {loadingTrending || trendingFallback.loading
               ? <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
-              : <TrendingList tracks={trending!} />
+              : <TrendingList tracks={trendingTracks} />
             }
           </section>
         )}
 
       </div>
     </ScrollArea>
+  )
+}
+
+// Renders one personalized recommendation rail: hydrates its track ids
+// in parallel and skips itself entirely if nothing resolves.
+function SectionRail({ section }: { section: RecommendationSection }) {
+  const { playTrack }  = useQueue()
+  const currentTrack   = usePlayerStore((s) => s.currentTrack)
+  const isPlaying      = usePlayerStore((s) => s.isPlaying)
+  const { loading, tracks } = useHydratedTracks(section.track_ids, 10)
+
+  const Icon = SECTION_ICONS[section.section_id] ?? Music2
+
+  if (loading) {
+    return (
+      <section>
+        <SectionHeader icon={Icon} title={section.title} />
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-2xl" />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  if (!tracks.length) return null
+
+  return (
+    <section>
+      <SectionHeader
+        icon={Icon}
+        title={section.title}
+        subtitle={SECTION_SUBTITLES[section.section_id]}
+      />
+      <div className="space-y-1">
+        {tracks.map((track, i) => (
+          <RailTrackRow
+            key={track.id}
+            track={track}
+            index={i}
+            active={currentTrack?.id === track.id}
+            isPlaying={isPlaying}
+            onPlay={() => playTrack(track, tracks)}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ── Single rail row ───────────────────────────────────────────
+
+function RailTrackRow({
+  track,
+  index,
+  active,
+  isPlaying,
+  onPlay,
+}: {
+  track: Track
+  index: number
+  active: boolean
+  isPlaying: boolean
+  onPlay: () => void
+}) {
+  const contextMenu = useTrackContextMenu(track)
+  return (
+    <motion.button
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.03 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onPlay}
+      {...contextMenu}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
+        active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',
+      )}
+    >
+      <div className="relative flex-shrink-0">
+        {track.artworkUrl
+          ? <img src={track.artworkUrl} alt={track.title} className="w-11 h-11 rounded-xl object-cover" />
+          : <div className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)]" />
+        }
+        {active && isPlaying && (
+          <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center">
+            <div className="flex gap-[2px] items-end h-3">
+              {[0, 1, 2].map((j) => (
+                <motion.div
+                  key={j}
+                  className="w-[2px] bg-white rounded-full"
+                  animate={{ height: ['40%', '100%', '60%'] }}
+                  transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={cn(
+          'text-sm font-semibold truncate',
+          active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]',
+        )}>
+          {track.title}
+        </p>
+        <p className="text-xs text-[var(--text-secondary)] truncate">
+          {track.artist?.name ?? 'Unknown Artist'}
+        </p>
+      </div>
+      <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
+        {formatDuration(track.duration)}
+      </span>
+    </motion.button>
   )
 }

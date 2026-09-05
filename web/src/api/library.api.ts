@@ -26,8 +26,13 @@ export const libraryApi = {
       return Array.isArray(raw) ? raw.map(normalizeArtist) : [];
    },
 
+   /**
+    * Full artist profile + top songs. Hits /api/artists/{id} which
+    * browses YouTube Music for remote artists and falls back to the
+    * local library aggregate for downloaded-only artists.
+    */
    getArtist: async (id: string): Promise<Artist> => {
-      const raw = await api.get<unknown>(`/library/artists/${id}`);
+      const raw = await api.get<unknown>(`/artists/${id}`);
       return normalizeArtist(raw);
    },
 

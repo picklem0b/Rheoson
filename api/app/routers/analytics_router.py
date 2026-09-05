@@ -5,8 +5,9 @@ Provides endpoints for:
 - Listening time stats
 - Monthly listening reports
 
-Uses optional Clerk auth — works for guests (returns empty data)
-and authenticated users (returns personalized data).
+Every endpoint requires a verified Clerk session and reports on THAT user's
+signals only. There is no anonymous/guest dataset. MongoDB is required for
+these aggregations.
 """
 
 from __future__ import annotations
@@ -14,27 +15,19 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.core.database import get_db, db_available
-from app.core.deps import get_optional_user
-from app.models.recommendation import SignalType
+from app.core.database import get_db
+from app.core.deps import get_current_user
 
 router = APIRouter()
-
-
-def _get_user_id(user: dict | None) -> str:
-    """Extract user ID from Clerk claims, or return 'anonymous' for guests."""
-    if user and user.get("sub"):
-        return user["sub"]
-    return "anonymous"
 
 
 @router.get("/stats")
 async def listening_stats(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
-    """Get overall listening statistics for the user."""
-    user_id = _get_user_id(user)
+    """Get overall listening statistics for the current user."""
+    user_id = user["sub"]
     since_7d = datetime.now(timezone.utc) - timedelta(days=7)
     since_30d = datetime.now(timezone.utc) - timedelta(days=30)
 
@@ -88,10 +81,10 @@ async def top_artists(
     days: int = Query(30, ge=1, le=365),
     limit: int = Query(10, ge=1, le=50),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
     """Get top artists by play count for a time period."""
-    user_id = _get_user_id(user)
+    user_id = user["sub"]
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     pipeline = [
@@ -116,10 +109,10 @@ async def top_tracks(
     days: int = Query(30, ge=1, le=365),
     limit: int = Query(10, ge=1, le=50),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
     """Get top tracks by play count for a time period."""
-    user_id = _get_user_id(user)
+    user_id = user["sub"]
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     pipeline = [
@@ -143,10 +136,10 @@ async def top_tracks(
 async def listening_by_hour(
     days: int = Query(30, ge=1, le=365),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
     """Get listening activity broken down by hour of day."""
-    user_id = _get_user_id(user)
+    user_id = user["sub"]
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     pipeline = [
@@ -168,10 +161,10 @@ async def listening_by_hour(
 async def listening_by_day(
     days: int = Query(7, ge=1, le=30),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
     """Get listening activity broken down by day of week."""
-    user_id = _get_user_id(user)
+    user_id = user["sub"]
     since = datetime.now(timezone.utc) - timedelta(days=days * 2)
 
     pipeline = [

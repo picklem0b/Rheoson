@@ -24,12 +24,6 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
-export interface VisitorCount {
-  guests: number;
-  authed: number;
-  total: number;
-}
-
 export const authApi = {
   login: async (data: LoginPayload): Promise<AuthResponse> => {
     return api.post<AuthResponse>('/auth/login', data);
@@ -47,11 +41,7 @@ export const authApi = {
     return api.patch('/auth/me', data);
   },
 
-  recordGuestVisit: async (): Promise<{ ok: boolean }> => {
-    return api.post('/auth/guest-visit');
-  },
-
-  getVisitorCount: async (): Promise<VisitorCount> => {
-    return api.get<VisitorCount>('/auth/visitor-count');
+  logout: async (): Promise<void> => {
+    return api.post('/auth/logout');
   },
 };

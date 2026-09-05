@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion';
-import { Play, Pause, Heart, MoreVertical, Music2 } from 'lucide-react';
+import { Play, Pause, Heart, ListPlus, Music2 } from 'lucide-react';
 import { useQueue } from '@/hooks/queue.hook';
 import { usePlayer } from '@/hooks/player.hook';
 import { usePlayerStore } from '@/store/player.store';
+import { usePlaylistMenuStore } from '@/store/playlistMenu.store';
+import { useTrackContextMenu } from '@/hooks/useTrackContextMenu';
 import { tracksApi } from '@/api/tracks.api';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDuration } from '@/lib/formatters';
@@ -23,6 +25,7 @@ export default function LibraryTrackRow({
     const currentTrack = usePlayerStore(s => s.currentTrack);
     const isPlaying = usePlayerStore(s => s.isPlaying);
     const queryClient = useQueryClient();
+    const contextMenu = useTrackContextMenu(track);
 
     const active = currentTrack?.id === track.id;
 
@@ -61,6 +64,7 @@ export default function LibraryTrackRow({
                     handlePlay();
                 }
             }}
+            {...contextMenu}
             className='w-full group flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left cursor-pointer'
         >
             {/* Artwork with play overlay */}
@@ -133,14 +137,17 @@ export default function LibraryTrackRow({
                 />
             </button>
 
-            {/* Overflow menu */}
+            {/* Add to playlist */}
             <button
                 type='button'
-                onClick={e => e.stopPropagation()}
-                className='flex-shrink-0 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity'
-                aria-label='More options'
+                onClick={e => {
+                    e.stopPropagation();
+                    usePlaylistMenuStore.getState().openForTrack(track);
+                }}
+                className='flex-shrink-0 p-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'
+                aria-label='Add to playlist'
             >
-                <MoreVertical className='w-4 h-4 text-[var(--text-muted)]' />
+                <ListPlus className='w-4 h-4 text-[var(--text-muted)]' />
             </button>
         </motion.div>
     );

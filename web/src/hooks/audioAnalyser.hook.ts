@@ -1,63 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePlayerStore } from '@/store/player.store'
-
-// fftSize must be a power of 2. We want at least barCount * 2 buckets.
-function nearestPow2(n: number): number {
-  return Math.pow(2, Math.ceil(Math.log2(n)))
-}
-
-// Module-level: shared AudioContext + source node for both analyser and equalizer.
-// Only one MediaElementSource can exist per <audio> element.
-let _sharedCtx: AudioContext | null = null
-let _sharedSource: MediaElementAudioSourceNode | null = null
-let _sharedAnalyser: AnalyserNode | null = null
-let _eqFilters: BiquadFilterNode[] | null = null
+import { getSharedAudioNodes } from '@/lib/audioEffects'
 
 /**
- * Get or create the shared audio analysis chain.
- * Returns { analyser, source } so both useAudioAnalyser and EqualizerPanel
- * can coexist on the same audio element.
+ * Visualizer access to the shared audio graph.
+ *
+ * The graph itself (source → effects → analyser → destination) is owned by
+ * lib/audioEffects so Settings EQ/bass/mono/pre-amp/normalisation and the
+ * Equalizer panel share a single MediaElementSource. This hook only reads
+ * the analyser node and drives the animation loop.
  */
+
+/** Get the shared { ctx, source, analyser } from the effects engine. */
 export function getSharedAudioChain(): {
   ctx: AudioContext
   source: MediaElementAudioSourceNode
   analyser: AnalyserNode
 } {
-  if (_sharedCtx && _sharedSource && _sharedAnalyser) {
-    return { ctx: _sharedCtx, source: _sharedSource, analyser: _sharedAnalyser }
-  }
-
-  const audio = document.querySelector<HTMLAudioElement>('audio[data-howler]')
-  if (!audio) throw new Error('No Howler audio element found')
-
-  const ctx = new AudioContext()
-  const analyser = ctx.createAnalyser()
-  analyser.fftSize = 2048
-  analyser.smoothingTimeConstant = 0.75
-
-  let source: MediaElementAudioSourceNode
-  try {
-    source = ctx.createMediaElementSource(audio)
-  } catch {
-    // Source already created by equalizer — reuse it
-    source = _sharedSource!
-  }
-
-  // Build chain: source → analyser → destination
-  // (EqualizerPanel inserts filters between source and analyser when active)
-  source.connect(analyser)
-  analyser.connect(ctx.destination)
-
-  _sharedCtx = ctx
-  _sharedSource = source
-  _sharedAnalyser = analyser
-
-  return { ctx, source, analyser }
+  const nodes = getSharedAudioNodes()
+  if (!nodes) throw new Error('No Howler audio element found')
+  return nodes
 }
 
-/** Get the shared source node (returns null if not initialized) */
+/** Get the shared source node (null if the graph isn't attached yet). */
 export function getSharedSource(): MediaElementAudioSourceNode | null {
-  return _sharedSource
+  return getSharedAudioNodes()?.source ?? null
 }
 
 export function useAudioAnalyser(barCount = 32) {
@@ -68,7 +35,7 @@ export function useAudioAnalyser(barCount = 32) {
 
   const isPlaying = usePlayerStore((s) => s.isPlaying)
 
-  // ── Setup AudioContext once ─────────────────────────────────
+  // ── Grab the analyser once the graph exists ─────────────────
 
   useEffect(() => {
     try {
@@ -96,7 +63,10 @@ export function useAudioAnalyser(barCount = 32) {
     }
 
     // Resume context if suspended
-    _sharedCtx?.state === 'suspended' && _sharedCtx.resume()
+    const ctx = analyser.context as AudioContext
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
 
     const data = new Uint8Array(analyser.frequencyBinCount)
 

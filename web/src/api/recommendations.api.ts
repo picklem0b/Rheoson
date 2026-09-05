@@ -19,6 +19,20 @@ export interface AutoplayCandidate {
   score: number;
 }
 
+export interface TasteTrack {
+  track_id: string;
+  title: string;
+  artist: string;
+  plays: number;
+}
+
+export interface TastePersona {
+  id: string;
+  label: string;
+  emoji: string;
+  description: string;
+}
+
 export interface TasteProfileInfo {
   total_plays: number;
   total_likes: number;
@@ -26,6 +40,8 @@ export interface TasteProfileInfo {
   avg_completion_rate: number;
   top_artists: { artist: string; score: number; plays: number }[];
   top_genres: { genre: string; score: number; plays: number }[];
+  top_tracks: TasteTrack[];
+  persona: TastePersona | null;
   cold_start: boolean;
   last_updated: string;
 }
@@ -73,7 +89,42 @@ export const recommendationsApi = {
   },
 
   getTaste: async (): Promise<TasteProfileInfo> => {
-    return api.get<TasteProfileInfo>('/recommendations/taste');
+    const raw = await api.get<Record<string, unknown>>('/recommendations/taste');
+    const list = (v: unknown) => (Array.isArray(v) ? v : []);
+    const person = (v: unknown): TastePersona | null =>
+      v && typeof v === 'object'
+        ? {
+            id: String((v as Record<string, unknown>).id ?? ''),
+            label: String((v as Record<string, unknown>).label ?? ''),
+            emoji: String((v as Record<string, unknown>).emoji ?? ''),
+            description: String((v as Record<string, unknown>).description ?? ''),
+          }
+        : null;
+    return {
+      total_plays: Number(raw.total_plays ?? 0),
+      total_likes: Number(raw.total_likes ?? 0),
+      total_skips: Number(raw.total_skips ?? 0),
+      avg_completion_rate: Number(raw.avg_completion_rate ?? 0),
+      top_artists: list(raw.top_artists).map((a) => ({
+        artist: String((a as Record<string, unknown>).artist ?? ''),
+        score: Number((a as Record<string, unknown>).score ?? 0),
+        plays: Number((a as Record<string, unknown>).plays ?? 0),
+      })),
+      top_genres: list(raw.top_genres).map((g) => ({
+        genre: String((g as Record<string, unknown>).genre ?? ''),
+        score: Number((g as Record<string, unknown>).score ?? 0),
+        plays: Number((g as Record<string, unknown>).plays ?? 0),
+      })),
+      top_tracks: list(raw.top_tracks).map((t) => ({
+        track_id: String((t as Record<string, unknown>).track_id ?? ''),
+        title: String((t as Record<string, unknown>).title ?? ''),
+        artist: String((t as Record<string, unknown>).artist ?? ''),
+        plays: Number((t as Record<string, unknown>).plays ?? 0),
+      })),
+      persona: person(raw.persona),
+      cold_start: Boolean(raw.cold_start),
+      last_updated: String(raw.last_updated ?? ''),
+    };
   },
 
   refresh: async (): Promise<{ ok: boolean; sections: number }> => {

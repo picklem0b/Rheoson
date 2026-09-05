@@ -8,6 +8,11 @@ import { updateStatusBarColor, resetStatusBarColor } from '@/lib/statusbar';
 import { haptic } from '@/lib/haptics';
 import { getLocalFileUrl } from '@/lib/localFs';
 import { isNativePlatform } from '@/lib/capacitor';
+import { ensureEffectsChain } from '@/lib/audioEffects';
+import { prefetchQueue } from '@/lib/prefetch';
+import { recommendationsApi } from '@/api/recommendations.api';
+import { signalPlayComplete, signalRepeat, signalSkip } from '@/lib/signals';
+import type { Track } from '@/types/track.types';
 
 // ── Singleton Howl ────────────────────────────────────────────
 // One instance shared across every component that calls usePlayer().
@@ -24,6 +29,65 @@ let _generation = 0;
 
 // Track which IDs have had recordPlay called this session
 const _playedThisSession = new Set<string>();
+
+// Guard so a single queue-exhaustion only triggers one autoplay fetch
+let _autoplayInFlight = false;
+
+// Settings → Audio → Autoplay (default on, matching streaming apps)
+function _autoplayEnabled(): boolean {
+    try {
+        const raw = localStorage.getItem('rheoson-autoplay');
+        return raw !== null ? (JSON.parse(raw) as boolean) : true;
+    } catch {
+        return true;
+    }
+}
+
+/**
+ * Queue exhausted → fetch similar tracks for the ended track, hydrate
+ * them into full Tracks, and keep playing from the first suggestion.
+ * Best-effort: any failure stops silently and playback just ends.
+ */
+async function _autoplayNext(endedTrack: { id: string; artist?: { name?: string } | null }) {
+    if (_autoplayInFlight) return;
+    _autoplayInFlight = true;
+    try {
+        const res = await recommendationsApi.getAutoplay(endedTrack.id, 10);
+        const candidates = res?.tracks ?? [];
+        if (!candidates.length) return;
+
+        // Hydrate in parallel; skip failures, the ended track, and anything
+        // already played this session so suggestions stay fresh.
+        const settled = await Promise.allSettled(
+            candidates.slice(0, 10).map((c) => tracksApi.getTrack(c.track_id))
+        );
+        const seen = new Set<string>([endedTrack.id]);
+        const fresh: Track[] = [];
+        for (const r of settled) {
+            if (r.status !== 'fulfilled') continue;
+            const t = r.value;
+            if (!t?.id || seen.has(t.id) || _playedThisSession.has(t.id)) continue;
+            seen.add(t.id);
+            fresh.push(t);
+            if (fresh.length >= 6) break;
+        }
+        if (!fresh.length) return;
+
+        // First suggestion becomes current; the rest form the new queue.
+        useQueueStore.getState().setQueue(fresh, 0);
+        usePlayerStore.getState().setTrack(fresh[0]);
+
+        window.dispatchEvent(
+            new CustomEvent('rheoson:autoplay-started', {
+                detail: { title: fresh[0].title, count: fresh.length },
+            })
+        );
+    } catch {
+        // Autoplay is best-effort — never let it break playback
+    } finally {
+        _autoplayInFlight = false;
+    }
+}
 
 // ── Timer helpers ─────────────────────────────────────────────
 
@@ -132,13 +196,21 @@ export function usePlayer() {
             setProgress(0);
             saveProgress(0);
 
-            const { repeatMode, isShuffled } = usePlayerStore.getState();
+            const state = usePlayerStore.getState();
+            const { repeatMode, isShuffled } = state;
+            const endedTrack = state.currentTrack;
+            const endedArtist = endedTrack?.artist?.name;
 
             if (repeatMode === 'one') {
+                // Replaying the same track is a repeat signal, not a skip
+                signalRepeat(endedTrack?.id, endedArtist);
                 _howl?.seek(0);
                 _howl?.play();
                 return;
             }
+
+            // The track genuinely finished — feed the taste profiler
+            signalPlayComplete(endedTrack?.id, endedArtist);
 
             const nextTrack = next(isShuffled);
             if (nextTrack) {
@@ -151,7 +223,13 @@ export function usePlayer() {
                 if (originalQueue.length > 0) {
                     useQueueStore.getState().setQueue(originalQueue, 0);
                     setTrack(originalQueue[0]);
+                    return; // repeat-all loops the playlist — no autoplay
                 }
+            }
+
+            // Queue exhausted — keep the music going with similar tracks
+            if (endedTrack && _autoplayEnabled()) {
+                _autoplayNext(endedTrack);
             }
         };
     }, [next, setTrack, setPlaying, setProgress, saveProgress]);
@@ -215,6 +293,8 @@ export function usePlayer() {
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
+                    // Route audio through the DSP graph (EQ/bass/mono/pre-amp/normalise)
+                    ensureEffectsChain();
                     if (seekTo > 0) {
                         _howl?.seek(seekTo);
                         setProgress(seekTo);
@@ -225,6 +305,8 @@ export function usePlayer() {
                 onplay() {
                     // BUG #25: Ignore if generation has moved on
                     if (gen !== _generation) return;
+                    // Ensure the DSP graph is attached (a rebuilt Howl has a new element)
+                    ensureEffectsChain();
                     setPlaying(true);
                     setLoading(false);
                     const dur = _howl?.duration() ?? 0;
@@ -233,6 +315,15 @@ export function usePlayer() {
                         s => tickRef.current(s),
                         s => persistRef.current(s)
                     );
+
+                    // Warm the next few queue tracks so skipping ahead or
+                    // auto-advance starts from an already-buffered file
+                    const upcoming = useQueueStore
+                        .getState()
+                        .queue.slice(0, 3);
+                    if (upcoming.length > 0) {
+                        prefetchQueue(upcoming.map(t => t.id), 3);
+                    }
 
                     // Record play history (once per session per track)
                     if (!_playedThisSession.has(trackId)) {
@@ -432,20 +523,28 @@ export function usePlayer() {
     }, [currentTrack, loadAndPlay]);
 
     const skipNext = useCallback(() => {
-        const { isShuffled } = usePlayerStore.getState();
-        const t = next(isShuffled);
-        if (t) { setTrack(t); haptic('medium'); }
+        const state = usePlayerStore.getState();
+        const t = next(state.isShuffled);
+        if (t) {
+            signalSkip(state.currentTrack?.id, state.progress, state.currentTrack?.artist?.name);
+            setTrack(t);
+            haptic('medium');
+        }
     }, [next, setTrack]);
 
     const skipPrev = useCallback(() => {
-        const { progress } = usePlayerStore.getState();
-        if (progress > 3) {
+        const state = usePlayerStore.getState();
+        if (state.progress > 3) {
             seek(0);
             haptic('light');
             return;
         }
         const t = prev();
-        if (t) { setTrack(t); haptic('medium'); }
+        if (t) {
+            signalSkip(state.currentTrack?.id, state.progress, state.currentTrack?.artist?.name);
+            setTrack(t);
+            haptic('medium');
+        }
     }, [prev, seek, setTrack]);
 
     return {

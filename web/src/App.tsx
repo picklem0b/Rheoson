@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion'
 import { Howler } from 'howler'
 import { router } from './router'
 import { useThemeStore } from '@/store/theme.store'
+import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
 import { useKeyboardShortcuts } from '@/hooks/keyboardShortcuts.hook'
 import { useMediaSession } from '@/hooks/mediaSession.hook'
@@ -12,7 +13,6 @@ import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
 import { startVersionCheck } from '@/lib/versionCheck'
 import OfflineBanner from '@/components/ui/OfflineBanner'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
-import { authApi } from '@/api/auth.api'
 import { initNetwork } from '@/lib/network'
 import { initAutoSync } from '@/lib/offlineQueue'
 
@@ -36,24 +36,11 @@ function usePlayerErrorToast() {
   }, [toast])
 }
 
-// ── Guest visit tracker ───────────────────────────────────────
-function useGuestTracker() {
-  useEffect(() => {
-    // Record one guest visit per session
-    const visited = sessionStorage.getItem('rheoson-guest-visited')
-    if (!visited) {
-      authApi.recordGuestVisit().catch(() => {})
-      sessionStorage.setItem('rheoson-guest-visited', '1')
-    }
-  }, [])
-}
-
 // ── Inner app — hooks that need router context ────────────────
 function AppInner() {
   useKeyboardShortcuts()
   useMediaSession()
   usePlayerErrorToast()
-  useGuestTracker()
   return (
     <ErrorBoundary>
       <OfflineBanner />
@@ -65,14 +52,16 @@ function AppInner() {
 // ── Root ──────────────────────────────────────────────────────
 export default function App() {
   const initTheme       = useThemeStore((s) => s.initTheme)
+  const initLayout      = useUIStore((s) => s.initLayout)
   const initializeAuth  = useAuthStore((s) => s.initialize)
   const { show, dismiss } = useSplash()
   const { toast } = useToast()
 
-  // Apply saved theme on mount
+  // Apply saved theme + layout (font/size) prefs on mount
   useEffect(() => {
     initTheme()
-  }, [initTheme])
+    initLayout()
+  }, [initTheme, initLayout])
 
   // Validate stored auth token on mount
   useEffect(() => {

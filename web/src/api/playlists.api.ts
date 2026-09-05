@@ -61,6 +61,7 @@ export const playlistsApi = {
          title: data.title,
          description: data.description ?? '',
          tracks: [],
+         trackIds: [],
          trackCount: 0,
          isLocal: true,
          artworkUrl: '',
@@ -89,7 +90,7 @@ export const playlistsApi = {
       return localPlaylist;
    },
 
-   updatePlaylist: async (id: string, data: Partial<Pick<Playlist, 'title' | 'description'>>): Promise<Playlist> => {
+   updatePlaylist: async (id: string, data: Partial<Pick<Playlist, 'title' | 'description' | 'artworkUrl'>>): Promise<Playlist> => {
       // Optimistic local update
       const local = await playlistsStore.get(id);
       if (local) {
@@ -100,8 +101,14 @@ export const playlistsApi = {
       try {
          const remote = await api.patchQueued<Playlist>(`/playlists/${id}`, data);
          if (remote?.id) {
-            await playlistsStore.put(remote);
-            return remote;
+            // The PATCH response is the lightweight list shape (tracks: []) —
+            // keep the hydrated tracks we already hold locally so offline reads
+            // don't see an empty playlist after a rename/cover change.
+            await playlistsStore.put({
+               ...remote,
+               tracks: local?.tracks ?? remote.tracks ?? [],
+            });
+            return { ...remote, tracks: local?.tracks ?? [] };
          }
       } catch {
          // Will be synced later
@@ -125,14 +132,17 @@ export const playlistsApi = {
       // Optimistic local update
       const local = await playlistsStore.get(playlistId);
       if (local) {
-         const trackIds = local.tracks.map((t) => t.id);
-         if (!trackIds.includes(trackId)) {
+         const trackIds = [...(local.trackIds ?? []), ...local.tracks.map((t) => t.id)];
+         const deduped = [...new Set(trackIds)];
+         if (!deduped.includes(trackId)) {
+            const updatedIds = [...deduped, trackId];
             // We only have the trackId, not the full track — store ID in tracks array
             const updatedTracks = [...local.tracks, { id: trackId } as Track];
             await playlistsStore.put({
                ...local,
                tracks: updatedTracks,
-               trackCount: updatedTracks.length,
+               trackIds: updatedIds,
+               trackCount: updatedIds.length,
                updatedAt: new Date().toISOString(),
             });
          }
@@ -150,10 +160,12 @@ export const playlistsApi = {
       const local = await playlistsStore.get(playlistId);
       if (local) {
          const updatedTracks = local.tracks.filter((t) => t.id !== trackId);
+         const updatedIds = [...(local.trackIds ?? [])].filter((id) => id !== trackId);
          await playlistsStore.put({
             ...local,
             tracks: updatedTracks,
-            trackCount: updatedTracks.length,
+            trackIds: updatedIds,
+            trackCount: updatedIds.length,
             updatedAt: new Date().toISOString(),
          });
       }

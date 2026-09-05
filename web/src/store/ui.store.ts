@@ -6,6 +6,20 @@ export type NavPosition = 'bottom' | 'top'
 export type FontFamily  = 'plus-jakarta' | 'inter' | 'system'
 export type FontSize    = 'small' | 'default' | 'large'
 
+// Applied as CSS custom properties consumed by index.css (--font-body,
+// --font-size-base). Kept here so they can be re-applied on app boot.
+const FONT_STACKS: Record<FontFamily, string> = {
+  'plus-jakarta': '"Plus Jakarta Sans", system-ui, sans-serif',
+  'inter':        '"Inter", system-ui, sans-serif',
+  'system':       '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+}
+
+const FONT_SIZES: Record<FontSize, string> = {
+  small:   '14px',
+  default: '16px',
+  large:   '18px',
+}
+
 interface UIStore {
   // Panels
   showQueue:      boolean
@@ -42,11 +56,18 @@ interface UIStore {
   setNavPosition: (v: NavPosition) => void
   setFontFamily:  (v: FontFamily)  => void
   setFontSize:    (v: FontSize)    => void
+  initLayout:     () => void
 }
 
 export const useUIStore = create<UIStore>()(
   persist(
-    (set) => ({
+    (set, get) => {
+      const applyLayout = (fontFamily: FontFamily, fontSize: FontSize) => {
+        document.documentElement.style.setProperty('--font-body', FONT_STACKS[fontFamily])
+        document.documentElement.style.setProperty('--font-size-base', FONT_SIZES[fontSize])
+      }
+
+      return {
       showQueue:            false,
       showLyrics:           false,
       showFullscreen:       false,
@@ -84,24 +105,20 @@ export const useUIStore = create<UIStore>()(
 
       setFontFamily: (v) => {
         set({ fontFamily: v })
-        const fonts: Record<FontFamily, string> = {
-          'plus-jakarta': '"Plus Jakarta Sans", sans-serif',
-          'inter':        '"Inter", sans-serif',
-          'system':       '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        }
-        document.documentElement.style.setProperty('--font-body', fonts[v])
+        applyLayout(v, get().fontSize)
       },
 
       setFontSize: (v) => {
         set({ fontSize: v })
-        const sizes: Record<FontSize, string> = {
-          small:   '14px',
-          default: '16px',
-          large:   '18px',
-        }
-        document.documentElement.style.setProperty('--font-size-base', sizes[v])
+        applyLayout(get().fontFamily, v)
       },
-    }),
+
+      initLayout: () => {
+        const { fontFamily, fontSize } = get()
+        applyLayout(fontFamily, fontSize)
+      },
+      }
+    },
     {
       name: 'rheoson-ui',
       partialize: (s) => ({

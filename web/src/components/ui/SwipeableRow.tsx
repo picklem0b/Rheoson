@@ -1,5 +1,5 @@
-import { useRef, useState, type ReactNode } from 'react'
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
+import { useRef, type ReactNode } from 'react'
+import { motion, useMotionValue, animate } from 'framer-motion'
 
 interface SwipeAction {
   icon: ReactNode
@@ -25,21 +25,12 @@ export default function SwipeableRow({
   leftActions = [],
 }: SwipeableRowProps) {
   const x = useMotionValue(0)
-  const [swiping, setSwiping] = useState(false)
   const rowRef = useRef<HTMLDivElement>(null)
 
   const rightWidth = rightActions.length * 64
   const leftWidth = leftActions.length * 64
 
-  // Background opacity fades in as user swipes
-  const bgOpacity = useTransform(
-    x,
-    [-leftWidth, 0, rightWidth],
-    [1, 0, 1]
-  )
-
   const handleDragEnd = (_: unknown, info: { offset: { x: number }; velocity: { x: number } }) => {
-    setSwiping(false)
     const threshold = 50
 
     if (info.offset.x < -threshold && rightActions.length > 0) {
@@ -105,7 +96,6 @@ export default function SwipeableRow({
         dragConstraints={{ left: leftActions.length > 0 ? -rightWidth : 0, right: rightActions.length > 0 ? leftWidth : 0 }}
         dragElastic={0.1}
         dragMomentum={false}
-        onDragStart={() => setSwiping(true)}
         onDragEnd={handleDragEnd}
         className="relative bg-[var(--bg-surface)] cursor-grab active:cursor-grabbing"
       >

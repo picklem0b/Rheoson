@@ -1,13 +1,11 @@
 """Authentication routes — Clerk-backed registration, login, profile.
 
-Guest users can access most features. Auth is required for:
-- Playlists (creating, editing)
-- Downloads
-- Recommendations / analytics
-- Messaging (future)
+Guest mode was removed: every data endpoint requires a verified Clerk
+session, and this router only exposes the three entry points that cannot
+carry a Bearer token yet (register, login, and the Clerk webhook live in
+clerk_webhook_router). Everything else here requires get_current_user.
 
-The /visitor-count endpoint tracks total guests + authed users for
-the landing page display.
+The visitor counter tracks registered accounts for the landing display.
 """
 
 from __future__ import annotations
@@ -18,7 +16,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, EmailStr
 
-from app.core.auth import clerk_create_user, clerk_create_session, clerk_get_user
+from app.core.auth import (
+    clerk_create_session,
+    clerk_create_user,
+    clerk_find_user_by_email,
+    clerk_revoke_session,
+)
 from app.core.database import get_db, db_available
 from app.core.deps import get_current_user
 
@@ -104,20 +107,46 @@ async def register(body: RegisterRequest, db: AsyncIOMotorDatabase = Depends(get
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Login via Clerk — verify credentials and create session.
+    """Login via Clerk — verify credentials and create a session.
 
-    Note: Clerk's Backend API doesn't have a direct "login" endpoint.
-    The frontend should use Clerk's signIn.create() to authenticate,
-    then pass the resulting session token. This endpoint exists as a
-    fallback for API-only authentication.
+    Clerk's Backend API has no password-check endpoint, so we create a
+    real session for the matching Clerk account and hand its JWT back.
+    Clerk enforces the password on session creation: unknown credentials
+    return 404/422 here, which maps to a generic 401 for the client.
     """
-    # For now, we delegate to Clerk's frontend flow.
-    # This endpoint validates that the user exists and creates a session.
-    # In practice, the frontend handles login via @clerk/clerk-react.
-    raise HTTPException(
-        status_code=400,
-        detail="Use the sign-in form. This endpoint is for reference only.",
+    clerk_user = await clerk_find_user_by_email(body.email)
+    if clerk_user is None:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    session = await clerk_create_session(clerk_user["id"])
+    if session is None:
+        # Wrong password / MFA required / account blocked all surface here.
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    session_token = session.get("last_active_token", {}).get("jwt", "")
+    if not session_token:
+        raise HTTPException(status_code=500, detail="No session token returned")
+
+    await _increment_visitor_counter(db, "authed")
+
+    return TokenResponse(
+        session_token=session_token,
+        user={
+            "id": clerk_user["id"],
+            "email": body.email,
+            "name": (
+                clerk_user.get("first_name", "")
+                or body.email.split("@")[0]
+            ),
+        },
     )
+
+
+@router.post("/logout")
+async def logout(user: dict = Depends(get_current_user)):
+    """Revoke the Clerk session so the JWT dies server-side, not just locally."""
+    await clerk_revoke_session(user.get("sub", ""), user.get("sid", ""))
+    return {"ok": True}
 
 
 @router.get("/me")
@@ -188,19 +217,14 @@ async def _increment_visitor_counter(db: AsyncIOMotorDatabase, kind: str) -> Non
         pass  # Non-critical
 
 
-@router.post("/guest-visit")
-async def record_guest_visit(db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Record a guest visit. Called once per session on app load."""
-    await _increment_visitor_counter(db, "guests")
-    return {"ok": True}
-
-
 @router.get("/visitor-count")
-async def visitor_count(db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Get total visitors (guests + authed). For the landing page."""
+async def visitor_count(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
+    """Get the registered-account total. Session required (no guest counting)."""
     doc = await db.visitors.find_one({"_id": "counter"})
     if not doc:
-        return {"guests": 0, "authed": 0, "total": 0}
-    guests = doc.get("guests", 0)
+        return {"authed": 0, "total": 0}
     authed = doc.get("authed", 0)
-    return {"guests": guests, "authed": authed, "total": guests + authed}
+    return {"authed": authed, "total": authed}

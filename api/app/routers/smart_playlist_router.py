@@ -6,19 +6,23 @@ These playlists update every time they're opened:
 - Top Rated: liked tracks sorted by play count
 - Discovery: tracks the user hasn't explored yet
 - Time Capsule: tracks played exactly N days ago
+
+Guest mode removed: every route requires a verified session and aggregates
+that user's signals only.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, Query
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.core.database import get_db
-from app.routers.track_router import _build_index, _hydrate_track
-from app.models.recommendation import SignalType
-
 import asyncio
 import structlog
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, Query
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.routers.track_router import _build_index, _hydrate_track
 
 log = structlog.get_logger()
 router = APIRouter()
@@ -29,9 +33,10 @@ async def most_played(
     limit: int = Query(25, ge=1, le=100),
     days: int = Query(90, ge=1, le=365),
     db: AsyncIOMotorDatabase = Depends(get_db),
+    user: dict = Depends(get_current_user),
 ):
     """Tracks with highest play count in the given time window."""
-    user_id = "anonymous"
+    user_id = user["sub"]
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     pipeline = [
@@ -49,6 +54,7 @@ async def most_played(
         track_ids.append(doc["_id"])
 
     sem = asyncio.Semaphore(10)
+
     async def _safe(tid):
         async with sem:
             return await _hydrate_track(tid)
@@ -66,8 +72,9 @@ async def most_played(
 @router.get("/recently-added")
 async def recently_added(
     limit: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(get_current_user),
 ):
-    """Most recently downloaded/added tracks, sorted by file modification time."""
+    """Most recently downloaded/added tracks — shared instance library."""
     idx = await _build_index()
     tracks = sorted(
         idx.values(),
@@ -85,13 +92,13 @@ async def recently_added(
 async def discover(
     limit: int = Query(20, ge=1, le=50),
     db: AsyncIOMotorDatabase = Depends(get_db),
+    user: dict = Depends(get_current_user),
 ):
     """Tracks the user has in their library but rarely plays — hidden gems."""
-    user_id = "anonymous"
+    user_id = user["sub"]
     idx = await _build_index()
     since = datetime.now(timezone.utc) - timedelta(days=90)
 
-    # Get play counts
     pipeline = [
         {"$match": {
             "user_id": user_id, "signal": "play_start",
@@ -103,14 +110,12 @@ async def discover(
     async for doc in db.user_signals.aggregate(pipeline):
         play_counts[doc["_id"]] = doc["plays"]
 
-    # Find tracks with low play counts (hidden gems)
     candidates = []
     for tid, track in idx.items():
         plays = play_counts.get(tid, 0)
         if plays <= 2:  # rarely played
             candidates.append({**track, "_plays": plays})
 
-    # Sort by fewest plays (most unexplored)
     candidates.sort(key=lambda t: t["_plays"])
     return {
         "title": "Discover Your Library",
@@ -123,9 +128,10 @@ async def discover(
 async def time_capsule(
     days_ago: int = Query(30, ge=7, le=365),
     db: AsyncIOMotorDatabase = Depends(get_db),
+    user: dict = Depends(get_current_user),
 ):
     """Tracks you listened to exactly N days ago — nostalgic rediscovery."""
-    user_id = "anonymous"
+    user_id = user["sub"]
     target_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
     start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
     end = start + timedelta(days=1)
@@ -145,6 +151,7 @@ async def time_capsule(
         track_ids.append(doc["_id"])
 
     sem = asyncio.Semaphore(10)
+
     async def _safe(tid):
         async with sem:
             return await _hydrate_track(tid)

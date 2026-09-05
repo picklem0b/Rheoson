@@ -1,9 +1,12 @@
 import { motion } from 'framer-motion'
-import { GripVertical, X } from 'lucide-react'
+import { GripVertical, ListPlus, X } from 'lucide-react'
 import type { Track } from '@/types/track.types'
 import { usePlayerStore } from '@/store/player.store'
 import { useQueue } from '@/hooks/queue.hook'
+import { usePlaylistMenuStore } from '@/store/playlistMenu.store'
+import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { IconButton } from '@/components/ui/IconButton'
+import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { formatDuration, truncate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +19,7 @@ export default function QueueItem({ track, index }: QueueItemProps) {
   const currentTrack  = usePlayerStore((s) => s.currentTrack)
   const { playTrack, removeFromQueue } = useQueue()
   const isActive = currentTrack?.id === track.id
+  const contextMenu = useTrackContextMenu(track)
 
   return (
     <motion.div
@@ -30,6 +34,7 @@ export default function QueueItem({ track, index }: QueueItemProps) {
           ? 'bg-[var(--accent-subtle)] border border-[var(--accent-border)]'
           : 'hover:bg-[var(--bg-elevated)]'
       )}
+      {...contextMenu}
     >
       {/* Drag handle */}
       <GripVertical className="w-4 h-4 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 cursor-grab flex-shrink-0" />
@@ -39,10 +44,11 @@ export default function QueueItem({ track, index }: QueueItemProps) {
         onClick={() => playTrack(track)}
         className="flex items-center gap-3 flex-1 min-w-0 text-left"
       >
-        <img
+        <ArtworkImage
           src={track.artworkUrl}
           alt={track.title}
-          className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+          size={40}
+          radius="rounded-xl"
         />
         <div className="min-w-0 flex-1">
           <p className={cn(
@@ -60,15 +66,25 @@ export default function QueueItem({ track, index }: QueueItemProps) {
         </span>
       </button>
 
-      {/* Remove */}
-      <IconButton
-        size="xs"
-        variant="ghost"
-        onClick={() => removeFromQueue(index)}
-        className="opacity-0 group-hover:opacity-100"
-      >
-        <X />
-      </IconButton>
+      {/* Actions */}
+      <div className="flex items-center flex-shrink-0">
+        <IconButton
+          size="xs"
+          variant="ghost"
+          onClick={() => usePlaylistMenuStore.getState().openForTrack(track)}
+          className="opacity-0 group-hover:opacity-100"
+        >
+          <ListPlus />
+        </IconButton>
+        <IconButton
+          size="xs"
+          variant="ghost"
+          onClick={() => removeFromQueue(index)}
+          className="opacity-0 group-hover:opacity-100"
+        >
+          <X />
+        </IconButton>
+      </div>
     </motion.div>
   )
 }

@@ -72,10 +72,16 @@ def _verify_svix_signature(
     # Compute HMAC-SHA256
     expected = hmac.new(key, to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
 
-    # Compare each signature (Svix can send multiple, space-separated)
+    # Compare each signature (Svix can send multiple, space-separated). Each
+    # entry looks like "v1,<hexsig>" — splitting on ',' (not ':') matches the
+    # real Svix header format; splitting on ':' never matched anything, so
+    # every Clerk webhook was rejected as invalid.
     for sig in svix_signature.split(" "):
-        if ":" in sig:
-            sig_version, sig_value = sig.split(":", 1)
+        sig = sig.strip()
+        if not sig:
+            continue
+        if "," in sig:
+            _version, sig_value = sig.split(",", 1)
         else:
             sig_value = sig
 
@@ -299,34 +305,30 @@ async def clerk_webhook(request: Request):
 
     # ── Verify webhook secret is configured ──
     if not settings.CLERK_WEBHOOK_SECRET:
-        log.warning(
-            "webhook.clerk.no_secret",
-            note="CLERK_WEBHOOK_SECRET not configured — accepting without verification",
-        )
-        # In development without a secret, we still accept but log a warning.
-        # In production, we reject.
-        if settings.is_prod:
-            raise HTTPException(status_code=500, detail="Webhook secret not configured")
+        # Without a signing secret every webhook would have to be trusted
+        # on faith — anyone could POST forged user.created events. Refuse
+        # to run unverified in ALL environments (not just production).
+        log.warning("webhook.clerk.no_secret", note="CLERK_WEBHOOK_SECRET not configured — rejecting webhook")
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
 
     # ── Verify signature ──
     svix_id = request.headers.get("svix-id", "")
     svix_timestamp = request.headers.get("svix-timestamp", "")
     svix_signature = request.headers.get("svix-signature", "")
 
-    if settings.CLERK_WEBHOOK_SECRET:
-        if not all([svix_id, svix_timestamp, svix_signature]):
-            log.warning("webhook.clerk.missing_headers")
-            raise HTTPException(status_code=400, detail="Missing webhook headers")
+    if not all([svix_id, svix_timestamp, svix_signature]):
+        log.warning("webhook.clerk.missing_headers")
+        raise HTTPException(status_code=400, detail="Missing webhook headers")
 
-        if not _check_timestamp(svix_timestamp):
-            log.warning("webhook.clerk.timestamp_expired", svix_timestamp=svix_timestamp)
-            raise HTTPException(status_code=400, detail="Webhook timestamp expired")
+    if not _check_timestamp(svix_timestamp):
+        log.warning("webhook.clerk.timestamp_expired", svix_timestamp=svix_timestamp)
+        raise HTTPException(status_code=400, detail="Webhook timestamp expired")
 
-        if not _verify_svix_signature(
-            body, svix_id, svix_timestamp, svix_signature, settings.CLERK_WEBHOOK_SECRET
-        ):
-            log.warning("webhook.clerk.invalid_signature")
-            raise HTTPException(status_code=403, detail="Invalid webhook signature")
+    if not _verify_svix_signature(
+        body, svix_id, svix_timestamp, svix_signature, settings.CLERK_WEBHOOK_SECRET
+    ):
+        log.warning("webhook.clerk.invalid_signature")
+        raise HTTPException(status_code=403, detail="Invalid webhook signature")
 
     # ── Parse event ──
     try:

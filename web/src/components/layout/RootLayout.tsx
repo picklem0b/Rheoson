@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 import { Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Toaster } from "@/components/ui/Toaster";
@@ -6,7 +6,11 @@ import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
+import { DownloadModal } from "@/components/ui/DownloadModal";
+import { AddToPlaylistSheet } from "@/components/playlist/AddToPlaylistSheet";
+import { TrackContextMenu } from "@/components/track/TrackContextMenu";
 import { usePlayerStore } from "@/store/player.store";
+import { useUIStore } from "@/store/ui.store";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,30 +30,13 @@ import { cn } from "@/lib/utils";
  *  Sidebar on left, no BottomNav, PlayerBar pinned at bottom of content column.
  */
 
-const SWIPE_UP_THRESHOLD = -36;
-const SWIPE_DOWN_THRESHOLD = 36;
-
-/**
- * BottomNav auto-hide is DISABLED.
- * The nav stays visible at all times — no cooldown timer, no swipe-to-hide.
- * Users always have access to navigation without needing to swipe.
- */
-
 export default function RootLayout() {
    const hasTrack = usePlayerStore(s => s.currentTrack !== null);
+   const navPosition = useUIStore(s => s.navPosition);
 
-   // Nav is always visible — no auto-hide behavior
-   const navVisible = true;
-   const touchStartY = useRef<number | null>(null);
-
-   // Touch handlers kept as no-ops for future gesture support
-   const onTouchStart = (e: React.TouchEvent) => {
-      touchStartY.current = e.touches[0].clientY;
-   };
-
-   const onTouchEnd = (e: React.TouchEvent) => {
-      touchStartY.current = null;
-   };
+   // Nav is always visible — no auto-hide behavior.
+   // Position (bottom/top) comes from Settings → Layout → Navigation position.
+   const navAtTop = navPosition === 'top';
 
    return (
       <Toaster>
@@ -64,22 +51,24 @@ export default function RootLayout() {
                <main
                   className={cn(
                      "flex-1 overflow-y-auto overflow-x-hidden no-scrollbar",
-                     // Desktop — player bar card + spacing
-                     "lg:pb-[calc(var(--player-height)+8px)]",
-                     // Mobile — player bar + nav (when both visible)
-                     // Using CSS variable approach avoids Tailwind purging dynamic strings
-                     hasTrack &&
-                        navVisible &&
-                        "pb-[calc(var(--player-height)+var(--nav-height)+8px)]",
-                     hasTrack &&
-                        !navVisible &&
-                        "pb-[calc(var(--player-height)+8px)]",
-                     !hasTrack && "pb-[calc(var(--nav-height)+8px)]",
-                     // Remove mobile padding on desktop
-                     "lg:!pb-[var(--player-height)]"
+                     // Desktop — player bar card + spacing; never a top nav
+                     "lg:pb-[calc(var(--player-height)+8px)] lg:!pt-0",
+                     // Mobile — reserve space for the player bar and nav,
+                     // laid out according to the chosen nav position
+                     navAtTop
+                        ? cn(
+                             "pt-[calc(var(--nav-height)+8px)]",
+                             hasTrack
+                                ? "pb-[calc(var(--player-height)+8px)]"
+                                : "pb-3"
+                          )
+                        : cn(
+                             hasTrack
+                                ? "pb-[calc(var(--player-height)+var(--nav-height)+8px)]"
+                                : "pb-[calc(var(--nav-height)+8px)]"
+                          )
                   )}
-                  onTouchStart={onTouchStart}
-                  onTouchEnd={onTouchEnd}>
+                  >
                   <div className='page-enter h-full'>
                      <Outlet />
                   </div>
@@ -108,20 +97,28 @@ export default function RootLayout() {
                         }}
                         className='fixed inset-x-0 z-50'
                         style={{
-                           // Player bar sits above the BottomNav
-                           bottom: "var(--nav-height)",
+                           // Player bar sits above the BottomNav only when the
+                           // nav is docked at the bottom
+                           bottom: navAtTop ? 0 : "var(--nav-height)",
                         }}>
                         <PlayerBar />
                      </motion.div>
                   )}
                </AnimatePresence>
 
-               {/* BottomNav — always visible, raised slightly from bottom */}
+               {/* Nav — docked per Settings → Layout → Navigation position */}
                <motion.nav
                   key='bottom-nav'
                   initial={{ y: 0, opacity: 1 }}
                   animate={{ y: 0, opacity: 1 }}
-                  className='fixed inset-x-0 bottom-0 z-40 flex items-end'
+                  className={cn(
+                     'fixed inset-x-0 z-40 flex',
+                     navAtTop ? 'top-0 items-start' : 'bottom-0 items-end',
+                     // Keep the floating pill clear of notches/home bars
+                     navAtTop
+                        ? 'pt-[env(safe-area-inset-top)]'
+                        : 'pb-[env(safe-area-inset-bottom)]'
+                  )}
                   style={{ height: "var(--nav-height)" }}>
                   <BottomNav />
                </motion.nav>
@@ -129,6 +126,15 @@ export default function RootLayout() {
 
             {/* ── Queue Panel (slide-in drawer) ─────────────── */}
             <QueuePanel />
+
+            {/* ── Download options modal ─────────────────────── */}
+            <DownloadModal />
+
+            {/* ── Add-to-playlist sheet (global) ──────────────── */}
+            <AddToPlaylistSheet />
+
+            {/* ── Universal track context menu (right-click / long-press) ── */}
+            <TrackContextMenu />
          </div>
       </Toaster>
    );
