@@ -241,15 +241,24 @@ export function normalizePlaylist(raw: unknown): Playlist {
       })
    }
 
+   // Server always sends the raw stored IDs alongside hydrated tracks.
+   let trackIds: string[] = []
+   if (Array.isArray(p.trackIds)) {
+      trackIds = p.trackIds.map(String)
+   } else {
+      trackIds = tracks.map(t => t.id).filter(Boolean)
+   }
+
    return {
       id: String(p.id ?? p._id ?? `unknown-${Date.now()}`),
       title: String(p.title ?? 'Untitled Playlist'),
       description: typeof p.description === 'string' ? p.description : '',
       artworkUrl: typeof p.artworkUrl === 'string' ? p.artworkUrl : '',
       tracks,
+      trackIds,
       trackCount: typeof p.trackCount === 'number' ? p.trackCount
          : typeof p.trackCount === 'string' ? parseInt(p.trackCount, 10) || 0
-         : tracks.length,
+         : trackIds.length,
       isLocal: Boolean(p.isLocal),
       spotifyId: typeof p.spotifyId === 'string' ? p.spotifyId : '',
       totalDuration: typeof p.totalDuration === 'number' ? p.totalDuration : 0,

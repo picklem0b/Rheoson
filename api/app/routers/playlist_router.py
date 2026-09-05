@@ -74,6 +74,16 @@ async def list_playlists(user=None):
     
     # Sort by updatedAt descending
     playlists.sort(key=lambda p: p.get("updatedAt", ""), reverse=True)
+
+    # Grid views only need id/title/artwork/trackCount — sending the raw
+    # track-ID strings here would fail PlaylistSchema validation (tracks is
+    # list[TrackSchema]) and 500 the whole endpoint. Track IDs travel as
+    # trackIds; the detail endpoint hydrates them into full tracks.
+    for pl in playlists:
+        ids = [t for t in (pl.get("tracks", []) or []) if isinstance(t, str)]
+        pl["trackIds"] = ids
+        pl["trackCount"] = len(ids)
+        pl["tracks"] = []
     return playlists
 
 
@@ -91,7 +101,19 @@ async def get_playlist(playlist_id: str, user=None):
     pl_user = pl.get("user_id", "anonymous")
     if user_id != "anonymous" and pl_user != user_id:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    
+
+    # Hydrate the stored track IDs into full Track objects so the detail
+    # page renders real artwork/titles/durations. Unhydratable IDs are
+    # dropped from the response but kept in storage.
+    from app.routers.track_router import _hydrate_many
+    track_ids = [t for t in (pl.get("tracks", []) or []) if isinstance(t, str)]
+    hydrated = await _hydrate_many(track_ids)
+
+    pl = dict(pl)
+    pl["trackIds"] = track_ids
+    pl["tracks"] = hydrated
+    pl["trackCount"] = len(hydrated)
+    pl["totalDuration"] = sum(float(t.get("duration") or 0) for t in hydrated)
     return pl
 
 
@@ -111,6 +133,7 @@ async def create_playlist(req: CreatePlaylistSchema, user=None):
         "description": req.description or "",
         "artworkUrl": None,
         "tracks": [],
+        "trackIds": [],
         "trackCount": 0,
         "isLocal": True,
         "spotifyId": None,
@@ -216,7 +239,7 @@ async def add_track(playlist_id: str, body: dict, user=None):
     if not pl:
         raise HTTPException(status_code=404, detail="Playlist not found")
     
-    tracks = pl.get("tracks", [])
+    tracks = [t for t in (pl.get("tracks", []) or []) if isinstance(t, str)]
     
     # Deduplicate — don't add the same track twice
     if track_id in tracks:
@@ -224,6 +247,7 @@ async def add_track(playlist_id: str, body: dict, user=None):
     
     tracks.append(track_id)
     pl["tracks"] = tracks
+    pl["trackIds"] = tracks
     pl["trackCount"] = len(tracks)
     pl["updatedAt"] = datetime.now(timezone.utc).isoformat()
     
@@ -253,8 +277,9 @@ async def remove_track(playlist_id: str, track_id: str, user=None):
     if not pl:
         raise HTTPException(status_code=404, detail="Playlist not found")
     
-    tracks = [t for t in pl.get("tracks", []) if t != track_id]
+    tracks = [t for t in (pl.get("tracks", []) or []) if t != track_id and isinstance(t, str)]
     pl["tracks"] = tracks
+    pl["trackIds"] = tracks
     pl["trackCount"] = len(tracks)
     pl["updatedAt"] = datetime.now(timezone.utc).isoformat()
     
@@ -287,6 +312,7 @@ async def reorder_tracks(playlist_id: str, body: dict, user=None):
         raise HTTPException(status_code=404, detail="Playlist not found")
     
     pl["tracks"] = track_ids
+    pl["trackIds"] = track_ids
     pl["trackCount"] = len(track_ids)
     pl["updatedAt"] = datetime.now(timezone.utc).isoformat()
     
@@ -313,13 +339,14 @@ async def import_spotify(playlist_id: str, body: dict, user=None):
     if not pl:
         raise HTTPException(status_code=404, detail="Playlist not found")
     
-    existing = pl.get("tracks", [])
+    existing = [t for t in (pl.get("tracks", []) or []) if isinstance(t, str)]
     for t in tracks:
         tid = t.get("youtubeId") or t.get("id")
         if tid and tid not in existing:
             existing.append(tid)
     
     pl["tracks"] = existing
+    pl["trackIds"] = existing
     pl["trackCount"] = len(existing)
     pl["updatedAt"] = datetime.now(timezone.utc).isoformat()
     

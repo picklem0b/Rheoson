@@ -351,6 +351,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stream/{track_id}/warm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Warm Stream
+         * @description Start buffering a remote track in the background.
+         *
+         *     Idempotent: dedupes against the remote cache and any warm already
+         *     in flight. Bounded by _WARM_LIMIT concurrent downloads — when the
+         *     limit is reached the request is a cheap no-op ("busy") and the next
+         *     GET falls back to the live-stream path.
+         */
+        post: operations["warm_stream_api_stream__track_id__warm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stream/{track_id}/audio": {
         parameters: {
             query?: never;
@@ -359,13 +384,13 @@ export interface paths {
             cookie?: never;
         };
         /** Stream Audio */
-        get: operations["stream_audio_api_stream__track_id__audio_head_1"];
+        get: operations["stream_audio_api_stream__track_id__audio_get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         /** Stream Audio */
-        head: operations["stream_audio_api_stream__track_id__audio_head"];
+        head: operations["stream_audio_api_stream__track_id__audio_get_1"];
         patch?: never;
         trace?: never;
     };
@@ -917,6 +942,10 @@ export interface paths {
         /**
          * Get Taste Profile
          * @description Get the user's current taste profile.
+         *
+         *     Returns most-replayed tracks, favourite artists and genres, and a
+         *     listener persona — from MongoDB signals when available, otherwise
+         *     from the local history/liked mirror files.
          */
         get: operations["get_taste_profile_api_recommendations_taste_get"];
         put?: never;
@@ -1322,6 +1351,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/artists/{artist_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artist Detail */
+        get: operations["artist_detail_api_artists__artist_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1681,6 +1727,8 @@ export interface components {
             artworkUrl: string;
             /** Tracks */
             tracks: components["schemas"]["TrackSchema"][];
+            /** Trackids */
+            trackIds?: string[];
             /**
              * Trackcount
              * @default 0
@@ -1865,6 +1913,11 @@ export interface components {
              * @default
              */
             description: string;
+            /**
+             * Artworkurl
+             * @default
+             */
+            artworkUrl: string;
         };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
@@ -2505,7 +2558,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_api_stream__track_id__audio_head_1: {
+    warm_stream_api_stream__track_id__warm_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2536,7 +2589,38 @@ export interface operations {
             };
         };
     };
-    stream_audio_api_stream__track_id__audio_head: {
+    stream_audio_api_stream__track_id__audio_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_audio_api_stream__track_id__audio_get_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -4027,6 +4111,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    artist_detail_api_artists__artist_id__get: {
+        parameters: {
+            query?: {
+                /** @description Fallback match by artist name */
+                name?: string;
+            };
+            header?: never;
+            path: {
+                artist_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

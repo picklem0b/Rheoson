@@ -61,6 +61,7 @@ export const playlistsApi = {
          title: data.title,
          description: data.description ?? '',
          tracks: [],
+         trackIds: [],
          trackCount: 0,
          isLocal: true,
          artworkUrl: '',
@@ -125,14 +126,17 @@ export const playlistsApi = {
       // Optimistic local update
       const local = await playlistsStore.get(playlistId);
       if (local) {
-         const trackIds = local.tracks.map((t) => t.id);
-         if (!trackIds.includes(trackId)) {
+         const trackIds = [...(local.trackIds ?? []), ...local.tracks.map((t) => t.id)];
+         const deduped = [...new Set(trackIds)];
+         if (!deduped.includes(trackId)) {
+            const updatedIds = [...deduped, trackId];
             // We only have the trackId, not the full track — store ID in tracks array
             const updatedTracks = [...local.tracks, { id: trackId } as Track];
             await playlistsStore.put({
                ...local,
                tracks: updatedTracks,
-               trackCount: updatedTracks.length,
+               trackIds: updatedIds,
+               trackCount: updatedIds.length,
                updatedAt: new Date().toISOString(),
             });
          }
@@ -150,10 +154,12 @@ export const playlistsApi = {
       const local = await playlistsStore.get(playlistId);
       if (local) {
          const updatedTracks = local.tracks.filter((t) => t.id !== trackId);
+         const updatedIds = [...(local.trackIds ?? [])].filter((id) => id !== trackId);
          await playlistsStore.put({
             ...local,
             tracks: updatedTracks,
-            trackCount: updatedTracks.length,
+            trackIds: updatedIds,
+            trackCount: updatedIds.length,
             updatedAt: new Date().toISOString(),
          });
       }

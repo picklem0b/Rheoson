@@ -94,7 +94,9 @@ export function AddToPlaylistSheet() {
               </p>
             ) : (
               playlists.map((pl) => {
-                const inPlaylist = pl.tracks?.some((t) => t.id === track.id) ?? false
+                const inPlaylist =
+                  (pl.trackIds?.includes(track.id) ?? false) ||
+                  (pl.tracks?.some((t) => t.id === track.id) ?? false)
                 const busy = savingId === pl.id
                 return (
                   <button

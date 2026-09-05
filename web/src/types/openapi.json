@@ -809,6 +809,47 @@
         }
       }
     },
+    "/api/stream/{track_id}/warm": {
+      "post": {
+        "tags": [
+          "stream"
+        ],
+        "summary": "Warm Stream",
+        "description": "Start buffering a remote track in the background.\n\nIdempotent: dedupes against the remote cache and any warm already\nin flight. Bounded by _WARM_LIMIT concurrent downloads \u2014 when the\nlimit is reached the request is a cheap no-op (\"busy\") and the next\nGET falls back to the live-stream path.",
+        "operationId": "warm_stream_api_stream__track_id__warm_post",
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/stream/{track_id}/audio": {
       "head": {
         "tags": [
@@ -2162,7 +2203,7 @@
           "recommendations"
         ],
         "summary": "Get Taste Profile",
-        "description": "Get the user's current taste profile.",
+        "description": "Get the user's current taste profile.\n\nReturns most-replayed tracks, favourite artists and genres, and a\nlistener persona \u2014 from MongoDB signals when available, otherwise\nfrom the local history/liked mirror files.",
         "operationId": "get_taste_profile_api_recommendations_taste_get",
         "responses": {
           "200": {
@@ -2970,6 +3011,58 @@
           }
         }
       }
+    },
+    "/api/artists/{artist_id}": {
+      "get": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Artist Detail",
+        "operationId": "artist_detail_api_artists__artist_id__get",
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fallback match by artist name",
+              "default": "",
+              "title": "Name"
+            },
+            "description": "Fallback match by artist name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3555,6 +3648,13 @@
             "type": "array",
             "title": "Tracks"
           },
+          "trackIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Trackids"
+          },
           "trackCount": {
             "type": "integer",
             "title": "Trackcount",
@@ -3873,6 +3973,11 @@
           "description": {
             "type": "string",
             "title": "Description",
+            "default": ""
+          },
+          "artworkUrl": {
+            "type": "string",
+            "title": "Artworkurl",
             "default": ""
           }
         },

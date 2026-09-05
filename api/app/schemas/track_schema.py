@@ -17,6 +17,17 @@ class ArtistSchema(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_validator("id", "name", "imageUrl", "description", "subscribers", mode="before")
+    @classmethod
+    def _coerce_str(cls, v):
+        """Local index / ytmusic entries may hold None — coerce to empty string."""
+        return "" if v is None else v
+
+    @field_validator("followers", "monthlyListeners", mode="before")
+    @classmethod
+    def _coerce_int(cls, v):
+        return 0 if v is None else v
+
 
 class AlbumSchema(BaseModel):
     id:          str = ""
@@ -29,6 +40,16 @@ class AlbumSchema(BaseModel):
     tracks:      list = Field(default_factory=list)  # list[TrackSchema], lazy ref
 
     model_config = {"from_attributes": True}
+
+    @field_validator("id", "title", "artworkUrl", mode="before")
+    @classmethod
+    def _coerce_str(cls, v):
+        return "" if v is None else v
+
+    @field_validator("releaseYear", "year", "trackCount", mode="before")
+    @classmethod
+    def _coerce_int(cls, v):
+        return 0 if v is None else v
 
 
 class TrackSchema(BaseModel):
@@ -65,6 +86,13 @@ class TrackSchema(BaseModel):
                 pass
             return 0.0
         return float(v) if v is not None else 0.0
+
+    @field_validator("id", "title", "streamUrl", "filePath", "youtubeId", "spotifyId", "addedAt", mode="before")
+    @classmethod
+    def _coerce_str(cls, v):
+        """ytmusic hydration and local-file entries may hold None for string
+        fields — coerce to empty string so serialization never 500s."""
+        return "" if v is None else v
 
     @field_validator("isDownloaded", "isLiked", mode="before")
     @classmethod

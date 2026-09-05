@@ -10,6 +10,7 @@ class PlaylistSchema(BaseModel):
     description: str = ""
     artworkUrl:  str = ""
     tracks:      list[TrackSchema] = Field(default_factory=list)
+    trackIds:    list[str] = Field(default_factory=list)  # stored IDs, always present
     trackCount:  int = 0
     isLocal:     bool = True
     spotifyId:   str = ""
@@ -27,6 +28,19 @@ class PlaylistSchema(BaseModel):
             except (ValueError, TypeError):
                 return 0
         return int(v) if v is not None else 0
+
+    @field_validator("id", "title", "description", "artworkUrl", "spotifyId", "createdAt", "updatedAt", mode="before")
+    @classmethod
+    def _coerce_str(cls, v):
+        """Stored playlists may hold None for string fields (create writes
+        artworkUrl/spotifyId as None) — coerce to empty string instead of
+        failing validation and 500-ing every playlist endpoint."""
+        return "" if v is None else v
+
+    @field_validator("totalDuration", mode="before")
+    @classmethod
+    def _coerce_duration(cls, v):
+        return 0.0 if v is None else v
 
 
 class CreatePlaylistSchema(BaseModel):
