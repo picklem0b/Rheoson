@@ -17,6 +17,19 @@ jobs:
          - name: Checkout repo
            uses: actions/checkout@v4
 
+         - name: Set up Python
+           uses: actions/setup-python@v4
+           with:
+              python-version: "3.13"
+
+         - name: Install API dependencies
+           working-directory: api
+           run: |
+               pip install uv
+               uv sync
+               
+   
+
          - name: Set up Node.js
            uses: actions/setup-node@v4
            with:
@@ -74,3 +87,4 @@ jobs:
               name: Rheoson-debug
               path: web/android/app/build/outputs/apk/debug/app-debug.apk
               retention-days: 30
+              

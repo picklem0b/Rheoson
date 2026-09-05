@@ -14,7 +14,7 @@ dependencies = [
     "mutagen==1.47.0",
     "pillow>=11.0.0",
     "python-socketio==5.11.2",
-    "structlog==24.2.0",
+    "structlog==26.1.0",
     "rich>=13.9.4,<14",
     "yt-dlp",
     "spotipy",
