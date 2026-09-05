@@ -112,7 +112,11 @@ export default function RootLayout() {
                   animate={{ y: 0, opacity: 1 }}
                   className={cn(
                      'fixed inset-x-0 z-40 flex',
-                     navAtTop ? 'top-0 items-start' : 'bottom-0 items-end'
+                     navAtTop ? 'top-0 items-start' : 'bottom-0 items-end',
+                     // Keep the floating pill clear of notches/home bars
+                     navAtTop
+                        ? 'pt-[env(safe-area-inset-top)]'
+                        : 'pb-[env(safe-area-inset-bottom)]'
                   )}
                   style={{ height: "var(--nav-height)" }}>
                   <BottomNav />
