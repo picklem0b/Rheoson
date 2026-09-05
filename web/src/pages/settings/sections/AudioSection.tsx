@@ -17,6 +17,7 @@ export default function AudioSection() {
    const [crossfadeSecs, setCrossfadeSecs] = usePersisted("crossfade-secs", 5);
    const [normalize, setNormalize] = usePersisted("normalize", true);
    const [gapless, setGapless] = usePersisted("gapless", true);
+   const [autoplay, setAutoplay] = usePersisted("autoplay", true);
    const [quality, setQuality] = usePersisted<string>(
       "stream-quality",
       "very_high"
@@ -50,6 +51,11 @@ export default function AudioSection() {
                label='Gapless playback'
                description='Remove silence between consecutive tracks'>
                <Toggle value={gapless} onChange={setGapless} />
+            </SettingsRow>
+            <SettingsRow
+               label='Autoplay'
+               description='When your queue ends, keep playing similar music'>
+               <Toggle value={autoplay} onChange={setAutoplay} />
             </SettingsRow>
          </SettingsGroup>
 

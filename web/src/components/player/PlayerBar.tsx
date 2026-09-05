@@ -17,6 +17,7 @@ import PlayerControls from "./PlayerControls";
 import ProgressBar from "./ProgressBar";
 import VolumeControl from "./VolumeControl";
 import { IconButton } from "@/components/ui/IconButton";
+import { useToast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/utils";
 import { truncate } from "@/lib/formatters";
 
@@ -73,6 +74,23 @@ export default function PlayerBar() {
             setLiked(!next); // revert on failure
          }
       }, [currentTrack?.id, liked]); // eslint-disable-line react-hooks/exhaustive-deps -- track ID change is sufficient
+
+   const { toast } = useToast();
+
+   // Tell the user when autoplay kicked in at the end of the queue
+   useEffect(() => {
+      const handler = (e: Event) => {
+         const d = (e as CustomEvent<{ title?: string; count?: number }>).detail;
+         toast(
+            `Autoplaying similar music — ${truncate(d?.title ?? "", 22)}`,
+            "info",
+            3000
+         );
+      };
+      window.addEventListener("rheoson:autoplay-started", handler);
+      return () =>
+         window.removeEventListener("rheoson:autoplay-started", handler);
+   }, [toast]);
 
    // Universal context menu on the track info area (right-click / long-press)
    const contextMenu = useTrackContextMenu(currentTrack);

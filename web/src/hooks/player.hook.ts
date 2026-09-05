@@ -10,7 +10,9 @@ import { getLocalFileUrl } from '@/lib/localFs';
 import { isNativePlatform } from '@/lib/capacitor';
 import { ensureEffectsChain } from '@/lib/audioEffects';
 import { prefetchQueue } from '@/lib/prefetch';
+import { recommendationsApi } from '@/api/recommendations.api';
 import { signalPlayComplete, signalRepeat, signalSkip } from '@/lib/signals';
+import type { Track } from '@/types/track.types';
 
 // ── Singleton Howl ────────────────────────────────────────────
 // One instance shared across every component that calls usePlayer().
@@ -27,6 +29,65 @@ let _generation = 0;
 
 // Track which IDs have had recordPlay called this session
 const _playedThisSession = new Set<string>();
+
+// Guard so a single queue-exhaustion only triggers one autoplay fetch
+let _autoplayInFlight = false;
+
+// Settings → Audio → Autoplay (default on, matching streaming apps)
+function _autoplayEnabled(): boolean {
+    try {
+        const raw = localStorage.getItem('rheoson-autoplay');
+        return raw !== null ? (JSON.parse(raw) as boolean) : true;
+    } catch {
+        return true;
+    }
+}
+
+/**
+ * Queue exhausted → fetch similar tracks for the ended track, hydrate
+ * them into full Tracks, and keep playing from the first suggestion.
+ * Best-effort: any failure stops silently and playback just ends.
+ */
+async function _autoplayNext(endedTrack: { id: string; artist?: { name?: string } | null }) {
+    if (_autoplayInFlight) return;
+    _autoplayInFlight = true;
+    try {
+        const res = await recommendationsApi.getAutoplay(endedTrack.id, 10);
+        const candidates = res?.tracks ?? [];
+        if (!candidates.length) return;
+
+        // Hydrate in parallel; skip failures, the ended track, and anything
+        // already played this session so suggestions stay fresh.
+        const settled = await Promise.allSettled(
+            candidates.slice(0, 10).map((c) => tracksApi.getTrack(c.track_id))
+        );
+        const seen = new Set<string>([endedTrack.id]);
+        const fresh: Track[] = [];
+        for (const r of settled) {
+            if (r.status !== 'fulfilled') continue;
+            const t = r.value;
+            if (!t?.id || seen.has(t.id) || _playedThisSession.has(t.id)) continue;
+            seen.add(t.id);
+            fresh.push(t);
+            if (fresh.length >= 6) break;
+        }
+        if (!fresh.length) return;
+
+        // First suggestion becomes current; the rest form the new queue.
+        useQueueStore.getState().setQueue(fresh, 0);
+        usePlayerStore.getState().setTrack(fresh[0]);
+
+        window.dispatchEvent(
+            new CustomEvent('rheoson:autoplay-started', {
+                detail: { title: fresh[0].title, count: fresh.length },
+            })
+        );
+    } catch {
+        // Autoplay is best-effort — never let it break playback
+    } finally {
+        _autoplayInFlight = false;
+    }
+}
 
 // ── Timer helpers ─────────────────────────────────────────────
 
@@ -162,7 +223,13 @@ export function usePlayer() {
                 if (originalQueue.length > 0) {
                     useQueueStore.getState().setQueue(originalQueue, 0);
                     setTrack(originalQueue[0]);
+                    return; // repeat-all loops the playlist — no autoplay
                 }
+            }
+
+            // Queue exhausted — keep the music going with similar tracks
+            if (endedTrack && _autoplayEnabled()) {
+                _autoplayNext(endedTrack);
             }
         };
     }, [next, setTrack, setPlaying, setProgress, saveProgress]);
