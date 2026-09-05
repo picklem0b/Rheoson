@@ -111,6 +111,8 @@ export function useDownloads() {
       progress:   0,
       format:     options.format,
       quality:    options.quality,
+      error:      '',
+      filePath:   '',
       createdAt:  new Date().toISOString(),
     })
 

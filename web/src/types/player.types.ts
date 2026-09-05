@@ -1,15 +1,5 @@
-export type RepeatMode = 'off' | 'all' | 'one'
-
-export interface PlayerState {
-  isPlaying: boolean
-  volume: number          // 0–1
-  isMuted: boolean
-  progress: number        // seconds
-  duration: number        // seconds
-  repeatMode: RepeatMode
-  isShuffled: boolean
-  isLoading: boolean
-  showQueue: boolean
-  showLyrics: boolean
-  showFullscreen: boolean
-}
+/**
+ * @deprecated Import from '@/types' or '@/types/index' instead.
+ * This file re-exports for backward compatibility only.
+ */
+export type { RepeatMode, PlayerState } from './index'

@@ -39,7 +39,7 @@ from app.routers import (
     auth_router,
     recommendation_router,
 )
-from app.routers import equalizer_router, share_router, analytics_router, smart_playlist_router
+from app.routers import equalizer_router, share_router, analytics_router, smart_playlist_router, clerk_webhook_router
 
 configure_logging()
 log = structlog.get_logger()
@@ -374,6 +374,7 @@ app.include_router(equalizer_router.router, prefix="/api/equalizer", tags=["equa
 app.include_router(share_router.router, prefix="/api/share", tags=["share"])
 app.include_router(analytics_router.router, prefix="/api/analytics", tags=["analytics"])
 app.include_router(smart_playlist_router.router, prefix="/api/smart-playlists", tags=["smart-playlists"])
+app.include_router(clerk_webhook_router.router, prefix="/api", tags=["webhooks"])
 
 
 # ── Root ──────────────────────────────────────────────────────

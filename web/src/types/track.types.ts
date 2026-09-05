@@ -1,39 +1,5 @@
-export interface Artist {
-  id: string
-  name: string
-  imageUrl?: string
-  genres?: string[]
-  followers?: number
-  monthlyListeners?: number
-  topTracks?: Track[]
-  albums?: Album[]
-}
-
-export interface Album {
-  id: string
-  title: string
-  artist: Artist
-  artworkUrl: string
-  releaseYear: number
-  year?: number
-  trackCount: number
-  tracks?: Track[]
-}
-
-export interface Track {
-  id: string
-  title: string
-  artist: Artist
-  album: Album
-  artworkUrl: string
-  duration: number        // seconds
-  streamUrl?: string      // local stream endpoint
-  filePath?: string       // local file path if downloaded
-  isDownloaded: boolean
-  isLiked: boolean
-  youtubeId?: string
-  spotifyId?: string
-  addedAt?: string
-  trackNumber?: number    // position within its album, if known
-  playCount?: number      // YouTube play count, when available
-}
+/**
+ * @deprecated Import from '@/types' or '@/types/index' instead.
+ * This file re-exports for backward compatibility only.
+ */
+export type { Artist, Album, Track } from './index'
