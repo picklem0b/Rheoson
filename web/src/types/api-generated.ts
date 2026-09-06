@@ -1611,6 +1611,34 @@ export interface components {
              * @default
              */
             createdAt: string;
+            /**
+             * Embedmetadata
+             * @default true
+             */
+            embedMetadata: boolean;
+            /**
+             * Filenaming
+             * @default artist-title
+             * @enum {string}
+             */
+            fileNaming: "artist-title" | "title-artist" | "id";
+            /** Custompath */
+            customPath?: string | null;
+            /**
+             * Retries
+             * @default 3
+             */
+            retries: number;
+            /**
+             * Speedlimit
+             * @default 0
+             */
+            speedLimit: number;
+            /**
+             * Concurrency
+             * @default 3
+             */
+            concurrency: number;
         };
         /** DownloadRequestSchema */
         DownloadRequestSchema: {

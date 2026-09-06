@@ -370,9 +370,20 @@ export function usePlayer() {
                     setPlaying(false);
                     _loadedId = null;
                     // Dispatch event so UI can show retry toast
+                    let message = 'Could not load this track';
+                    const errStr = String(err);
+                    if (errStr.includes('404') || errStr.includes('Not Found')) {
+                        message = 'Track not found — it may have been removed';
+                    } else if (errStr.includes('403') || errStr.includes('Forbidden')) {
+                        message = 'Access denied — this track may be region-locked';
+                    } else if (errStr.includes('Network') || errStr.includes('Failed to fetch')) {
+                        message = 'Network error — check your connection';
+                    } else if (errStr.includes('decode') || errStr.includes('DECODE')) {
+                        message = 'Audio format not supported — trying alternative stream…';
+                    }
                     window.dispatchEvent(
                         new CustomEvent('rheoson:play-error', {
-                            detail: { trackId, error: String(err) },
+                            detail: { trackId, error: message, originalError: String(err) },
                         })
                     );
                 },
@@ -403,7 +414,7 @@ export function usePlayer() {
                                 _loadedId = null;
                                 window.dispatchEvent(
                                     new CustomEvent('rheoson:play-error', {
-                                        detail: { trackId, error: String(err) },
+                                        detail: { trackId, error: 'Playback interrupted — tap to retry', savedPos },
                                     })
                                 );
                             });
@@ -413,10 +424,19 @@ export function usePlayer() {
                     _destroy();
                     setLoading(false);
                     _loadedId = null;
+                    let message = 'Playback error — tap to retry';
+                    const errStr = String(err);
+                    if (errStr.includes('decode') || errStr.includes('DECODE')) {
+                        message = 'Audio decode error — trying alternative stream…';
+                    } else if (errStr.includes('Network') || errStr.includes('Failed to fetch')) {
+                        message = 'Network error — check your connection';
+                    } else if (errStr.includes('404') || errStr.includes('Not Found')) {
+                        message = 'Track no longer available';
+                    }
                     // Dispatch event so UI can show retry toast
                     window.dispatchEvent(
                         new CustomEvent('rheoson:play-error', {
-                            detail: { trackId, error: String(err), savedPos },
+                            detail: { trackId, error: message, savedPos },
                         })
                     );
                 }

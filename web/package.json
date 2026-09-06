@@ -16,7 +16,7 @@
         "build:apk": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
         "test": "vitest run",
         "test:watch": "vitest",
-        "generate:types": "sh ./scripts/generate_types.sh",
+        "generate:types": "bash ./scripts/generate_types.sh",
         "prebuild": "npm run generate:types"
     },
     "dependencies": {

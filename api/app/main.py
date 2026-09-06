@@ -58,9 +58,13 @@ AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
 # ── CORS ──────────────────────────────────────────────────────
 
 _BUILTIN_ORIGINS = [
-    "https://Rheoson-web.onrender.com",
-    "https://Rheoson-api-vnny.onrender.com",
-    "https://Rheoson.onrender.com",
+    "https://rheoson-web.onrender.com",
+    "https://rheoson-l4nh.onrender.com",
+    "https://rheoson-9e4c.onrender.com",
+    "https://rheoson-api.onrender.com",
+    "https://rheoson-api-vnny.onrender.com",
+    "https://rheoson-api-9e4c.onrender.com",
+    "https://rheoson.onrender.com",
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:3000",

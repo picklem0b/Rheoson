@@ -55,18 +55,3 @@ class DownloadJobSchema(BaseModel):
     retries:       int         = 3
     speedLimit:    int         = 0
     concurrency:   int         = 3
-
-
-class DownloadJobSchema(BaseModel):
-    id:         str
-    trackId:    str           = ""
-    title:      str           = ""
-    artist:     str           = ""
-    artworkUrl: str           = ""
-    status:     DownloadStatus = "queued"
-    progress:   float         = 0.0      # 0–100
-    format:     AudioFormat   = "mp3"
-    quality:    AudioQuality  = "320"
-    error:      Optional[str] = None
-    filePath:   Optional[str] = None
-    createdAt:  str           = ""

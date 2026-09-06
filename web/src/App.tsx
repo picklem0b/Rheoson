@@ -11,10 +11,11 @@ import { useMediaSession } from '@/hooks/mediaSession.hook'
 import { useToast } from '@/components/ui/Toaster'
 import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
 import { startVersionCheck } from '@/lib/versionCheck'
-import OfflineBanner from '@/components/ui/OfflineBanner'
+import { NetworkErrorBanner } from '@/components/ui/NetworkErrorBanner'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { initNetwork } from '@/lib/network'
 import { initAutoSync } from '@/lib/offlineQueue'
+import { initErrorHandler } from '@/lib/errorHandler'
 
 // ── Player error toast ────────────────────────────────────────
 function usePlayerErrorToast() {
@@ -23,13 +24,8 @@ function usePlayerErrorToast() {
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
-      toast(
-        detail?.savedPos
-          ? `Couldn't play this track — tap to retry`
-          : `Couldn't load this track`,
-        'error',
-        4000
-      )
+      const message = detail?.error || 'Playback error — tap to retry'
+      toast(message, 'error', 5000)
     }
     window.addEventListener('rheoson:play-error', handler)
     return () => window.removeEventListener('rheoson:play-error', handler)
@@ -43,7 +39,7 @@ function AppInner() {
   usePlayerErrorToast()
   return (
     <ErrorBoundary>
-      <OfflineBanner />
+      <NetworkErrorBanner />
       <RouterProvider router={router} />
     </ErrorBoundary>
   )
@@ -70,6 +66,7 @@ export default function App() {
 
   // Initialize network detection and offline sync
   useEffect(() => {
+    initErrorHandler()
     initNetwork(() => {
       const PROD_API = import.meta.env.VITE_API_URL ?? 'https://rheoson-api-vnny.onrender.com'
       return import.meta.env.DEV ? '/api/health' : `${PROD_API}/api/health`

@@ -30,12 +30,13 @@ async def connect_db() -> None:
     log = structlog.get_logger()
 
     try:
-        # Use a 5-second timeout — long enough for Atlas cold starts,
-        # short enough to not block app startup
+        # Use a bounded timeout so an unavailable database never prevents
+        # the API from starting, while allowing Atlas enough time for
+        # replica-set discovery on slower networks.
         _client = AsyncIOMotorClient(
             settings.MONGODB_URL,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000,
+            serverSelectionTimeoutMS=15000,
+            connectTimeoutMS=10000,
             socketTimeoutMS=10000,
         )
         _db = _client[settings.MONGODB_DB_NAME]
