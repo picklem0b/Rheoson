@@ -13,7 +13,7 @@
 //   npm run build && npx cap sync
 
 const PROD_API_ORIGIN =
-   import.meta.env.VITE_API_URL ?? "https://rheoson-api-vnny.onrender.com";
+   import.meta.env.VITE_API_URL ?? "https://rheoson-9e4c.onrender.com";
 
 // ── API_BASE ──────────────────────────────────────────────────
 // Used by the api client (client.api.ts) for all REST requests.
