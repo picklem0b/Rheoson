@@ -385,13 +385,13 @@ export interface paths {
             cookie?: never;
         };
         /** Stream Audio */
-        get: operations["stream_audio_api_stream__track_id__audio_head_1"];
+        get: operations["stream_audio"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         /** Stream Audio */
-        head: operations["stream_audio_api_stream__track_id__audio_head"];
+        head: operations["stream_audio_1"];
         patch?: never;
         trace?: never;
     };
@@ -2660,7 +2660,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_api_stream__track_id__audio_head_1: {
+    stream_audio: {
         parameters: {
             query?: never;
             header?: never;
@@ -2691,7 +2691,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_api_stream__track_id__audio_head: {
+    stream_audio_1: {
         parameters: {
             query?: never;
             header?: never;
