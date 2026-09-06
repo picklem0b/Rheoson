@@ -16,6 +16,17 @@
  */
 
 import type { Track, Artist, Album, Playlist, PlaylistResult } from '@/types/index'
+import { artworkUrl as proxyArtwork } from '@/lib/constants'
+
+// ── Artwork proxy helper ────────────────────────────────────
+// Routes YouTube/Spotify CDN artwork through the API server to avoid
+// CORS issues on the APK. Local /api/stream/* URLs pass through unchanged.
+function _proxyArtwork(trackId: string, url: string): string {
+   if (!url) return ''
+   if (url.startsWith('/api/')) return url
+   if (!trackId) return url  // Can't proxy without a track ID
+   return proxyArtwork(trackId, url)
+}
 
 // ── Default fallback objects ───────────────────────────────────
 
@@ -102,7 +113,7 @@ export function normalizeAlbum(raw: unknown): Album {
       id: String(a.id ?? a._id ?? 'unknown'),
       title: String(a.title ?? a.name ?? 'Unknown Album'),
       artist: normalizeArtist(a.artist),
-      artworkUrl: String(a.artworkUrl ?? a.artwork ?? a.image ?? ''),
+      artworkUrl: _proxyArtwork(String(a.id ?? ''), String(a.artworkUrl ?? a.artwork ?? a.image ?? '')),
       releaseYear: typeof a.releaseYear === 'number' ? a.releaseYear
          : typeof a.year === 'number' ? a.year
          : 0,
@@ -179,7 +190,7 @@ export function normalizeTrack(raw: unknown): Track {
       title: String(t.title ?? 'Unknown Track'),
       artist,
       album,
-      artworkUrl: String(t.artworkUrl ?? t.artwork ?? t.thumbnail ?? t.image ?? ''),
+      artworkUrl: _proxyArtwork(String(t.id ?? t.videoId ?? ''), String(t.artworkUrl ?? t.artwork ?? t.thumbnail ?? t.image ?? '')),
       duration,
       streamUrl: typeof t.streamUrl === 'string' ? t.streamUrl : '',
       filePath: typeof t.filePath === 'string' ? t.filePath : '',

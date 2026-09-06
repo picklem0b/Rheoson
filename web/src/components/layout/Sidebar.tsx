@@ -1,8 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Home, Search, Library, Download, Settings, User } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useUser } from '@clerk/clerk-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
+import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
 
 const NAV_ITEMS = [
@@ -37,8 +39,15 @@ function getInitials(name: string): string {
 
 function ProfileButton() {
   const navigate = useNavigate()
-  const user = useAuthStore((s) => s.user)
-  const name = user?.name ?? 'Your account'
+  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
+  const { user: clerkUser } = useUser()
+  const localUser = useAuthStore((s) => s.user)
+
+  // Prefer Clerk user data when available
+  const name = clerkEnabled
+    ? (clerkUser?.fullName ?? clerkUser?.username ?? 'Your account')
+    : (localUser?.name ?? 'Your account')
+  const imageUrl = clerkEnabled ? clerkUser?.imageUrl : localUser?.image_url
   const initials = getInitials(name)
   const gradient = getGradient(name)
 
@@ -48,8 +57,8 @@ function ProfileButton() {
       onClick={() => navigate('/profile')}
       className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl w-full hover:bg-[var(--bg-elevated)] transition-colors text-left"
     >
-      {user?.image_url ? (
-        <img src={user.image_url} alt={name} className="w-8 h-8 rounded-xl object-cover flex-shrink-0" />
+      {imageUrl ? (
+        <img src={imageUrl} alt={name} className="w-8 h-8 rounded-xl object-cover flex-shrink-0" />
       ) : (
         <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black text-white bg-gradient-to-br flex-shrink-0', gradient)}>
           {initials}
