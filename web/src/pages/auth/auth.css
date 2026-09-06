@@ -14,6 +14,61 @@
   max-width: 400px;
 }
 
+/* Clerk component theming */
+.clerk-auth-wrapper {
+  width: 100%;
+}
+
+.clerk-auth-wrapper .cl-rootBox {
+  width: 100% !important;
+}
+
+.clerk-auth-wrapper .cl-card {
+  background: var(--bg-surface, #111) !important;
+  border: 1px solid var(--border, #333) !important;
+  border-radius: 1rem !important;
+  box-shadow: none !important;
+  width: 100% !important;
+}
+
+.clerk-auth-wrapper .cl-headerTitle,
+.clerk-auth-wrapper .cl-headerSubtitle {
+  color: var(--text-primary, #fff) !important;
+}
+
+.clerk-auth-wrapper .cl-formFieldLabel {
+  color: var(--text-muted, #666) !important;
+}
+
+.clerk-auth-wrapper .cl-formFieldInput {
+  background: var(--bg-elevated, #1a1a1a) !important;
+  border-color: var(--border, #333) !important;
+  color: var(--text-primary, #fff) !important;
+  border-radius: 0.75rem !important;
+}
+
+.clerk-auth-wrapper .cl-formButtonPrimary {
+  background: var(--accent, #7c3aed) !important;
+  border-radius: 0.75rem !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+}
+
+.clerk-auth-wrapper .cl-footerActionLink,
+.clerk-auth-wrapper .cl-socialButtonsBlockButton {
+  color: var(--text-muted, #666) !important;
+  border-color: var(--border, #333) !important;
+  border-radius: 0.75rem !important;
+}
+
+.clerk-auth-wrapper .cl-dividerLine {
+  background: var(--border, #333) !important;
+}
+
+.clerk-auth-wrapper .cl-dividerText {
+  color: var(--text-muted, #666) !important;
+}
+
 .auth-input {
   width: 100%;
   padding: 0.75rem 1rem;

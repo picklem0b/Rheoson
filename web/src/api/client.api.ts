@@ -35,9 +35,18 @@ function makeError(status: number, detail: string): ApiError {
    return err;
 }
 
+let _clerkToken: string | null = null;
+
+/** Called by ClerkUserSync to inject the Clerk session token for API requests. */
+export function setClerkToken(token: string | null) {
+   _clerkToken = token;
+}
+
 function getAuthToken(): string | null {
+   // Prefer Clerk session token when available
+   if (_clerkToken) return _clerkToken;
    try {
-      // Read from the auth store's persisted state
+      // Fallback: read from the auth store's persisted state
       const raw = localStorage.getItem("rheoson-auth");
       if (raw) {
          const parsed = JSON.parse(raw);

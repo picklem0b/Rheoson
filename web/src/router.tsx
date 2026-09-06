@@ -12,8 +12,8 @@ import Playlist from '@/pages/playlist/Playlist'
 import Album from '@/pages/album/Album'
 import Artist from '@/pages/artist/Artist'
 import NotFound from '@/pages/errors/NotFound'
-import Login from '@/pages/auth/Login'
-import Register from '@/pages/auth/Register'
+import Landing from '@/pages/landing/Landing'
+import AuthPage from '@/pages/auth/AuthPage'
 
 // Home section "See all" pages — these live under pages/home/components/
 // because they only exist as drill-downs from Home's sections, not as
@@ -59,8 +59,10 @@ export const router = createBrowserRouter([
   // Full-screen player — renamed from /now-playing; keep the old URL working
   { path: '/full-player', element: <NowPlaying /> },
   { path: '/now-playing', element: <Navigate to="/full-player" replace /> },
-  { path: '/login',       element: <Login /> },
-  { path: '/register',    element: <Register /> },
+  { path: '/login',       element: <AuthPage mode="sign-in" /> },
+  { path: '/register',    element: <AuthPage mode="sign-up" /> },
+  { path: '/auth',        element: <AuthPage /> },
+  { path: '/landing',     element: <Landing /> },
   // 404 for the full-player catch-all
   { path: '*',            element: <NotFound /> },
 ])

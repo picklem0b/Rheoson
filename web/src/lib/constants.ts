@@ -13,7 +13,7 @@
 //   npm run build && npx cap sync
 
 const PROD_API_ORIGIN =
-   import.meta.env.VITE_API_URL ?? "https://rheoson-api-vnny.onrender.com";
+   import.meta.env.VITE_API_URL ?? "https://rheoson-9e4c.onrender.com";
 
 // ── API_BASE ──────────────────────────────────────────────────
 // Used by the api client (client.api.ts) for all REST requests.
@@ -93,3 +93,20 @@ export const STORAGE_KEYS = {
 
 export const APP_NAME = "Rheoson";
 export const APP_VERSION = "2.11.0";
+
+// ── Clerk ────────────────────────────────────────────────────
+// Publishable key for Clerk auth. Must be set in .env (VITE_CLERK_PUBLISHABLE_KEY).
+// When empty, auth features are disabled — the app works in local-only mode.
+export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? "";
+
+// ── Artwork proxy ────────────────────────────────────────────
+// Routes YouTube/Spotify CDN artwork through the API server to avoid
+// CORS issues on the APK and rate limiting on Render's free tier.
+// Local /api/stream/* URLs pass through unchanged.
+export function artworkUrl(trackId: string, remoteUrl?: string): string {
+  if (!remoteUrl) return ''
+  // If the URL is already a local API path, return as-is
+  if (remoteUrl.startsWith('/api/')) return remoteUrl
+  // Proxy remote URLs through the API server
+  return `${API_BASE}/stream/${trackId}/artwork-proxy?url=${encodeURIComponent(remoteUrl)}`
+}

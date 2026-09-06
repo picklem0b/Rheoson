@@ -8,11 +8,13 @@ import {
   Pencil, Check, X, Shield, BarChart3,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
+import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-react'
 import { analyticsApi } from '@/api/analytics.api'
 import { tracksApi } from '@/api/tracks.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { formatCount } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
 
 // ── Avatar ─────────────────────────────────────────────────────
 
@@ -94,6 +96,9 @@ function QuickLink({ icon: Icon, label, description, to, color }: {
 export default function Profile() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
+  const { signOut: clerkSignOut } = useClerkAuth()
+  const { user: clerkUser } = useUser()
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -170,7 +175,10 @@ export default function Profile() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (clerkEnabled && clerkUser) {
+      await clerkSignOut()
+    }
     logout()
     navigate('/')
   }

@@ -291,7 +291,7 @@ async def warm_stream(track_id: str, _user: dict = Depends(get_current_user)):
 
 # ── Routes ────────────────────────────────────────────────────
 
-@router.api_route("/{track_id}/audio", methods=["GET", "HEAD"])
+@router.api_route("/{track_id}/audio", methods=["GET", "HEAD"], operation_id="stream_audio")
 async def stream_audio(track_id: str, request: Request):
     await _ensure_cache()
     local = _find_local(track_id)

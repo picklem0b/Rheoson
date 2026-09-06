@@ -966,12 +966,12 @@
       }
     },
     "/api/stream/{track_id}/audio": {
-      "head": {
+      "get": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_api_stream__track_id__audio_head",
+        "operationId": "stream_audio",
         "parameters": [
           {
             "name": "track_id",
@@ -1004,12 +1004,12 @@
           }
         }
       },
-      "get": {
+      "head": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_api_stream__track_id__audio_head_1",
+        "operationId": "stream_audio_1",
         "parameters": [
           {
             "name": "track_id",
@@ -3143,6 +3143,11 @@
         ],
         "summary": "Library Featured",
         "operationId": "library_featured_api_library_featured_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -3195,7 +3200,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/library/artists": {
@@ -3214,7 +3224,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/library/albums/{album_id}": {
@@ -3225,6 +3240,11 @@
         "summary": "Library Album Detail",
         "description": "Album detail page: cover + full track list.\n\nRemote YouTube Music albums (browse IDs like MPREb\u2026) are served from\nytmusicapi's get_album. Local library albums (md5-derived IDs or a\n?name= fallback) are aggregated from the file index so the Album page\nworks fully offline too.",
         "operationId": "library_album_detail_api_library_albums__album_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "album_id",
@@ -3277,6 +3297,11 @@
         ],
         "summary": "Artist Detail",
         "operationId": "artist_detail_api_artists__artist_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "artist_id",
@@ -3643,6 +3668,47 @@
             "type": "string",
             "title": "Createdat",
             "default": ""
+          },
+          "embedMetadata": {
+            "type": "boolean",
+            "title": "Embedmetadata",
+            "default": true
+          },
+          "fileNaming": {
+            "type": "string",
+            "enum": [
+              "artist-title",
+              "title-artist",
+              "id"
+            ],
+            "title": "Filenaming",
+            "default": "artist-title"
+          },
+          "customPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custompath"
+          },
+          "retries": {
+            "type": "integer",
+            "title": "Retries",
+            "default": 3
+          },
+          "speedLimit": {
+            "type": "integer",
+            "title": "Speedlimit",
+            "default": 0
+          },
+          "concurrency": {
+            "type": "integer",
+            "title": "Concurrency",
+            "default": 3
           }
         },
         "type": "object",

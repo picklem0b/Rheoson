@@ -81,7 +81,7 @@ class Settings(BaseSettings):
 
     @property
     def has_clerk(self) -> bool:
-        return bool(self.CLERK_SECRET_KEY and self.CLERK_PUBLISHABLE_KEY)
+        return bool(self.CLERK_SECRET_KEY)
 
     @property
     def has_redis(self) -> bool:

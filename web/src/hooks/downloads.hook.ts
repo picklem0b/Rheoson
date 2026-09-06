@@ -144,18 +144,23 @@ export function useDownloads() {
 
     // Optimistic job shown immediately in the UI
     addJob({
-      id:         tempId,
-      trackId:    track.id,
-      title:      track.title,
-      artist:     track.artist?.name ?? 'Unknown Artist',
-      artworkUrl: track.artworkUrl,
-      status:     'queued',
-      progress:   0,
-      format:     payload.format,
-      quality:    payload.quality,
-      error:      '',
-      filePath:   '',
-      createdAt:  new Date().toISOString(),
+      id:             tempId,
+      trackId:        track.id,
+      title:          track.title,
+      artist:         track.artist?.name ?? 'Unknown Artist',
+      artworkUrl:     track.artworkUrl,
+      status:         'queued',
+      progress:       0,
+      format:         payload.format,
+      quality:        payload.quality,
+      error:          '',
+      filePath:       '',
+      createdAt:      new Date().toISOString(),
+      embedMetadata:  true,
+      fileNaming:     'artist-title',
+      retries:        3,
+      speedLimit:     0,
+      concurrency:    3,
     })
 
     try {

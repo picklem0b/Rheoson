@@ -38,7 +38,22 @@ _bearer = HTTPBearer(auto_error=False)
 async def get_current_user(
     cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> dict[str, Any]:
-    """Require a valid Clerk session token. Raises 401 if missing/invalid."""
+    """Require a valid Clerk session token. Raises 401 if missing/invalid.
+
+    When Clerk is not configured (dev mode), returns a synthetic dev user
+    so all authenticated routes remain accessible during local development.
+    """
+    from app.core.config import settings
+
+    # ── Dev fallback: no Clerk configured ─────────────────────
+    if not settings.has_clerk:
+        return {
+            "sub": "dev-user-local",
+            "email": "dev@localhost",
+            "first_name": "Developer",
+            "_dev": True,
+        }
+
     if cred is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

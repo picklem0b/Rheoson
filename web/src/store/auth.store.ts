@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi, type AuthUser } from '@/api/auth.api';
+import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants';
 
 interface AuthState {
   token: string | null;
@@ -9,12 +10,14 @@ interface AuthState {
   /** True once mount-time token validation has finished. */
   ready: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name?: string) => Promise<void>;
+  /** Sync Clerk user data into local store (called from ClerkUserSync). */
+  syncClerkUser: (clerkUser: { id: string; email?: string; name?: string; imageUrl?: string; createdAt?: string } | null) => void;
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
   setToken: (token: string) => void;
 }
+
+const clerkEnabled = !!CLERK_PUBLISHABLE_KEY;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -25,60 +28,41 @@ export const useAuthStore = create<AuthState>()(
       ready: false,
       isLoading: false,
 
-      login: async (email, password) => {
-        set({ isLoading: true });
-        try {
-          const res = await authApi.login({ email, password });
-          set({
-            token: res.session_token,
-            user: res.user,
-            isAuthenticated: true,
-            ready: true,
-            isLoading: false,
-          });
-        } catch (err) {
-          set({ isLoading: false });
-          throw err;
+      syncClerkUser: (clerkUser) => {
+        if (!clerkUser) {
+          set({ user: null, isAuthenticated: false, ready: true });
+          return;
         }
-      },
-
-      register: async (email, password, name) => {
-        set({ isLoading: true });
-        try {
-          const res = await authApi.register({ email, password, name });
-          set({
-            token: res.session_token,
-            user: res.user,
-            isAuthenticated: true,
-            ready: true,
-            isLoading: false,
-          });
-        } catch (err) {
-          set({ isLoading: false });
-          throw err;
-        }
+        set({
+          user: {
+            id: clerkUser.id,
+            email: clerkUser.email ?? '',
+            name: clerkUser.name ?? clerkUser.email ?? 'User',
+            image_url: clerkUser.imageUrl,
+            created_at: clerkUser.createdAt,
+          },
+          isAuthenticated: true,
+          ready: true,
+        });
       },
 
       logout: async () => {
-        const { token } = get();
-        // Revoke the Clerk session server-side first — best effort, so a
-        // network failure still signs the device out locally.
-        if (token) {
-          try {
-            await authApi.logout();
-          } catch {
-            /* token may already be dead — drop it locally anyway */
-          }
-        }
+        // Clerk handles its own sign-out via useAuth().signOut()
+        // This is called after Clerk sign-out to clear local state.
         set({ token: null, user: null, isAuthenticated: false, ready: true });
       },
 
       initialize: async () => {
-        const { token, ready } = get();
-        if (ready) return;
+        if (clerkEnabled) {
+          // Clerk manages auth state — the store starts unauthenticated
+          // and gets populated by the ClerkUserSync component.
+          set({ ready: true });
+          return;
+        }
+
+        // Fallback: validate stored token via backend (dev mode)
+        const { token } = get();
         if (!token) {
-          // No stored session — nothing to validate. AuthGuard sends the
-          // user to /login; guest mode no longer exists.
           set({ ready: true, isAuthenticated: false, user: null });
           return;
         }
@@ -86,7 +70,6 @@ export const useAuthStore = create<AuthState>()(
           const user = await authApi.getProfile();
           set({ user, isAuthenticated: true, ready: true });
         } catch {
-          // Token expired or invalid — drop it and require sign-in.
           set({ token: null, user: null, isAuthenticated: false, ready: true });
         }
       },

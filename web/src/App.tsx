@@ -2,19 +2,22 @@ import { useEffect } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { Howler } from 'howler'
+import { ClerkProvider } from '@clerk/clerk-react'
 import { router } from './router'
 import { useThemeStore } from '@/store/theme.store'
 import { useUIStore } from '@/store/ui.store'
-import { useAuthStore } from '@/store/auth.store'
 import { useKeyboardShortcuts } from '@/hooks/keyboardShortcuts.hook'
 import { useMediaSession } from '@/hooks/mediaSession.hook'
 import { useToast } from '@/components/ui/Toaster'
 import SplashScreen, { useSplash } from '@/components/ui/SplashScreen'
 import { startVersionCheck } from '@/lib/versionCheck'
-import OfflineBanner from '@/components/ui/OfflineBanner'
+import { NetworkErrorBanner } from '@/components/ui/NetworkErrorBanner'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { initNetwork } from '@/lib/network'
 import { initAutoSync } from '@/lib/offlineQueue'
+import { initErrorHandler } from '@/lib/errorHandler'
+import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
+import ClerkUserSync from '@/components/auth/ClerkUserSync'
 
 // ── Player error toast ────────────────────────────────────────
 function usePlayerErrorToast() {
@@ -23,13 +26,8 @@ function usePlayerErrorToast() {
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
-      toast(
-        detail?.savedPos
-          ? `Couldn't play this track — tap to retry`
-          : `Couldn't load this track`,
-        'error',
-        4000
-      )
+      const message = detail?.error || 'Playback error — tap to retry'
+      toast(message, 'error', 5000)
     }
     window.addEventListener('rheoson:play-error', handler)
     return () => window.removeEventListener('rheoson:play-error', handler)
@@ -43,7 +41,7 @@ function AppInner() {
   usePlayerErrorToast()
   return (
     <ErrorBoundary>
-      <OfflineBanner />
+      <NetworkErrorBanner />
       <RouterProvider router={router} />
     </ErrorBoundary>
   )
@@ -53,7 +51,6 @@ function AppInner() {
 export default function App() {
   const initTheme       = useThemeStore((s) => s.initTheme)
   const initLayout      = useUIStore((s) => s.initLayout)
-  const initializeAuth  = useAuthStore((s) => s.initialize)
   const { show, dismiss } = useSplash()
   const { toast } = useToast()
 
@@ -63,13 +60,9 @@ export default function App() {
     initLayout()
   }, [initTheme, initLayout])
 
-  // Validate stored auth token on mount
-  useEffect(() => {
-    initializeAuth()
-  }, [initializeAuth])
-
   // Initialize network detection and offline sync
   useEffect(() => {
+    initErrorHandler()
     initNetwork(() => {
       const PROD_API = import.meta.env.VITE_API_URL ?? 'https://rheoson-api-vnny.onrender.com'
       return import.meta.env.DEV ? '/api/health' : `${PROD_API}/api/health`
@@ -109,7 +102,9 @@ export default function App() {
     }
   }, [])
 
-  return (
+  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
+
+  const inner = (
     <ErrorBoundary>
       <AnimatePresence>
         {show && <SplashScreen onDone={dismiss} />}
@@ -117,4 +112,15 @@ export default function App() {
       {!show && <AppInner />}
     </ErrorBoundary>
   )
+
+  if (clerkEnabled) {
+    return (
+      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+        <ClerkUserSync />
+        {inner}
+      </ClerkProvider>
+    )
+  }
+
+  return inner
 }
