@@ -22,6 +22,9 @@ os.environ.pop("RHEOSON_MOCK_DB", None)
 # Set them very high so they never trigger during tests.
 os.environ["RATE_LIMIT_SEARCH"] = "99999"
 os.environ["RATE_LIMIT_DOWNLOAD"] = "99999"
+os.environ["RATE_LIMIT_AUTH"] = "99999"
+os.environ["RATE_LIMIT_STREAM"] = "99999"
+os.environ["RATE_LIMIT_LYRICS"] = "99999"
 
 
 # ── Mock database ──────────────────────────────────────────────

@@ -1,7 +1,10 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, Music, Headphones, Download, Wifi, WifiOff } from 'lucide-react'
+import { ArrowRight, Music, Headphones, Download, WifiOff } from 'lucide-react'
+import { useAuth } from '@clerk/clerk-react'
 import { useAuthStore } from '@/store/auth.store'
+import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
 
 const features = [
   {
@@ -24,15 +27,48 @@ const features = [
   },
 ]
 
+/**
+ * Landing page — public marketing / entry screen shown to signed-out users.
+ * "Get started" hands off to Clerk's own Sign up / Sign in UI (/register, /login).
+ *
+ * Clerk hooks live only in <ClerkGate> so this page never calls useAuth()
+ * outside a <ClerkProvider> (which only exists when the key is configured).
+ */
 export default function Landing() {
-  const navigate = useNavigate()
-  const { isAuthenticated } = useAuthStore()
+  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
+  return clerkEnabled ? <ClerkGate /> : <LandingBody clerkEnabled={false} />
+}
 
-  // Already signed in? Go straight to the app
-  if (isAuthenticated) {
-    navigate('/', { replace: true })
-    return null
-  }
+/** Renders inside ClerkProvider only — safe to call Clerk hooks here. */
+function ClerkGate() {
+  const navigate = useNavigate()
+  const { isLoaded, isSignedIn } = useAuth()
+  const authed = isLoaded && isSignedIn
+
+  useEffect(() => {
+    if (authed) navigate('/', { replace: true })
+  }, [authed, navigate])
+
+  return <LandingBody clerkEnabled authed={authed} />
+}
+
+interface LandingBodyProps {
+  clerkEnabled: boolean
+  authed?: boolean
+}
+
+function LandingBody({ clerkEnabled, authed = false }: LandingBodyProps) {
+  const navigate = useNavigate()
+
+  // Local-mode store check (no Clerk) — if a stored session exists, go home.
+  const { isAuthenticated } = useAuthStore()
+  const effectiveAuthed = clerkEnabled ? authed : isAuthenticated
+
+  useEffect(() => {
+    if (effectiveAuthed) navigate('/', { replace: true })
+  }, [effectiveAuthed, navigate])
+
+  if (effectiveAuthed) return null
 
   return (
     <div className="min-h-screen bg-[var(--bg-base)] overflow-hidden">
@@ -69,20 +105,36 @@ export default function Landing() {
             No subscription. No ads. No limits.
           </p>
 
-          {/* CTA */}
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/auth')}
-            className="mt-8 inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-[var(--accent)] text-white font-bold text-lg shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/30 transition-shadow"
+          {/* CTA — opens Clerk's own sign-in / sign-up UI */}
+          <motion.div
+            className="mt-8 flex flex-col items-center gap-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
           >
-            Get started
-            <ArrowRight className="w-5 h-5" />
-          </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate(clerkEnabled ? '/register' : '/auth')}
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-[var(--accent)] text-white font-bold text-lg shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/30 transition-shadow"
+            >
+              Get started
+              <ArrowRight className="w-5 h-5" />
+            </motion.button>
 
-          <p className="mt-4 text-xs text-[var(--text-muted)]/50">
-            Free and open source · No account required for local playback
-          </p>
+            {clerkEnabled ? (
+              <button
+                onClick={() => navigate('/login')}
+                className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Already have an account? Sign in
+              </button>
+            ) : (
+              <p className="text-xs text-[var(--text-muted)]/60">
+                Local mode — no account needed
+              </p>
+            )}
+          </motion.div>
         </motion.div>
       </div>
 
@@ -113,21 +165,6 @@ export default function Landing() {
             </motion.div>
           ))}
         </div>
-
-        {/* Footer link into the app for dev mode */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="mt-12 text-center"
-        >
-          <button
-            onClick={() => navigate('/')}
-            className="text-sm text-[var(--text-muted)]/50 hover:text-[var(--text-muted)] transition-colors"
-          >
-            Skip for now →
-          </button>
-        </motion.div>
       </div>
     </div>
   )

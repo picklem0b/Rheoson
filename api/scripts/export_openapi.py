@@ -7,7 +7,6 @@ Post-processes the schema to:
 """
 
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -57,29 +56,32 @@ for schema_name, fields in ALWAYS_PRESENT.items():
     if required:
         schema_obj["required"] = sorted(required)
 
+# ── Deduplicate operation IDs deterministically ────────────────
+# FastAPI generates the same operationId for GET + HEAD on the same endpoint,
+# which causes TS2300 "Duplicate identifier" in TypeScript. FastAPI's internal
+# method ordering is a set, so a naive text-order rename flips which method
+# keeps the base name on every run. Instead walk each path with a fixed method
+# priority (GET first) so the generated types are stable across regenerations.
+METHOD_ORDER = ("get", "head", "put", "post", "delete", "options", "patch", "trace")
+
+used_ids: set[str] = set()
+for path in sorted(schema.get("paths", {})):
+    item = schema["paths"][path]
+    for method in METHOD_ORDER:
+        operation = item.get(method)
+        if not operation or "operationId" not in operation:
+            continue
+        oid = operation["operationId"]
+        if oid in used_ids:
+            suffix = 1
+            while f"{oid}_{suffix}" in used_ids:
+                suffix += 1
+            operation["operationId"] = f"{oid}_{suffix}"
+            oid = operation["operationId"]
+        used_ids.add(oid)
+
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 OUTPUT.write_text(json.dumps(schema, indent=2, default=str))
-
-# ── Fix duplicate operation IDs ─────────────────────────────────
-# FastAPI generates the same operationId for GET + HEAD on the same endpoint.
-# This causes TS2300 "Duplicate identifier" in TypeScript.
-content = OUTPUT.read_text()
-# Find all operationId values and deduplicate
-op_pattern = re.compile(r'"operationId":\s*"([^"]+)"')
-seen: set[str] = set()
-counter: dict[str, int] = {}
-
-def _replace_op(match: re.Match) -> str:
-    oid = match.group(1)
-    if oid in counter:
-        counter[oid] += 1
-        oid = f"{oid}_{counter[oid]}"
-    else:
-        counter[oid] = 0
-    return f'"operationId": "{oid}"'
-
-content = op_pattern.sub(_replace_op, content)
-OUTPUT.write_text(content)
 
 print(f"✅ Exported OpenAPI schema to {OUTPUT}")
 print(f"   {len(filtered_paths)} endpoints, {len(schemas)} schemas")

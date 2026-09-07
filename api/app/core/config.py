@@ -46,8 +46,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "dev-only-insecure-secret-key-do-not-use-in-prod"
 
     # ── Rate limiting ─────────────────────────────────────────
-    RATE_LIMIT_SEARCH:   int = 30   # requests per minute per IP
-    RATE_LIMIT_DOWNLOAD: int = 10   # requests per minute per IP
+    # Per-IP, per-minute. Stream/audio is generous because seeking issues
+    # many range requests; auth is tight because it fronts account creation
+    # and session issuance through the Clerk Backend API.
+    RATE_LIMIT_SEARCH:   int = 30   # /api/search (unauthenticated-ish fanout)
+    RATE_LIMIT_DOWNLOAD: int = 10   # /api/downloads (spawns yt-dlp/ffmpeg)
+    RATE_LIMIT_AUTH:     int = 20   # /api/auth (register/login hit Clerk API)
+    RATE_LIMIT_STREAM:   int = 300  # /api/stream (audio + artwork byte routes)
+    RATE_LIMIT_LYRICS:   int = 60   # /api/lyrics (external provider fetch)
 
     # ── Instance administration ────────────────────────────────
     # Clerk subs allowed to mutate instance-level configuration (music
