@@ -18,6 +18,7 @@ import { initAutoSync } from '@/lib/offlineQueue'
 import { initErrorHandler } from '@/lib/errorHandler'
 import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
 import ClerkUserSync from '@/components/auth/ClerkUserSync'
+import { useAuthStore } from '@/store/auth.store'
 
 // ── Player error toast ────────────────────────────────────────
 function usePlayerErrorToast() {
@@ -60,11 +61,17 @@ export default function App() {
     initLayout()
   }, [initTheme, initLayout])
 
+  // Boot the auth store (validates a persisted session in local mode;
+  // in Clerk mode it just flips `ready` so guards never hang on it).
+  useEffect(() => {
+    useAuthStore.getState().initialize()
+  }, [])
+
   // Initialize network detection and offline sync
   useEffect(() => {
     initErrorHandler()
     initNetwork(() => {
-      const PROD_API = import.meta.env.VITE_API_URL ?? 'https://rheoson-api-vnny.onrender.com'
+      const PROD_API = import.meta.env.VITE_API_URL ?? 'https://rheoson-api-9e4c.onrender.com'
       return import.meta.env.DEV ? '/api/health' : `${PROD_API}/api/health`
     })
     initAutoSync()

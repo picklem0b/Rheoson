@@ -6,6 +6,27 @@ import pytest
 
 
 @pytest.mark.asyncio
+async def test_download_custom_path_outside_music_dirs_rejected(client):
+    """customPath must stay inside a configured music directory — otherwise an
+    authenticated user could make the server write audio anywhere on disk."""
+    resp = await client.post("/api/downloads", json={
+        "trackId": "dQw4w9WgXcQ",
+        "format": "mp3",
+        "quality": "320",
+        "customPath": "/etc/evil",
+    })
+    assert resp.status_code == 400
+    assert "customPath" in resp.json().get("detail", "")
+
+    # .. traversal out of the music dir must also be rejected
+    resp2 = await client.post("/api/downloads", json={
+        "trackId": "dQw4w9WgXcQ",
+        "customPath": "/tmp/not-music/../evil",
+    })
+    assert resp2.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_download_requires_track_id_or_url(client):
     """Download without trackId or url should return 400."""
     resp = await client.post("/api/downloads", json={

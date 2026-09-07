@@ -925,7 +925,7 @@
           "stream"
         ],
         "summary": "Warm Stream",
-        "description": "Start buffering a remote track in the background.\n\nIdempotent: dedupes against the remote cache and any warm already\nin flight. Bounded by _WARM_LIMIT concurrent downloads \u2014 when the\nlimit is reached the request is a cheap no-op (\"busy\") and the next\nGET falls back to the live-stream path.",
+        "description": "Start buffering a remote track in the background (idempotent).\n\nUses the same single-fill-per-track session as the audio route, so a\nwarm request and a concurrent play request share one yt-dlp process.",
         "operationId": "warm_stream_api_stream__track_id__warm_post",
         "security": [
           {
@@ -966,12 +966,12 @@
       }
     },
     "/api/stream/{track_id}/audio": {
-      "get": {
+      "head": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio",
+        "operationId": "stream_audio_1",
         "parameters": [
           {
             "name": "track_id",
@@ -1004,12 +1004,12 @@
           }
         }
       },
-      "head": {
+      "get": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_1",
+        "operationId": "stream_audio",
         "parameters": [
           {
             "name": "track_id",
@@ -3104,6 +3104,7 @@
           "health"
         ],
         "summary": "Health",
+        "description": "Full cheap health snapshot with per-subsystem checks.\n\nBacked by the background probe cache \u2014 no expensive work per request.",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {
@@ -3115,6 +3116,31 @@
             }
           }
         }
+      }
+    },
+    "/api/health/diag": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Diag",
+        "description": "Authenticated deep diagnostics: forces a fresh, bounded probe of every\nsubsystem (DB ping latency, yt-dlp/ffmpeg versions, config validation)\nand returns recent error/latency metrics.",
+        "operationId": "health_diag_api_health_diag_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/version": {

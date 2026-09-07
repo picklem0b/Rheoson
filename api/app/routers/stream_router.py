@@ -1,8 +1,6 @@
 from __future__ import annotations
 import asyncio
-import tempfile
 import time
-import httpx
 import os
 import structlog
 from pathlib import Path
@@ -217,76 +215,151 @@ def _artwork_cache_set(key: str, data: bytes) -> None:
     _artwork_cache[key] = data
 
 
-# ── Background warm-up ────────────────────────────────────────
-# The frontend fires POST /stream/{id}/warm the moment a track is
-# selected (or appears in the next-up queue). We spawn yt-dlp in the
-# background and buffer the audio to disk, so by the time the user
-# actually presses play the GET /audio below serves from the buffer
-# file — first bytes in well under a second instead of waiting for
-# yt-dlp extraction on the play request itself.
+# ── Remote stream sessions ───────────────────────────────────
+# Every remote (non-local) track gets ONE background yt-dlp "fill" task
+# that writes the full audio to a buffer file. Clients never own the
+# yt-dlp process: they stream from the buffer file as it grows, and the
+# fill keeps running even if every client disconnects. When the fill
+# finishes, the complete file is promoted to the durable remote cache
+# and the session is dropped. This design fixes several correctness bugs
+# that existed when the fill lived inside the first HTTP response:
+#
+#   - two simultaneous GETs for one track now share a single yt-dlp
+#     process (previously each spawned its own, all writing the same
+#     buffer file concurrently and corrupting it)
+#   - a client disconnecting mid-stream can no longer kill the shared
+#     fill NOR leave a truncated file promoted to the cache as "valid"
+#   - byte-range (seek) requests against an in-progress stream wait for
+#     the fill to complete instead of spawning a second download from
+#     scratch
+#   - the number of concurrent yt-dlp fills is bounded, so an attacker
+#     (or a burst of distinct remote tracks) cannot spawn unbounded
+#     subprocesses
 
-_warm_tasks: dict[str, asyncio.Task] = {}
-_warm_lock   = asyncio.Lock()
-_WARM_LIMIT  = 6  # max concurrent background yt-dlp processes
+_REMOTE_FILL_LIMIT = 6
+_SESSION_IDLE_TTL  = 600.0   # finished sessions are swept after 10 min idle
+_buffer_dir = Path("/tmp/Rheoson_stream_buffer")
+_buffer_dir.mkdir(parents=True, exist_ok=True)
+
+_remote_sessions: dict[str, dict] = {}  # track_id → {"task", "done", "ok", "accessed", "path"}
+_session_lock = asyncio.Lock()
 
 
-def _warm_finished(track_id: str) -> None:
-    _warm_tasks.pop(track_id, None)
+def _session_file(track_id: str) -> Path:
+    return _buffer_dir / f"{track_id}.audio"
 
 
-async def _warm_track(track_id: str) -> None:
-    """Download a remote track's audio to the buffer dir in the background."""
+async def _fill_session(track_id: str, session: dict) -> None:
+    """Background task: fill the buffer file, then flag the session done."""
     try:
-        await _ensure_cache()
-        if _find_local(track_id):
-            return
-        if _remote_cache_get(track_id):
-            return
-        buf_path = _buffer_dir / f"{track_id}.audio"
-        if buf_path.exists() and buf_path.stat().st_size > 0:
-            _remote_cache_set(track_id, buf_path)
-            return
-        await _fill_buffer(track_id, buf_path)
-        if buf_path.exists() and buf_path.stat().st_size > 0:
-            _remote_cache_set(track_id, buf_path)
-            log.info("stream.warm.complete", track_id=track_id)
+        await _fill_buffer(track_id, session["path"])
+        session["ok"] = True
+        log.info("stream.session.filled", track_id=track_id)
+    except asyncio.CancelledError:
+        pass
     except Exception:
-        log.warning("stream.warm.failed", track_id=track_id, exc_info=True)
+        session["ok"] = False
+        try:
+            if session["path"].exists():
+                session["path"].unlink()
+        except OSError:
+            pass
+    finally:
+        session["done"].set()
+
+
+def _drop_session_locked(track_id: str) -> None:
+    session = _remote_sessions.pop(track_id, None)
+    if session is None:
+        return
+    if session["ok"] and session["path"].exists():
+        # Completed audio is worth keeping — move it into the durable cache
+        # (TTL-managed) instead of deleting it.
+        _remote_cache_set(track_id, session["path"])
+    else:
+        try:
+            if session["path"].exists():
+                session["path"].unlink()
+        except OSError:
+            pass
+
+
+async def _sweep_sessions_locked() -> None:
+    """Drop finished sessions that have been idle past _SESSION_IDLE_TTL."""
+    now = time.monotonic()
+    stale = [
+        t for t, s in _remote_sessions.items()
+        if s["done"].is_set() and now - s["accessed"] > _SESSION_IDLE_TTL
+    ]
+    for tid in stale:
+        _drop_session_locked(tid)
+
+
+async def _ensure_remote_session(track_id: str) -> dict | None:
+    """Return the live session for `track_id`, starting the fill if missing.
+
+    Returns None when the track is already durably cached — callers should
+    then re-check the remote cache and serve from disk. Waits up to ~15s for
+    a free fill slot when the concurrency limit is reached, then 503s.
+    """
+    for _ in range(150):
+        async with _session_lock:
+            await _sweep_sessions_locked()
+            if _remote_cache_get(track_id) is not None:
+                return None
+
+            session = _remote_sessions.get(track_id)
+            now = time.monotonic()
+            if session is not None:
+                session["accessed"] = now
+                return session
+
+            active = [s for s in _remote_sessions.values() if not s["done"].is_set()]
+            if len(active) >= _REMOTE_FILL_LIMIT:
+                pass  # fall through, release lock and retry after a beat
+            else:
+                session = {
+                    "done":     asyncio.Event(),
+                    "ok":       False,
+                    "accessed": now,
+                    "path":     _session_file(track_id),
+                }
+                session["task"] = asyncio.create_task(_fill_session(track_id, session))
+                _remote_sessions[track_id] = session
+                return session
+        await asyncio.sleep(0.1)
+    raise HTTPException(status_code=503, detail="Too many concurrent streams, try again shortly")
 
 
 @router.post("/{track_id}/warm")
 async def warm_stream(track_id: str, _user: dict = Depends(get_current_user)):
-    """Start buffering a remote track in the background.
+    """Start buffering a remote track in the background (idempotent).
 
-    Idempotent: dedupes against the remote cache and any warm already
-    in flight. Bounded by _WARM_LIMIT concurrent downloads — when the
-    limit is reached the request is a cheap no-op ("busy") and the next
-    GET falls back to the live-stream path.
+    Uses the same single-fill-per-track session as the audio route, so a
+    warm request and a concurrent play request share one yt-dlp process.
     """
     if len(track_id) != 11:
         raise HTTPException(status_code=404, detail="Invalid track ID")
 
-    # Local/downloaded tracks need no warming — instant either way
     await _ensure_cache()
     if _find_local(track_id):
         return {"ok": True, "state": "local"}
     if _remote_cache_get(track_id):
         return {"ok": True, "state": "cached"}
 
-    async with _warm_lock:
-        existing = _warm_tasks.get(track_id)
-        if existing and not existing.done():
-            return {"ok": True, "state": "warming"}
-        # Drop finished tasks so their slots free up
-        for tid in [t for t, task in _warm_tasks.items() if task.done()]:
-            _warm_tasks.pop(tid, None)
-        if len(_warm_tasks) >= _WARM_LIMIT:
-            return {"ok": False, "state": "busy"}
-
-        task = asyncio.create_task(_warm_track(track_id))
-        _warm_tasks[track_id] = task
-        task.add_done_callback(lambda _t, tid=track_id: _warm_finished(tid))
-        return {"ok": True, "state": "warming"}
+    try:
+        session = await _ensure_remote_session(track_id)
+    except HTTPException:
+        return {"ok": False, "state": "busy"}  # fill slots exhausted — play will retry
+    if session is None:
+        return {"ok": True, "state": "cached"}
+    if session["done"].is_set():
+        if session["ok"]:
+            async with _session_lock:
+                _drop_session_locked(track_id)
+            return {"ok": True, "state": "cached"}
+        return {"ok": False, "state": "failed"}
+    return {"ok": True, "state": "warming"}
 
 
 # ── Routes ────────────────────────────────────────────────────
@@ -308,13 +381,13 @@ async def stream_audio(track_id: str, request: Request):
             "Content-Type":  "audio/mpeg",
         })
 
-    if not _find_local(track_id):
-        global _cache_built
-        _cache_built = False
-        await _ensure_cache()
-        local = _find_local(track_id)
-        if local:
-            return _serve_local(local, request)
+    # NOTE: no forced full-library rescan here. Previously every remote
+    # GET set _cache_built=False and re-walked ALL music directories
+    # (serialized under _cache_lock) before serving — a full filesystem
+    # scan on every remote stream request, which turned into a hard
+    # bottleneck as the library grew. New downloads already invalidate
+    # the cache explicitly (invalidate_stream_cache) and the cron job
+    # rescans periodically, so a per-request scan buys nothing.
 
     # Check the remote stream cache — serves cached audio instantly
     # if the track was streamed within the last 30 minutes.
@@ -443,74 +516,6 @@ def _detect_image_mime(data: bytes) -> str:
     return "image/jpeg"
 
 
-# ── Serving from an in-progress background warm ───────────────
-# Reads the buffer file as the warm task appends to it. No Range
-# support here (the final size is unknown until the download ends) —
-# range requests against a warming track wait for completion above.
-
-def _serve_warming_file(track_id: str, warm: asyncio.Task) -> StreamingResponse:
-    buf_path = _buffer_dir / f"{track_id}.audio"
-
-    def _size() -> int:
-        try:
-            return buf_path.stat().st_size if buf_path.exists() else 0
-        except OSError:
-            return 0
-
-    async def _gen():
-        pos   = 0
-        total = 0
-        try:
-            # Follow the file while the warm download is writing it
-            while not warm.done():
-                size = _size()
-                if size > pos:
-                    with open(buf_path, "rb") as f:
-                        f.seek(pos)
-                        chunk = f.read(min(CHUNK, size - pos))
-                    if chunk:
-                        pos += len(chunk)
-                        total += len(chunk)
-                        yield chunk
-                        continue
-                await asyncio.sleep(0.05)
-
-            # Warm finished — drain whatever remains and end cleanly
-            while True:
-                size = _size()
-                if size <= pos:
-                    break
-                with open(buf_path, "rb") as f:
-                    f.seek(pos)
-                    chunk = f.read(min(CHUNK, size - pos))
-                if not chunk:
-                    break
-                pos += len(chunk)
-                total += len(chunk)
-                yield chunk
-
-            if total == 0:
-                # Warm produced nothing (failed or cancelled) — surface an
-                # error so the client retries through the normal live path.
-                raise HTTPException(
-                    status_code=502,
-                    detail="Stream warm-up failed",
-                )
-        except (GeneratorExit, ConnectionResetError, BrokenPipeError):
-            # Client went away — let the warm task keep filling the cache
-            return
-
-    return StreamingResponse(
-        _gen(),
-        media_type="audio/mpeg",
-        headers={
-            "Accept-Ranges":         "bytes",
-            "Cache-Control":         "no-cache",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
-
-
 # ── Local file serving ────────────────────────────────────────
 
 def _parse_range(rng: str, file_size: int) -> tuple[int, int]:
@@ -592,62 +597,10 @@ def _serve_local(path: Path, request: Request) -> Response:
     })
 
 
-# ── yt-dlp buffered streaming ─────────────────────────────────
-# Remote YouTube tracks are buffered to a temp file so that:
-#   1. Range requests work (seeking within the stream).
-#   2. Multiple clients can share one yt-dlp process.
-#   3. The stream can resume after a brief disconnect.
-# Buffer is kept for 10 minutes after last access, then cleaned up.
-
-_remote_buffer: dict[str, dict] = {}  # track_id -> {"path": Path, "size": int, "accessed": float}
-_buffer_lock = asyncio.Lock()
-_BUFFER_TTL = 600.0  # 10 minutes
-_BUFFER_MAX = 20     # max simultaneous buffered streams
-_buffer_dir = Path("/tmp/Rheoson_stream_buffer")
-_buffer_dir.mkdir(parents=True, exist_ok=True)
-
-
-async def _get_or_create_buffer(track_id: str, request: Request) -> dict:
-    """Return a buffer dict {path, size, accessed} for this track.
-
-    If already buffered, return it. Otherwise spawn yt-dlp to fill the buffer,
-    then return it. Raises HTTPException on failure.
-    """
-    async with _buffer_lock:
-        # Check existing buffer
-        if track_id in _remote_buffer:
-            buf = _remote_buffer[track_id]
-            if buf["path"].exists():
-                buf["accessed"] = time.monotonic()
-                buf["size"] = buf["path"].stat().st_size
-                return buf
-            else:
-                del _remote_buffer[track_id]
-
-        # Evict oldest if at capacity
-        if len(_remote_buffer) >= _BUFFER_MAX:
-            oldest_key = min(_remote_buffer, key=lambda k: _remote_buffer[k]["accessed"])
-            _evict_buffer(oldest_key)
-
-    # Fill the buffer — this can take a few seconds for the first request.
-    # We hold no lock during the yt-dlp spawn (it's slow I/O).
-    buf_path = _buffer_dir / f"{track_id}.audio"
-    await _fill_buffer(track_id, buf_path)
-
-    buf = {"path": buf_path, "size": buf_path.stat().st_size, "accessed": time.monotonic()}
-    async with _buffer_lock:
-        _remote_buffer[track_id] = buf
-    return buf
-
-
-def _evict_buffer(track_id: str) -> None:
-    buf = _remote_buffer.pop(track_id, None)
-    if buf and buf["path"].exists():
-        try:
-            buf["path"].unlink()
-        except Exception:
-            pass
-
+# ── yt-dlp buffer fill ────────────────────────────────────────
+# Downloads the full audio of a remote track to `dest`. Runs as the body
+# of a background session task (see _ensure_remote_session) so it is
+# decoupled from any single HTTP response.
 
 async def _fill_buffer(track_id: str, dest: Path) -> None:
     """Spawn yt-dlp and write the full audio stream to dest."""
@@ -749,146 +702,103 @@ async def _fill_buffer(track_id: str, dest: Path) -> None:
     )
 
 
-# ── Live-stream from yt-dlp ───────────────────────────────────
-# Yields audio chunks as they arrive from yt-dlp and simultaneously
-# writes them to a temp file so the buffer is ready for the next
-# request (range seeking, re-play, etc.).
-# This is the key to fast startup: the client receives bytes within
-# seconds instead of waiting for the full 10-30 s download.
+# ── Remote live streaming (session-backed) ────────────────────
+# A remote track is served straight from its growing buffer file. The
+# yt-dlp fill runs as a background session task (see _ensure_remote_session)
+# so it is owned by no single request and survives any client disconnecting.
+# Completed buffers are promoted to the durable remote cache and served
+# with full byte-range (seek) support.
 
-def _ytdlp_cmd(track_id: str) -> list[str]:
-    """Build the yt-dlp command for a given track ID."""
-    yt_url = f"https://www.youtube.com/watch?v={track_id}"
-    audio_fmt  = settings.AUDIO_FORMAT or "mp3"
-    audio_qual = "0" if settings.AUDIO_QUALITY == "best" else (settings.AUDIO_QUALITY or "192")
-    return [
-        "yt-dlp", "--quiet", "--no-warnings", "--no-playlist",
-        "-x", "--audio-format", audio_fmt, "--audio-quality", f"{audio_qual}K",
-        "-o", "-",
-        "--extractor-args", "youtube:player_client=mweb,android,web",
-        "--add-header", "User-Agent:Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        yt_url,
-    ]
+async def _complete_session(track_id: str, session: dict) -> None:
+    """Promote a finished buffer into the durable cache and drop the session."""
+    async with _session_lock:
+        if _remote_sessions.get(track_id) is session:
+            _remote_sessions.pop(track_id, None)
+    _remote_cache_set(track_id, session["path"])
 
 
-async def _ytdlp_chunks(track_id: str):
-    """Async generator: yield audio bytes from yt-dlp, caching to disk."""
-    buf_path = _buffer_dir / f"{track_id}.audio"
-    # Fallback UA variants for retry on failure
-    user_agents = [
-        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    ]
-    extractor_variants = [
-        "youtube:player_client=mweb,android,web",
-        "youtube:player_client=web",
-        "youtube:player_client=android",
-    ]
+async def _serve_session_stream(track_id: str, session: dict) -> Response:
+    """Stream the growing buffer file until the fill task completes.
 
-    last_error: str | None = None
+    Multiple concurrent readers can tail the same file; disconnecting one
+    reader never touches the shared fill task.
+    """
+    path = session["path"]
+    done = session["done"]
 
-    for attempt in range(3):
-        ea = extractor_variants[min(attempt, len(extractor_variants) - 1)]
-        ua = user_agents[attempt % len(user_agents)]
-        cmd = _ytdlp_cmd(track_id)
-        # Override extractor-args and UA for this attempt
-        cmd[cmd.index("--extractor-args") + 1] = ea
-        cmd[cmd.index("--add-header") + 1] = f"User-Agent:{ua}"
-
-        log.info("stream.ytdlp.spawn", track_id=track_id, attempt=attempt + 1)
-
+    def _size() -> int:
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-            )
-        except Exception as e:
-            last_error = str(e)
-            await asyncio.sleep(0.8 + attempt)
-            continue
+            return path.stat().st_size if path.exists() else 0
+        except OSError:
+            return 0
 
-        # Wait for first chunk with a timeout — proves yt-dlp is alive
+    async def _gen():
+        pos   = 0
+        total = 0
         try:
-            first = await asyncio.wait_for(proc.stdout.read(CHUNK), timeout=30.0)
-        except asyncio.TimeoutError:
-            log.warning("stream.ytdlp.spawn_timeout", track_id=track_id)
-            try:
-                proc.kill()
-            except Exception:
-                pass
-            await asyncio.sleep(0.8 + attempt * 0.5)
-            continue
+            # Follow the file while the background fill is writing it
+            while not done.is_set():
+                size = _size()
+                if size > pos:
+                    with open(path, "rb") as f:
+                        f.seek(pos)
+                        chunk = f.read(min(CHUNK, size - pos))
+                    if chunk:
+                        pos += len(chunk)
+                        total += len(chunk)
+                        yield chunk
+                        continue
+                await asyncio.sleep(0.05)
 
-        if not first:
-            last_error = "yt-dlp produced no output"
-            try:
-                proc.kill()
-            except Exception:
-                pass
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=5.0)
-            except asyncio.TimeoutError:
-                pass
-            await asyncio.sleep(0.8 + attempt * 0.5)
-            continue
+            # Fill finished — drain whatever remains and end cleanly
+            while True:
+                size = _size()
+                if size <= pos:
+                    break
+                with open(path, "rb") as f:
+                    f.seek(pos)
+                    chunk = f.read(min(CHUNK, size - pos))
+                if not chunk:
+                    break
+                pos += len(chunk)
+                total += len(chunk)
+                yield chunk
 
-        # Success — stream first chunk, then the rest, while caching
-        log.info("stream.ytdlp.first_chunk", track_id=track_id, size=len(first))
-        try:
-            with open(buf_path, "wb") as f:
-                f.write(first)
-                yield first
-                while True:
-                    chunk = await proc.stdout.read(CHUNK)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    yield chunk
-            await proc.wait()
-            log.info("stream.ytdlp.stream_done", track_id=track_id, size=buf_path.stat().st_size)
-            return  # success — stop retrying
-        except (ConnectionResetError, BrokenPipeError, GeneratorExit):
-            # Client disconnected mid-stream — stop yt-dlp, keep the partial cache
-            log.info("stream.ytdlp.client_disconnect", track_id=track_id)
-            try:
-                proc.kill()
-            except Exception:
-                pass
+            if total == 0:
+                # Fill produced nothing (failed) — surface an error so the
+                # client retries through the normal path.
+                raise HTTPException(status_code=502, detail="Stream warm-up failed")
+
+            if session["ok"] and path.exists() and path.stat().st_size > 0:
+                await _complete_session(track_id, session)
+        except (GeneratorExit, ConnectionResetError, BrokenPipeError):
+            # Client went away — the fill task keeps running in the background
             return
-        except Exception as e:
-            last_error = str(e)
-            log.warning("stream.ytdlp.stream_error", track_id=track_id, error=str(e))
-            if buf_path.exists():
-                buf_path.unlink()
-            try:
-                proc.kill()
-            except Exception:
-                pass
-            await asyncio.sleep(0.8 + attempt * 0.5)
-            continue
 
-    # All attempts exhausted
-    if buf_path.exists():
-        buf_path.unlink()
-    _failure_cache[track_id] = time.monotonic() + _FAILURE_TTL
-    raise HTTPException(
-        status_code=502,
-        detail="Could not stream this track. YouTube may be rate-limiting.",
+    return StreamingResponse(
+        _gen(),
+        media_type="audio/mpeg",
+        headers={
+            "Accept-Ranges":          "bytes",
+            "Cache-Control":          "no-cache",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
 async def _serve_ytdlp(track_id: str, request: Request) -> Response:
-    """Serve a remote track via yt-dlp.
+    """Serve a remote track: from the durable cache, or live from its session.
 
     Strategy:
-      1. If a cached buffer already exists → serve from disk (instant).
-      2. If the buffer is currently being filled → wait for it.
-      3. Otherwise → stream directly from yt-dlp to the client AND
-         simultaneously write to the buffer file in the background.
-         This means audio starts playing as soon as the first bytes
-         arrive (typically 2-4 s) instead of waiting for the full
-         download (10-30 s).
+      1. Durable cache hit (a previous fill completed) → serve from disk.
+      2. Otherwise get-or-create the per-track fill session (single yt-dlp
+         shared by every concurrent listener) and stream the buffer file as
+         it grows. First bytes typically arrive within a second or two of
+         yt-dlp starting to produce output.
+      3. Byte-range (seek) requests during an in-progress fill wait for the
+         fill to complete (up to 120 s), then serve the exact range — instead
+         of the old behaviour of spawning a second, conflicting download.
     """
-    # Failure cache check
     now = time.monotonic()
     if track_id in _failure_cache:
         if _failure_cache[track_id] > now:
@@ -896,126 +806,73 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
                 status_code=502,
                 detail="Track temporarily unavailable (recent failure cached).",
             )
-        else:
-            del _failure_cache[track_id]
+        del _failure_cache[track_id]
 
-    # ── Case 1: buffer already exists (cached from earlier request) ──
+    # ── Case 1: durable cache hit ──────────────────────────────
     cached = _remote_cache_get(track_id)
-    if cached and cached.exists():
+    if cached is not None and cached.exists():
         log.debug("stream.remote_cache.hit", track_id=track_id)
         return _serve_local(cached, request)
 
-    # ── Case 2: check the buffer dict (may be in-progress) ────────
-    async with _buffer_lock:
-        if track_id in _remote_buffer:
-            buf = _remote_buffer[track_id]
-            if buf["path"].exists() and buf["size"] > 0:
-                file_size = buf["size"]
-                rng = request.headers.get("range")
-                if request.method == "HEAD":
-                    return Response(headers={
-                        "Accept-Ranges":  "bytes",
-                        "Content-Length": str(file_size),
-                        "Content-Type":   "audio/mpeg",
-                    })
-                if not rng:
-                    def _full_cached():
-                        with open(buf["path"], "rb") as f:
-                            while chunk := f.read(CHUNK):
-                                yield chunk
-                    return StreamingResponse(_full_cached(), media_type="audio/mpeg", headers={
-                        "Accept-Ranges":  "bytes",
-                        "Content-Length": str(file_size),
-                        "Cache-Control":  "no-cache",
-                        "X-Content-Type-Options": "nosniff",
-                    })
-                # Range request on cached buffer
-                start, end = _parse_range(rng, file_size)
-                clen = end - start + 1
-                def _range_cached():
-                    with open(buf["path"], "rb") as f:
-                        f.seek(start)
-                        rem = clen
-                        while rem > 0:
-                            data = f.read(min(CHUNK, rem))
-                            if not data:
-                                break
-                            rem -= len(data)
-                            yield data
-                return StreamingResponse(_range_cached(), status_code=206, media_type="audio/mpeg", headers={
-                    "Content-Range":  f"bytes {start}-{end}/{file_size}",
-                    "Accept-Ranges":  "bytes",
-                    "Content-Length": str(clen),
-                    "Cache-Control":  "no-cache",
-                    "X-Content-Type-Options": "nosniff",
-                })
+    # ── Case 2: get-or-create the fill session ────────────────
+    session = await _ensure_remote_session(track_id)
+    if session is None:
+        cached = _remote_cache_get(track_id)
+        if cached is not None and cached.exists():
+            return _serve_local(cached, request)
+        raise HTTPException(status_code=502, detail="Track not available")
 
-    # ── Case 2.5: a background warm is already buffering this track ──
-    # Join it instead of spawning a second yt-dlp process: serve straight
-    # from the buffer file as it grows, so the first bytes reach the
-    # client as soon as the warm download writes them (near-instant when
-    # the warm started even a second or two before play).
-    warm = _warm_tasks.get(track_id)
-    if warm and not warm.done():
-        if not request.headers.get("range"):
-            return _serve_warming_file(track_id, warm)
-        # Range requests need the complete file — wait for the warm to
-        # finish, then serve the exact byte range from disk.
+    if session["done"].is_set():
+        # Fill finished while we were waiting for a slot
+        if (
+            session["ok"]
+            and session["path"].exists()
+            and session["path"].stat().st_size > 0
+        ):
+            await _complete_session(track_id, session)
+            return _serve_local(session["path"], request)
+        # The fill failed — fail fast and remember the failure so a retry
+        # storm is not spawned. Requests after the TTL may try again.
+        async with _session_lock:
+            _remote_sessions.pop(track_id, None)
+        _failure_cache[track_id] = time.monotonic() + _FAILURE_TTL
+        raise HTTPException(
+            status_code=502,
+            detail="Could not stream this track. YouTube may be rate-limiting.",
+        )
+
+    # ── Case 3: fill in progress ──────────────────────────────
+    # Byte-range requests need the complete file → wait for the fill.
+    if request.headers.get("range"):
         try:
-            await asyncio.wait_for(asyncio.shield(warm), timeout=120.0)
+            await asyncio.wait_for(asyncio.shield(session["task"]), timeout=120.0)
         except (asyncio.TimeoutError, asyncio.CancelledError):
             pass
-        cached = _remote_cache_get(track_id)
-        if cached:
-            return _serve_local(cached, request)
+        if (
+            session["done"].is_set()
+            and session["ok"]
+            and session["path"].exists()
+            and session["path"].stat().st_size > 0
+        ):
+            await _complete_session(track_id, session)
+            return _serve_local(session["path"], request)
+        async with _session_lock:
+            _remote_sessions.pop(track_id, None)
+        _failure_cache[track_id] = time.monotonic() + _FAILURE_TTL
+        raise HTTPException(status_code=502, detail="Stream not ready for seeking yet")
 
-    # ── Case 3: no buffer — stream directly from yt-dlp ─────────
-    # The generator below spawns yt-dlp, streams audio bytes directly to
-    # the HTTP response, AND simultaneously writes them to a temp file.
-    # After the stream completes the temp file becomes the cache for
-    # subsequent requests (range requests, re-plays, etc.).
-
-    buf_path = _buffer_dir / f"{track_id}.audio"
     log.info("stream.ytdlp.live_stream", track_id=track_id)
-
-    async def _live_stream():
-        """Stream yt-dlp output directly to the client while caching to disk."""
-        total_bytes = 0
-        try:
-            async for chunk in _ytdlp_chunks(track_id):
-                total_bytes += len(chunk)
-                yield chunk
-        except Exception as e:
-            log.warning("stream.ytdlp.live_error", track_id=track_id, error=str(e))
-            raise
-        finally:
-            # Register in remote cache so subsequent requests serve from disk
-            if total_bytes > 0 and buf_path.exists():
-                _remote_cache_set(track_id, buf_path)
-                log.info("stream.ytdlp.cached", track_id=track_id, size=total_bytes)
-
-    return StreamingResponse(
-        _live_stream(),
-        media_type="audio/mpeg",
-        headers={
-            "Accept-Ranges":         "bytes",
-            "Cache-Control":         "no-cache",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
+    return await _serve_session_stream(track_id, session)
 
 
-# ── Periodic cleanup for expired remote buffers ────────────────
+# ── Periodic cleanup ──────────────────────────────────────────
 
-def cleanup_expired_buffers() -> None:
-    """Remove buffers older than _BUFFER_TTL. Called from the cron job."""
-    now = time.monotonic()
-    expired = [k for k, v in _remote_buffer.items() if now - v["accessed"] > _BUFFER_TTL]
-    for k in expired:
-        _evict_buffer(k)
-    if expired:
-        log.info("stream.buffer.cleanup", evicted=len(expired))
+async def cleanup_expired_buffers() -> None:
+    """Sweep finished sessions that have been idle too long.
 
-
-# ── Cache the failure to avoid repeated retry storms ──────────
-# (failure cache logic is now inside _serve_ytdlp above)
+    Completed audio is promoted to the durable (TTL-managed) remote cache
+    instead of being deleted; failed/empty sessions drop their temp file.
+    Called from the library-scan cron job.
+    """
+    async with _session_lock:
+        await _sweep_sessions_locked()
