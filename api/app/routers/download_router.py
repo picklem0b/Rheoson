@@ -31,6 +31,26 @@ def _validate_job_id(job_id: str) -> str:
     return job_id
 
 
+def _validate_custom_path(custom_path: Optional[str]) -> None:
+    """Downloads land where the user says, but never outside the configured
+    music directories. Without this an authenticated user could make the
+    server write downloaded audio anywhere on disk (arbitrary file write
+    on a shared deployment) via ../ traversal or an absolute path."""
+    if not custom_path or not custom_path.strip():
+        return
+    from pathlib import Path
+    from app.core.config import settings
+    from app.routers.settings_router import _is_under
+
+    resolved = Path(custom_path.strip()).expanduser().resolve()
+    bases = [Path(d).resolve() for d in settings.all_music_dirs_configured]
+    if not any(_is_under(resolved, base) for base in bases):
+        raise HTTPException(
+            status_code=400,
+            detail="customPath must be inside a configured music directory",
+        )
+
+
 @router.post("", response_model=DownloadJobSchema, status_code=202)
 @router.post("/", response_model=DownloadJobSchema, status_code=202, include_in_schema=False)
 async def start_download(req: DownloadRequestSchema, _user: dict = Depends(get_current_user)):
@@ -57,6 +77,9 @@ async def start_download(req: DownloadRequestSchema, _user: dict = Depends(get_c
         req.trackId = req.trackId.strip()
         if len(req.trackId) > 20:
             raise HTTPException(status_code=400, detail="Invalid track ID")
+
+    # Never allow downloads to land outside the configured music dirs
+    _validate_custom_path(req.customPath)
 
     job = await enqueue_download(
         track_id=req.trackId,
@@ -142,6 +165,8 @@ async def batch_download(req: BatchDownloadRequest, _user: dict = Depends(get_cu
         raise HTTPException(status_code=400, detail="track_ids cannot be empty")
     if len(req.track_ids) > 20:
         raise HTTPException(status_code=400, detail="Maximum 20 tracks per batch")
+
+    _validate_custom_path(req.custom_path)
 
     jobs = []
     for track_id in req.track_ids:

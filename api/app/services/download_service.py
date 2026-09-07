@@ -1,8 +1,10 @@
 from __future__ import annotations
 import asyncio
 import json
+import os
 import re
 import shutil
+import signal
 import structlog
 import uuid
 import yt_dlp
@@ -22,6 +24,24 @@ _JOBS_FILE = Path(settings.DOWNLOADS_DIR) / ".download_jobs.json"
 
 _jobs:  dict[str, dict]          = {}
 _tasks: dict[str, asyncio.Task]  = {}
+
+# Live subprocess per running job, so cancellation can kill the whole
+# yt-dlp process GROUP (including its ffmpeg children).
+_procs: dict[str, asyncio.subprocess.Process] = {}
+
+
+def _kill_job_process(job_id: str) -> None:
+    """SIGKILL the job's yt-dlp process group if one is still running."""
+    proc = _procs.pop(job_id, None)
+    if proc is None or proc.returncode is not None:
+        return
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        try:
+            proc.kill()
+        except Exception:
+            pass
 
 # ── Dynamic concurrency limiter ───────────────────────────────
 # Each job declares the max simultaneous downloads for its device
@@ -86,6 +106,15 @@ def _sanitize(name: str) -> str:
     """Strip characters that break file names on Android / Termux / Windows."""
     name = re.sub(r'[<>:"/\\|?*]', '', name).strip()
     return name or 'Unknown'
+
+
+def _path_is_under(path: Path, base: Path) -> bool:
+    """True when `path` is `base` itself or nested below it."""
+    try:
+        path.relative_to(base)
+        return True
+    except ValueError:
+        return False
 
 
 def _new_job(
@@ -201,37 +230,6 @@ async def _resolve_to_yt_url(
     art    = thumbs[-1].get('url', '') if thumbs else ''
     return url, title, artist, art
 
-# ── Progress hook ─────────────────────────────────────────────
-
-def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
-    def hook(d: dict):
-        status = d.get('status')
-        if status == 'downloading':
-            total      = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
-            downloaded = d.get('downloaded_bytes', 0)
-            # BUG #9: Scale progress to 0-80% for download phase
-            progress   = (downloaded / total * 80) if total else 0.0
-            _update(job_id, status='downloading', progress=round(progress, 1))
-            asyncio.run_coroutine_threadsafe(
-                ws_manager.emit_download_progress(
-                    job_id, progress, 'downloading',
-                    title=_jobs[job_id].get('title'),
-                ), loop,
-            )
-        elif status == 'finished':
-            # BUG #9: Report estimated converting progress based on bytes downloaded
-            total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
-            # Estimate conversion time: ~80-88% range, advancing based on file size
-            estimated = min(88.0, 80.0 + (total / 1_000_000 * 0.5))  # 0.5% per MB
-            _update(job_id, status='converting', progress=round(estimated, 1))
-            asyncio.run_coroutine_threadsafe(
-                ws_manager.emit_download_progress(
-                    job_id, estimated, 'converting',
-                    title=_jobs[job_id].get('title'),
-                ), loop,
-            )
-    return hook
-
 # ── yt-dlp download ───────────────────────────────────────────
 # Files land in MUSIC_DIR — the directory the library scanner reads.
 # Layout:  MUSIC_DIR/<Artist>/<Title>.<ext>
@@ -240,6 +238,10 @@ def _make_hook(job_id: str, loop: asyncio.AbstractEventLoop):
 # That is the "downloads don't appear in library" bug fix.
 
 _AUDIO_EXTS = {'.mp3', '.m4a', '.flac', '.opus', '.wav', '.ogg'}
+
+# yt-dlp prints `[download]  12.3%` progress lines to stderr when --newline
+# is passed; used for live 0-80% job progress.
+_PROGRESS_RE = re.compile(r'\[download\]\s+([\d.]+)%')
 
 
 async def _run_download(
@@ -266,7 +268,6 @@ async def _run_download(
     custom_path    = (job.get('customPath') or '').strip() or None
     concurrency    = max(1, int(job.get('concurrency', settings.MAX_CONCURRENT_DOWNLOADS)))
 
-    loop      = asyncio.get_event_loop()
     quality_q = '0' if quality == 'best' else quality
 
     staging = _staging_dir(job_id)
@@ -274,45 +275,90 @@ async def _run_download(
     staging.mkdir(parents=True, exist_ok=True)
     out_tmpl = str(staging / '%(title)s.%(ext)s')
 
-    postprocessors: list[dict] = [
-        {'key': 'FFmpegExtractAudio', 'preferredcodec': fmt, 'preferredquality': quality_q},
+    # Maps 1:1 to the postprocessors the library path used before the
+    # cancellable-subprocess rewrite: extract audio, embed tags, embed art.
+    cmd = [
+        'yt-dlp', '--no-playlist', '--quiet', '--no-warnings', '--newline',
+        '--retries', str(retries), '--fragment-retries', str(retries),
+        '--format', 'bestaudio/best',
+        '-x', '--audio-format', fmt, '--audio-quality', quality_q,
+        '-o', out_tmpl,
     ]
     if embed_metadata:
-        postprocessors.append({'key': 'FFmpegMetadata'})
+        cmd += ['--add-metadata']
     if embed_artwork:
-        postprocessors.append({'key': 'EmbedThumbnail'})
-
-    ydl_opts = {
-        'format':           'bestaudio/best',
-        'outtmpl':          out_tmpl,
-        'quiet':            True,
-        'no_warnings':      True,
-        'noplaylist':       True,
-        'progress_hooks':   [_make_hook(job_id, loop)],
-        'postprocessors':   postprocessors,
-        'writethumbnail':   embed_artwork,
-        'embedthumbnail':   embed_artwork,
-        'addmetadata':      embed_metadata,
-        'retries':          retries,
-        'fragment_retries': retries,
-    }
+        cmd += ['--write-thumbnail', '--embed-thumbnail']
     if speed_limit > 0:
-        ydl_opts['limit_rate'] = f'{speed_limit}K'
+        cmd += ['--limit-rate', f'{speed_limit}K']
+    cmd.append(yt_url)
 
-    def _do() -> Optional[Path]:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.extract_info(yt_url, download=True)
-        files = [
-            p for p in staging.iterdir()
-            if p.is_file() and p.suffix.lower() in _AUDIO_EXTS
-        ]
-        return max(files, key=lambda p: p.stat().st_mtime) if files else None
-
+    # Run yt-dlp as a cancellable subprocess in its own session. Downloads
+    # previously ran in a threadpool executor, which cannot be interrupted:
+    # cancel_job() marked the job "cancelled" while yt-dlp/ffmpeg kept
+    # running in the background (a zombie process writing into a deleted
+    # staging dir). A subprocess group can be SIGKILLed wholesale.
     await _acquire_slot(concurrency)
     try:
-        raw = await loop.run_in_executor(None, _do)
-    finally:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,  # own process group → killpg works
+        )
+    except Exception as e:
         await _release_slot()
+        shutil.rmtree(staging, ignore_errors=True)
+        raise RuntimeError(f'Could not start yt-dlp: {e}') from e
+
+    _procs[job_id] = proc
+    rc = 1
+    try:
+        # Stream stderr: keep a bounded error tail and emit live progress.
+        stderr_tail: list[str] = []
+        last_pct = -1.0
+        while True:
+            raw_line = await proc.stderr.readline()
+            if not raw_line:
+                break
+            text = raw_line.decode(errors='ignore').strip()
+            if text:
+                stderr_tail.append(text)
+                if len(stderr_tail) > 50:
+                    stderr_tail.pop(0)
+            m = _PROGRESS_RE.search(text)
+            if m:
+                pct = float(m.group(1))
+                if pct != last_pct:
+                    last_pct = pct
+                    scaled = round(min(80.0, pct * 0.8), 1)
+                    _update(job_id, status='downloading', progress=scaled)
+                    # Emit throttled WS updates (each ~5% bucket) — avoids
+                    # flooding the socket with every 0.1% tick.
+                    if int(pct) % 5 == 0 or pct >= 99.0:
+                        await ws_manager.emit_download_progress(
+                            job_id, scaled, 'downloading',
+                            title=job.get('title'),
+                        )
+        rc = await proc.wait()
+    except asyncio.CancelledError:
+        # Job cancelled mid-download — kill the whole process group so
+        # neither yt-dlp nor its ffmpeg child survives.
+        _kill_job_process(job_id)
+        raise
+    finally:
+        _procs.pop(job_id, None)
+        await _release_slot()
+
+    if rc != 0:
+        tail = ' | '.join(stderr_tail[-6:])
+        shutil.rmtree(staging, ignore_errors=True)
+        raise RuntimeError(f'yt-dlp exited with code {rc}: {tail[:300]}')
+
+    files = [
+        p for p in staging.iterdir()
+        if p.is_file() and p.suffix.lower() in _AUDIO_EXTS
+    ]
+    raw = max(files, key=lambda p: p.stat().st_mtime) if files else None
 
     if not raw or not raw.exists():
         shutil.rmtree(staging, ignore_errors=True)
@@ -329,6 +375,16 @@ async def _run_download(
     # the file name inside it.
     if custom_path:
         final_dir = Path(custom_path).expanduser()
+        # Defense in depth (router validates too): never let a download land
+        # outside the configured music directories — otherwise a caller who
+        # bypasses the router could write audio anywhere the process can.
+        try:
+            _resolved = final_dir.resolve()
+            _bases = [Path(d).resolve() for d in settings.all_music_dirs_configured]
+            if not any(_path_is_under(_resolved, b) for b in _bases):
+                raise RuntimeError("customPath escapes the configured music directories")
+        except OSError:
+            raise RuntimeError("customPath cannot be resolved")
         stem = {
             'artist-title': f'{artist_s} - {title_s}',
             'title-artist': f'{title_s} - {artist_s}',
@@ -439,6 +495,7 @@ async def _download_task(
     except asyncio.CancelledError:
         # BUG #16: Use 'cancelled' status instead of generic 'error' so the
         # frontend can distinguish user-initiated cancellation from failures.
+        _kill_job_process(job_id)
         _update(job_id, status='cancelled', error='Cancelled by user')
         shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
         await ws_manager.emit_download_error(job_id, 'Cancelled by user')
@@ -533,6 +590,9 @@ async def cancel_job(job_id: str) -> bool:
             task.cancel()  # second cancel attempt
         except asyncio.CancelledError:
             pass  # expected
+        # The asyncio task may already be gone while the yt-dlp subprocess
+        # still runs — guarantee the process group dies either way.
+        _kill_job_process(job_id)
     _update(job_id, status='cancelled', error='Cancelled by user')
     await ws_manager.emit_download_error(job_id, 'Cancelled by user')
     return True
@@ -550,6 +610,7 @@ async def retry_job(job_id: str) -> Optional[dict]:
             await asyncio.wait_for(asyncio.shield(old_task), timeout=2.0)
         except (asyncio.TimeoutError, asyncio.CancelledError):
             pass
+        _kill_job_process(job_id)
     _update(job_id, status='queued', progress=0.0, error=None)
     return await enqueue_download(
         track_id=job.get('trackId') or None,

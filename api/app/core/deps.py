@@ -40,19 +40,30 @@ async def get_current_user(
 ) -> dict[str, Any]:
     """Require a valid Clerk session token. Raises 401 if missing/invalid.
 
-    When Clerk is not configured (dev mode), returns a synthetic dev user
-    so all authenticated routes remain accessible during local development.
+    Synthetic dev identity is ONLY issued when the environment is explicitly
+    development AND Clerk is unconfigured. In production (or any staging)
+    deployment with Clerk missing, every protected endpoint fails closed
+    with 401 rather than silently treating everyone as the same user — an
+    unauthenticated shared "dev user" across a real deployment would be an
+    auth bypass (all users' playlists/likes/history keyed to one sub).
     """
     from app.core.config import settings
 
-    # ── Dev fallback: no Clerk configured ─────────────────────
-    if not settings.has_clerk:
+    # ── Dev fallback: only in an explicit development environment ──
+    if settings.is_dev and not settings.has_clerk:
         return {
             "sub": "dev-user-local",
             "email": "dev@localhost",
             "first_name": "Developer",
             "_dev": True,
         }
+
+    if not settings.has_clerk:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication is not configured on this instance",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if cred is None:
         raise HTTPException(
