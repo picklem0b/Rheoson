@@ -363,12 +363,10 @@ export interface paths {
         put?: never;
         /**
          * Warm Stream
-         * @description Start buffering a remote track in the background.
+         * @description Start buffering a remote track in the background (idempotent).
          *
-         *     Idempotent: dedupes against the remote cache and any warm already
-         *     in flight. Bounded by _WARM_LIMIT concurrent downloads — when the
-         *     limit is reached the request is a cheap no-op ("busy") and the next
-         *     GET falls back to the live-stream path.
+         *     Uses the same single-fill-per-track session as the audio route, so a
+         *     warm request and a concurrent play request share one yt-dlp process.
          */
         post: operations["warm_stream_api_stream__track_id__warm_post"];
         delete?: never;
@@ -1284,8 +1282,35 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /**
+         * Health
+         * @description Full cheap health snapshot with per-subsystem checks.
+         *
+         *     Backed by the background probe cache — no expensive work per request.
+         */
         get: operations["health_api_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/health/diag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health Diag
+         * @description Authenticated deep diagnostics: forces a fresh, bounded probe of every
+         *     subsystem (DB ping latency, yt-dlp/ffmpeg versions, config validation)
+         *     and returns recent error/latency metrics.
+         */
+        get: operations["health_diag_api_health_diag_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4080,6 +4105,26 @@ export interface operations {
         };
     };
     health_api_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    health_diag_api_health_diag_get: {
         parameters: {
             query?: never;
             header?: never;
