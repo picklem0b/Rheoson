@@ -61,15 +61,32 @@ def extract_artwork(path: Path) -> Response | None:
     return Response(content=data, media_type=mime)
 
 
+# Artwork is a few hundred KB at most. Cap the download so a misbehaving
+# (or maliciously large) image on an allowed CDN cannot balloon process
+# memory, and so the in-memory artwork cache stays bounded.
+_MAX_ARTWORK_BYTES = 8 * 1024 * 1024  # 8 MB
+
+
 async def fetch_remote_artwork(url: str) -> bytes:
     """Download artwork from a remote URL (e.g. ytmusicapi thumbnail)."""
     if not url:
         return b""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url)
-            if resp.status_code == 200:
-                return resp.content
+            async with client.stream("GET", url) as resp:
+                if resp.status_code != 200:
+                    return b""
+                declared = int(resp.headers.get("content-length") or 0)
+                if declared > _MAX_ARTWORK_BYTES:
+                    log.warning("artwork.fetch.too_large", url=url, bytes=declared)
+                    return b""
+                data = bytearray()
+                async for chunk in resp.aiter_bytes():
+                    data += chunk
+                    if len(data) > _MAX_ARTWORK_BYTES:
+                        log.warning("artwork.fetch.too_large", url=url)
+                        return b""
+                return bytes(data)
     except Exception as e:
         log.warning("artwork.fetch.failed", url=url, error=str(e))
     return b""

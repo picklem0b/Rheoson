@@ -159,7 +159,7 @@ async def _cron_library_scan() -> None:
             _failure_cache.pop(k, None)
         if stale:
             log.info("cron.failure_cache.cleaned", count=len(stale))
-        cleanup_expired_buffers()
+        await cleanup_expired_buffers()
         log.info("cron.library_scan.done")
     except Exception as e:
         log.error("cron.library_scan.failed", error=str(e))
@@ -172,11 +172,17 @@ async def _cron_ytdlp_update() -> None:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
-        out = (stdout or b"").decode(errors="ignore").strip()
-        log.info("cron.ytdlp_update.done", output=out[:200] if out else "no output")
-    except asyncio.TimeoutError:
-        log.warning("cron.ytdlp_update.timeout")
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
+            out = (stdout or b"").decode(errors="ignore").strip()
+            log.info("cron.ytdlp_update.done", output=out[:200] if out else "no output")
+        except asyncio.TimeoutError:
+            log.warning("cron.ytdlp_update.timeout")
+            # Don't leave a hanging update process behind
+            try:
+                proc.kill()
+            except Exception:
+                pass
     except Exception as e:
         log.error("cron.ytdlp_update.failed", error=str(e))
 
@@ -374,6 +380,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RateLimitMiddleware, limits={
     "/api/search":    settings.RATE_LIMIT_SEARCH,
     "/api/downloads": settings.RATE_LIMIT_DOWNLOAD,
+    "/api/auth":      settings.RATE_LIMIT_AUTH,
+    "/api/stream":    settings.RATE_LIMIT_STREAM,
+    "/api/lyrics":    settings.RATE_LIMIT_LYRICS,
 })
 
 app.add_exception_handler(RheosonException, Rheoson_exception_handler)
