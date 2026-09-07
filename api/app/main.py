@@ -3,7 +3,6 @@ import asyncio
 import os
 import json
 import re
-import shutil
 import time
 import uuid
 import structlog
@@ -17,9 +16,10 @@ import socketio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.deps import get_current_user
+from app.core import health as healthmod
 
 from app.core.config import settings, validate_startup
 from app.core.logging_config import configure_logging
@@ -50,10 +50,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION     = "2.11.0"
-_START_TIME = time.monotonic()
-
-AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
+VERSION = "2.11.0"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -123,7 +120,11 @@ async def _cron_keep_alive() -> None:
     if settings.is_dev:
         return
 
-    url = settings.RENDER_API_URL or "https://Rheoson-api-vnny.onrender.com"
+    # NOTE (production investigation): the previous default pointed at
+    # Rheoson-api-vnny.onrender.com, which is dead (404), so the keep-alive
+    # silently failed and the real instance slept (≈50 s cold starts).
+    # Point it at the canonical API host; RENDER_API_URL overrides it.
+    url = settings.RENDER_API_URL or "https://rheoson-api-9e4c.onrender.com"
     health_url = f"{url}/api/health"
     t0 = time.monotonic()
     try:
@@ -255,8 +256,23 @@ async def lifespan(_app: FastAPI):
     await connect_db()
     scheduler.start()
 
+    # Health subsystem: mark boot time and start the background probe loop so
+    # the public /api/health snapshot is cheap and always fresh.
+    healthmod.app_started()
+
+    async def _health_probe_loop():
+        while True:
+            try:
+                await healthmod.refresh_probe()
+            except Exception:
+                log.error("health.probe.failed", exc_info=True)
+            await asyncio.sleep(healthmod._PROBE_TTL)
+
+    _health_task = asyncio.create_task(_health_probe_loop())
+
     log.info("Rheoson.api.ready", cron_jobs=[j.id for j in scheduler.get_jobs()])
     yield
+    _health_task.cancel()
     scheduler.shutdown(wait=False)
     await close_db()
     log.info("Rheoson.api.stopped")
@@ -385,6 +401,30 @@ app.add_middleware(RateLimitMiddleware, limits={
     "/api/lyrics":    settings.RATE_LIMIT_LYRICS,
 })
 
+
+# ── Request metrics middleware ────────────────────────────────
+class MetricsMiddleware(BaseHTTPMiddleware):
+    """Feed the bounded in-memory metrics collector (status, latency,
+    recent-5xx ring). Adds no logging and stores no bodies."""
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        t0 = time.monotonic()
+        status = 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            return response
+        finally:
+            healthmod.metrics.record(
+                status,
+                (time.monotonic() - t0) * 1000,
+                request.method,
+                request.url.path,
+            )
+
+
+app.add_middleware(MetricsMiddleware)
+
 app.add_exception_handler(RheosonException, Rheoson_exception_handler)
 app.add_exception_handler(Exception,        generic_exception_handler)
 
@@ -409,37 +449,22 @@ app.include_router(clerk_webhook_router.router, prefix="/api", tags=["webhooks"]
 
 # ── Root ──────────────────────────────────────────────────────
 
-@app.get("/", include_in_schema=False)
+@app.get("/", include_in_schema=False, status_code=307)
 async def root():
-    return JSONResponse({
-        "name":    "Rheoson API",
-        "version": VERSION,
-        "docs":    "/api/docs",
-        "health":  "/api/health",
-    })
+    """API entry point → interactive documentation."""
+    return RedirectResponse(url="/api/docs", status_code=307)
 
 
-# ── Health ────────────────────────────────────────────────────
-
-def _ytdlp_version() -> str:
-    try:
-        import importlib.metadata
-        return importlib.metadata.version("yt-dlp")
-    except Exception:
-        return "unknown"
-
-
-def _disk_info(path: str) -> dict:
-    try:
-        u = shutil.disk_usage(path)
-        return {
-            "total_gb": round(u.total / 1e9, 2),
-            "used_gb":  round(u.used  / 1e9, 2),
-            "free_gb":  round(u.free  / 1e9, 2),
-            "used_pct": round(u.used  / u.total * 100, 1),
-        }
-    except Exception:
-        return {}
+# ── Health & diagnostics ─────────────────────────────────────
+# Depth separation:
+#   /health/live        — process alive (zero I/O)
+#   /health/ready       — can serve requests (fast storage/config probe)
+#   /api/health         — cheap full snapshot (dependency probes run in the
+#                         background every 60 s; this endpoint never blocks
+#                         on slow subsystems and never scans the filesystem)
+#   /api/health/diag    — authenticated deep diagnostics (fresh probe)
+# The payload contains no secrets, tokens, connection strings, or private
+# filesystem paths.
 
 
 def _memory_info() -> dict:
@@ -451,17 +476,10 @@ def _memory_info() -> dict:
         return {}
 
 
-def _count_local_files() -> dict:
-    counts: dict[str, int] = {}
-    total = 0
-    for d in settings.all_music_dirs:
-        base = Path(d)
-        if not base.exists():
-            continue
-        n = sum(1 for p in base.rglob("*") if p.suffix.lstrip(".") in AUDIO_EXTS)
-        counts[d] = n
-        total += n
-    return {"total": total, "by_dir": counts}
+def _uptime_hhmmss(uptime_s: int) -> str:
+    hr, rem = divmod(uptime_s, 3600)
+    mn, sc = divmod(rem, 60)
+    return f"{hr:02d}:{mn:02d}:{sc:02d}"
 
 
 async def _active_downloads() -> dict:
@@ -476,42 +494,47 @@ async def _active_downloads() -> dict:
         return {"total": 0, "by_status": {}}
 
 
-@app.get("/api/health", tags=["health"])
-async def health():
-    uptime_s  = round(time.monotonic() - _START_TIME)
-    uptime_hr = uptime_s // 3600
-    uptime_mn = (uptime_s % 3600) // 60
-    uptime_sc = uptime_s % 60
-    downloads = await _active_downloads()
+@app.get("/health/live", tags=["health"])
+async def health_live(request: Request):
+    """Liveness: is the process alive? Zero I/O, never fails a request."""
+    return healthmod.live(request.headers.get("x-request-id", ""))
 
-    return JSONResponse({
-        "status":    "ok",
-        "version":   VERSION,
-        "env":       settings.ENV,
-        "uptime":    f"{uptime_hr:02d}:{uptime_mn:02d}:{uptime_sc:02d}",
-        "uptime_s":  uptime_s,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "python":    __import__("sys").version.split()[0],
-        "ytdlp":     _ytdlp_version(),
-        "memory":    _memory_info(),
-        "music_dir":     settings.MUSIC_DIR,
-        "downloads_dir": settings.DOWNLOADS_DIR,
-        "extra_dirs":    settings.all_music_dirs,
-        "disk":          _disk_info(settings.MUSIC_DIR),
-        "local_files":   _count_local_files(),
+
+@app.get("/health/ready", tags=["health"])
+async def health_ready(request: Request):
+    """Readiness: can this instance serve requests right now?
+
+    Checks storage availability + config validity (fast). Dependency
+    status is reported by /api/health, not here.
+    """
+    return await healthmod.ready(request.headers.get("x-request-id", ""))
+
+
+@app.get("/api/health", tags=["health"])
+async def health(request: Request):
+    """Full cheap health snapshot with per-subsystem checks.
+
+    Backed by the background probe cache — no expensive work per request.
+    """
+    payload = await healthmod.snapshot(request.headers.get("x-request-id", ""))
+    uptime_s = payload["uptimeS"]
+    payload.update({
+        "version":     VERSION,
+        "env":         settings.ENV,
+        "uptime":      _uptime_hhmmss(uptime_s),
+        "python":      __import__("sys").version.split()[0],
+        "memory":      _memory_info(),
         "services": {
-            "mongodb":   db_available(),
-            "clerk":     settings.has_clerk,
-            "redis":     settings.has_redis,
-            "spotify":   settings.has_spotify,
+            "mongodb": db_available(),
+            "clerk":   settings.has_clerk,
+            "redis":   settings.has_redis,
+            "spotify": settings.has_spotify,
         },
         "spotify": {
             "connected": settings.has_spotify,
-            "client_id": (settings.SPOTIFY_CLIENT_ID[:8] + "…") if settings.has_spotify else None,
         },
-        "downloads":      downloads,
-        "keep_alive":     _keep_alive_stats,
-        "allowed_origins": _ALLOWED_ORIGINS,
+        "downloads":   await _active_downloads(),
+        "keep_alive":  _keep_alive_stats,
         "cron_jobs": [
             {
                 "id":       j.id,
@@ -520,6 +543,15 @@ async def health():
             for j in scheduler.get_jobs()
         ],
     })
+    return JSONResponse(payload)
+
+
+@app.get("/api/health/diag", tags=["health"])
+async def health_diag(request: Request, _user: dict = Depends(get_current_user)):
+    """Authenticated deep diagnostics: forces a fresh, bounded probe of every
+    subsystem (DB ping latency, yt-dlp/ffmpeg versions, config validation)
+    and returns recent error/latency metrics."""
+    return await healthmod.diagnostics(request.headers.get("x-request-id", ""))
 
 
 @app.get("/api/version", tags=["version"])

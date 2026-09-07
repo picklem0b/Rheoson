@@ -71,7 +71,7 @@ export default function App() {
   useEffect(() => {
     initErrorHandler()
     initNetwork(() => {
-      const PROD_API = import.meta.env.VITE_API_URL ?? 'https://rheoson-api-vnny.onrender.com'
+      const PROD_API = import.meta.env.VITE_API_URL ?? 'https://rheoson-api-9e4c.onrender.com'
       return import.meta.env.DEV ? '/api/health' : `${PROD_API}/api/health`
     })
     initAutoSync()
