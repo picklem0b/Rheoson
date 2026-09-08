@@ -163,7 +163,13 @@ async def _check_mongodb() -> dict:
         if db is not None:
             t0 = _now_s()
             try:
-                await asyncio.wait_for(db.admin.command("ping"), timeout=2.5)
+                # NOTE: must be `db.command("ping")` — on a Motor *database*
+                # `db.admin` is an attribute-fallback *collection* (motor's
+                # __getattr__), so `db.admin.command(...)` raises
+                # "MotorCollection object is not callable" and every health
+                # snapshot falsely reported MongoDB as degraded.
+                # (On a Motor *client* `client.admin` is the real admin DB.)
+                await asyncio.wait_for(db.command("ping"), timeout=2.5)
                 entry = _check_entry(PASSING, "connected", (_now_s() - t0) * 1000)
                 entry["latencyMs"] = round((_now_s() - t0) * 1000, 1)
                 return entry
@@ -216,6 +222,10 @@ async def _check_config() -> dict:
             issues.append("CLERK_SECRET_KEY missing")
         if not settings.CLERK_PUBLISHABLE_KEY:
             issues.append("CLERK_PUBLISHABLE_KEY missing")
+        # Clerk auth without a webhook signing secret means user sync to
+        # MongoDB is silently disabled — surface it so it can't hide.
+        if settings.has_clerk and not settings.CLERK_WEBHOOK_SECRET:
+            issues.append("CLERK_WEBHOOK_SECRET missing (user sync disabled)")
     status = PASSING if not issues else FAILING
     entry = _check_entry(status, "; ".join(issues) if issues else "valid")
     entry["env"] = settings.ENV
