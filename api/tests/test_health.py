@@ -114,3 +114,58 @@ async def test_mongodb_failure_degrades_but_does_not_kill_health(client, monkeyp
     data = resp.json()
     assert data["checks"]["mongodb"]["status"] == "degraded"
     assert data["status"] in ("degraded", "failing")
+
+
+@pytest.mark.asyncio
+async def test_config_check_flags_missing_webhook_secret(monkeypatch):
+    """A Clerk-enabled production instance without CLERK_WEBHOOK_SECRET
+    cannot sync users to MongoDB — the config check must say so instead of
+    reporting 'valid'."""
+    import app.core.health as h
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "ENV", "production")
+    monkeypatch.setattr(settings, "SECRET_KEY", "a-real-looking-secret")
+    monkeypatch.setattr(settings, "CLERK_SECRET_KEY", "sk_test_xxx")
+    monkeypatch.setattr(settings, "CLERK_PUBLISHABLE_KEY", "pk_test_xxx")
+    monkeypatch.setattr(settings, "CLERK_WEBHOOK_SECRET", "")
+
+    entry = await h._check_config()
+    assert entry["status"] == "failing"
+    assert "CLERK_WEBHOOK_SECRET missing" in entry["detail"]
+
+    # Once the secret is configured the check passes again
+    monkeypatch.setattr(settings, "CLERK_WEBHOOK_SECRET", "whsec_xxx")
+    entry = await h._check_config()
+    assert entry["status"] == "passing", entry
+
+
+@pytest.mark.asyncio
+async def test_mongodb_check_pings_db_not_db_admin(monkeypatch):
+    """Regression: the probe used `db.admin.command("ping")`. On a Motor
+    *database* `db.admin` is an attribute-fallback *collection*, so every
+    live health snapshot reported MongoDB as degraded with
+    "MotorCollection object is not callable". It must ping via
+    `db.command("ping")` and report passing when the ping succeeds."""
+    import app.core.health as h
+
+    class FakeDB:
+        def __init__(self) -> None:
+            self.pinged = False
+
+        async def command(self, cmd: str) -> dict:
+            self.pinged = True
+            assert cmd == "ping"
+            return {"ok": 1.0}
+
+    fake_db = FakeDB()
+    # _check_mongodb does `from app.core import database` at call time, so
+    # patch attributes on the real module object.
+    import app.core.database as database
+    monkeypatch.setattr(database, "db_available", lambda: True)
+    monkeypatch.setattr(database, "_db", fake_db)
+
+    entry = await h._check_mongodb()
+    assert entry["status"] == "passing", entry
+    assert fake_db.pinged is True
+    assert "latencyMs" in entry
