@@ -42,7 +42,7 @@ export function setClerkToken(token: string | null) {
    _clerkToken = token;
 }
 
-function getAuthToken(): string | null {
+export function getAuthToken(): string | null {
    // Prefer Clerk session token when available
    if (_clerkToken) return _clerkToken;
    try {
