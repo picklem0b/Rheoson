@@ -245,6 +245,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracks/{track_id}/dislike": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dislike Track
+         * @description Hide a track: stops it appearing in recommendations/autoplay and
+         *     removes it from Liked songs. Explicit dislikes are stored per-user in
+         *     MongoDB (disliked_tracks) with a local mirror, and recorded as a
+         *     strong-negative DISLIKE signal for the taste profiler.
+         */
+        post: operations["dislike_track_api_tracks__track_id__dislike_post"];
+        /** Undislike Track */
+        delete: operations["undislike_track_api_tracks__track_id__dislike_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracks/{track_id}/play": {
         parameters: {
             query?: never;
@@ -954,6 +978,58 @@ export interface paths {
          * @description Get the current user's taste profile (Mongo signals or local mirror).
          */
         get: operations["get_taste_profile_api_recommendations_taste_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/mixes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Daily Mixes
+         * @description Spotify-style Daily Mixes — one infinite-feeling playlist per top genre.
+         *
+         *     Genres come from the user's taste profile (Mongo signals or local mirror);
+         *     each mix searches that genre and returns fully hydrated track dicts so the
+         *     frontend can queue them immediately. Tracks are deduped across mixes and
+         *     diverse per artist inside a mix. Hidden/disliked tracks are excluded.
+         *
+         *     Cold-start users (no taste yet) get an empty list — the UI hides the row.
+         */
+        get: operations["get_daily_mixes_api_recommendations_mixes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/radio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Radio
+         * @description One-tap radio: an endless-feeling stream seeded by a single track.
+         *
+         *     Builds candidates from similar-artist search, the artist's related
+         *     artists (when resolvable), and trending — deduped, diverse, with the
+         *     seed excluded and hidden tracks removed. Returns fully hydrated track
+         *     dicts so the frontend queues them and keeps autoplaying on end.
+         */
+        get: operations["get_radio_api_recommendations_radio_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2413,6 +2489,68 @@ export interface operations {
             };
         };
     };
+    dislike_track_api_tracks__track_id__dislike_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undislike_track_api_tracks__track_id__dislike_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     record_play_api_tracks__track_id__play_post: {
         parameters: {
             query?: never;
@@ -3669,6 +3807,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_daily_mixes_api_recommendations_mixes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_radio_api_recommendations_radio_get: {
+        parameters: {
+            query: {
+                /** @description Seed track ID */
+                track_id: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

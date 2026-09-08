@@ -567,6 +567,95 @@
         }
       }
     },
+    "/api/tracks/{track_id}/dislike": {
+      "post": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Dislike Track",
+        "description": "Hide a track: stops it appearing in recommendations/autoplay and\nremoves it from Liked songs. Explicit dislikes are stored per-user in\nMongoDB (disliked_tracks) with a local mirror, and recorded as a\nstrong-negative DISLIKE signal for the taste profiler.",
+        "operationId": "dislike_track_api_tracks__track_id__dislike_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Undislike Track",
+        "operationId": "undislike_track_api_tracks__track_id__dislike_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tracks/{track_id}/play": {
       "post": {
         "tags": [
@@ -966,12 +1055,12 @@
       }
     },
     "/api/stream/{track_id}/audio": {
-      "head": {
+      "get": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_1",
+        "operationId": "stream_audio",
         "parameters": [
           {
             "name": "track_id",
@@ -1004,12 +1093,12 @@
           }
         }
       },
-      "get": {
+      "head": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio",
+        "operationId": "stream_audio_1",
         "parameters": [
           {
             "name": "track_id",
@@ -2390,6 +2479,115 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/recommendations/mixes": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Daily Mixes",
+        "description": "Spotify-style Daily Mixes \u2014 one infinite-feeling playlist per top genre.\n\nGenres come from the user's taste profile (Mongo signals or local mirror);\neach mix searches that genre and returns fully hydrated track dicts so the\nfrontend can queue them immediately. Tracks are deduped across mixes and\ndiverse per artist inside a mix. Hidden/disliked tracks are excluded.\n\nCold-start users (no taste yet) get an empty list \u2014 the UI hides the row.",
+        "operationId": "get_daily_mixes_api_recommendations_mixes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 5,
+              "default": 15,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/radio": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Radio",
+        "description": "One-tap radio: an endless-feeling stream seeded by a single track.\n\nBuilds candidates from similar-artist search, the artist's related\nartists (when resolvable), and trending \u2014 deduped, diverse, with the\nseed excluded and hidden tracks removed. Returns fully hydrated track\ndicts so the frontend queues them and keeps autoplaying on end.",
+        "operationId": "get_radio_api_recommendations_radio_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Seed track ID",
+              "title": "Track Id"
+            },
+            "description": "Seed track ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 10,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/recommendations/refresh": {

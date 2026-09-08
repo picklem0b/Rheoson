@@ -17,7 +17,7 @@ import { usePlayerStore } from '@/store/player.store'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { tracksApi } from '@/api/tracks.api'
 import { libraryApi } from '@/api/library.api'
-import { recommendationsApi, type RecommendationSection } from '@/api/recommendations.api'
+import { recommendationsApi, type RecommendationSection, type DailyMix } from '@/api/recommendations.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
@@ -278,6 +278,41 @@ function TrendingTrackRow({
   )
 }
 
+// ── Daily Mixes — one card per top genre ─────────────────────
+
+function DailyMixesRow({ mixes }: { mixes: DailyMix[] }) {
+  const { playAll } = useQueue()
+  return (
+    <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+      {mixes.map((mix, i) => (
+        <motion.button
+          key={mix.id}
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: i * 0.05 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => playAll(mix.tracks, { shuffle: true })}
+          className="flex-shrink-0 w-36 text-left group"
+        >
+          <div className="relative w-36 h-36 rounded-3xl overflow-hidden mb-2.5 shadow-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+            {mix.artworkUrl
+              ? <img src={mix.artworkUrl} alt={mix.title} className="w-full h-full object-cover" />
+              : <div className={cn('w-full h-full bg-gradient-to-br', GRADIENTS[i % GRADIENTS.length])} />
+            }
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+              <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg ml-auto">
+                <Play className="w-4 h-4 text-black fill-current ml-0.5" />
+              </div>
+            </div>
+          </div>
+          <p className="text-sm font-bold text-[var(--text-primary)] truncate">{mix.title}</p>
+          <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">{mix.subtitle}</p>
+        </motion.button>
+      ))}
+    </div>
+  )
+}
+
 function TrendingList({ tracks }: { tracks: Track[] }) {
   const { playTrack }  = useQueue()
   const currentTrack   = usePlayerStore((s) => s.currentTrack)
@@ -417,10 +452,18 @@ export default function Home() {
     retry:     0,
   })
 
+  const { data: mixesRaw, isLoading: loadingMixes } = useQuery({
+    queryKey:  ['daily-mixes'],
+    queryFn:   () => recommendationsApi.getMixes(),
+    staleTime: 30 * 60_000,
+    retry:     1,
+  })
+
   // Strip junk before it reaches the UI
   const recent   = (recentRaw ?? []).filter(isRealTrack)
   const trending = (trendingRaw ?? []).filter(isRealTrack)
   const featured = (featuredRaw ?? []).filter(isRealFeaturedItem)
+  const mixes    = (mixesRaw ?? []).filter((m) => m.tracks.length > 0)
 
   const hasRecent   = recent.length > 0
   const hasTrending = trending.length > 0
@@ -486,6 +529,18 @@ export default function Home() {
               ? <div className="flex gap-4 -mx-4 px-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="w-44 h-44 rounded-3xl flex-shrink-0" />)}</div>
               : <FeaturedCarousel items={featured} />
             }
+          </section>
+        )}
+
+        {/* Daily Mixes — one playlist per top genre, from the taste profile */}
+        {!loadingMixes && mixes.length > 0 && (
+          <section>
+            <SectionHeader
+              icon={Sparkles}
+              title="Daily Mixes"
+              subtitle="Made for your taste"
+            />
+            <DailyMixesRow mixes={mixes} />
           </section>
         )}
 

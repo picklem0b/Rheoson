@@ -400,6 +400,214 @@ async def _local_taste_profile(user_id: str) -> dict:
     }
 
 
+# ── Daily Mixes ──────────────────────────────────────────────
+
+@router.get("/mixes")
+async def get_daily_mixes(
+    limit: int = Query(15, ge=5, le=30),
+    user: dict = Depends(get_current_user),
+):
+    """Spotify-style Daily Mixes — one infinite-feeling playlist per top genre.
+
+    Genres come from the user's taste profile (Mongo signals or local mirror);
+    each mix searches that genre and returns fully hydrated track dicts so the
+    frontend can queue them immediately. Tracks are deduped across mixes and
+    diverse per artist inside a mix. Hidden/disliked tracks are excluded.
+
+    Cold-start users (no taste yet) get an empty list — the UI hides the row.
+    """
+    user_id = user["sub"]
+
+    taste = None
+    if db_available():
+        try:
+            db = get_db()
+            from app.services.taste_profiler import build_taste_profile
+            profile = await build_taste_profile(db, user_id)
+            taste = {
+                "top_genres": [{"genre": g.genre, "score": g.score} for g in profile.top_genres[:6]],
+                "cold_start": profile.total_plays < 10,
+            }
+        except Exception:
+            pass
+    if taste is None:
+        taste = await _local_taste_profile(user_id)
+        taste["top_genres"] = taste.get("top_genres", [])[:6]
+
+    genres = [g["genre"] for g in taste.get("top_genres", []) if g.get("genre")][:4]
+    if taste.get("cold_start") or not genres:
+        return {"mixes": [], "updated_at": datetime.now(timezone.utc).isoformat()}
+
+    disliked = set()
+    try:
+        if db_available():
+            from app.services.recommendation_engine import _load_disliked_ids
+            disliked = await _load_disliked_ids(get_db(), user_id)
+        else:
+            from app.services.local_history import read_disliked_local
+            disliked = set(await read_disliked_local(user_id))
+    except Exception:
+        pass
+
+    from app.services.ytmusic_service import search as yt_search
+    from app.services import track_identity
+
+    mixes = []
+    seen_global: set[str] = set()
+    for idx, genre in enumerate(genres, start=1):
+        try:
+            results = await yt_search(f"{genre} hits", limit=limit * 2)
+        except Exception as e:
+            continue
+        tracks = []
+        seen_in_mix: set[str] = set()
+        artist_counts: dict[str, int] = {}
+        for t in results.get("tracks", []):
+            tid = t.get("id", "")
+            artist = t.get("artist", {}).get("name", "") if isinstance(t.get("artist"), dict) else str(t.get("artist", ""))
+            if not tid or tid in seen_global or tid in disliked or tid in seen_in_mix:
+                continue
+            if artist_counts.get(artist, 0) >= 2:
+                continue
+            seen_global.add(tid)
+            seen_in_mix.add(tid)
+            artist_counts[artist] = artist_counts.get(artist, 0) + 1
+            track_identity.mark_downloaded([t])  # isDownloaded + local stream when owned
+            tracks.append(t)
+            if len(tracks) >= limit:
+                break
+        if not tracks:
+            continue
+        art = tracks[0].get("artworkUrl", "")
+        mixes.append({
+            "id": f"daily-mix-{idx}",
+            "title": f"Daily Mix {idx}",
+            "subtitle": genre.title(),
+            "artworkUrl": art,
+            "tracks": tracks,
+        })
+
+    return {"mixes": mixes, "updated_at": datetime.now(timezone.utc).isoformat()}
+
+
+# ── Radio ─────────────────────────────────────────────────────
+
+@router.get("/radio")
+async def get_radio(
+    track_id: str = Query(..., description="Seed track ID"),
+    limit: int = Query(20, ge=10, le=50),
+    user: dict = Depends(get_current_user),
+):
+    """One-tap radio: an endless-feeling stream seeded by a single track.
+
+    Builds candidates from similar-artist search, the artist's related
+    artists (when resolvable), and trending — deduped, diverse, with the
+    seed excluded and hidden tracks removed. Returns fully hydrated track
+    dicts so the frontend queues them and keeps autoplaying on end.
+    """
+    user_id = user["sub"]
+
+    disliked = set()
+    if db_available():
+        try:
+            from app.services.recommendation_engine import _load_disliked_ids
+            disliked = await _load_disliked_ids(get_db(), user_id)
+        except Exception:
+            pass
+    else:
+        try:
+            from app.services.local_history import read_disliked_local
+            disliked = set(await read_disliked_local(user_id))
+        except Exception:
+            pass
+
+    from app.routers.track_router import _hydrate_track
+    from app.services.ytmusic_service import search as yt_search, get_trending
+    from app.services import track_identity
+
+    seed = None
+    try:
+        seed = await _hydrate_track(track_id)
+    except Exception:
+        seed = None
+    if not seed:
+        return {"seed": None, "tracks": []}
+
+    seed_artist = seed.get("artist", {}).get("name", "") if isinstance(seed.get("artist"), dict) else str(seed.get("artist", ""))
+
+    pool: list[dict] = []
+    seen: set[str] = set()
+
+    def _add(t: dict) -> None:
+        tid = t.get("id", "")
+        if not tid or tid in seen or tid in disliked or tid == track_id:
+            return
+        seen.add(tid)
+        pool.append(t)
+
+    # 1. Similar-artist search
+    if seed_artist:
+        try:
+            for q in (f"{seed_artist} similar", f"{seed_artist} mix", f"{seed_artist} live"):
+                res = await yt_search(q, limit=limit)
+                for t in res.get("tracks", []):
+                    _add(t)
+                    if len(pool) >= limit:
+                        break
+                if len(pool) >= limit:
+                    break
+        except Exception:
+            pass
+
+    # 2. Artist page related artists (best-effort)
+    seed_artist_id = seed.get("artist", {}).get("id", "") if isinstance(seed.get("artist"), dict) else ""
+    if seed_artist_id and len(pool) < limit:
+        try:
+            from app.services.ytmusic_service import get_artist_with_content
+            artist_data = await get_artist_with_content(seed_artist_id)
+            for rel in (artist_data.get("related") or [])[:3]:
+                rel_name = rel.get("name", "")
+                if not rel_name:
+                    continue
+                res = await yt_search(f"{rel_name} top tracks", limit=8)
+                for t in res.get("tracks", []):
+                    _add(t)
+                    if len(pool) >= limit:
+                        break
+                if len(pool) >= limit:
+                    break
+        except Exception:
+            pass
+
+    # 3. Trending filler (keeps the radio alive)
+    if len(pool) < limit:
+        try:
+            for t in await get_trending():
+                _add(t)
+                if len(pool) >= limit:
+                    break
+        except Exception:
+            pass
+
+    # Diversity: cap same-artist in the radio stream
+    artist_counts: dict[str, int] = {}
+    final: list[dict] = []
+    for t in pool[:limit * 2]:
+        artist = t.get("artist", {}).get("name", "") if isinstance(t.get("artist"), dict) else str(t.get("artist", ""))
+        if artist_counts.get(artist, 0) >= 2:
+            continue
+        artist_counts[artist] = artist_counts.get(artist, 0) + 1
+        track_identity.mark_downloaded([t])
+        final.append(t)
+        if len(final) >= limit:
+            break
+
+    return {
+        "seed": {"id": seed.get("id"), "title": seed.get("title", ""), "artist": seed_artist},
+        "tracks": final,
+    }
+
+
 @router.post("/refresh")
 async def force_refresh(
     user: dict = Depends(get_current_user),

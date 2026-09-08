@@ -85,7 +85,7 @@ async def generate_recommendations(
     if cold:
         candidates = await _cold_start_candidates(db)
     else:
-        candidates = await _personalized_candidates(db, profile)
+        candidates = await _personalized_candidates(db, profile, user_id)
 
     # ── 3. Score candidates ───────────────────────────────────
     if not cold:
@@ -178,13 +178,34 @@ async def _cold_start_candidates(db: AsyncIOMotorDatabase) -> list[dict]:
     return unique
 
 
-async def _personalized_candidates(db: AsyncIOMotorDatabase, profile: TasteProfile) -> list[dict]:
+async def _load_disliked_ids(db: AsyncIOMotorDatabase, user_id: str) -> set[str]:
+    """Ids the user explicitly hid (Mongo, falling back to the local mirror).
+    Hidden tracks are excluded from candidates and autoplay entirely."""
+    try:
+        doc = await db.disliked_tracks.find_one({'user_id': user_id})
+        if doc:
+            return set(doc.get('track_ids', []))
+    except Exception:
+        pass
+    try:
+        from app.services.local_history import read_disliked_local
+        return set(await read_disliked_local(user_id))
+    except Exception:
+        return set()
+
+
+async def _personalized_candidates(db: AsyncIOMotorDatabase, profile: TasteProfile, user_id: str = '') -> list[dict]:
     """Generate candidates based on the user's taste profile.
 
-    Strategy: Combine multiple sources weighted by relevance.
+    Strategy: Combine multiple sources weighted by relevance. Explicitly
+    disliked/hidden tracks are excluded.
     """
     candidates = []
     seen_ids = set()
+
+    disliked: set[str] = set()
+    if user_id:
+        disliked = await _load_disliked_ids(db, user_id)
 
     # ── Source 1: Similar to top liked artists ─────────────────
     for pref in profile.top_artists[:5]:
@@ -194,7 +215,7 @@ async def _personalized_candidates(db: AsyncIOMotorDatabase, profile: TasteProfi
             # search() returns {tracks: [...], albums: [...], ...}
             for t in results.get("tracks", []):
                 tid = t.get("id", "")
-                if tid and tid not in seen_ids:
+                if tid and tid not in seen_ids and tid not in disliked:
                     seen_ids.add(tid)
                     artist_name = t.get("artist", {}).get("name", "") if isinstance(t.get("artist"), dict) else str(t.get("artist", ""))
                     candidates.append({
@@ -217,7 +238,7 @@ async def _personalized_candidates(db: AsyncIOMotorDatabase, profile: TasteProfi
         trending = await get_trending()
         for t in trending[:15]:
             tid = t.get("id", "")
-            if tid and tid not in seen_ids:
+            if tid and tid not in seen_ids and tid not in disliked:
                 seen_ids.add(tid)
                 artist_name = t.get("artist", {}).get("name", "") if isinstance(t.get("artist"), dict) else str(t.get("artist", ""))
                 candidates.append({
@@ -241,7 +262,7 @@ async def _personalized_candidates(db: AsyncIOMotorDatabase, profile: TasteProfi
             # search() returns {tracks: [...], albums: [...], ...}
             for t in results.get("tracks", []):
                 tid = t.get("id", "")
-                if tid and tid not in seen_ids:
+                if tid and tid not in seen_ids and tid not in disliked:
                     seen_ids.add(tid)
                     artist_name = t.get("artist", {}).get("name", "") if isinstance(t.get("artist"), dict) else str(t.get("artist", ""))
                     candidates.append({
@@ -264,7 +285,7 @@ async def _personalized_candidates(db: AsyncIOMotorDatabase, profile: TasteProfi
         idx = await _build_index()
         liked_set = set(profile.liked_track_ids)
         for tid, t in idx.items():
-            if tid not in seen_ids and tid not in liked_set:
+            if tid not in seen_ids and tid not in liked_set and tid not in disliked:
                 seen_ids.add(tid)
                 artist_name = t.get("artist", {}).get("name", "") if isinstance(t.get("artist"), dict) else str(t.get("artist", ""))
                 candidates.append({
@@ -489,6 +510,7 @@ async def get_autoplay_candidates(
     """
     profile = await build_taste_profile(db, user_id)
     cold = is_cold_start(profile)
+    disliked = await _load_disliked_ids(db, user_id)
 
     # Get current track info
     try:
@@ -509,7 +531,7 @@ async def get_autoplay_candidates(
         results = await yt_search(f"{artist} similar", limit=limit * 3)
         for t in results.get("tracks", []):
             tid = t.get("id", "")
-            if tid and tid != current_track_id:
+            if tid and tid != current_track_id and tid not in disliked:
                 t_artist = t.get("artist", {}).get("name", "") if isinstance(t.get("artist"), dict) else str(t.get("artist", ""))
                 score = 0.5
                 if not cold:
