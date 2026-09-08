@@ -196,13 +196,24 @@ def _clean_state():
     """Reset file-backed stores and rate limiter between tests."""
     import glob as _glob
     music = os.environ["MUSIC_DIR"]
-    for pattern in (".liked-*.json", ".history-*.json", ".playlists-*.json"):
+    for pattern in (".liked-*.json", ".history-*.json", ".playlists-*.json", ".track_map.sqlite"):
         for f in _glob.glob(os.path.join(music, pattern)):
             os.unlink(f)
+    # The in-memory identity mirrors outlive the file deletion — reset them.
+    try:
+        from app.services import track_identity
+        track_identity._invalidate_caches()
+    except Exception:
+        pass
     yield
-    for pattern in (".liked-*.json", ".history-*.json", ".playlists-*.json"):
+    for pattern in (".liked-*.json", ".history-*.json", ".playlists-*.json", ".track_map.sqlite"):
         for f in _glob.glob(os.path.join(music, pattern)):
             os.unlink(f)
+    try:
+        from app.services import track_identity
+        track_identity._invalidate_caches()
+    except Exception:
+        pass
 
 
 # ── Common test data ───────────────────────────────────────────

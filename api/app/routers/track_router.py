@@ -9,6 +9,7 @@ session.  Likes, history, play signals, and stats are keyed by the JWT
 from __future__ import annotations
 
 import asyncio
+import re
 import structlog
 from datetime import datetime, timezone
 from pathlib import Path
@@ -96,10 +97,28 @@ async def _build_index() -> dict[str, dict]:
 # ── Track hydration ───────────────────────────────────────────
 
 async def _hydrate_track(track_id: str) -> dict | None:
-    """Return track metadata, preferring local files over YouTube API."""
+    """Return track metadata, preferring local files over YouTube API.
+
+    Stable-identity bridge: a YouTube id that has been downloaded resolves to
+    its local file (served under the requested id, with the local stream URL)
+    — so liked/history/playlist entries keep working even when the YTMusic
+    API is down, and search results stay dedup-able.
+    """
     idx = await _build_index()
     if track_id in idx:
         return idx[track_id]
+    from app.services import track_identity
+    if re.match(r"^[A-Za-z0-9_-]{11}$", track_id):
+        mapped = track_identity.lookup_by_video(track_id)
+        if mapped and mapped.get('file_id'):
+            local = idx.get(mapped['file_id'])
+            if local:
+                t = dict(local)
+                t['id']           = track_id          # keep the requested identity
+                t['youtubeId']    = track_id
+                t['isDownloaded'] = True
+                t['filePath']     = mapped.get('file_path', t.get('filePath', ''))
+                return t
     try:
         return await yt_get_track(track_id)
     except Exception:

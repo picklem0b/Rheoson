@@ -66,6 +66,16 @@ def read_track_metadata(path: Path) -> dict:
     stream_url = _abs(f"/api/stream/{file_id}/audio")
     artwork_url = _abs(f"/api/stream/{file_id}/artwork")
 
+    # Stable-identity bridge: if this file was downloaded from YouTube, its
+    # videoId is recorded in the sidecar map — attach it so the frontend can
+    # dedupe against search results and likes/history resolve locally.
+    try:
+        from app.services import track_identity
+        _mapped = track_identity.lookup_by_file(file_id)
+        youtube_id = _mapped["video_id"] if _mapped else None
+    except Exception:
+        youtube_id = None
+
     artist_id = hashlib.md5(artist.encode()).hexdigest()[:8]
     album_id  = hashlib.md5(album.encode()).hexdigest()[:8]
 
@@ -74,7 +84,7 @@ def read_track_metadata(path: Path) -> dict:
         "title":        title,
         "duration":     duration,
         "artworkUrl":   artwork_url,
-        "youtubeId":    None,
+        "youtubeId":    youtube_id,
         "spotifyId":    None,
         "isDownloaded": True,
         "isLiked":      False,
