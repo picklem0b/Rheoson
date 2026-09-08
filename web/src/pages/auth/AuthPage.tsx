@@ -1,9 +1,7 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { SignIn, SignUp, useUser } from '@clerk/clerk-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { SignIn, SignUp } from '@clerk/clerk-react'
 import { motion } from 'framer-motion'
 import { Music } from 'lucide-react'
-import { useAuthStore } from '@/store/auth.store'
 import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
 import './auth.css'
 
@@ -12,35 +10,44 @@ interface AuthPageProps {
 }
 
 /**
- * Unified auth page — uses Clerk's prebuilt <SignIn>/<SignUp> when the
- * publishable key is configured. Falls back to a dev-only message when
- * Clerk is not set up.
+ * Unified auth page — uses Clerk's prebuilt <SignUp>/<SignIn> when the
+ * publishable key is configured. Clerk renders its own "Continue with…"
+ * provider buttons, email/password form, and sign-in/sign-up links.
  *
- * When Clerk is active, the component handles the full OAuth / magic-link /
- * email-password flow through Clerk's hosted UI. No custom form needed.
+ * Flow: Landing ("Continue with…") → /auth (this page) → Home.
+ *
+ * There is deliberately NO manual redirect effect here: Clerk's
+ * afterSignInUrl / afterSignUpUrl is the single source of truth for the
+ * post-auth navigation. An extra navigate() on top of Clerk's own
+ * redirect was what produced the landing ⇄ auth redirect loop.
+ *
+ * Falls back to a dev-only message when Clerk is not set up.
  */
-export default function AuthPage({ mode = 'sign-in' }: AuthPageProps) {
+export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuthStore()
-  const { isSignedIn } = useUser()
-
-  // Redirect to home if already authenticated (Clerk or local)
-  useEffect(() => {
-    if (isAuthenticated || isSignedIn) {
-      navigate('/', { replace: true })
-    }
-  }, [isAuthenticated, isSignedIn, navigate])
-
+  const location = useLocation()
   const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
 
   if (clerkEnabled) {
+    const isSignUp = mode === 'sign-up'
+    // Clerk's `path` must match the URL the component is mounted at.
+    const path = location.pathname
+
+    // Constrain Clerk's card so it never stretches past the viewport.
+    const clerkAppearance = {
+      elements: {
+        rootBox: 'width: 100%; max-width: 420px; margin: 0 auto;',
+        card: 'width: 100%;',
+      },
+    }
+
     return (
       <div className="auth-page">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', damping: 25 }}
-          className="auth-form items-center"
+          className="auth-form"
         >
           {/* Logo */}
           <div className="flex flex-col items-center gap-3 mb-6">
@@ -51,21 +58,23 @@ export default function AuthPage({ mode = 'sign-in' }: AuthPageProps) {
 
           {/* Clerk prebuilt component */}
           <div className="clerk-auth-wrapper">
-            {mode === 'sign-up' ? (
+            {isSignUp ? (
               <SignUp
                 routing="path"
-                path="/register"
+                path={path}
                 signInUrl="/login"
                 afterSignUpUrl="/"
                 afterSignInUrl="/"
+                appearance={clerkAppearance}
               />
             ) : (
               <SignIn
                 routing="path"
-                path="/login"
+                path={path}
                 signUpUrl="/register"
                 afterSignUpUrl="/"
                 afterSignInUrl="/"
+                appearance={clerkAppearance}
               />
             )}
           </div>
