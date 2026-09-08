@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Music, Headphones, Download, WifiOff } from 'lucide-react'
 import { useAuth } from '@clerk/clerk-react'
@@ -29,25 +29,33 @@ const features = [
 
 /**
  * Landing page — public marketing / entry screen shown to signed-out users.
- * "Get started" hands off to Clerk's own Sign up / Sign in UI (/register, /login).
  *
- * Clerk hooks live only in <ClerkGate> so this page never calls useAuth()
- * outside a <ClerkProvider> (which only exists when the key is configured).
+ * The flow is strictly one-way: Landing → /auth (Clerk's own UI) → Home.
+ * There are no sign-in/sign-up buttons here — a single "Continue with…"
+ * button hands off to Clerk, which renders its own provider buttons.
  */
 export default function Landing() {
   const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
   return clerkEnabled ? <ClerkGate /> : <LandingBody clerkEnabled={false} />
 }
 
-/** Renders inside ClerkProvider only — safe to call Clerk hooks here. */
+/**
+ * Renders inside ClerkProvider only — safe to call Clerk hooks here.
+ * The only redirect is a one-way escape for the standalone /landing route:
+ * at "/" the AuthGuard already routes signed-in users into the app, and
+ * navigating here too is what caused the landing ⇄ auth redirect loop.
+ */
 function ClerkGate() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isLoaded, isSignedIn } = useAuth()
   const authed = isLoaded && isSignedIn
 
   useEffect(() => {
-    if (authed) navigate('/', { replace: true })
-  }, [authed, navigate])
+    if (authed && location.pathname === '/landing') {
+      navigate('/', { replace: true })
+    }
+  }, [authed, location.pathname, navigate])
 
   return <LandingBody clerkEnabled authed={authed} />
 }
@@ -105,7 +113,7 @@ function LandingBody({ clerkEnabled, authed = false }: LandingBodyProps) {
             No subscription. No ads. No limits.
           </p>
 
-          {/* CTA — opens Clerk's own sign-in / sign-up UI */}
+          {/* Single CTA — hands off to Clerk's own auth UI (/auth) */}
           <motion.div
             className="mt-8 flex flex-col items-center gap-3"
             initial={{ opacity: 0, y: 10 }}
@@ -115,20 +123,17 @@ function LandingBody({ clerkEnabled, authed = false }: LandingBodyProps) {
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => navigate(clerkEnabled ? '/register' : '/auth')}
+              onClick={() => navigate('/auth')}
               className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-[var(--accent)] text-white font-bold text-lg shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/30 transition-shadow"
             >
-              Get started
+              Continue with…
               <ArrowRight className="w-5 h-5" />
             </motion.button>
 
             {clerkEnabled ? (
-              <button
-                onClick={() => navigate('/login')}
-                className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                Already have an account? Sign in
-              </button>
+              <p className="text-xs text-[var(--text-muted)]/60">
+                Sign in or create an account — free, no subscription
+              </p>
             ) : (
               <p className="text-xs text-[var(--text-muted)]/60">
                 Local mode — no account needed
