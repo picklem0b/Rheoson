@@ -56,6 +56,17 @@ def _schedule_prewarm(tracks: list[dict]) -> None:
     asyncio.create_task(_prewarm_tracks(ids))
     log.debug("search.prewarm.scheduled", count=len(ids))
 
+
+def _finalize(tracks: list[dict]) -> None:
+    """Post-process search results: mark already-downloaded tracks (stable
+    identity bridge) then prewarm the stream cache for the rest."""
+    try:
+        from app.services import track_identity
+        track_identity.mark_downloaded(tracks)
+    except Exception:
+        pass
+    _schedule_prewarm(tracks)
+
 # ── Main search ───────────────────────────────────────────────
 
 async def search(query: str, filter: str | None = None) -> dict:
@@ -66,7 +77,7 @@ async def search(query: str, filter: str | None = None) -> dict:
     local   = _search_local(q)
     if local:
         results["tracks"] = local + results["tracks"]
-    _schedule_prewarm(results["tracks"])
+    _finalize(results["tracks"])
     return results
 
 async def resolve_url(url: str) -> dict:
@@ -91,7 +102,7 @@ async def resolve_url(url: str) -> dict:
     if kind == "youtube":
         track  = await ytmusic_service.resolve_youtube_url(url)
         result = {"query": url, "tracks": [track] if track else [], "albums": [], "artists": [], "playlists": []}
-        _schedule_prewarm(result["tracks"])
+        _finalize(result["tracks"])
         return result
 
     if kind == "ytdlp":
@@ -118,7 +129,7 @@ async def _resolve_spotify(url: str) -> dict:
             yt_track["duration"]            = sp_track.get("duration") or yt_track["duration"]
             yt_track["album"]["artworkUrl"] = sp_track.get("artworkUrl") or yt_track["album"]["artworkUrl"]
         result = {"query": url, "type": "track", "tracks": [yt_track] if yt_track else [], "albums": [], "artists": [], "playlists": []}
-        _schedule_prewarm(result["tracks"])
+        _finalize(result["tracks"])
         return result
 
     if sp_type == "album":
@@ -126,7 +137,7 @@ async def _resolve_spotify(url: str) -> dict:
         tracks  = album.pop("tracks", [])
         matched = await _match_tracks_concurrent(tracks[:30], album.get("artworkUrl"))
         result  = {"query": url, "type": "album", "tracks": matched, "albums": [album], "artists": [], "playlists": []}
-        _schedule_prewarm(result["tracks"])
+        _finalize(result["tracks"])
         return result
 
     if sp_type == "playlist":
@@ -134,7 +145,7 @@ async def _resolve_spotify(url: str) -> dict:
         tracks  = pl.pop("tracks", [])
         matched = await _match_tracks_concurrent(tracks[:50])
         result  = {"query": url, "type": "playlist", "tracks": matched, "albums": [], "artists": [], "playlists": [pl]}
-        _schedule_prewarm(result["tracks"])
+        _finalize(result["tracks"])
         return result
 
     if sp_type == "artist":
@@ -143,7 +154,7 @@ async def _resolve_spotify(url: str) -> dict:
         albums  = artist.pop("albums", [])
         matched = await _match_tracks_concurrent(tracks[:10])
         result  = {"query": url, "type": "artist", "tracks": matched, "albums": albums, "artists": [artist], "playlists": []}
-        _schedule_prewarm(result["tracks"])
+        _finalize(result["tracks"])
         return result
 
     raise UnsupportedURLError(url)
@@ -213,7 +224,7 @@ async def _resolve_ytdlp(url: str) -> dict:
 
     result = {"query": url, "type": "playlist" if info.get("_type") == "playlist" else "track",
               "tracks": tracks, "albums": [], "artists": [], "playlists": []}
-    _schedule_prewarm(result["tracks"])
+    _finalize(result["tracks"])
     return result
 
 # ── Local library ─────────────────────────────────────────────
