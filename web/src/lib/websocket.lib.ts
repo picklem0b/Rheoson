@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { WS_URL } from "@/lib/constants";
+import { getAuthToken } from "@/api/client.api";
 
 // ── Singleton socket ──────────────────────────────────────────
 // One Socket.IO connection shared across the entire app.
@@ -22,6 +23,11 @@ function _getSocket(): Socket {
          timeout: 10_000,
          // Lazy: don't auto-connect until a component mounts
          autoConnect: false,
+         // Send the Clerk JWT in the handshake so the server can scope
+         // cross-device player sync to this account. Re-evaluated on
+         // every (re)connect, so token refreshes are picked up.
+         auth: (cb: (auth: Record<string, unknown>) => void) =>
+            cb({ token: getAuthToken() }),
       });
 
       _socket.on("connect", () =>
