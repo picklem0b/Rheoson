@@ -20,10 +20,12 @@ from app.core.database import db_available, get_db
 from app.core.deps import get_current_user
 from app.services.local_history import (
     clear_history_local,
+    dislike_local,
     like_local,
     read_history_local,
     read_liked_local,
     record_play_local,
+    undislike_local,
     unlike_local,
 )
 from app.services.metadata_service import read_track_metadata
@@ -355,6 +357,73 @@ async def unlike_track(track_id: str, user: dict = Depends(get_current_user)):
     except Exception:
         pass
     return {'liked': False, 'count': len(liked)}
+
+
+@router.post('/{track_id}/dislike')
+async def dislike_track(track_id: str, user: dict = Depends(get_current_user)):
+    """Hide a track: stops it appearing in recommendations/autoplay and
+    removes it from Liked songs. Explicit dislikes are stored per-user in
+    MongoDB (disliked_tracks) with a local mirror, and recorded as a
+    strong-negative DISLIKE signal for the taste profiler."""
+    user_id = user['sub']
+    disliked = await dislike_local(user_id, track_id)
+    try:
+        if db_available():
+            db = get_db()
+            doc = await db.disliked_tracks.find_one({'user_id': user_id})
+            ids = list(doc.get('track_ids', [])) if doc else []
+            if track_id not in ids:
+                ids.append(track_id)
+            await db.disliked_tracks.update_one(
+                {'user_id': user_id},
+                {'$set': {'track_ids': ids}},
+                upsert=True,
+            )
+            # A hidden track leaves Liked songs too
+            liked = await _liked_ids_mongo(db, user_id)
+            liked = [i for i in liked if i != track_id]
+            await db.liked_tracks.update_one(
+                {'user_id': user_id},
+                {'$set': {'track_ids': liked}},
+                upsert=True,
+            )
+            t = await _hydrate_track(track_id)
+            await record_signal(
+                db, user_id=user_id, signal=SignalType.DISLIKE, track_id=track_id,
+                artist=t.get('artist', {}).get('name') if t else None,
+                context={'reason': 'hide'},
+            )
+    except Exception:
+        pass
+    return {'disliked': True, 'count': len(disliked)}
+
+
+@router.delete('/{track_id}/dislike')
+async def undislike_track(track_id: str, user: dict = Depends(get_current_user)):
+    user_id = user['sub']
+    disliked = await undislike_local(user_id, track_id)
+    try:
+        if db_available():
+            db = get_db()
+            disliked = await _disliked_ids_mongo(db, user_id)
+            disliked = [i for i in disliked if i != track_id]
+            await db.disliked_tracks.update_one(
+                {'user_id': user_id},
+                {'$set': {'track_ids': disliked}},
+                upsert=True,
+            )
+            await record_signal(
+                db, user_id=user_id, signal=SignalType.DISLIKE, track_id=track_id,
+                context={'reason': 'undo'},
+            )
+    except Exception:
+        pass
+    return {'disliked': False, 'count': len(disliked)}
+
+
+async def _disliked_ids_mongo(db: AsyncIOMotorDatabase, user_id: str) -> list[str]:
+    doc = await db.disliked_tracks.find_one({'user_id': user_id})
+    return list(doc.get('track_ids', [])) if doc else []
 
 
 @router.post('/{track_id}/play')

@@ -6,14 +6,19 @@ import {
   Download,
   Heart,
   Share2,
+  Radio,
+  EyeOff,
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useContextMenuStore } from '@/store/contextMenu.store'
 import { useQueue } from '@/hooks/queue.hook'
+import { usePlayer } from '@/hooks/player.hook'
+import { usePlayerStore } from '@/store/player.store'
 import { usePlaylistMenuStore } from '@/store/playlistMenu.store'
 import { useUIStore } from '@/store/ui.store'
 import { useToast } from '@/components/ui/Toaster'
 import { tracksApi } from '@/api/tracks.api'
+import { recommendationsApi } from '@/api/recommendations.api'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { truncate } from '@/lib/formatters'
 import type { Track } from '@/types/track.types'
@@ -47,7 +52,9 @@ export function TrackContextMenu() {
 // ── Menu actions (shared) ─────────────────────────────────────
 
 function useMenuActions(track: Track, onClose: () => void) {
-  const { playTrack, addToQueue } = useQueue()
+  const { playTrack, addToQueue, removeFromQueue, queue } = useQueue()
+  const { skipNext } = usePlayer()
+  const currentTrack = usePlayerStore((s) => s.currentTrack)
   const openPlaylistMenu = usePlaylistMenuStore((s) => s.openForTrack)
   const openDownloadModal = useUIStore((s) => s.openDownloadModal)
   const queryClient = useQueryClient()
@@ -57,6 +64,7 @@ function useMenuActions(track: Track, onClose: () => void) {
     queryClient.invalidateQueries({ queryKey: ['liked-tracks'] })
     queryClient.invalidateQueries({ queryKey: ['liked-count'] })
     queryClient.invalidateQueries({ queryKey: ['tracks'] })
+    queryClient.invalidateQueries({ queryKey: ['recommendations'] })
   }
 
   const actions = [
@@ -129,6 +137,39 @@ function useMenuActions(track: Track, onClose: () => void) {
       icon: <Share2 className="w-4 h-4" />,
       run: async () => {
         await shareTrack(track)
+        onClose()
+      },
+    },
+    {
+      id: 'radio',
+      label: 'Start radio',
+      icon: <Radio className="w-4 h-4" />,
+      run: async () => {
+        onClose()
+        const { tracks } = await recommendationsApi.getRadio(track.id, 20)
+        if (!tracks.length) {
+          toast('Could not start radio for this track', 'error', 2500)
+          return
+        }
+        playTrack(tracks[0], tracks)
+        toast(`Radio started from "${truncate(track.title, 18)}"`, 'success', 2000)
+      },
+    },
+    {
+      id: 'hide',
+      label: 'Hide this track',
+      icon: <EyeOff className="w-4 h-4" />,
+      danger: true,
+      run: async () => {
+        await tracksApi.dislikeTrack(track.id)
+        toast('Hidden — this track won\u2019t be suggested again', 'info', 2800)
+        // Drop it from the queue if queued
+        const qIdx = queue.findIndex((t) => t.id === track.id)
+        if (qIdx >= 0) removeFromQueue(qIdx)
+        // If it's the track currently playing, skip to the next one
+        if (currentTrack?.id === track.id) {
+          window.setTimeout(() => skipNext(), 50)
+        }
         onClose()
       },
     },
