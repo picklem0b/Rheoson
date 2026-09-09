@@ -29,31 +29,114 @@ os.environ["RATE_LIMIT_LYRICS"] = "99999"
 
 # ── Mock database ──────────────────────────────────────────────
 
+def _mock_matches(doc: dict, filter: dict) -> bool:
+    """Match a doc against a filter, supporting MongoDB comparison ops."""
+    for k, v in filter.items():
+        if k not in doc:
+            if k.startswith("$"):
+                continue
+            return False
+        dv = doc[k]
+        if isinstance(v, dict) and any(str(op).startswith("$") for op in v):
+            for op, val in v.items():
+                if op == "$gte" and not (dv >= val):
+                    return False
+                elif op == "$gt" and not (dv > val):
+                    return False
+                elif op == "$lte" and not (dv <= val):
+                    return False
+                elif op == "$lt" and not (dv < val):
+                    return False
+                elif op == "$ne" and dv == val:
+                    return False
+                elif op == "$in" and dv not in val:
+                    return False
+                elif op == "$nin" and dv in val:
+                    return False
+                elif op == "$exists" and (val is True) != (dv is not None):
+                    return False
+        elif v is None:
+            if dv is not None:
+                return False
+        elif dv != v:
+            return False
+    return True
+
+
+class _MockAggCursor:
+    """Async cursor emulating Motor's aggregate/find cursor.
+
+    Motor cursors support both `async for` and `.to_list()` and are
+    chainable (sort/limit). Pipelines with a trailing $group are collapsed
+    to simple {_id, plays} rows so the mock stays tiny.
+    """
+
+    def __init__(self, docs, pipeline=None):
+        self._docs = docs
+        self._pipe = pipeline or []
+
+    def sort(self, *args):
+        return self
+
+    def limit(self, n):
+        self._docs = self._docs[:n]
+        return self
+
+    async def to_list(self, length=None):
+        return list(self._rows())
+
+    def __aiter__(self):
+        return self._agen()
+
+    def _rows(self):
+        if not self._pipe:
+            for d in self._docs:
+                yield d
+            return
+        # Find the LAST $group stage — pipelines often append $sort/$limit
+        # after grouping (e.g. top-tracks).
+        group = next((s["$group"] for s in reversed(self._pipe) if "$group" in s), {})
+        key = group.get("_id")
+        if key is None:
+            for d in self._docs:
+                yield d
+            return
+        seen = {}
+        for d in self._docs:
+            if key == "$track_id":
+                k = d.get("track_id")
+            elif key == "$artist":
+                k = d.get("artist")
+            elif key == "$m":
+                k = d.get("timestamp").month if getattr(d.get("timestamp"), "month", None) is not None else d.get("timestamp")
+            elif key == "$day":
+                k = str(d.get("timestamp"))[:10]
+            elif key == "$year":
+                k = getattr(d.get("timestamp"), "year", d.get("timestamp"))
+            else:
+                k = d.get(key)
+            seen[k] = seen.get(k, 0) + 1
+        for k, v in seen.items():
+            yield {"_id": k, "plays": v}
+
+    async def _agen(self):
+        for r in self._rows():
+            yield r
+
+
 class MockCollection:
     def __init__(self):
         self._docs: list[dict] = []
 
     async def find_one(self, filter: dict, sort=None):
         for doc in self._docs:
-            if all(doc.get(k) == v for k, v in filter.items()):
+            if _mock_matches(doc, filter):
                 return dict(doc)
         return None
 
     async def find(self, filter: dict, sort=None):
-        class Cursor:
-            def __init__(self, docs):
-                self._docs = docs
-            def sort(self, *args):
-                return self
-            def limit(self, n):
-                self._docs = self._docs[:n]
-                return self
-            async def to_list(self, length=None):
-                return self._docs
-            def __aiter__(self):
-                return iter(self._docs)
-        matches = [dict(d) for d in self._docs if all(d.get(k) == v for k, v in filter.items())]
-        return Cursor(matches)
+        matches = [dict(d) for d in self._docs if _mock_matches(d, filter)]
+        return _MockAggCursor(matches)
 
     async def insert_one(self, doc):
         self._docs.append(dict(doc))
@@ -73,14 +156,14 @@ class MockCollection:
         return MagicMock()
 
     async def delete_one(self, filter):
-        self._docs = [d for d in self._docs if not all(d.get(k) == v for k, v in filter.items())]
+        self._docs = [d for d in self._docs if not _mock_matches(d, filter)]
         return MagicMock()
 
     async def count_documents(self, filter):
-        return sum(1 for d in self._docs if all(d.get(k) == v for k, v in filter.items()))
+        return sum(1 for d in self._docs if _mock_matches(d, filter))
 
-    async def aggregate(self, pipeline):
-        return iter([])
+    def aggregate(self, pipeline):
+        return _MockAggCursor(self._docs, pipeline)
 
 
 class MockDatabase:
@@ -131,8 +214,20 @@ _token_registry[_OTHER_TOKEN] = {**_BASE_CLAIMS, "sub": _OTHER_SUB}
 # Using patch.start() so the patches survive past the with-block.
 
 _shared_mock_db = MockDatabase()
+
+
+def _mock_get_db():
+    """Plain function so FastAPI's Depends() analysis sees a clean signature.
+
+    A MagicMock's signature is (*args, **kwargs) — FastAPI would invent
+    required query params named "args" and "kwargs" for every endpoint
+    that uses Depends(get_db). A real function avoids that entirely.
+    """
+    return _shared_mock_db
+
+
 _patches = [
-    patch("app.core.database.get_db", return_value=_shared_mock_db),
+    patch("app.core.database.get_db", _mock_get_db),
     patch("app.core.database.connect_db", new_callable=AsyncMock),
     patch("app.core.database.close_db", new_callable=AsyncMock),
     patch("app.core.deps.verify_clerk_token", side_effect=_fake_verify),

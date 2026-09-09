@@ -1038,6 +1038,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/recommendations/onboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Onboard Artists
+         * @description Seed the taste profile from an onboarding artist picker.
+         *
+         *     Body: { "artists": ["Drake", {"name": "Radiohead"}, ...] } (max 8).
+         *     For each artist we resolve one real track, then record LIKE + PLAY_START
+         *     signals (and the local mirrors) so recommendations personalise
+         *     immediately instead of waiting for 10+ natural plays.
+         */
+        post: operations["onboard_artists_api_recommendations_onboard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recommendations/refresh": {
         parameters: {
             query?: never;
@@ -1156,6 +1181,32 @@ export interface paths {
          * @description Get overall listening statistics for the current user.
          */
         get: operations["listening_stats_api_analytics_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/wrapped": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Wrapped
+         * @description Year-in-review — the Spotify Wrapped equivalent.
+         *
+         *     Aggregates the user's play signals for the given year: top artists,
+         *     top tracks (best-effort hydrated), total minutes, month activity,
+         *     genre breakdown (from the taste profile / artist classification),
+         *     and listening streaks. Every failure degrades to an empty report —
+         *     this endpoint must never 500 a celebration.
+         */
+        get: operations["wrapped_api_analytics_wrapped_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3875,6 +3926,41 @@ export interface operations {
             };
         };
     };
+    onboard_artists_api_recommendations_onboard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     force_refresh_api_recommendations_refresh_post: {
         parameters: {
             query?: never;
@@ -4031,6 +4117,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    wrapped_api_analytics_wrapped_get: {
+        parameters: {
+            query?: {
+                year?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

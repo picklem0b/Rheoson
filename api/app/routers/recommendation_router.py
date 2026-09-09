@@ -14,14 +14,16 @@ unavailable.
 
 from __future__ import annotations
 
+import structlog
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.database import db_available, get_db
 from app.core.deps import get_current_user
 from app.services.taste_utils import compute_persona
 
+log = structlog.get_logger()
 router = APIRouter()
 
 
@@ -606,6 +608,72 @@ async def get_radio(
         "seed": {"id": seed.get("id"), "title": seed.get("title", ""), "artist": seed_artist},
         "tracks": final,
     }
+
+
+@router.post("/onboard")
+async def onboard_artists(
+    body: dict,
+    user: dict = Depends(get_current_user),
+):
+    """Seed the taste profile from an onboarding artist picker.
+
+    Body: { "artists": ["Drake", {"name": "Radiohead"}, ...] } (max 8).
+    For each artist we resolve one real track, then record LIKE + PLAY_START
+    signals (and the local mirrors) so recommendations personalise
+    immediately instead of waiting for 10+ natural plays.
+    """
+    user_id = user["sub"]
+    raw = body.get("artists")
+    if not isinstance(raw, list) or not raw:
+        raise HTTPException(status_code=400, detail="Provide an artists list")
+
+    names: list[str] = []
+    for a in raw[:8]:
+        name = (a.get("name") if isinstance(a, dict) else str(a)) if a else ""
+        name = (name or "").strip()
+        if name and name not in names:
+            names.append(name)
+    if not names:
+        raise HTTPException(status_code=400, detail="Provide at least one artist name")
+
+    seeded = 0
+    for name in names:
+        track = None
+        try:
+            from app.services.ytmusic_service import search_one
+            track = await search_one(f"{name} top tracks")
+        except Exception:
+            track = None
+        if not track or not track.get("id"):
+            continue
+        tid = track["id"]
+        artist = track.get("artist", {}).get("name", "") if isinstance(track.get("artist"), dict) else str(track.get("artist", name))
+        try:
+            if db_available():
+                from app.services.signal_service import record_signal
+                from app.models.recommendation import SignalType
+                # LIKE once + PLAY_START several times: enough play signals to
+                # lift the user out of the 10-play cold-start window immediately.
+                await record_signal(
+                    db=get_db(), user_id=user_id, signal=SignalType.LIKE,
+                    track_id=tid, artist=artist,
+                    context={"source": "onboarding"},
+                )
+                for _ in range(4):
+                    await record_signal(
+                        db=get_db(), user_id=user_id, signal=SignalType.PLAY_START,
+                        track_id=tid, artist=artist,
+                        context={"source": "onboarding"},
+                    )
+            # Local mirrors keep local-mode taste warm too
+            from app.services.local_history import like_local, record_play_local
+            await like_local(user_id, tid)
+            await record_play_local(user_id, tid)
+            seeded += 1
+        except Exception as e:
+            log.warning("recommendations.onboard.artist.failed", artist=name, error=str(e))
+
+    return {"ok": True, "seeded": seeded, "artists": names}
 
 
 @router.post("/refresh")
