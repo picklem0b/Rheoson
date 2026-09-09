@@ -11,12 +11,15 @@ import { setClerkToken } from '@/api/client.api'
  * Mount this inside <ClerkProvider>.
  */
 export default function ClerkUserSync() {
-  const { isSignedIn, getToken } = useAuth()
+  const { isLoaded, isSignedIn, getToken } = useAuth()
   const { user } = useUser()
   const syncClerkUser = useAuthStore((s) => s.syncClerkUser)
 
-  // Sync user data into the Zustand store
+  // Sync user data into the Zustand store. Gated on isLoaded: while Clerk is
+  // still resolving at boot, isSignedIn is not final — clearing the store then
+  // would wipe a persisted session and flash the Landing page after a restart.
   useEffect(() => {
+    if (!isLoaded) return
     if (isSignedIn && user) {
       syncClerkUser({
         id: user.id,
@@ -28,10 +31,11 @@ export default function ClerkUserSync() {
     } else {
       syncClerkUser(null)
     }
-  }, [isSignedIn, user, syncClerkUser])
+  }, [isLoaded, isSignedIn, user, syncClerkUser])
 
-  // Sync session token for API auth headers
+  // Sync session token for API auth headers — never clears before Clerk loads.
   useEffect(() => {
+    if (!isLoaded) return
     if (isSignedIn && getToken) {
       // Get the JWT and inject it for API requests
       getToken().then((token) => {
@@ -42,7 +46,7 @@ export default function ClerkUserSync() {
     } else {
       setClerkToken(null)
     }
-  }, [isSignedIn, getToken])
+  }, [isLoaded, isSignedIn, getToken])
 
   return null
 }
