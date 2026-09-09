@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.11.0"
+    "version": "2.16.4"
   },
   "paths": {
     "/api/search": {
@@ -1055,12 +1055,12 @@
       }
     },
     "/api/stream/{track_id}/audio": {
-      "get": {
+      "head": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio",
+        "operationId": "stream_audio_1",
         "parameters": [
           {
             "name": "track_id",
@@ -1093,12 +1093,12 @@
           }
         }
       },
-      "head": {
+      "get": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_1",
+        "operationId": "stream_audio",
         "parameters": [
           {
             "name": "track_id",

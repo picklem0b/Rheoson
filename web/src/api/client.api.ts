@@ -1,4 +1,4 @@
-import { API_BASE } from "@/lib/constants";
+import { API_BASE, CLERK_PUBLISHABLE_KEY } from "@/lib/constants";
 import { isOnline } from "@/lib/network";
 import { queueMutation, initAutoSync } from "@/lib/offlineQueue";
 
@@ -37,16 +37,25 @@ function makeError(status: number, detail: string): ApiError {
 
 let _clerkToken: string | null = null;
 
+/** True when the frontend is built with Clerk authentication enabled. */
+const clerkEnabled = !!CLERK_PUBLISHABLE_KEY;
+
 /** Called by ClerkUserSync to inject the Clerk session token for API requests. */
 export function setClerkToken(token: string | null) {
    _clerkToken = token;
 }
 
 export function getAuthToken(): string | null {
-   // Prefer Clerk session token when available
+   // Clerk mode: Clerk owns the session. A persisted store token from an old
+   // session is stale (JWTs here live ~60s) and would cause a 401 storm on
+   // every reload/restart before ClerkUserSync injects a fresh one — so never
+   // fall back to it. Until the fresh token arrives we send no token at all
+   // and the request layer retries briefly.
+   if (clerkEnabled) return _clerkToken;
+
+   // Local / no-Clerk mode: read from the auth store's persisted state.
    if (_clerkToken) return _clerkToken;
    try {
-      // Fallback: read from the auth store's persisted state
       const raw = localStorage.getItem("rheoson-auth");
       if (raw) {
          const parsed = JSON.parse(raw);
@@ -123,16 +132,32 @@ async function request<T>(
    }
 
    if (!res.ok) {
-      // Auto-redirect to login on 401 — but only when we believed we had a
-      // session. Auth endpoints (login/register) return 401 for bad
-      // credentials and must surface that to the form, not redirect.
-      if (
-         res.status === 401 &&
-         !endpoint.includes("/api/auth/") &&
-         getAuthToken()
-      ) {
-         localStorage.removeItem("rheoson-auth");
-         window.location.href = "/login";
+      // 401 handling — auth endpoints must surface 401s to the form, never
+      // redirect. Everything else depends on the auth mode:
+      //
+      // Clerk mode:
+      //   - A 401 while we still had no token just means ClerkUserSync hasn't
+      //     injected the fresh session token yet (cold start / restart). Retry
+      //     once after a short delay instead of bouncing the user.
+      //   - A 401 while we DID send a token means it is stale/expired. Never
+      //     hard-redirect (that was the source of the post-login landing/auth
+      //     bounce): Clerk owns the session and will flip signed-out when it
+      //     is genuinely gone, which unmounts the app via the route guard.
+      // Local mode:
+      //   - If we believed we had a session, clear it and go to login.
+      if (res.status === 401 && !endpoint.includes("/api/auth/")) {
+         if (clerkEnabled) {
+            const sentToken = getAuthToken();
+            if (!sentToken && _retryCount < 2) {
+               // Clerk session restore + token refresh races the first wave of
+               // requests on boot/restart — give it a moment before failing.
+               await new Promise((r) => setTimeout(r, 600 * (_retryCount + 1)));
+               return request<T>(endpoint, { ...options, _retryCount: _retryCount + 1 });
+            }
+         } else if (getAuthToken()) {
+            localStorage.removeItem("rheoson-auth");
+            window.location.href = "/login";
+         }
       }
       let detail = `HTTP ${res.status}`;
       try {

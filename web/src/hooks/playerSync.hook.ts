@@ -97,7 +97,7 @@ export function usePlayerSync() {
          }
       })
 
-      const unsubQueue = useQueueStore.subscribe((s) => {
+      const unsubQueue = useQueueStore.subscribe(() => {
          // Only propagate queue shape changes (add/remove/clear), not per-tick
          maybeSend(false)
       })

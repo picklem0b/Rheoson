@@ -1,7 +1,7 @@
 {
     "name": "rheoson-web",
     "private": true,
-    "version": "2.11.0",
+    "version": "2.16.4",
     "type": "module",
     "scripts": {
         "dev": "vite --host",
