@@ -12,6 +12,7 @@ import { TrackContextMenu } from "@/components/track/TrackContextMenu";
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { usePlayerSync } from "@/hooks/playerSync.hook";
+import OnboardingGate from "@/components/onboarding/OnboardingGate";
 import { cn } from "@/lib/utils";
 
 /**
@@ -139,6 +140,9 @@ export default function RootLayout() {
 
             {/* ── Universal track context menu (right-click / long-press) ── */}
             <TrackContextMenu />
+
+            {/* ── Taste onboarding (pick-your-artists) ──────── */}
+            <OnboardingGate />
          </div>
       </Toaster>
    );

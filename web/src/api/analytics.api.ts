@@ -8,6 +8,8 @@ export interface ListeningStats {
   unique_artists_30d: number
   active_days_30d: number
   estimated_listening_hours: number
+  current_streak: number
+  longest_streak: number
 }
 
 export interface ArtistRank {
@@ -28,6 +30,45 @@ export interface HourlyData {
 export interface DailyData {
   day: string
   plays: number
+}
+
+export interface WrappedRankedArtist {
+  artist: string
+  plays: number
+}
+
+export interface WrappedRankedTrack {
+  track_id: string
+  title: string
+  artist: string
+  plays: number
+}
+
+export interface WrappedMonth {
+  month: number // 1-12
+  plays: number
+}
+
+export interface WrappedGenre {
+  genre: string
+  plays: number
+}
+
+export interface WrappedStreaks {
+  current_streak: number
+  longest_streak: number
+}
+
+export interface WrappedReport {
+  year: number
+  top_artists: WrappedRankedArtist[]
+  top_tracks: WrappedRankedTrack[]
+  total_plays: number
+  total_minutes: number
+  months: WrappedMonth[]
+  genres: WrappedGenre[]
+  streaks: WrappedStreaks
+  top_decade: string | null
 }
 
 export const analyticsApi = {
@@ -52,5 +93,10 @@ export const analyticsApi = {
   getListeningByDay: (days = 7) =>
     api.get<{ days: DailyData[] }>('/analytics/listening-by-day', {
       params: { days: String(days) }
+    }),
+
+  getWrapped: (year?: number) =>
+    api.get<WrappedReport>('/analytics/wrapped', {
+      params: year ? { year: String(year) } : {}
     }),
 }

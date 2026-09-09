@@ -2590,6 +2590,53 @@
         }
       }
     },
+    "/api/recommendations/onboard": {
+      "post": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Onboard Artists",
+        "description": "Seed the taste profile from an onboarding artist picker.\n\nBody: { \"artists\": [\"Drake\", {\"name\": \"Radiohead\"}, ...] } (max 8).\nFor each artist we resolve one real track, then record LIKE + PLAY_START\nsignals (and the local mirrors) so recommendations personalise\nimmediately instead of waiting for 10+ natural plays.",
+        "operationId": "onboard_artists_api_recommendations_onboard_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/recommendations/refresh": {
       "post": {
         "tags": [
@@ -2846,6 +2893,61 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/analytics/wrapped": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Wrapped",
+        "description": "Year-in-review \u2014 the Spotify Wrapped equivalent.\n\nAggregates the user's play signals for the given year: top artists,\ntop tracks (best-effort hydrated), total minutes, month activity,\ngenre breakdown (from the taste profile / artist classification),\nand listening streaks. Every failure degrades to an empty report \u2014\nthis endpoint must never 500 a celebration.",
+        "operationId": "wrapped_api_analytics_wrapped_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2100,
+                  "minimum": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/analytics/top-artists": {

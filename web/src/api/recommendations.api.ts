@@ -133,6 +133,22 @@ export const recommendationsApi = {
     return api.post('/recommendations/refresh');
   },
 
+  onboardArtists: async (names: string[]): Promise<{ ok: boolean; seeded: number; artists: string[] }> => {
+    try {
+      const raw = await api.post<unknown>('/recommendations/onboard', {
+        artists: names.slice(0, 8),
+      });
+      const r = (raw ?? {}) as Record<string, unknown>;
+      return {
+        ok: Boolean(r.ok),
+        seeded: Number(r.seeded ?? 0),
+        artists: Array.isArray(r.artists) ? r.artists.map(String) : [],
+      };
+    } catch {
+      return { ok: false, seeded: 0, artists: names.slice(0, 8) };
+    }
+  },
+
   getMixes: async (): Promise<DailyMix[]> => {
     try {
       const raw = await api.get<unknown>('/recommendations/mixes');
