@@ -6,9 +6,13 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
-## v2.17.4
+## v2.17.5
 
-Cross-device sync hardening and library consistency fixes.
+Download pipeline reliability and temporary-file hygiene.
+
+- fix(api): harden the download worker so a cancelled or failed job no longer leaves an orphaned staging directory; the cleanup path now removes the job temp root even on hard process-kill paths.
+- fix(api): restore the download job persisted store so server restarts no longer blank out the in-flight activity feed; completed jobs survive, in-flight jobs are marked errored.
+- fix(api): improve the download filename escaping so tracks with long Unicode titles no longer produce filesystem-invalid names on Termux storage.
 
 - fix(api): stabilize the cross-device playback sync channel so reconnects no longer drop the in-flight position update; newest-wins conflict handling now keeps the live device authoritative for the current playhead.
 - fix(api): make the library scan idempotent so the same track sourced from different directories no longer creates duplicate local entries after a rescan.
