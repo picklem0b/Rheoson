@@ -1,7 +1,9 @@
 title: Rheoson
 description: Self-hosted music. No subscription. No ads. No compromise.
 
-# Don't process these Markdown files as pages
+# Don't process these Markdown files as pages — they are rendered by GitHub's
+# markdown viewer from the repo, not as Jekyll pages. index.html (the hand-
+# crafted landing page) is the site entry point.
 exclude:
    - BUGS.md
    - CHANGELOG.md
@@ -10,3 +12,18 @@ exclude:
    - PRIVACY.md
    - SECURITY.md
    - TERMS.md
+   - GLOSSARY.md
+   - STATUS.md
+   - STREAMING.md
+   - DOWNLOADS.md
+   - AUTH.md
+   - DATA.md
+   - FRONTEND.md
+   - MOBILE.md
+   - DEPLOYMENT.md
+   - OPERATIONS.md
+   - DEVELOPMENT.md
+   - ARCHITECTURE.md
+   - API.md
+
+markdown: GFM

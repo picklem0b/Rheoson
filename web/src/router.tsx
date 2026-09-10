@@ -24,7 +24,9 @@ import RecentlyPlayed from '@/pages/home/components/RecentlyPlayed'
 import Trending        from '@/pages/home/components/Trending'
 import Featured        from '@/pages/home/components/Featured'
 
-export const router = createBrowserRouter([
+// The route array is exported separately so tests can matchRoutes against
+// it directly — createBrowserRouter consumes it below.
+export const routes = [
   {
     path: '/',
     element: (
@@ -65,8 +67,18 @@ export const router = createBrowserRouter([
   { path: '/now-playing', element: <Navigate to="/full-player" replace /> },
   { path: '/login',       element: <AuthPage mode="sign-in" /> },
   { path: '/register',    element: <AuthPage mode="sign-up" /> },
+  // /auth/* is as important as /auth itself: Clerk's path-routed
+  // <SignUp>/<SignIn> navigate their multi-step flows to sub-paths of the
+  // mount path (email-code verification, factor-one for MFA, SSO callback).
+  // Without the wildcard those steps fell through to the catch-all, which
+  // renders NotFound outside the guard — and mid-flow, still-signed-out
+  // users landed back on the marketing page instead of completing sign-in
+  // and reaching Home.
+  { path: '/auth/*',      element: <AuthPage /> },
   { path: '/auth',        element: <AuthPage /> },
   { path: '/landing',     element: <Landing /> },
   // 404 for the full-player catch-all
   { path: '*',            element: <NotFound /> },
-])
+]
+
+export const router = createBrowserRouter(routes)

@@ -1,5 +1,10 @@
 # 🎵 **RHEOSON - Complete Project Context**
 
+> ⚠️ **ARCHIVED (2026-09-10).** This was a working context dump — the bugs
+> listed here were fixed across the v2.9–v2.16 releases (see
+> [CHANGELOG](CHANGELOG.md)) and the architecture notes are superseded by
+> the maintained docs at [docs/README.md](README.md). Kept for history only.
+
 ## **📊 Project Overview**
 
 **Rheoson** is a self-hosted, Spotify-grade music streaming platform that:

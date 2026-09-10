@@ -100,11 +100,15 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
   onSubmit: (names: string[]) => void
 }) {
   const [query, setQuery] = useState('')
+  // The live input value; `query` feeds it instantly so typing never lags.
+  // Search requests use the deferred term instead, 250ms behind, so one
+  // request fires per pause rather than per keystroke.
+  const [deferredTerm, setDeferredTerm] = useState('')
   const [picked, setPicked] = useState<string[]>([])
   const [active, setActive] = useState<number>(-1)
   const debounceRef = useRef<number | null>(null)
 
-  const searchTerm = query.trim()
+  const searchTerm = deferredTerm
 
   const { data: results, isFetching } = useQuery({
     queryKey: ['search', 'onboarding-artists', searchTerm.toLowerCase()],
@@ -126,9 +130,9 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
     setQuery(value)
     setActive(-1)
     if (debounceRef.current) window.clearTimeout(debounceRef.current)
-    // Keys the TanStack query off `searchTerm`, so a small debounce avoids
-    // firing a request on every keystroke.
-    debounceRef.current = window.setTimeout(() => {}, 0)
+    debounceRef.current = window.setTimeout(() => {
+      setDeferredTerm(value.trim())
+    }, 250)
   }
 
   const pickArtist = (name: string) => {

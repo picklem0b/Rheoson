@@ -88,28 +88,31 @@ Rheoson uses semantic versioning: `vMAJOR.MINOR.PATCH[-rc]`
   - `rc` = release candidate (still being tested)
   - no suffix = stable release
 
-### Current tag: v1.3.0-rc
+Tags are **always annotated** (`git tag -a`), never lightweight — the tag message is the release summary that feeds `docs/CHANGELOG.md`. Push tags with `git push --follow-tags` (never a bare `git push --tags`).
 
-**Promote rc to stable:**
+### Current tag: v2.16.5 (stable)
+
+**Cut a release (after the version files are bumped):**
 ```bash
 git checkout main
-git tag -a v1.3.0 -m "Release v1.3.0 — home sections, playlist fixes, nginx/docker overhaul"
-git push origin v1.3.0
+git merge --no-ff dev
+git tag -a v2.17.0 -m "v2.17.0 — auth sub-route fix, hermetic test suite, docs system, Apache-2.0"
+git push origin main --follow-tags
 ```
 
 **Tag a new release candidate:**
 ```bash
 git checkout main
-git tag -a v1.4.0-rc -m "Release candidate v1.4.0-rc"
-git push origin v1.4.0-rc
+git tag -a v2.18.0-rc -m "Release candidate v2.18.0-rc"
+git push origin v2.18.0-rc
 ```
 
-**Delete and recreate a tag (if you need to move it):**
+**Delete and recreate a tag (only if it was never consumed):**
 ```bash
-git tag -d v1.3.0-rc
-git push origin --delete v1.3.0-rc
-git tag -a v1.3.0-rc -m "Release candidate v1.3.0-rc"
-git push origin v1.3.0-rc
+git tag -d v2.17.0
+git push origin --delete v2.17.0
+git tag -a v2.17.0 -m "v2.17.0 — corrected tag message"
+git push origin v2.17.0
 ```
 
 **List all tags:**
@@ -117,9 +120,9 @@ git push origin v1.3.0-rc
 git tag --sort=-creatordate
 ```
 
-**See what's in a tag:**
+**See a tag's message and contents:**
 ```bash
-git show v1.3.0-rc
+git show v2.16.5
 ```
 
 ## Keeping api and web branches in sync with dev
@@ -148,9 +151,9 @@ git checkout main
 git merge --no-ff fix/critical-bug-name
 git push origin main
 git branch -d fix/critical-bug-name
-# Tag the hotfix
-git tag -a v1.3.1 -m "Hotfix v1.3.1 — description"
-git push origin v1.3.1
+# Tag the hotfix (annotated — message is the release summary)
+git tag -a v2.16.6 -m "Hotfix v2.16.6 — description"
+git push origin v2.16.6
 # Back-merge into dev so it has the fix too
 git checkout dev
 git merge main
