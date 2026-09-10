@@ -1,79 +1,63 @@
 # Privacy Policy
 
-**Rheoson** — Last updated: August 2026
+**Rheoson** — Last updated: September 2026
 
----
+## 1. What Rheoson is
 
-## 1. Who we are
-
-Rheoson is a self-hosted, open-source music streaming and download application built and maintained by LethaboK (GitHub: lethabokhedama-png). Rheoson is not a commercial product and does not operate as a company.
-
----
+Rheoson is free, open-source software (Apache-2.0) for self-hosted music streaming and downloading, maintained by LethaboK. It is not a commercial product. When you run your own instance, **you are the operator** — this policy describes what the software itself does, and what you should tell your own users if you host for others.
 
 ## 2. The short version
 
-Rheoson does not collect, store, transmit, or sell your personal data to any third party. Everything you do in Rheoson — searches, playback history, liked songs, playlists, downloaded files — stays on your own device and your own server.
+Rheoson does not collect, sell, or transmit your personal data to any central service operated by the maintainer. Everything you do — searches, playback, likes, playlists, downloads — lives on the server you configured and in your browser's storage.
+
+## 3. Where data lives
+
+| Data | Where | Notes |
+|------|-------|-------|
+| Account identity | Clerk (third-party identity provider) | Email, name, avatar you sign up with. Clerk's own privacy policy governs this data. |
+| Session tokens | Browser memory (Clerk SDK) | Short-lived (~1 min); never persisted to disk by Rheoson |
+| Likes, history, playlists | Your server (JSON files under the music directory; optionally MongoDB) | Keyed by your Clerk user ID; per-user isolated |
+| Play history & signals | Your server (MongoDB, if configured) | Powers recommendations and analytics |
+| Downloaded audio | Your server's library directory (and device storage in the Android app) | |
+| Download job history | Your server (JSON) | |
+| Theme, layout, settings | Browser localStorage / device | Never leaves the device |
+| Search history | Device (IndexedDB/localStorage) | Clearable in-app |
+
+## 4. Third-party services contacted when you use Rheoson
+
+| Service | Why | Data sent |
+|---------|-----|-----------|
+| YouTube Music (via yt-dlp) | Search queries and audio streaming | Search terms, video IDs |
+| Spotify Web API (optional) | Metadata when you paste a Spotify link | Link/track IDs — no audio, no personal data |
+| Lyrics providers | Fetching lyrics for tracks you play | Track title/artist |
+| Clerk | Authentication only | Sign-in credentials handled by Clerk's SDK/API |
+| Image CDNs (via artwork proxy) | Cover art | Image URLs — proxied server-side, allowlisted |
+
+None of these receive your likes, history, playlists, or any Rheoson-internal data.
+
+## 5. Logging
+
+The server logs structured events (request IDs, route, status, timing) for operation and debugging. Logs contain **no tokens, no credentials, no request bodies**, and database connection strings are redacted. Log retention and shipping are controlled by the operator.
+
+## 6. Cookies & tracking
+
+Rheoson sets no tracking or advertising cookies. Clerk may set functional session cookies as part of authentication (governed by Clerk). No analytics beacons exist in the app.
+
+## 7. Children
+
+Rheoson is general-audience software; the operator of an instance is responsible for compliance with local requirements (e.g. age rules) if hosting publicly.
+
+## 8. Your control
+
+- Delete your account → removes identity via Clerk; operator can purge server-side user data.
+- Clear history → in-app (`DELETE /api/tracks/history` equivalent in Settings flows).
+- Export playlists → built-in export endpoint.
+- Self-host → run it yourself; then all data above is under your sole control.
+
+## 9. Changes
+
+Material changes to this policy ship with a release and are dated at the top. The authoritative copy lives in the repository.
 
 ---
 
-## 3. What Rheoson stores and where
-
-| Data                         | Where it lives                               | Who can see it                    |
-| ---------------------------- | -------------------------------------------- | --------------------------------- |
-| Playback history             | Server filesystem (`.history.json`)          | You and anyone with server access |
-| Liked songs                  | Server filesystem (`.liked.json`)            | You and anyone with server access |
-| Playlists                    | Server filesystem (`.playlists.json`)        | You and anyone with server access |
-| Downloaded audio files       | Server filesystem (`MUSIC_DIR`)              | You and anyone with server access |
-| Theme and app preferences    | Browser `localStorage`                       | Only you                          |
-| Spotify Client ID and Secret | Server `.env` file (written at runtime)      | You and anyone with server access |
-| Download job history         | Browser `localStorage` (completed jobs only) | Only you                          |
-
-Nothing in this list is transmitted to Rheoson's GitHub repository, to any analytics service, or to any third party operated by LethaboK.
-
----
-
-## 4. Third-party services Rheoson talks to
-
-Rheoson communicates with external services on your behalf. You should be aware of their policies.
-
-**YouTube / YouTube Music**
-Rheoson uses ytmusicapi to search YouTube Music and yt-dlp to stream audio. When you search or play a song, a request is made to YouTube's servers from your IP address.
-Privacy policy: https://policies.google.com/privacy
-
-**Spotify Web API**
-If you enter Spotify credentials in Settings, Rheoson uses the Spotify Web API to resolve Spotify links and enrich metadata. Rheoson never streams audio from Spotify.
-Privacy policy: https://www.spotify.com/legal/privacy-policy/
-
-**SoundCloud, Bandcamp, and others**
-When you paste a link from these platforms, yt-dlp resolves and streams it. Your IP address makes a request to those platforms.
-
----
-
-## 5. Cookies
-
-Rheoson does not use cookies. App preferences are stored in browser `localStorage`, which is local to your device and never transmitted.
-
----
-
-## 6. Self-hosted deployments
-
-If you deploy Rheoson on a server and share access with other people, you become the data controller for those users. You are responsible for keeping your server secure, not storing other people's data without their knowledge, and complying with applicable privacy laws in your jurisdiction.
-
----
-
-## 7. Render.com deployments
-
-If you use the Render deployment, your Rheoson instance runs on Render's infrastructure. Render's own privacy policy applies to server-level data (logs, IP addresses at the infrastructure level):
-https://render.com/privacy
-
----
-
-## 8. Changes to this policy
-
-If this policy changes materially, the "Last updated" date at the top will change and a note will appear in the CHANGELOG. Since Rheoson collects no personal data, changes are unlikely to affect your privacy in practice.
-
----
-
-## 9. Contact
-
-https://github.com/picklem0b/Rheoson/issues
+*Last verified against `main`: 2026-09-10 (v2.16.5).*

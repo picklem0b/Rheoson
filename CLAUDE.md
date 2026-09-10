@@ -1,7 +1,7 @@
 # CLAUDE.md — Rheoson Codebase Context
 
 > Single source of truth for any AI working on Rheoson. Read this before touching any file.
-> Version: 2.16.4 · Updated: 2026-09-09
+> Version: 2.17.0-dev · Updated: 2026-09-10 · Long-form docs live in [docs/README.md](docs/README.md)
 
 ---
 
@@ -787,11 +787,7 @@ Files where a change has wide blast radius — always check these when modifying
 
 ### 1. Track ID changes after download
 
-- Search result has `id = videoId` (YouTube). After download, library scan produces `id = MD5(path)`.
-- Same song appears twice — once as streamed (YouTube ID), once as local (MD5 ID).
-- `isDownloaded` on search results is unreliable because the IDs don't match.
-- **Root cause:** no stable universal ID linking a YouTube track to its local file.
-- **Status:** Requires V2 stable ID system.
+- **FIXED (v2.16.1):** `app/services/track_identity.py` is a SQLite sidecar mapping each YouTube videoId to its downloaded file; `isDownloaded` on search results is reliable and liked/history/playlist entries resolve to local playback. The MD5(path)[:16] id remains the local-file identity contract — see "Critical Files".
 
 ### 2. Jobs lost on server restart
 
@@ -851,7 +847,7 @@ Files where a change has wide blast radius — always check these when modifying
 
 Based on the codebase state and known issues, V2 should address:
 
-1. **Stable track identity** — link YouTube videoId to downloaded file via a sidecar JSON or SQLite; `isDownloaded` becomes reliable, no duplicate entries
+1. ~~**Stable track identity**~~ — **DONE (v2.16.1):** SQLite sidecar in `app/services/track_identity.py` links videoId → downloaded file
 2. **Persistent job store** — write download jobs to disk (SQLite or JSON); survived restart
 3. **User accounts / multi-user** — **DONE:** Clerk-powered auth with guest mode, visitor counter, and per-user recommendations
 4. **Playlist track objects** — store full track metadata in playlist, not just IDs (faster load, no re-hydration)

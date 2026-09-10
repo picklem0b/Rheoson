@@ -1,103 +1,70 @@
 # Contributing to Rheoson
 
-Rheoson is a personal project. Contributions are welcome but the bar is high — production-grade only, no placeholders, no half-finished work.
+Rheoson is a personal project with professional standards. Contributions are welcome — the bar is production-grade: no placeholders, no half-finished work, no untested changes.
 
----
+## Ground rules
+
+1. **One PR, one concern.** Reviewable scope beats ambitious scope.
+2. **Tests travel with changes.** New endpoints get auth probes + isolation/validation tests; bug fixes get a regression test that fails without the fix.
+3. **Quality gates are binary.** `pytest`, `pyflakes`, `tsc`, `eslint` (zero warnings), and the production build must all pass — CI enforces this per PR.
+4. **Docs-in-PR rule.** A PR that changes endpoints, behavior, configuration, or deployment must update the document that owns that topic (see the [doc map](README.md)). Reviewers treat a missing doc update like a missing test.
+5. **License:** Apache-2.0 — contributions land under the same license.
 
 ## Setup
 
 ```bash
-git clone https://github.com/picklem0b/Rheoson
-cd Rheoson
+git clone https://github.com/picklem0b/Rheoson && cd Rheoson
+# Backend + frontend setup, quality gates, and test conventions:
+# see the Development Guide
 ```
 
-**Backend**
+Full local setup, test suite conventions, and release workflow live in [DEVELOPMENT.md](DEVELOPMENT.md).
 
-```bash
-cd api
-pip install -e ".[dev]" --break-system-packages
-cp .env.example .env
-uvicorn app.main:socket_app --host 0.0.0.0 --port 8000 --reload
+## Workflow
+
+```
+main      stable, production-ready only (tagged releases)
+dev       integration branch — all work merges here first
+feature/* branched off dev
+fix/*     branched off dev (or main for hotfixes)
 ```
 
-**Frontend**
+1. `git checkout dev && git pull && git checkout -b fix/your-fix`
+2. Make the change + tests + doc updates.
+3. Verify the quality gates locally (see [DEVELOPMENT.md](DEVELOPMENT.md#quality-gates)).
+4. Commit with [Conventional Commits](../GIT_WORKFLOW.md#committing): `fix(stream): prevent duplicate fill sessions`
+5. Push and open the PR **against `dev`**. CI runs lint/typecheck/tests and the docs check.
+6. After merge, the maintainer cuts releases from `dev` → `main` with annotated tags (flow and tagging rules: [GIT_WORKFLOW.md](../GIT_WORKFLOW.md#tagging-releases)).
 
-```bash
-cd web
-npm install
-npm run dev
-```
+## What gets a PR merged
 
-Requires: Python 3.13+, Node.js 18+, ffmpeg, yt-dlp.
+- Fixes a real, described problem (with a repro when applicable)
+- Stays in scope; the diff is reviewable
+- Includes tests that pin the behavior
+- Updates the docs it made stale
+- Passes all gates
+
+## What gets a PR closed
+
+- Untested behavior changes
+- New architectural direction proposed without an issue first
+- Feature creep bundled into a bug fix
+- Silence after review feedback (28 days auto-closes stale threads — just rebase and ping)
+
+## Reporting bugs
+
+Open a GitHub issue with: what you did, what you expected, what happened, versions (from `/api/health`), and logs with request IDs. Security issues are **not** for public issues — see [SECURITY.md](SECURITY.md).
+
+## Documentation
+
+Docs follow a strategy so they stay trustworthy:
+
+- **Ownership:** each topic has one owning document (endpoints → `API.md`, ops → `OPERATIONS.md`, …). The README is the canonical overview; deep dives own their subsystem.
+- **Status labels:** features are **Implemented / Partial / Experimental / Planned / Deprecated** — keep the [status matrix](STATUS.md) honest.
+- **Terminology:** use [glossary](GLOSSARY.md) terms; add new concepts there.
+- **Stamps:** refresh the *last verified* line on any doc you materially edit; release tagging refreshes them wholesale (see [DEVELOPMENT.md](DEVELOPMENT.md#documentation-maintenance-at-release-time)).
+- CI validates internal links and endpoint references on every PR.
 
 ---
 
-## Branching
-
-- `main` — always stable, always deployable
-- `dev` — active development, all PRs target this branch
-- Feature branches: `feat/<short-description>`
-- Fix branches: `fix/<short-description>`
-
-Never commit directly to `main`. PRs from `dev` to `main` happen at version bumps only.
-
----
-
-## Commits
-
-Single-line only. No multi-line bodies, no bullet lists inside the message.
-
-```
-(feat): add socket reconnect on network drop
-(fix): resolve CORS header on preflight
-(chore): update lockfile
-(refactor): extract token validation into middleware
-(docs): add env variable reference to readme
-(style): align button padding across card variants
-```
-
-Rules: lowercase after the colon, no trailing period, imperative mood — "add" not "added".
-
----
-
-## Tags
-
-Every meaningful change gets an annotated tag. Never lightweight.
-
-```bash
-git tag v1.x.y -m "Short description of what changed"
-git push origin dev --follow-tags
-```
-
-Never push without `--follow-tags` when a tag was created that session. Tags follow `v(major).(minor).(patch)`.
-
----
-
-## Pull requests
-
-- One feature or fix per PR — no bundling unrelated changes
-- Target `dev`, not `main`
-- Update `docs/CHANGELOG.md` with your version entry
-- Test locally before opening the PR — streams, downloads, and WebSocket all need to work
-
----
-
-## Code rules
-
-- No `any` in TypeScript unless genuinely unavoidable and commented
-- No `console.log` left in production paths
-- No decorative comment banners (`// ---- section ----` style)
-- No placeholder logic, no `// TODO` stubs in delivered code
-- Errors handled explicitly — no silent `catch {}` blocks
-- Python: follow the existing `structlog` + `async/await` + executor pattern
-- File naming: `*.service.ts`, `*.store.ts`, `*.hook.ts`, `*.router.ts` etc — see existing files
-
----
-
-## What not to contribute
-
-- Features that require paid third-party services
-- Anything that facilitates large-scale copyright infringement
-- Windows-specific code — Termux/Linux/Mac only
-- New dependencies without prior discussion
-- Breaking changes to the stream or download pipeline without a fix for all known affected files
+*Last verified against `main`: 2026-09-10 (v2.16.5).*

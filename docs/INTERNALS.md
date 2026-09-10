@@ -4,6 +4,13 @@
 ================================================================================
 Built by LethaboK — github.com/picklem0b/Rheoson
 Version: 1.2.5 (as of May 2026)
+
+> ⚠️ **ARCHIVED (2026-09-10).** This document describes Rheoson when it was
+> named Shulker, at v1.2.5 — before Clerk auth, MongoDB, per-user isolation,
+> the SQLite track-identity sidecar, and the current settings/recommendation
+> systems. It is kept only for historical context and is **not maintained**.
+> The current documentation set starts at [docs/README.md](README.md); the
+> license is Apache-2.0 (see [LICENSE](../LICENSE)), not MIT as stated below.
 ================================================================================
 
 
@@ -741,9 +748,9 @@ v2.0.0   Stable release
   LICENCE
 ────────────────────────────────────────────────────────────────────────────────
 
-MIT License. See LICENSE file.
+Apache-2.0 License. See [LICENSE](../LICENSE).
 
-The MIT licence applies to the Rheoson code only.
+Apache-2.0 applies to the Rheoson code only.
 It does not grant rights to audio content downloaded using Rheoson.
 You are responsible for complying with copyright law in your jurisdiction.
 

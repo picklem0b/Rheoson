@@ -1,116 +1,102 @@
-# CHANGELOG
+# Changelog
 
 All notable changes to Rheoson are documented here.
-Format: `v(major).(minor).(patch)` — annotated tags, `--follow-tags` always.
+
+Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), pushed with `--follow-tags`. The tag message is the release summary; the four synced version files (`api/pyproject.toml`, `web/package.json`, `web/src/lib/constants.ts`, `api/app/main.py`) carry the `APP_VERSION`.
 
 ---
 
-## v1.3.4
+## v2.17.0
 
-feat: search debounce, library redesign, toasts, rhea sound
+Production-readiness + documentation overhaul and first CI test gate.
 
-## v1.3.3
+- **security(auth):** register the `/auth/*` route family so Clerk's path-routed sign-in/sign-up multi-step flows (email-code verification, MFA factor-one, SSO callback) land on `/auth/verify`, `/auth/factor-one`, `/auth/sso-callback` instead of falling through to the catch-all — without the wildcard, a user who had just authenticated (or was mid-verification) was bounced back to the landing screen instead of completing sign-in and reaching Home. Adds router regression tests.
+- **fix(web):** onboarding artist search debounces keystrokes (250 ms) so typing no longer fires one request per character.
+- **fix(api):** the backend test suite is hermetic — `tests/conftest.py` pins Clerk env vars so the dev-mode synthetic-identity fallback can no longer leak into runs on machines without a local `.env` (the 11 environment-dependent failures vanish; 99/99 green anywhere).
+- **chore(ci):** add `.github/workflows/ci.yml` so the backend test suite and the web lint/typecheck/unit-test/build gates run on every push and PR to `main`/`dev` — CI now fails when tests fail.
+- **docs:** complete documentation system per the documentation strategy interview — progressive index (`docs/README.md`), glossary-enforced terminology, implemented/partial/planned status matrix, six deep dives (streaming, downloads, auth & security, data, frontend, mobile), development guide, operations runbook, contributing guide, security/privacy/terms, and last-verified stamps on every document.
+- **chore(license):** the repository previously shipped a GPL-3.0 `LICENSE` file while README/docs claimed MIT. `LICENSE` is now the canonical Apache-2.0 text and `api/pyproject.toml` / `web/package.json` declare it.
 
-feat: APScheduler cron jobs, WebSocket listener deduplication fix, README rewrite
+- **fix(web):** register the `/auth/*` route family — Clerk's path-routed sign-in/sign-up navigate their multi-step flows to sub-paths (`/auth/verify`, `/auth/factor-one`, `/auth/sso-callback`); only `/auth` was registered, so those steps fell through to the catch-all and bounced users back to the landing screen after authenticating. Adds router regression tests.
+- **fix(web):** onboarding artist search debounces keystrokes (300 ms) instead of firing a request per character.
+- **fix(api):** test suite is hermetic — `tests/conftest.py` pins Clerk env vars so the dev-mode identity fallback can no longer leak into runs on machines without a local `.env` (11 environment-dependent failures eliminated; 99/99 green anywhere).
+- **docs:** complete documentation system per the documentation strategy interview — progressive index (`docs/README.md`), glossary-enforced terminology, implemented/partial/planned status matrix, six deep dives (streaming, downloads, auth & security, data, frontend, mobile), development guide, operations runbook, contributing guide, security/privacy/terms, and last-verified stamps.
+- **chore:** license is **Apache-2.0** — the repository previously shipped a GPL-3.0 `LICENSE` file while README/docs claimed MIT. `LICENSE` is now the canonical Apache-2.0 text and `api/pyproject.toml` / `web/package.json` declare it.
 
-## v1.3.2
+## v2.16.5
 
-feat: PWA full service worker — offline audio, artwork, background sync
+Production-readiness audit pass: fixes the post-login landing bounce and restart session loss by removing the stale persisted-token 401 path in Clerk mode, gating Clerk session sync on `isLoaded`, and making the auth guard hook-rule-clean; lints to zero and aligns the app version to 2.16.4 across all four synced files.
 
-## v1.3.1
+## v2.16.4
 
-chore: ignore downloads directory
+Retention milestone: Wrapped year-in-review page and API, taste onboarding that seeds the profile from 3 picked artists, and current/best listening-streak stats — surfaced on the profile, stats, and wrapped screens.
 
-## v1.3.0
+## v2.16.3
 
-fix: offline playback, single Howl instance, download_service overhaul, track index
+Cross-device playback sync: playback state, current track, position, and queue flow between the account's devices over an authenticated WebSocket connection, with newest-wins conflict handling.
 
-## v1.3.0-rc
+## v2.16.2
 
-Release candidate for v1.3.0
+Discovery feedback loop: Daily Mixes generated from the user's top genres, one-tap Radio from any track, and a dislike/hide action that trains the taste profile and removes hidden tracks from suggestions, autoplay, and the queue.
 
-## v1.2.6
+## v2.16.1
 
-fix: yt-dlp direct pipe stream, no JS runtime needed, simplified TopBar logo
+Stable track identity: a SQLite sidecar maps each YouTube id to its downloaded file, so songs no longer duplicate across search and library, `isDownloaded` is reliable, and liked/history/playlist entries resolve to local playback even when YouTube is unreachable.
 
-## v1.2.5
+## v2.15.6
 
-fix: HEAD method on stream endpoint, remove format hints, stable loadAndPlay deps, fix build script
+Fix the MongoDB health probe false alarm (`Motor db.admin` is a collection, not the admin DB) and make the health config check surface a missing Clerk webhook signing secret on production instances.
 
-## v1.2.4
+## v2.15.5
 
-feat: wire all assets — anim-logo.mp4 splash + topbar, logo.png sidebar, favicon, rhea.mp3 on download
+Fix the onboarding redirect loop: a single auth path (Landing → Clerk UI → Home) and the Clerk card no longer clips on mobile.
 
-## v1.2.3
+## v2.15.4
 
-fix: CORS wildcard, hardcode Render API URL, add docs — privacy, terms, security, contributing
+Health system, host fixes, and contract tests. Health is a proper liveness/readiness/snapshot/diagnostics stack with bounded background probing; the keep-alive cold-start bug was traced to a dead ping target; guard-rail tests enforce OpenAPI/auth coverage across the whole route surface.
 
-## v1.2.2
+## v2.15.3
 
-fix: audio context unlock, play spam prevention, Render deployment config
+Hardening release for the streaming pipeline and download lifecycle: shared, bounded, disconnect-proof background fill per track; cancellation kills the download process group; dev-only identity bypass, arbitrary download paths, and unbounded artwork fetches closed; auth/stream/lyrics gained per-IP rate limits; six regression tests.
 
-## v1.2.1
+## v2.15.2
 
-fix: html5 streaming, audio piling, chunk size, main.py cleanup, like button, three-dot menu
+Fix the post-splash black screen: AuthGuard loader + public Landing gate handing off to Clerk; auth store boots at startup; redundant WebSocket heartbeat removed; stable TypeScript codegen output.
 
-## v1.2.0
+## v2.15.1
 
-fix: stream URL, Howler stale closure, non-blocking YTMusic search, suggestions endpoint, Spotify creds API
+Clerk auth integration: prebuilt Clerk components replace custom login/register, landing page with Get Started CTA, artwork proxy for APK CORS, dev-mode auth bypass, users synced to MongoDB via the Clerk webhook.
 
-## v1.1.0
+## v2.14.19 – v2.14.21
 
-feat: asyncpg + Docker multi-stage build
+Guest mode removed and auth enforced on every endpoint with per-user isolation (v2.14.19); production-readiness fixes for CORS origin merge, duplicate Pydantic schema, Clerk config mis-scoping, dev-mode auth bypass, and client error-handling infrastructure (v2.14.20); Clerk JWT injection on API requests and OpenAPI operation-ID fix (v2.14.21).
 
-## v1.0.0
+## v2.14.1 – v2.14.18
 
-chore: initial working release
+Iterative feature/hardening releases: functional Settings sections (notifications→sounds, layout, audio EQ/effects engine, advanced download options with per-job staging, storage/privacy/account audits), duplicate-safe queue with add-from-queue search, `/full-player` route with legacy redirect, enriched search history, stream warm-up endpoint (`POST /stream/{id}/warm`), MongoDB-free local mode fallback, recommendation taste profile with genre inference, full Creator tab and karaoke lyrics, custom playlist covers, suggested songs, unified My Music page, floating pill nav polish, universal track context menus, end-of-queue autoplay, endpoint surface completion, settings-directory persistence crash fix.
+
+## v2.13.0-beta.1 – v2.13.4
+
+Offline-first architecture (beta), runtime data-safety audit + MongoDB Atlas config, generated TypeScript contract (`v2.13.2`), Clerk webhook with Svix HMAC verification (`v2.13.3`), user profile page (`v2.13.4`).
+
+## v2.12.0 – v2.12.2
+
+Recommendation signal recording system, core recommendation engine, recommendation API endpoints + frontend integration.
+
+## v2.11.0 – v2.11.9
+
+The Rheoson era: identity rename from Shulker, MongoDB infrastructure, user authentication and account storage, instant playback architecture, structure cleanup, merged-application regression fixes, dev/prod API environments, Rheoson branding, update checking, performance and production verification.
+
+## v2.8.0 – v2.10.0
+
+Stream cache, search UX, 404 page, player fixes (v2.8.0); the 25 documented bugs from `BUGS.md` fixed (v2.9.0); critical bug fixes (v2.10.0).
+
+## v2.1.0 – v2.7.8 (Shulker)
+
+File-rename restructure and the settings overhaul era (per-section redesigns, layout/font/audio preferences persisted), WebSocket URL fixes, prod-baked `.env.production`, Capacitor build fixes, CORS builtins, Jekyll landing page and Pages deployment, keep-alive cron, custom Swagger UI, artwork proxy + `ArtworkImage` component, ytmusic thumbnail fix, artist endpoint.
+
+## v1.0.0 – v1.3.4 (Shulker)
+
+Initial working release through the pre-auth era: asyncpg + Docker multi-stage build (abandoned for the file-based library), yt-dlp direct pipe streaming, PWA full service worker, APScheduler cron jobs, search debounce, library redesign, toasts, and the rhea sound.
 
 ---
-
-## v0.2.0-beta
-
-fix: stream URL, Howler stale closure, non-blocking YTMusic search, suggestions endpoint, Spotify creds API
-
-## v0.1.9-alpha
-
-feat: splash screen, multi-dir storage, README, CHANGELOG, network fix
-
-## v0.1.8-alpha
-
-feat(api): routers + download service + stream + lyrics — full backend wired
-
-## v0.1.7-alpha
-
-feat(api): services — Spotify, YTMusic, metadata, artwork, search — any URL supported
-
-## v0.1.6-alpha
-
-feat(api): foundation — config, exceptions, logging, schemas, websocket, main
-
-## v0.1.5-alpha
-
-feat(web): all pages — Home, Search, NowPlaying, Library, Downloads, Settings, LikedSongs, Playlist, Album, Artist
-
-## v0.1.4-alpha
-
-feat(web): player components — bar, controls, progress, volume, queue
-
-## v0.1.3-alpha
-
-feat(web): UI primitives, layout shell, bottom nav pill, sidebar
-
-## v0.1.2-alpha
-
-feat(web): API layer and hooks
-
-## v0.1.1-alpha
-
-feat(web): global styles, theme system, type definitions
-
-## v0.1.0-alpha
-
-feat(web): config files — vite, tailwind, tsconfig, postcss, index.html
-
-## v0.1.0
-
-chore: initial scaffold

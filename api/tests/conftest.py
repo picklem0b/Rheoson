@@ -18,6 +18,13 @@ os.environ.setdefault(
     "MONGODB_URL", "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=300"
 )
 os.environ.pop("RHEOSON_MOCK_DB", None)
+# Clerk must appear configured in tests: get_current_user only falls back to
+# the shared synthetic dev identity when the environment is development AND
+# Clerk is unconfigured. Without a key here, anonymous probes pass and every
+# client fixture collapses to one "dev-user-local" sub, which both breaks the
+# 401 sweep and makes per-user isolation meaningless. Token verification is
+# patched below; this only routes the dependency through it.
+os.environ.setdefault("CLERK_SECRET_KEY", "test-clerk-secret-for-tests")
 # Rate limits are per-IP but all tests share the same ASGI transport IP.
 # Set them very high so they never trigger during tests.
 os.environ["RATE_LIMIT_SEARCH"] = "99999"

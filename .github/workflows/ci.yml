@@ -1,0 +1,71 @@
+name: CI
+
+on:
+   push:
+      branches: [main, dev]
+   pull_request:
+      branches: [main, dev]
+   workflow_dispatch:
+
+concurrency:
+   group: ci-${{ github.ref }}
+   cancel-in-progress: true
+
+jobs:
+   api:
+      name: API — tests
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up Python
+           uses: actions/setup-python@v4
+           with:
+              python-version: "3.13"
+
+         - name: Install API dependencies
+           working-directory: api
+           run: |
+              pip install uv
+              uv sync --extra dev
+
+         - name: Backend test suite (hermetic)
+           working-directory: api
+           # tests/conftest.py pins Clerk config, so this runs anywhere with no
+           # secrets, no MongoDB, and no network.
+           run: uv run python -m pytest -q
+
+   web:
+      name: Web — lint, typecheck, tests, build
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 22
+              cache: npm
+              cache-dependency-path: web/package-lock.json
+
+         - name: Install web dependencies
+           working-directory: web
+           run: npm ci
+
+         - name: Lint
+           working-directory: web
+           run: npm run lint
+
+         - name: Typecheck
+           working-directory: web
+           run: npm run typecheck
+
+         - name: Unit tests
+           working-directory: web
+           run: npm test
+
+         - name: Build (includes OpenAPI type contract regeneration)
+           working-directory: web
+           run: npm run build
