@@ -29,9 +29,15 @@ async def test_public_routes_are_reachable_without_auth(client_anon):
 
     # Validation rejects malformed login payloads (422).
     r = await client_anon.post(
-        "/api/auth/login", json={"email": "a@b.c", "password": "x"}
+        "/api/auth/login", json={"email": "not-an-email", "password": "x"}
     )
     assert r.status_code == 422
+
+    # Schema-valid login with unknown credentials fails closed (401), not 422.
+    r = await client_anon.post(
+        "/api/auth/login", json={"email": "a@b.c", "password": "x"}
+    )
+    assert r.status_code == 401
 
 
 # ── Everything else must 401 without a session ────────────────

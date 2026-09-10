@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Server, WifiOff, RefreshCw, X } from 'lucide-react';
 import { isOnline } from '@/lib/network';
@@ -18,9 +18,13 @@ export function NetworkErrorBanner({
   const [isBackendDown, setIsBackendDown] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [wasOnline, setWasOnline] = useState(isOnline());
+  // Re-entrancy guard kept in a ref so checkHealth stays stable (no interval
+  // churn from the isChecking state flipping on every poll).
+  const checkingRef = useRef(false);
 
   const checkHealth = useCallback(async () => {
-    if (isChecking) return;
+    if (checkingRef.current) return;
+    checkingRef.current = true;
     setIsChecking(true);
 
     try {
@@ -44,6 +48,7 @@ export function NetworkErrorBanner({
     } catch {
       setIsBackendDown(true);
     } finally {
+      checkingRef.current = false;
       setIsChecking(false);
     }
   }, [healthEndpoint, isBackendDown]);

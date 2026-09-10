@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.11.0"
+    "version": "2.16.4"
   },
   "paths": {
     "/api/search": {
@@ -529,6 +529,95 @@
         ],
         "summary": "Unlike Track",
         "operationId": "unlike_track_api_tracks__track_id__like_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tracks/{track_id}/dislike": {
+      "post": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Dislike Track",
+        "description": "Hide a track: stops it appearing in recommendations/autoplay and\nremoves it from Liked songs. Explicit dislikes are stored per-user in\nMongoDB (disliked_tracks) with a local mirror, and recorded as a\nstrong-negative DISLIKE signal for the taste profiler.",
+        "operationId": "dislike_track_api_tracks__track_id__dislike_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Undislike Track",
+        "operationId": "undislike_track_api_tracks__track_id__dislike_delete",
         "security": [
           {
             "HTTPBearer": []
@@ -2392,6 +2481,162 @@
         ]
       }
     },
+    "/api/recommendations/mixes": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Daily Mixes",
+        "description": "Spotify-style Daily Mixes \u2014 one infinite-feeling playlist per top genre.\n\nGenres come from the user's taste profile (Mongo signals or local mirror);\neach mix searches that genre and returns fully hydrated track dicts so the\nfrontend can queue them immediately. Tracks are deduped across mixes and\ndiverse per artist inside a mix. Hidden/disliked tracks are excluded.\n\nCold-start users (no taste yet) get an empty list \u2014 the UI hides the row.",
+        "operationId": "get_daily_mixes_api_recommendations_mixes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 5,
+              "default": 15,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/radio": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Radio",
+        "description": "One-tap radio: an endless-feeling stream seeded by a single track.\n\nBuilds candidates from similar-artist search, the artist's related\nartists (when resolvable), and trending \u2014 deduped, diverse, with the\nseed excluded and hidden tracks removed. Returns fully hydrated track\ndicts so the frontend queues them and keeps autoplaying on end.",
+        "operationId": "get_radio_api_recommendations_radio_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Seed track ID",
+              "title": "Track Id"
+            },
+            "description": "Seed track ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 10,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/onboard": {
+      "post": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Onboard Artists",
+        "description": "Seed the taste profile from an onboarding artist picker.\n\nBody: { \"artists\": [\"Drake\", {\"name\": \"Radiohead\"}, ...] } (max 8).\nFor each artist we resolve one real track, then record LIKE + PLAY_START\nsignals (and the local mirrors) so recommendations personalise\nimmediately instead of waiting for 10+ natural plays.",
+        "operationId": "onboard_artists_api_recommendations_onboard_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/recommendations/refresh": {
       "post": {
         "tags": [
@@ -2648,6 +2893,61 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/analytics/wrapped": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Wrapped",
+        "description": "Year-in-review \u2014 the Spotify Wrapped equivalent.\n\nAggregates the user's play signals for the given year: top artists,\ntop tracks (best-effort hydrated), total minutes, month activity,\ngenre breakdown (from the taste profile / artist classification),\nand listening streaks. Every failure degrades to an empty report \u2014\nthis endpoint must never 500 a celebration.",
+        "operationId": "wrapped_api_analytics_wrapped_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2100,
+                  "minimum": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/analytics/top-artists": {

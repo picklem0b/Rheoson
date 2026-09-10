@@ -1,4 +1,6 @@
 import { api } from './client.api';
+import { normalizeTrack, normalizeTracks } from '@/lib/normalize';
+import type { Track } from '@/types/index';
 
 export interface RecommendationSection {
   section_id: string;
@@ -130,4 +132,68 @@ export const recommendationsApi = {
   refresh: async (): Promise<{ ok: boolean; sections: number }> => {
     return api.post('/recommendations/refresh');
   },
+
+  onboardArtists: async (names: string[]): Promise<{ ok: boolean; seeded: number; artists: string[] }> => {
+    try {
+      const raw = await api.post<unknown>('/recommendations/onboard', {
+        artists: names.slice(0, 8),
+      });
+      const r = (raw ?? {}) as Record<string, unknown>;
+      return {
+        ok: Boolean(r.ok),
+        seeded: Number(r.seeded ?? 0),
+        artists: Array.isArray(r.artists) ? r.artists.map(String) : [],
+      };
+    } catch {
+      return { ok: false, seeded: 0, artists: names.slice(0, 8) };
+    }
+  },
+
+  getMixes: async (): Promise<DailyMix[]> => {
+    try {
+      const raw = await api.get<unknown>('/recommendations/mixes');
+      if (!raw || typeof raw !== 'object') return [];
+      const mixes = (raw as Record<string, unknown>).mixes;
+      if (!Array.isArray(mixes)) return [];
+      return mixes
+        .map((m) => {
+          if (!m || typeof m !== 'object') return null;
+          const mix = m as Record<string, unknown>;
+          const tracks = Array.isArray(mix.tracks)
+            ? (mix.tracks as unknown[]).map(normalizeTrack)
+            : [];
+          if (!tracks.length) return null;
+          return {
+            id: String(mix.id ?? ''),
+            title: String(mix.title ?? 'Daily Mix'),
+            subtitle: String(mix.subtitle ?? ''),
+            artworkUrl: String(mix.artworkUrl ?? tracks[0].artworkUrl ?? ''),
+            tracks,
+          };
+        })
+        .filter(Boolean) as DailyMix[];
+    } catch {
+      return [];
+    }
+  },
+
+  getRadio: async (trackId: string, limit = 20): Promise<{ seed: unknown; tracks: Track[] }> => {
+    try {
+      const raw = await api.get<Record<string, unknown>>('/recommendations/radio', {
+        params: { track_id: trackId, limit: String(limit) },
+      });
+      const tracks = Array.isArray(raw?.tracks) ? normalizeTracks(raw.tracks) : [];
+      return { seed: raw?.seed ?? null, tracks };
+    } catch {
+      return { seed: null, tracks: [] };
+    }
+  },
 };
+
+export interface DailyMix {
+  id: string;
+  title: string;
+  subtitle: string;
+  artworkUrl: string;
+  tracks: Track[];
+}

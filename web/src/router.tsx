@@ -7,6 +7,8 @@ import Library from '@/pages/library/Library'
 import Downloads from '@/pages/downloads/Downloads'
 import Settings from '@/pages/settings/Settings'
 import Profile from '@/pages/profile/Profile'
+import ListeningStats from '@/pages/stats/ListeningStats'
+import Wrapped from '@/pages/wrapped/Wrapped'
 import NowPlaying from '@/pages/nowplaying/NowPlaying'
 import Playlist from '@/pages/playlist/Playlist'
 import Album from '@/pages/album/Album'
@@ -38,6 +40,8 @@ export const router = createBrowserRouter([
       { path: 'downloads',        element: <Downloads /> },
       { path: 'settings',         element: <Settings /> },
       { path: 'profile',          element: <Profile /> },
+      { path: 'stats',            element: <ListeningStats /> },
+      { path: 'wrapped',          element: <Wrapped /> },
       { path: 'playlist/:id',     element: <Playlist /> },
       { path: 'album/:id',        element: <Album /> },
       { path: 'artist/:id',       element: <Artist /> },

@@ -26,6 +26,7 @@ class SignalType(str, Enum):
     REPEAT          = "repeat"           # User replayed a track
     LIKE            = "like"             # User liked a track
     UNLIKE          = "unlike"           # User unliked a track
+    DISLIKE         = "dislike"          # Explicit dislike / hide — strong negative
     ADD_TO_PLAYLIST = "add_to_playlist"  # Track added to a playlist
     REMOVE_PLAYLIST = "remove_playlist"  # Track removed from a playlist
     SEARCH          = "search"           # User searched for something

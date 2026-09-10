@@ -30,6 +30,7 @@ log = structlog.get_logger()
 
 _history_lock = asyncio.Lock()
 _liked_lock   = asyncio.Lock()
+_disliked_lock = asyncio.Lock()
 
 HISTORY_MAX = 200
 
@@ -45,6 +46,10 @@ def _history_file(user_id: str) -> Path:
 
 def _liked_file(user_id: str) -> Path:
     return Path(settings.MUSIC_DIR) / f".liked-{_user_digest(user_id)}.json"
+
+
+def _disliked_file(user_id: str) -> Path:
+    return Path(settings.MUSIC_DIR) / f".disliked-{_user_digest(user_id)}.json"
 
 
 def _read_json(path: Path):
@@ -118,3 +123,31 @@ async def unlike_local(user_id: str, track_id: str) -> list[str]:
         liked = [str(i) for i in _read_json(_liked_file(user_id)) if str(i) != track_id]
         _write_json(_liked_file(user_id), liked)
         return liked
+
+
+# ── Disliked (hidden) tracks ──────────────────────────────────
+
+
+async def read_disliked_local(user_id: str) -> list[str]:
+    """The user's locally hidden track ids."""
+    async with _disliked_lock:
+        return [str(i) for i in _read_json(_disliked_file(user_id))]
+
+
+async def dislike_local(user_id: str, track_id: str) -> list[str]:
+    """Add a track to the user's hidden set. Also unlikes it — a hidden
+    track must not stay in Liked songs."""
+    async with _disliked_lock:
+        disliked = [str(i) for i in _read_json(_disliked_file(user_id))]
+        if track_id not in disliked:
+            disliked.insert(0, track_id)
+        _write_json(_disliked_file(user_id), disliked)
+    await unlike_local(user_id, track_id)
+    return disliked
+
+
+async def undislike_local(user_id: str, track_id: str) -> list[str]:
+    async with _disliked_lock:
+        disliked = [str(i) for i in _read_json(_disliked_file(user_id)) if str(i) != track_id]
+        _write_json(_disliked_file(user_id), disliked)
+        return disliked

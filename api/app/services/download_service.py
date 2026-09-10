@@ -473,6 +473,22 @@ async def _download_task(
         await ws_manager.emit_download_done(job_id, str(file_path))
         log.info('download.done', job_id=job_id, path=str(file_path))
 
+        # Stable-identity bridge: link this file to its YouTube id so search
+        # results show isDownloaded, /tracks/{videoId} resolves locally, and
+        # the frontend can dedupe the two namespaces.
+        try:
+            from app.services.metadata_service import _file_id
+            from app.services import track_identity
+            track_identity.record(
+                video_id=job.get('trackId', ''),
+                file_id=_file_id(file_path),
+                title=job.get('title', ''),
+                artist=job.get('artist', ''),
+                file_path=str(file_path),
+            )
+        except Exception as e:
+            log.warning('download.identity.record.failed', job_id=job_id, error=str(e))
+
         # Invalidate the stream cache so the new file is found on the very
         # next play request without requiring a server restart.
         # NOTE: module is stream_router (not stream) — the wrong import below

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Mail, Calendar, Music2, Clock, Heart, TrendingUp,
   ChevronRight, LogOut, Settings, Palette, HardDrive,
-  Pencil, Check, X, Shield, BarChart3,
+  Pencil, Check, X, Shield, BarChart3, Flame, Award,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-react'
@@ -330,6 +330,8 @@ export default function Profile() {
             <ProfileStat icon={Clock} label="Hours" value={stats?.estimated_listening_hours ?? 0} />
             <ProfileStat icon={BarChart3} label="7-day plays" value={stats?.plays_7d ?? 0} />
             <ProfileStat icon={Calendar} label="Active days" value={stats?.active_days_30d ?? 0} />
+            <ProfileStat icon={Flame} label="Day streak" value={stats?.current_streak ?? 0} color="bg-orange-500/10" />
+            <ProfileStat icon={Award} label="Best streak" value={stats?.longest_streak ?? 0} color="bg-amber-500/10" />
           </div>
         </motion.div>
 
@@ -343,7 +345,8 @@ export default function Profile() {
             Quick access
           </p>
           <div className="bg-[var(--bg-surface)] rounded-[18px] overflow-hidden divide-y divide-[var(--border)]/40 border border-[var(--border)]/30">
-            <QuickLink icon={BarChart3} label="Listening stats" description="Detailed charts and insights" to="/settings" color="#8B5CF6" />
+            <QuickLink icon={BarChart3} label="Listening stats" description="Detailed charts and insights" to="/stats" color="#8B5CF6" />
+            <QuickLink icon={TrendingUp} label="Your year in review" description="Your personal Wrapped" to="/wrapped" color="#EC4899" />
             <QuickLink icon={Palette} label="Appearance" description="Theme, accent, transparency" to="/settings" color="#3B82F6" />
             <QuickLink icon={HardDrive} label="Storage" description="Music directories, cache" to="/settings" color="#F97316" />
             <QuickLink icon={Shield} label="Privacy" description="History, data, legal" to="/settings" color="#6B7280" />
