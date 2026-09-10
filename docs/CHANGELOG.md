@@ -6,9 +6,14 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
-## v2.17.2
+## v2.17.3
 
-Polish pass on the frontend shell and navigation behavior.
+Search, recommendations, and playback UX refinements.
+
+- fix(web): debounce the on-search-onboarding artist picker so rapid taps no longer fire duplicate search requests through the API.
+- fix(web): improve the playlist add-to-queue picker so search results inside the queue panel mark already-queued tracks instead of silently duplicating them.
+- fix(api): tighten the search-service deduplication so identical queries from different tabs return a stable cached result without re-fetching the provider.
+- ci: extend the CI gates so a frontend build warning now fails the workflow instead of silently shipping.
 
 - fix(web): resolve the Android back-button regression so the navigation stack unwinds to the correct route instead of over-closing into the root layout; preserves forward history where expected.
 - fix(web): make the floating pill nav resize correctly when the player bar is toggled so the pill never overlaps the controls on narrow viewports.
