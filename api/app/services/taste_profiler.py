@@ -41,6 +41,7 @@ WEIGHTS = {
     "skip":          -1.5,    # Skipping is a strong negative signal
     "like":           4.0,    # Explicit like is very strong
     "unlike":        -3.0,    # Explicit unlike is very strong negative
+    "dislike":       -5.0,    # Explicit dislike/hide is the strongest negative
     "repeat":         2.0,    # Replaying shows extra interest
     "add_to_playlist": 3.0,   # Adding to playlist is strong intent
     "queue_add":      1.5,    # Adding to queue is moderate interest

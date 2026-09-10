@@ -11,6 +11,8 @@ import { AddToPlaylistSheet } from "@/components/playlist/AddToPlaylistSheet";
 import { TrackContextMenu } from "@/components/track/TrackContextMenu";
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
+import { usePlayerSync } from "@/hooks/playerSync.hook";
+import OnboardingGate from "@/components/onboarding/OnboardingGate";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,6 +33,9 @@ import { cn } from "@/lib/utils";
  */
 
 export default function RootLayout() {
+   // Cross-device playback sync (this tab ⇄ the account's other devices)
+   usePlayerSync();
+
    const hasTrack = usePlayerStore(s => s.currentTrack !== null);
    const navPosition = useUIStore(s => s.navPosition);
 
@@ -135,6 +140,9 @@ export default function RootLayout() {
 
             {/* ── Universal track context menu (right-click / long-press) ── */}
             <TrackContextMenu />
+
+            {/* ── Taste onboarding (pick-your-artists) ──────── */}
+            <OnboardingGate />
          </div>
       </Toaster>
    );

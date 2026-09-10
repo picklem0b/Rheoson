@@ -99,6 +99,24 @@ export const tracksApi = {
       }
    },
 
+   // ── Dislike / hide (feedback loop) ───────────────────────
+
+   dislikeTrack: async (id: string) => {
+      try {
+         return await api.postQueued<{ disliked: boolean; count: number }>(`/tracks/${id}/dislike`);
+      } catch {
+         return { disliked: true, count: 0 };
+      }
+   },
+
+   undislikeTrack: async (id: string) => {
+      try {
+         return await api.deleteQueued<{ disliked: boolean; count: number }>(`/tracks/${id}/dislike`);
+      } catch {
+         return { disliked: false, count: 0 };
+      }
+   },
+
    getLiked: async (): Promise<Track[]> => {
       // 1. Get liked IDs from local DB
       const likedIds = await likedStore.getAll();

@@ -1,6 +1,6 @@
 [project]
 name = "rheoson-api"
-version = "2.11.0"
+version = "2.16.4"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.103.2,<0.112",

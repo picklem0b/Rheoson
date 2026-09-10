@@ -283,7 +283,35 @@ export function normalizePlaylist(raw: unknown): Playlist {
 /** Normalize an array of tracks, filtering out invalid records. */
 export function normalizeTracks(raw: unknown[]): Track[] {
    if (!Array.isArray(raw)) return []
-   return raw.map(normalizeTrack).filter(t => t.id && !t.id.startsWith('unknown-') || t.title !== 'Unknown Track')
+   const tracks = raw.map(normalizeTrack).filter(t => t.id && !t.id.startsWith('unknown-') || t.title !== 'Unknown Track')
+   return dedupeTracks(tracks)
+}
+
+/**
+ * Deduplicate tracks that represent the same song under two identities.
+ *
+ * A downloaded song exists twice in the wild: once as its YouTube videoId
+ * (search/liked/history) and once as its local file id (library index). The
+ * stable-identity bridge on the backend attaches `youtubeId` to local entries,
+ * so when both appear in one list we drop the non-downloaded copy — the
+ * downloaded one carries the same metadata plus local playback.
+ */
+export function dedupeTracks(tracks: Track[]): Track[] {
+   const seen = new Map<string, Track>()
+   for (const t of tracks) {
+      const key = t.youtubeId || t.id
+      if (!key) {
+         seen.set(t.id, t)
+         continue
+      }
+      const existing = seen.get(key)
+      if (!existing) {
+         seen.set(key, t)
+      } else if (t.isDownloaded && !existing.isDownloaded) {
+         seen.set(key, t)  // prefer the local copy
+      }
+   }
+   return Array.from(seen.values())
 }
 
 /** Normalize an array of playlists. */
