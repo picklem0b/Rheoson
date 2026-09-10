@@ -6,9 +6,14 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
-## v2.17.5
+## v2.17.6
 
-Download pipeline reliability and temporary-file hygiene.
+Wrapped release polish, recommendations closure, and production-readiness pass.
+
+- feat(web): complete the Wrapped year-in-review polish so the hero, stats tiles, and taste summary all resolve with the real listening data instead of showing the coming-soon stub.
+- feat(api): close the recommendation gap so the For-you, Discover, and Daily Mix rails no longer render empty when the standalone trending source is missing; the taste profiler now carries genre affinity from per-artist play stats.
+- fix(api): finalize the production-readiness pass so the health diagnostics endpoint surfaces a useful instance snapshot (uptime, yt-dlp/ffmpeg versions, config validation, recent 5xx) without leaking internals.
+- docs: confirm the docs system is live and the CI test gates are on both main and dev.
 
 - fix(api): harden the download worker so a cancelled or failed job no longer leaves an orphaned staging directory; the cleanup path now removes the job temp root even on hard process-kill paths.
 - fix(api): restore the download job persisted store so server restarts no longer blank out the in-flight activity feed; completed jobs survive, in-flight jobs are marked errored.
