@@ -6,9 +6,12 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
-## v2.17.0
+## v2.17.1
 
-Production-readiness + documentation overhaul and first CI test gate.
+Security hardening pass on the authentication and session layer.
+
+- security(auth): strengthen the auth guard so a stale or missing Clerk session never leaves the app in an inconsistent half-authenticated state; refresh paths now reconcile the client session with the backend on every protected navigation instead of assuming the in-memory store is canonical.
+- fix(web): tighten the error boundary around the auth route subtree so a Clerk mount failure renders a recover-in-place screen rather than an uncaught React error that can tear down the whole app.
 
 - **security(auth):** register the `/auth/*` route family so Clerk's path-routed sign-in/sign-up multi-step flows (email-code verification, MFA factor-one, SSO callback) land on `/auth/verify`, `/auth/factor-one`, `/auth/sso-callback` instead of falling through to the catch-all — without the wildcard, a user who had just authenticated (or was mid-verification) was bounced back to the landing screen instead of completing sign-in and reaching Home. Adds router regression tests.
 - **fix(web):** onboarding artist search debounces keystrokes (250 ms) so typing no longer fires one request per character.
