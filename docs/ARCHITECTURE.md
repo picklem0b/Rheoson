@@ -182,4 +182,4 @@ Tunable values live in `api/app/core/config.py`:
 - **Recommendations** — taste profile with genre affinity, Daily Mix, Radio, dislike/hide; cross-device playback sync via authenticated WebSocket with newest-wins conflict handling.
 - **Onboarding/guarded routing** — `OnboardingGate` + Clerk `routing="path"` at `/auth`; the router registers `/auth/*` so Clerk's multi-step flows (verify, factor-one, SSO callback) complete on sub-paths instead of bouncing back to Landing.
 
-*Last verified against `main`: 2026-09-10 (v2.17.1, tag `v2.17.1`).*
+*Last verified against `main`: 2026-09-10 (v2.17.2, tag `v2.17.2`).*

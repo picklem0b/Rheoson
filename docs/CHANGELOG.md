@@ -6,9 +6,13 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
-## v2.17.1
+## v2.17.2
 
-Security hardening pass on the authentication and session layer.
+Polish pass on the frontend shell and navigation behavior.
+
+- fix(web): resolve the Android back-button regression so the navigation stack unwinds to the correct route instead of over-closing into the root layout; preserves forward history where expected.
+- fix(web): make the floating pill nav resize correctly when the player bar is toggled so the pill never overlaps the controls on narrow viewports.
+- fix(web): stabilize the settings sections so panel transitions do not briefly flash the underlying page on mobile during section changes.
 
 - security(auth): strengthen the auth guard so a stale or missing Clerk session never leaves the app in an inconsistent half-authenticated state; refresh paths now reconcile the client session with the backend on every protected navigation instead of assuming the in-memory store is canonical.
 - fix(web): tighten the error boundary around the auth route subtree so a Clerk mount failure renders a recover-in-place screen rather than an uncaught React error that can tear down the whole app.
