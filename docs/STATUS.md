@@ -44,4 +44,4 @@ One row per user-visible feature. Labels: **Implemented** (shipped, tested), **P
 
 ---
 
-*Last verified against `main`: 2026-09-10 (v2.17.2).*
+*Last verified against `main`: 2026-09-10 (v2.17.3).*
