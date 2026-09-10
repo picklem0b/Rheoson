@@ -6,9 +6,13 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
-## v2.17.3
+## v2.17.4
 
-Search, recommendations, and playback UX refinements.
+Cross-device sync hardening and library consistency fixes.
+
+- fix(api): stabilize the cross-device playback sync channel so reconnects no longer drop the in-flight position update; newest-wins conflict handling now keeps the live device authoritative for the current playhead.
+- fix(api): make the library scan idempotent so the same track sourced from different directories no longer creates duplicate local entries after a rescan.
+- fix(web): ensure the offline playback indicator reflects the real fallback state when MongoDB is unavailable so the UI never implies live streaming in local-only mode.
 
 - fix(web): debounce the on-search-onboarding artist picker so rapid taps no longer fire duplicate search requests through the API.
 - fix(web): improve the playlist add-to-queue picker so search results inside the queue panel mark already-queued tracks instead of silently duplicating them.
