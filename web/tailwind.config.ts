@@ -30,6 +30,19 @@ export default {
         primary:   '#FFFFFF',
         secondary: '#A3A3A3',
         muted:     '#525252',
+
+        // Semantic aliases — the shared UI kit (components/New-Components)
+        // is authored against these names, so they resolve to the same
+        // palette as the hand-rolled surfaces above rather than a second one.
+        foreground:       '#FFFFFF',
+        card:             '#111111',
+        popover:          '#1A1A1A',
+        accent:           '#1A1A1A',
+        'muted-foreground': '#A3A3A3',
+
+        // Accent used by the GitHub star button
+        star:      '#EAB308',
+        'star-glow': '#FACC15',
       },
 
       fontFamily: {

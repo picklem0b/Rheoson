@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from app.core.deps import get_current_user
 from app.services.search_service import search, resolve_url
-from app.services.ytmusic_service import get_suggestions
+from app.services.ytmusic_service import get_suggestions, CATEGORIES, category_meta
+from app.services import smart_search, weekly_cache
 from app.schemas.search_schema import SearchResultsSchema, ResolveResponseSchema
 
 router = APIRouter()
@@ -49,6 +50,68 @@ async def suggest_endpoint(
     if len(q) < 2:
         return []
     return await get_suggestions(q)
+
+
+@router.get("/categories")
+async def list_categories(_user: dict = Depends(get_current_user)) -> dict:
+    """Category tiles for the browse grid, with the current cache week.
+
+    Served from the backend so the grid, the weekly refresher and the smart
+    search's category intent can never disagree about which categories exist.
+    """
+    return {
+        "week":       weekly_cache.current_bucket(),
+        "categories": CATEGORIES,
+    }
+
+
+@router.get("/categories/{slug}/top")
+async def category_top(
+    slug: str,
+    limit: int = Query(5, ge=1, le=20),
+    _user: dict = Depends(get_current_user),
+) -> dict:
+    """The best songs in one category, refreshed weekly and cached on disk."""
+    meta = category_meta(slug)
+    if meta is None:
+        raise HTTPException(status_code=404, detail=f"Unknown category: {slug}")
+
+    async def produce():
+        from app.services.ytmusic_service import get_category_top
+
+        tracks = await get_category_top(slug, limit=limit)
+        if not tracks:
+            return None
+        return {"week": weekly_cache.current_bucket(), "tracks": tracks}
+
+    data = await weekly_cache.get_or_set(f"category:{slug}:{limit}", produce)
+    if not data:
+        return {"week": weekly_cache.current_bucket(), "category": meta, "tracks": []}
+    return {**data, "category": meta}
+
+
+class SmartSearchRequest(BaseModel):
+    query: str
+    # Free-form context about what the app is currently doing. Only the
+    # current track matters today, but the shape is open so more context
+    # (page, queue, last action) can be added without a breaking change.
+    context: dict | None = None
+
+
+@router.post("/smart")
+async def smart_search_endpoint(
+    body: SmartSearchRequest,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Natural-language search that understands what's playing.
+
+    Turns "more like this", "top 5 hip-hop this week" or "download that song
+    by X" into a labelled answer plus real, playable tracks.
+    """
+    query = _sanitize_query(body.query)
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    return await smart_search.resolve(query, user["sub"], body.context or {})
 
 
 class ResolveRequest(BaseModel):

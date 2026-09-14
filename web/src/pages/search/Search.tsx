@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
    Search as SearchIcon,
@@ -11,7 +11,9 @@ import {
    TrendingUp,
    History,
    Trash2,
-   ListPlus
+   ListPlus,
+   Mic,
+   Sparkles
 } from "lucide-react";
 import { useSearch } from "@/hooks/search.hook";
 import { useQueue } from "@/hooks/queue.hook";
@@ -22,6 +24,8 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Spinner } from "@/components/ui/Spinner";
 import { SearchBar } from "./components/SearchBar";
 import { CategoryGrid, ResultSection } from "./components/CategoryGrid";
+import { SmartAnswer } from "./components/SmartAnswer";
+import { useSmartSearch } from "@/hooks/smartSearch.hook";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import type { SearchHistoryEntry } from "@/hooks/useSearchHistory";
 import { usePlaylistMenuStore } from "@/store/playlistMenu.store";
@@ -335,6 +339,20 @@ export default function Search() {
    const { history, recordSearch, recordPlay, removeEntry, clearHistory } =
       useSearchHistory();
 
+   // Natural-language mode: submits through /search/smart with the currently
+   // playing track as context, so "more like this" means something.
+   const [askMode, setAskMode] = useState(false);
+   const {
+      result: smartResult,
+      isAsking,
+      error: smartError,
+      ask: askSmart,
+      clear: clearSmart,
+      voiceSupported,
+      isListening,
+      startVoice,
+   } = useSmartSearch();
+
    const inputType = query ? detectInputType(query) : "query";
    const hasResults =
       results &&
@@ -427,11 +445,77 @@ export default function Search() {
             <SearchBar
                query={query}
                onChange={setQuery}
-               onClear={clear}
-               onSubmit={handleSubmit}
-               isLoading={isLoading}
+               onClear={() => {
+                  clear();
+                  clearSmart();
+               }}
+               onSubmit={() => {
+                  if (askMode) {
+                     askSmart(query);
+                  } else {
+                     handleSubmit();
+                  }
+               }}
+               isLoading={isLoading || isAsking}
                suggestions={suggestions}
                onSelectSuggestion={selectSuggestion}
+            />
+
+            {/* ── Ask / voice row ─────────────────────────────
+                "Ask" routes the same input through the natural-language
+                endpoint, which understands what's playing. The mic is only
+                rendered where the platform actually exposes speech input. */}
+            <div className='flex items-center gap-2 -mt-0.5'>
+               <button
+                  onClick={() => {
+                     setAskMode(m => !m);
+                     if (askMode) clearSmart();
+                  }}
+                  aria-pressed={askMode}
+                  className={cn(
+                     'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all duration-200 border',
+                     askMode
+                        ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
+                        : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)]'
+                  )}>
+                  <Sparkles className='w-3 h-3' />
+                  Ask
+               </button>
+
+               {askMode && (
+                  <span className='text-[11px] text-[var(--text-muted)] truncate'>
+                     Try “more like this” or “top 5 hip-hop this week”
+                  </span>
+               )}
+
+               {voiceSupported && (
+                  <button
+                     onClick={() =>
+                        startVoice(text => {
+                           setQuery(text);
+                           setAskMode(true);
+                           askSmart(text);
+                        })
+                     }
+                     aria-label={isListening ? 'Stop listening' : 'Search by voice'}
+                     className={cn(
+                        'ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all duration-200',
+                        isListening
+                           ? 'bg-[var(--accent)] border-[var(--accent)] text-white animate-pulse'
+                           : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)]'
+                     )}>
+                     <Mic className='w-3 h-3' />
+                     {isListening ? 'Listening…' : 'Voice'}
+                  </button>
+               )}
+            </div>
+
+            <SmartAnswer
+               result={smartResult}
+               isAsking={isAsking}
+               error={smartError}
+               onPlay={(track, queue) => handlePlay(track, queue)}
+               onClear={clearSmart}
             />
 
             {/* Filter pills — only when there are results */}
@@ -515,7 +599,15 @@ export default function Search() {
                            Browse categories
                         </p>
                      </div>
-                     <CategoryGrid onSelect={cat => setQuery(cat)} />
+                     {/* "See everything in X" — drops the label into the
+                         normal search box, which the debounced hook picks up. */}
+                     <CategoryGrid
+                        onSelect={cat => {
+                           setAskMode(false);
+                           clearSmart();
+                           setQuery(cat);
+                        }}
+                     />
                   </motion.div>
                )}
 

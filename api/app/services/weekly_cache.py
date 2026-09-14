@@ -1,0 +1,126 @@
+"""Weekly-bucketed cache for chart-style data.
+
+Charts and category leaders change on a weekly cadence, but the upstream
+lookups (YouTube Music browse calls) are slow and rate-limited. This module
+keeps one entry per (bucket, key) on disk so:
+
+  - a given ISO week is fetched from upstream exactly once per key
+  - every request inside that week is served from the local file (instant)
+  - the cache survives restarts, which matters on Termux where the process is
+    restarted often
+  - when the week rolls over the stale entry is simply ignored, so the next
+    request refreshes it without any cron job
+
+Storage lives next to the music library (``MUSIC_DIR/.cache/weekly.json``), on
+the same volume as everything else Rheoson persists. Writes are atomic
+(temp file + replace) and serialized with an asyncio lock; a corrupt or
+unreadable file degrades to "no cache" rather than raising, because a cache
+failure must never break the feature it accelerates.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import structlog
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from app.core.config import settings
+
+log = structlog.get_logger()
+
+_lock = asyncio.Lock()
+
+# Keep the file from growing without bound: entries older than this many
+# buckets are dropped on write.
+_MAX_BUCKETS = 8
+
+
+def current_bucket() -> str:
+    """Cache bucket for the current week, e.g. ``2026-W37``.
+
+    ISO weeks start on Monday, which is what "refreshed weekly" means to a
+    user reading a chart.
+    """
+    now = datetime.now(timezone.utc)
+    year, week, _ = now.isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def _cache_file() -> Path:
+    return Path(settings.MUSIC_DIR) / ".cache" / "weekly.json"
+
+
+def _read_all() -> dict[str, Any]:
+    path = _cache_file()
+    try:
+        if not path.exists():
+            return {}
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_all(data: dict[str, Any]) -> None:
+    path = _cache_file()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        tmp.replace(path)
+    except Exception:
+        log.warning("weekly_cache.write_failed", path=str(path), exc_info=True)
+
+
+def _prune(data: dict[str, Any], keep_bucket: str) -> dict[str, Any]:
+    """Drop buckets that are no longer recent (keeps the file small)."""
+    buckets = sorted({k.split("|", 1)[0] for k in data})
+    if len(buckets) <= _MAX_BUCKETS:
+        return data
+    allowed = set(buckets[-_MAX_BUCKETS:])
+    allowed.add(keep_bucket)
+    return {k: v for k, v in data.items() if k.split("|", 1)[0] in allowed}
+
+
+async def get(key: str, bucket: str | None = None) -> Any | None:
+    """Return the cached value for this week, or None when absent."""
+    bucket = bucket or current_bucket()
+    async with _lock:
+        data = _read_all()
+    return data.get(f"{bucket}|{key}")
+
+
+async def set(key: str, value: Any, bucket: str | None = None) -> None:
+    """Store a value for the given week (defaults to the current one)."""
+    bucket = bucket or current_bucket()
+    async with _lock:
+        data = _read_all()
+        data[f"{bucket}|{key}"] = value
+        _write_all(_prune(data, bucket))
+
+
+async def get_or_set(key: str, producer, bucket: str | None = None) -> Any:
+    """Return the cached value, calling ``producer`` (async) on a miss.
+
+    A producer that raises or returns an empty/None value is NOT cached, so a
+    transient upstream failure doesn't poison the whole week.
+    """
+    cached = await get(key, bucket)
+    if cached is not None:
+        return cached
+
+    produced = await producer()
+    if produced:
+        await set(key, produced, bucket)
+    return produced
+
+
+async def clear() -> None:
+    """Drop the whole cache (used by the storage settings panel)."""
+    async with _lock:
+        _write_all({})

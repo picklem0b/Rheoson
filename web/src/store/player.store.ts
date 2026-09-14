@@ -19,8 +19,17 @@ interface PlayerStore {
     repeatMode: RepeatMode;
     isShuffled: boolean;
 
+    /**
+     * Set when a track is chosen by the user (or advanced by the queue) and
+     * consumed by the player hook, which starts playback automatically.
+     * Restoring a persisted track at boot deliberately leaves this false so
+     * the app never auto-plays before a user gesture (Android blocks it).
+     */
+    autoPlayPending: boolean;
+
     // Actions
-    setTrack: (track: Track | null) => void;
+    setTrack: (track: Track | null, opts?: { autoplay?: boolean }) => void;
+    consumeAutoPlay: () => boolean;
     setPlaying: (v: boolean) => void;
     setLoading: (v: boolean) => void;
     setProgress: (s: number) => void;
@@ -47,18 +56,28 @@ export const usePlayerStore = create<PlayerStore>()(
             isMuted: false,
             repeatMode: 'off',
             isShuffled: false,
+            autoPlayPending: false,
 
-            setTrack: track => {
+            setTrack: (track, opts) => {
                 set({
                     currentTrack: track,
                     isPlaying: false,
                     isLoading: false,
                     progress: 0,
                     duration: 0,
-                    savedProgress: 0
+                    savedProgress: 0,
+                    // Default true: every caller of setTrack outside of boot
+                    // restore is a user action or a queue advance.
+                    autoPlayPending: !!track && (opts?.autoplay ?? true)
                 });
                 // Prefetch stream URL for instant playback
                 if (track?.id) prefetchStream(track.id);
+            },
+
+            consumeAutoPlay: () => {
+                const pending = get().autoPlayPending;
+                if (pending) set({ autoPlayPending: false });
+                return pending;
             },
 
             setPlaying: v => set({ isPlaying: v }),
