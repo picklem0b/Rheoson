@@ -209,13 +209,51 @@ async def get_recently_played(user: dict = Depends(get_current_user)):
 
 
 @router.get('/trending', response_model=list[TrackSchema])
-async def get_trending(_user: dict = Depends(get_current_user)):
+async def get_trending(
+    limit: int = 20,
+    _user: dict = Depends(get_current_user),
+):
+    """Charts snapshot (fresh on every call, used by the live Trending rail)."""
     try:
         from app.services.ytmusic_service import get_trending as yt_trending
-        return await yt_trending()
+        return await yt_trending(limit=max(1, min(limit, 50)))
     except Exception as e:
         log.warning('tracks.trending.failed', error=str(e))
         return []
+
+
+# ── Weekly trending ────────────────────────────────────────────
+# Charts move slowly but the upstream browse call is expensive and rate
+# limited. This variant is cached per ISO week (see services/weekly_cache),
+# so the Home page's "top 3 this week" costs one upstream fetch per week and
+# is instant on every other request. `rank` and `playCount` are carried
+# through so the UI can show position and popularity without extra calls.
+
+
+@router.get('/trending/weekly')
+async def get_weekly_trending(
+    limit: int = 10,
+    _user: dict = Depends(get_current_user),
+):
+    from app.services import weekly_cache
+    from app.services.ytmusic_service import get_trending as yt_trending
+
+    limit = max(1, min(limit, 50))
+
+    async def produce():
+        tracks = await yt_trending(limit=limit)
+        if not tracks:
+            return None
+        return {
+            'week':   weekly_cache.current_bucket(),
+            'tracks': tracks,
+        }
+
+    data = await weekly_cache.get_or_set(f'trending:{limit}', produce)
+    if not data:
+        # Upstream failed and nothing was cached — return an empty, valid shape.
+        return {'week': weekly_cache.current_bucket(), 'tracks': []}
+    return data
 
 
 @router.delete('/history')

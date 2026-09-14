@@ -43,6 +43,7 @@ from app.routers import (
     recommendation_router,
 )
 from app.routers import equalizer_router, share_router, analytics_router, smart_playlist_router, clerk_webhook_router
+from app.routers import artist_router
 
 configure_logging()
 log = structlog.get_logger()
@@ -444,6 +445,9 @@ app.include_router(equalizer_router.router, prefix="/api/equalizer", tags=["equa
 app.include_router(share_router.router, prefix="/api/share", tags=["share"])
 app.include_router(analytics_router.router, prefix="/api/analytics", tags=["analytics"])
 app.include_router(smart_playlist_router.router, prefix="/api/smart-playlists", tags=["smart-playlists"])
+# Registered before the /api/artists/{artist_id} detail route further down so
+# the reserved /api/artists/following path is matched by this router first.
+app.include_router(artist_router.router,   prefix="/api/artists",  tags=["artists"])
 app.include_router(clerk_webhook_router.router, prefix="/api", tags=["webhooks"])
 
 

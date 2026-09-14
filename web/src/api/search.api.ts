@@ -13,6 +13,37 @@ export type ResolveResult =
    | { type: "playlist"; tracks: Track[]; title: string }
    | { type: "tracks"; tracks: Track[] };
 
+// ── Categories ────────────────────────────────────────────────
+
+export interface CategoryMeta {
+   slug: string;
+   label: string;
+   emoji: string;
+   gradient: string;
+}
+
+// ── Smart (natural-language) search ───────────────────────────
+
+export interface SmartSearchContext {
+   track_id?: string;
+   title?: string;
+   artist?: string;
+   /** Current route, e.g. "/library" — reserved for future intents. */
+   page?: string;
+}
+
+export interface SmartSearchResult {
+   intent: string;
+   label: string;
+   message: string;
+   tracks: Track[];
+   albums?: unknown[];
+   artists?: unknown[];
+   playlists?: unknown[];
+   category?: CategoryMeta | null;
+   week?: string | null;
+}
+
 // ── API ───────────────────────────────────────────────────────
 
 export const searchApi = {
@@ -35,7 +66,62 @@ export const searchApi = {
       }),
 
    resolve: (url: string, signal?: AbortSignal) =>
-      api.post<ResolveResult>("/search/resolve", { url }, { signal })
+      api.post<ResolveResult>("/search/resolve", { url }, { signal }),
+
+   /** Category tiles (backend-owned so they can't drift from the API). */
+   getCategories: async (): Promise<{ week: string; categories: CategoryMeta[] }> => {
+      const raw = await api.get<{ week?: string; categories?: CategoryMeta[] }>(
+         "/search/categories"
+      );
+      return {
+         week: raw?.week ?? "",
+         categories: Array.isArray(raw?.categories) ? raw.categories : [],
+      };
+   },
+
+   /** Top tracks for one category, refreshed weekly and cached server-side. */
+   getCategoryTop: async (
+      slug: string,
+      limit = 5
+   ): Promise<{ week: string; category: CategoryMeta | null; tracks: Track[] }> => {
+      const raw = await api.get<{
+         week?: string;
+         category?: CategoryMeta;
+         tracks?: unknown[];
+      }>(`/search/categories/${encodeURIComponent(slug)}/top`, {
+         params: { limit },
+      });
+      return {
+         week: raw?.week ?? "",
+         category: raw?.category ?? null,
+         tracks: normalizeTracks(raw?.tracks ?? []),
+      };
+   },
+
+   /**
+    * Natural-language search with context about what the app is playing.
+    * Powers "more like this", "top 5 hip-hop this week", "songs by X"…
+    */
+   smartSearch: async (
+      query: string,
+      context: SmartSearchContext = {},
+      signal?: AbortSignal
+   ): Promise<SmartSearchResult> => {
+      const raw = await api.post<
+         Omit<SmartSearchResult, "tracks"> & { tracks?: unknown[] }
+      >("/search/smart", { query, context }, { signal });
+      return {
+         intent: raw?.intent ?? "search",
+         label: raw?.label ?? "Results",
+         message: raw?.message ?? "",
+         tracks: normalizeTracks(raw?.tracks ?? []),
+         albums: raw?.albums ?? [],
+         artists: raw?.artists ?? [],
+         playlists: raw?.playlists ?? [],
+         category: raw?.category ?? null,
+         week: raw?.week ?? null,
+      };
+   },
 };
 
 // ── Normalise resolve result → Track[] ────────────────────────
