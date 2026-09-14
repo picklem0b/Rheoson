@@ -1,75 +1,50 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, Music, Headphones, Download, WifiOff } from 'lucide-react'
+import { ArrowRight, Music } from 'lucide-react'
 import { useAuth } from '@clerk/clerk-react'
 import { useAuthStore } from '@/store/auth.store'
-import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
-
-const features = [
-  {
-    icon: Headphones,
-    title: 'Stream anything',
-    description: 'Search YouTube Music and play any song instantly — no subscription needed.',
-    color: 'from-violet-500 to-fuchsia-500',
-  },
-  {
-    icon: Download,
-    title: 'Download & own',
-    description: 'Save tracks locally as MP3, FLAC, or any format. Listen offline, forever.',
-    color: 'from-blue-500 to-cyan-500',
-  },
-  {
-    icon: WifiOff,
-    title: 'Works offline',
-    description: 'Your library, playlists, and queue — all available without an internet connection.',
-    color: 'from-emerald-500 to-teal-500',
-  },
-]
+import { CLERK_PUBLISHABLE_KEY, APP_NAME } from '@/lib/constants'
 
 /**
- * Landing page — public marketing / entry screen shown to signed-out users.
+ * Entry screen for signed-out users.
  *
- * The flow is strictly one-way: Landing → /auth (Clerk's own UI) → Home.
- * There are no sign-in/sign-up buttons here — a single "Continue with…"
- * button hands off to Clerk, which renders its own provider buttons.
+ * Deliberately minimal: one button, one destination. There is no separate
+ * sign-in / sign-up choice — Clerk's own flow handles both and lets the user
+ * switch between them, so mirroring that choice here only added a step.
+ *
+ * Flow: this screen → /auth (Clerk) → Home.
  */
 export default function Landing() {
-  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
-  return clerkEnabled ? <ClerkGate /> : <LandingBody clerkEnabled={false} />
+  return CLERK_PUBLISHABLE_KEY ? <ClerkGate /> : <GateBody clerkEnabled={false} />
 }
 
-/**
- * Renders inside ClerkProvider only — safe to call Clerk hooks here.
- * The only redirect is a one-way escape for the standalone /landing route:
- * at "/" the AuthGuard already routes signed-in users into the app, and
- * navigating here too is what caused the landing ⇄ auth redirect loop.
- */
+/** Renders inside ClerkProvider only — safe to call Clerk hooks here. */
 function ClerkGate() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isLoaded, isSignedIn } = useAuth()
   const authed = isLoaded && isSignedIn
 
+  // One-way escape so /landing never traps an already signed-in user:
+  // at "/" the AuthGuard already routes them into the app.
   useEffect(() => {
     if (authed && location.pathname === '/landing') {
       navigate('/', { replace: true })
     }
   }, [authed, location.pathname, navigate])
 
-  return <LandingBody clerkEnabled authed={authed} />
+  return <GateBody clerkEnabled authed={authed} />
 }
 
-interface LandingBodyProps {
+interface GateBodyProps {
   clerkEnabled: boolean
   authed?: boolean
 }
 
-function LandingBody({ clerkEnabled, authed = false }: LandingBodyProps) {
+function GateBody({ clerkEnabled, authed = false }: GateBodyProps) {
   const navigate = useNavigate()
-
-  // Local-mode store check (no Clerk) — if a stored session exists, go home.
-  const { isAuthenticated } = useAuthStore()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const effectiveAuthed = clerkEnabled ? authed : isAuthenticated
 
   useEffect(() => {
@@ -79,98 +54,48 @@ function LandingBody({ clerkEnabled, authed = false }: LandingBodyProps) {
   if (effectiveAuthed) return null
 
   return (
-    <div className="min-h-screen bg-[var(--bg-base)] overflow-hidden">
-      {/* ── Hero ──────────────────────────────────────────────── */}
-      <div className="relative px-6 pt-16 pb-20 max-w-2xl mx-auto text-center">
-        {/* Background glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[var(--accent)] opacity-[0.07] rounded-full blur-[120px] pointer-events-none" />
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-[var(--bg-base)] px-6">
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute top-1/2 left-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--accent)] opacity-[0.08] blur-[120px]" />
 
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
+        className="relative flex w-full max-w-xs flex-col items-center text-center"
+      >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.08, type: 'spring', damping: 20 }}
+          className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--accent)] shadow-lg shadow-[var(--accent)]/25"
         >
-          {/* Logo */}
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1, type: 'spring', damping: 20 }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-[var(--accent)] shadow-lg shadow-[var(--accent)]/20 mb-8"
-          >
-            <Music className="w-10 h-10 text-white" />
-          </motion.div>
-
-          <h1 className="text-5xl sm:text-6xl font-black text-[var(--text-primary)] tracking-tight leading-[1.1]">
-            Your music.
-            <br />
-            <span className="bg-gradient-to-r from-[var(--accent)] to-purple-400 bg-clip-text text-transparent">
-              Your rules.
-            </span>
-          </h1>
-
-          <p className="mt-5 text-lg text-[var(--text-muted)] max-w-md mx-auto leading-relaxed">
-            Stream from YouTube, download to your device, and listen offline.
-            No subscription. No ads. No limits.
-          </p>
-
-          {/* Single CTA — hands off to Clerk's own auth UI (/auth) */}
-          <motion.div
-            className="mt-8 flex flex-col items-center gap-3"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/auth')}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-[var(--accent)] text-white font-bold text-lg shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/30 transition-shadow"
-            >
-              Continue with…
-              <ArrowRight className="w-5 h-5" />
-            </motion.button>
-
-            {clerkEnabled ? (
-              <p className="text-xs text-[var(--text-muted)]/60">
-                Sign in or create an account — free, no subscription
-              </p>
-            ) : (
-              <p className="text-xs text-[var(--text-muted)]/60">
-                Local mode — no account needed
-              </p>
-            )}
-          </motion.div>
+          <Music className="h-8 w-8 text-white" />
         </motion.div>
-      </div>
 
-      {/* ── Features ─────────────────────────────────────────── */}
-      <div className="px-6 pb-20 max-w-2xl mx-auto">
-        <div className="space-y-4">
-          {features.map((feature, i) => (
-            <motion.div
-              key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + i * 0.1 }}
-              className="flex items-start gap-4 p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)]/30"
-            >
-              <div
-                className={`w-11 h-11 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center flex-shrink-0`}
-              >
-                <feature.icon className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-[var(--text-primary)]">
-                  {feature.title}
-                </h3>
-                <p className="text-sm text-[var(--text-muted)] mt-0.5">
-                  {feature.description}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+        <h1 className="text-3xl font-black tracking-tight text-[var(--text-primary)]">
+          {APP_NAME}
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+          Stream from YouTube Music, download to your device, and listen offline.
+        </p>
+
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => navigate('/auth')}
+          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--accent)] px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-[var(--accent)]/25 transition-shadow hover:shadow-xl hover:shadow-[var(--accent)]/35"
+        >
+          Continue with Clerk
+          <ArrowRight className="h-4 w-4" />
+        </motion.button>
+
+        <p className="mt-3 text-[11px] text-[var(--text-muted)]/70">
+          {clerkEnabled
+            ? 'Sign in or create an account — free, no subscription'
+            : 'Local mode — no account needed'}
+        </p>
+      </motion.div>
     </div>
   )
 }
