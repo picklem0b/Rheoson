@@ -21,6 +21,17 @@ import { artworkUrl as proxyArtwork } from '@/lib/constants'
 // ── Artwork proxy helper ────────────────────────────────────
 // Routes YouTube/Spotify CDN artwork through the API server to avoid
 // CORS issues on the APK. Local /api/stream/* URLs pass through unchanged.
+/**
+ * Normalize an artist *without* recursing into its related artists.
+ * `normalizeArtist` maps `related` through itself; YTMusic's related entries
+ * carry no nested `related`, but a malformed payload could, so the shallow
+ * pass below is the recursion guard.
+ */
+function _normalizeRelatedArtist(raw: unknown): Artist {
+   const base = normalizeArtist(raw)
+   return { ...base, related: [] }
+}
+
 function _proxyArtwork(trackId: string, url: string): string {
    if (!url) return ''
    if (url.startsWith('/api/')) return url
@@ -41,6 +52,8 @@ const DEFAULT_ARTIST: Artist = {
    subscribers: '',
    topTracks: [],
    albums: [],
+   singles: [],
+   related: [],
 }
 
 const DEFAULT_ALBUM: Album = {
@@ -76,6 +89,8 @@ export function normalizeArtist(raw: unknown): Artist {
          subscribers: '',
          topTracks: [],
          albums: [],
+         singles: [],
+         related: [],
       }
    }
 
@@ -91,7 +106,15 @@ export function normalizeArtist(raw: unknown): Artist {
          description: typeof a.description === 'string' ? a.description : '',
          subscribers: typeof a.subscribers === 'string' ? a.subscribers : '',
          topTracks: Array.isArray(a.topTracks) ? a.topTracks.map(normalizeTrack) : [],
-         albums: Array.isArray(a.albums) ? a.albums : [],
+         albums: Array.isArray(a.albums)
+            ? (a.albums as unknown[]).map(normalizeAlbum)
+            : [],
+         singles: Array.isArray(a.singles)
+            ? (a.singles as unknown[]).map(normalizeAlbum)
+            : [],
+         related: Array.isArray(a.related)
+            ? (a.related as unknown[]).map(_normalizeRelatedArtist)
+            : [],
       }
    }
 
@@ -148,6 +171,7 @@ export function normalizeTrack(raw: unknown): Track {
          addedAt: '',
          trackNumber: 0,
          playCount: 0,
+         rank: 0,
       }
    }
 
@@ -201,6 +225,7 @@ export function normalizeTrack(raw: unknown): Track {
       addedAt: typeof t.addedAt === 'string' ? t.addedAt : '',
       trackNumber: typeof t.trackNumber === 'number' ? t.trackNumber : 0,
       playCount: typeof t.playCount === 'number' ? t.playCount : 0,
+      rank: typeof t.rank === 'number' ? t.rank : 0,
    }
 }
 
@@ -246,6 +271,7 @@ export function normalizePlaylist(raw: unknown): Playlist {
                addedAt: '',
                trackNumber: 0,
                playCount: 0,
+               rank: 0,
             }
          }
          return normalizeTrack(t)

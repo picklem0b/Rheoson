@@ -142,8 +142,12 @@ def invalidate_stream_cache() -> None:
 #   - TTL: 30 minutes per entry (stale entries are evicted on access)
 #   - Temp files live in system temp dir and are cleaned on eviction
 
-_REMOTE_CACHE_MAX = 30
-_REMOTE_CACHE_TTL = 30 * 60  # 30 minutes in seconds
+# Cache sizing is a latency setting, not just a memory one: a cache miss on
+# a remote track costs a full yt-dlp spawn (several seconds on Termux). A
+# 30-minute / 30-entry window meant going back to a song you played half an
+# hour ago paid that cost again.
+_REMOTE_CACHE_MAX = 60
+_REMOTE_CACHE_TTL = 6 * 60 * 60  # 6 hours in seconds
 
 _remote_cache: dict[str, dict] = {}  # track_id → {"path": Path, "ts": float}
 
@@ -236,7 +240,9 @@ def _artwork_cache_set(key: str, data: bytes) -> None:
 #     (or a burst of distinct remote tracks) cannot spawn unbounded
 #     subprocesses
 
-_REMOTE_FILL_LIMIT = 6
+# Raised from 6 so intent-prefetching from the UI (hover / press) doesn't
+# queue behind background fills and leave the first play waiting.
+_REMOTE_FILL_LIMIT = 8
 _SESSION_IDLE_TTL  = 600.0   # finished sessions are swept after 10 min idle
 _buffer_dir = Path("/tmp/Rheoson_stream_buffer")
 _buffer_dir.mkdir(parents=True, exist_ok=True)

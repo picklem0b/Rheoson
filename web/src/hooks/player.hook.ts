@@ -293,8 +293,9 @@ export function usePlayer() {
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
-                    // Route audio through the DSP graph (EQ/bass/mono/pre-amp/normalise)
-                    ensureEffectsChain();
+                    // Route audio through the DSP graph (EQ/bass/mono/pre-amp/normalise).
+                    // Wrapped so a graph problem can never skip the play() below.
+                    try { ensureEffectsChain(); } catch { /* direct output */ }
                     if (seekTo > 0) {
                         _howl?.seek(seekTo);
                         setProgress(seekTo);
@@ -306,7 +307,7 @@ export function usePlayer() {
                     // BUG #25: Ignore if generation has moved on
                     if (gen !== _generation) return;
                     // Ensure the DSP graph is attached (a rebuilt Howl has a new element)
-                    ensureEffectsChain();
+                    try { ensureEffectsChain(); } catch { /* direct output */ }
                     setPlaying(true);
                     setLoading(false);
                     const dur = _howl?.duration() ?? 0;
@@ -450,17 +451,28 @@ export function usePlayer() {
         [] // eslint-disable-line react-hooks/exhaustive-deps -- stable: all state accessed via refs or store.getState()
     );
 
-    // ── Resume after page reload ───────────────────────────────
-    // If currentTrack is rehydrated from localStorage but no Howl exists yet,
-    // reconstruct it silently at the saved position so the player is instantly
-    // ready when the user taps play — no starting from 0:00.
+    // ── React to the store's current track ─────────────────────
+    // Two distinct cases share this effect:
+    //
+    //   1. The user picked a track (or the queue advanced to one). The store
+    //      marks `autoPlayPending`, so we start playback immediately.
+    //   2. The app just booted with a rehydrated track. `autoPlayPending` is
+    //      false, so we rebuild the Howl silently at the saved position and
+    //      wait for the user to tap play — browsers (and especially Android)
+    //      block unprompted audio, so auto-playing here would just fail.
+    //
+    // Missing case 1 was why tapping a song loaded it but never produced
+    // sound until the play button was pressed.
 
     useEffect(() => {
         if (!currentTrack?.id) return;
         if (_loadedId === currentTrack.id) return;
 
-        const { savedProgress } = usePlayerStore.getState();
-        loadAndPlay(currentTrack.id, false, false, savedProgress);
+        const store = usePlayerStore.getState();
+        const shouldAutoPlay = store.consumeAutoPlay();
+        const seekTo = shouldAutoPlay ? 0 : store.savedProgress;
+
+        loadAndPlay(currentTrack.id, false, shouldAutoPlay, seekTo);
 
         return () => _stopTimer();
         // eslint-disable-next-line react-hooks/exhaustive-deps

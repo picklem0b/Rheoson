@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { IconButton } from '@/components/ui/IconButton'
 import { cn } from '@/lib/utils'
+import NotificationBell from '@/components/New-Components/Icons-and-Buttons/notification-bell'
+import { usePersisted } from '@/hooks/persisted.hook'
 
 interface TopBarProps {
   title?:       string
@@ -19,6 +21,11 @@ export default function TopBar({
   showLogo = false,
 }: TopBarProps) {
   const navigate = useNavigate()
+  // Master notification switch — shared with Settings → Notifications.
+  const [notificationsEnabled, setNotificationsEnabled] = usePersisted(
+    'notifications-enabled',
+    true
+  )
 
   return (
     <div className={cn(
@@ -52,7 +59,14 @@ export default function TopBar({
           }
         </>
       )}
-      {actions && <div className="flex items-center gap-2 ml-auto">{actions}</div>}
+      <div className="flex items-center gap-2 ml-auto">
+        {actions}
+        <NotificationBell
+          enabled={notificationsEnabled}
+          onChange={setNotificationsEnabled}
+          size={17}
+        />
+      </div>
     </div>
   )
 }

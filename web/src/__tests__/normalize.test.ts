@@ -5,8 +5,8 @@ import type { Track } from '@/types/index'
 const BASE: Track = {
    id: 'base-id',
    title: 'Never Gonna Give You Up',
-   artist: { id: 'a1', name: 'Rick Astley', imageUrl: '', genres: [], followers: 0, monthlyListeners: 0, description: '', subscribers: '', topTracks: [], albums: [] },
-   album: { id: '', title: '', artist: { id: '', name: '', imageUrl: '', genres: [], followers: 0, monthlyListeners: 0, description: '', subscribers: '', topTracks: [], albums: [] }, artworkUrl: '', releaseYear: 0, year: 0, trackCount: 0, tracks: [] },
+   artist: { id: 'a1', name: 'Rick Astley', imageUrl: '', genres: [], followers: 0, monthlyListeners: 0, description: '', subscribers: '', topTracks: [], albums: [], singles: [], related: [] },
+   album: { id: '', title: '', artist: { id: '', name: '', imageUrl: '', genres: [], followers: 0, monthlyListeners: 0, description: '', subscribers: '', topTracks: [], albums: [], singles: [], related: [] }, artworkUrl: '', releaseYear: 0, year: 0, trackCount: 0, tracks: [] },
    artworkUrl: '',
    duration: 212,
    streamUrl: '',
@@ -18,6 +18,7 @@ const BASE: Track = {
    addedAt: '',
    trackNumber: 0,
    playCount: 0,
+   rank: 0,
 }
 
 function track(overrides: Partial<Track>): Track {

@@ -106,9 +106,13 @@ export default function PlayerBar() {
             exit={{ y: 80, opacity: 0 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
             className='relative z-30 w-full px-2 pb-1 pt-0.5'>
-            {/* Floating rounded card */}
+            {/* Floating rounded card.
+                NOTE: intentionally NOT `overflow-hidden` — the card used to clip
+                the three-dot overflow menu (which opens upward from inside it),
+                so the menu was invisible behind the bar. The two absolutely
+                positioned decorations below carry their own clipping instead. */}
             <div
-               className='relative overflow-hidden rounded-3xl mx-1'
+               className='relative rounded-3xl mx-1'
                style={{
                   background:
                      "linear-gradient(135deg, rgba(17,17,17,0.92) 0%, rgba(10,10,10,0.95) 100%)",
@@ -121,13 +125,13 @@ export default function PlayerBar() {
                }}>
                {/* Subtle accent glow line at top when playing */}
                {isPlaying && (
-                  <div className='absolute top-0 inset-x-0 h-[1px]'>
+                  <div className='absolute top-0 inset-x-0 h-[1px] overflow-hidden rounded-t-3xl'>
                      <div className='w-full h-full bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-60' />
                   </div>
                )}
 
                {/* Thin progress line at very top of card */}
-               <div className='absolute top-0 inset-x-0'>
+               <div className='absolute top-0 inset-x-0 overflow-hidden rounded-t-3xl'>
                   <ProgressBar compact />
                </div>
 
@@ -236,7 +240,7 @@ export default function PlayerBar() {
                   </div>
 
                   {/* Three-dot overflow menu */}
-                  <div className='relative flex-shrink-0' ref={menuRef}>
+                  <div className='relative z-40 flex-shrink-0' ref={menuRef}>
                      <IconButton
                         size='sm'
                         variant='ghost'

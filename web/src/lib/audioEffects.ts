@@ -60,9 +60,33 @@ export const EQ_PRESETS: EQPreset[] = [
 ]
 
 // ── Graph state ───────────────────────────────────────────────
+//
+// ONE AudioContext for the whole app. The previous implementation built a new
+// context (and a new MediaElementSource) for every track, which capped a
+// session at roughly six tracks before `new AudioContext()` started failing —
+// and because the graph was wired inside Howl's `onload`, that throw also
+// swallowed the `play()` call, so playback just stopped happening.
+//
+// Routing rules:
+//   • one context, reused for every element
+//   • one MediaElementSource per <audio> element, memoised in a WeakMap
+//   • only the ACTIVE element stays connected to the chain (a stale element
+//     would otherwise keep feeding the graph after its Howl was unloaded)
+//   • if the context cannot run, we do not route at all — routing a media
+//     element through a suspended context silences it completely, so falling
+//     back to direct output (no EQ) is always better than no audio.
+
+interface Chain {
+  source: MediaElementAudioSourceNode
+  preAmp: GainNode
+  eqFilters: BiquadFilterNode[]
+  bass: BiquadFilterNode
+  comp: DynamicsCompressorNode
+  master: GainNode
+  analyser: AnalyserNode
+}
 
 let _ctx: AudioContext | null = null
-let _source: MediaElementAudioSourceNode | null = null
 let _analyser: AnalyserNode | null = null
 let _preAmp: GainNode | null = null
 let _eqFilters: BiquadFilterNode[] = []
@@ -70,6 +94,9 @@ let _bass: BiquadFilterNode | null = null
 let _comp: DynamicsCompressorNode | null = null
 let _master: GainNode | null = null
 let _el: HTMLAudioElement | null = null
+
+/** Memoised per-element source nodes — never construct two for one element. */
+const _chains = new WeakMap<HTMLAudioElement, Chain>()
 
 function readPref<T>(key: string, fallback: T): T {
   try {
@@ -82,27 +109,40 @@ function readPref<T>(key: string, fallback: T): T {
 
 const dbToGain = (db: number) => Math.pow(10, db / 20)
 
-// ── Chain construction (idempotent per element) ───────────────
+// ── Context + chain construction ──────────────────────────────
+
+/** The single shared AudioContext, created lazily. */
+function _getCtx(): AudioContext | null {
+  try {
+    if (!_ctx) {
+      const Ctor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext
+      if (!Ctor) return null
+      _ctx = new Ctor()
+    }
+    return _ctx
+  } catch {
+    // Browser cap reached or blocked by policy — run without effects.
+    _ctx = null
+    return null
+  }
+}
 
 /**
- * Attach the effects graph to the Howler <audio> element.
- * Safe to call repeatedly; returns the shared analyser (or null when no
- * element exists yet — e.g. nothing has played).
+ * Build the effects chain for one <audio> element inside the shared context.
+ * Called at most once per element (results are memoised).
  */
-export function ensureEffectsChain(el?: HTMLAudioElement | null): AnalyserNode | null {
-  const audio = el ?? document.querySelector<HTMLAudioElement>('audio[data-howler]')
-  if (!audio) return _analyser
-
-  if (_ctx && _source && _el === audio) return _analyser
-
-  _el = audio
-  const ctx = new AudioContext()
+function _buildChain(ctx: AudioContext, audio: HTMLAudioElement): Chain {
   const source = ctx.createMediaElementSource(audio)
+
   const analyser = ctx.createAnalyser()
   analyser.fftSize = 2048
   analyser.smoothingTimeConstant = 0.75
 
   const preAmp = ctx.createGain()
+
   const bass = ctx.createBiquadFilter()
   bass.type = 'lowshelf'
   bass.frequency.value = 120
@@ -139,20 +179,75 @@ export function ensureEffectsChain(el?: HTMLAudioElement | null): AnalyserNode |
   master.connect(analyser)
   analyser.connect(ctx.destination)
 
-  _ctx = ctx
-  _source = source
-  _analyser = analyser
-  _preAmp = preAmp
-  _eqFilters = eqFilters
-  _bass = bass
-  _comp = comp
-  _master = master
+  return { source, preAmp, eqFilters, bass, comp, master, analyser }
+}
 
-  applyFromStorage()
+/**
+ * Resume the shared context. Safe to call from a user-gesture handler —
+ * Android will only let an AudioContext start from one.
+ */
+export function unlockAudioContext(): void {
+  const ctx = _getCtx()
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {})
+}
 
-  // Resume when a user gesture is available (orchestrated by callers)
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-  return analyser
+/**
+ * Attach the effects graph to the Howler <audio> element.
+ *
+ * Safe to call repeatedly (on `load`, on `play`, from the visualizer) and
+ * never throws: when the graph cannot be built the element keeps playing
+ * straight to the speakers with no EQ rather than going silent.
+ */
+export function ensureEffectsChain(el?: HTMLAudioElement | null): AnalyserNode | null {
+  try {
+    const audio =
+      el ?? document.querySelector<HTMLAudioElement>('audio[data-howler]')
+    if (!audio) return _analyser
+
+    // Already routed and still active — nothing to do.
+    if (_el === audio && _analyser) return _analyser
+
+    const ctx = _getCtx()
+    if (!ctx) return _analyser
+
+    // A suspended context would silence a routed element completely. Resume
+    // and bail out of routing for now; the next call (once running) routes.
+    // Re-read through a function so TypeScript doesn't narrow the state away.
+    const isRunning = () => ctx.state === 'running'
+    if (!isRunning()) {
+      ctx.resume().catch(() => {})
+      if (!isRunning()) return _analyser
+    }
+
+    let chain = _chains.get(audio)
+    if (!chain) {
+      chain = _buildChain(ctx, audio)
+      _chains.set(audio, chain)
+    } else {
+      // Re-activating an element we routed before — re-attach its source.
+      try { chain.source.connect(chain.preAmp) } catch { /* already connected */ }
+    }
+
+    // Mute the previously active element so two tracks can never overlap.
+    if (_el && _el !== audio) {
+      const previous = _chains.get(_el)
+      try { previous?.source.disconnect() } catch { /* already detached */ }
+    }
+
+    _el = audio
+    _analyser = chain.analyser
+    _preAmp = chain.preAmp
+    _eqFilters = chain.eqFilters
+    _bass = chain.bass
+    _comp = chain.comp
+    _master = chain.master
+
+    applyFromStorage()
+    return _analyser
+  } catch {
+    // Never let the effects graph break playback.
+    return _analyser
+  }
 }
 
 // ── Live parameter setters ────────────────────────────────────
@@ -243,6 +338,8 @@ export function getSharedAudioNodes(): {
   analyser: AnalyserNode
 } | null {
   const analyser = ensureEffectsChain()
-  if (!analyser || !_ctx || !_source) return null
-  return { ctx: _ctx, source: _source, analyser }
+  if (!analyser || !_ctx || !_el) return null
+  const active = _chains.get(_el)
+  if (!active) return null
+  return { ctx: _ctx, source: active.source, analyser }
 }

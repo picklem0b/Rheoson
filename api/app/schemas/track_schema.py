@@ -14,6 +14,8 @@ class ArtistSchema(BaseModel):
     subscribers: str = ""
     topTracks: list = Field(default_factory=list)   # list[TrackSchema], lazy ref
     albums:    list = Field(default_factory=list)    # list[AlbumSchema], lazy ref
+    singles:   list = Field(default_factory=list)    # list[AlbumSchema], lazy ref
+    related:   list = Field(default_factory=list)    # list[ArtistSchema], lazy ref
 
     model_config = {"from_attributes": True}
 
@@ -68,6 +70,9 @@ class TrackSchema(BaseModel):
     addedAt:      str = ""
     trackNumber:  int = 0
     playCount:    int = 0
+    # Chart position (1-based) when the track came from a chart/category rail.
+    # 0 means "not ranked" — search results and library tracks leave it at 0.
+    rank:         int = 0
 
     model_config = {"from_attributes": True}
 
@@ -93,6 +98,19 @@ class TrackSchema(BaseModel):
         """ytmusic hydration and local-file entries may hold None for string
         fields — coerce to empty string so serialization never 500s."""
         return "" if v is None else v
+
+    @field_validator("trackNumber", "playCount", "rank", mode="before")
+    @classmethod
+    def _coerce_count(cls, v):
+        """Charts may deliver counts as strings ('12.3M'); never 500 on them."""
+        if v is None:
+            return 0
+        if isinstance(v, (int, float)):
+            return int(v)
+        try:
+            return int(str(v).replace(",", "").strip())
+        except (TypeError, ValueError):
+            return 0
 
     @field_validator("isDownloaded", "isLiked", mode="before")
     @classmethod
