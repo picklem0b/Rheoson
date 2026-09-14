@@ -1639,6 +1639,10 @@ export interface components {
             topTracks: unknown[];
             /** Albums */
             albums: unknown[];
+            /** Singles */
+            singles: unknown[];
+            /** Related */
+            related: unknown[];
         };
         /** BatchDownloadRequest */
         BatchDownloadRequest: {
@@ -2123,6 +2127,11 @@ export interface components {
              * @default 0
              */
             playCount: number;
+            /**
+             * Rank
+             * @default 0
+             */
+            rank: number;
         };
         /** UpdatePlaylistSchema */
         UpdatePlaylistSchema: {
