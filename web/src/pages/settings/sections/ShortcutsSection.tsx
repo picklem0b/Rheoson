@@ -1,4 +1,19 @@
 import { SettingsGroup } from "../components/SettingsPrimitives";
+import {
+   KeyboardShortcutsCard,
+   type KeyboardShortcut
+} from "@/components/New-Components/cards/keyboard-shortcuts-card";
+
+// The handful of shortcuts worth surfacing in the shared card at the top;
+// the full reference stays in the grouped list below.
+const HIGHLIGHTS: KeyboardShortcut[] = [
+   { keys: ["Space"], label: "Play / pause" },
+   { keys: ["N"], label: "Next track" },
+   { keys: ["Q"], label: "Toggle queue" },
+   { keys: ["L"], label: "Toggle lyrics" },
+   { keys: ["F"], label: "Fullscreen player" },
+   { keys: ["Ctrl", "F"], label: "Focus search" }
+];
 
 const GROUPS: { label: string; rows: { key: string; action: string }[] }[] = [
    {
@@ -43,6 +58,16 @@ const GROUPS: { label: string; rows: { key: string; action: string }[] }[] = [
 export default function ShortcutsSection() {
    return (
       <div className='pb-4'>
+         {/* Shared card from the UI kit — visual summary of the essentials */}
+         <div className='mb-7 flex justify-center'>
+            <KeyboardShortcutsCard
+               className='w-full max-w-md'
+               title='Keyboard shortcuts'
+               hint='Work from any page'
+               shortcuts={HIGHLIGHTS}
+            />
+         </div>
+
          {GROUPS.map(g => (
             <SettingsGroup key={g.label} title={g.label}>
                {g.rows.map(r => (

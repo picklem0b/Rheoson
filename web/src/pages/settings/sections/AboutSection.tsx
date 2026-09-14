@@ -11,6 +11,7 @@ import {
 import { APP_VERSION } from "@/lib/constants";
 import { SettingsGroup, SettingsRow } from "../components/SettingsPrimitives";
 import { cn } from "@/lib/utils";
+import { GitHubStarButton } from "@/components/New-Components/cards/github-star";
 
 const GITHUB = "https://github.com/picklem0b/Rheoson";
 
@@ -109,6 +110,19 @@ export default function AboutSection() {
                </div>
             )}
          </div>
+
+         {/* Community — shared star button from the UI kit */}
+         <SettingsGroup
+            title='Community'
+            footer='Rheoson is open source. A star helps other people find it.'>
+            <div className='px-4 py-4 flex items-center justify-center'>
+               <GitHubStarButton
+                  owner='picklem0b'
+                  repo='Rheoson'
+                  className='rounded-2xl'
+               />
+            </div>
+         </SettingsGroup>
 
          {/* Release history */}
          <SettingsGroup title='Release history'>

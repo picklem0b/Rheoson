@@ -16,7 +16,8 @@
   flex-direction: column;
   justify-content: center;
   width: 100%;
-  max-width: 420px;
+  /* Kept in step with the Clerk appearance max-width in AuthPage.tsx */
+  max-width: 340px;
   margin: auto;
 }
 
@@ -35,7 +36,12 @@
 
 .clerk-auth-wrapper .cl-rootBox {
   width: 100% !important;
-  max-width: 420px !important;
+  max-width: 340px !important;
+}
+
+.clerk-auth-wrapper .cl-cardBox {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 .clerk-auth-wrapper .cl-card {
@@ -47,6 +53,7 @@
   max-width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
+  padding: 1.1rem !important;
 }
 
 .clerk-auth-wrapper .cl-headerTitle,
