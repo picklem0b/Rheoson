@@ -2005,6 +2005,12 @@ export interface components {
              * @default
              */
             createdAt: string;
+            /** Totalbytes */
+            totalBytes?: number | null;
+            /** Speedbps */
+            speedBps?: number | null;
+            /** Etaseconds */
+            etaSeconds?: number | null;
             /**
              * Embedmetadata
              * @default true
