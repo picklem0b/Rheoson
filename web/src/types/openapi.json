@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.16.4"
+    "version": "2.17.6"
   },
   "paths": {
     "/api/search": {
@@ -121,6 +121,146 @@
             }
           }
         }
+      }
+    },
+    "/api/search/categories": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "List Categories",
+        "description": "Category tiles for the browse grid, with the current cache week.\n\nServed from the backend so the grid, the weekly refresher and the smart\nsearch's category intent can never disagree about which categories exist.",
+        "operationId": "list_categories_api_search_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Categories Api Search Categories Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/search/categories/{slug}/top": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Category Top",
+        "description": "The best songs in one category, refreshed weekly and cached on disk.",
+        "operationId": "category_top_api_search_categories__slug__top_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Category Top Api Search Categories  Slug  Top Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search/smart": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Smart Search Endpoint",
+        "description": "Natural-language search that understands what's playing.\n\nTurns \"more like this\", \"top 5 hip-hop this week\" or \"download that song\nby X\" into a labelled answer plus real, playable tracks.",
+        "operationId": "smart_search_endpoint_api_search_smart_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SmartSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Smart Search Endpoint Api Search Smart Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/search/resolve": {
@@ -291,28 +431,97 @@
           "tracks"
         ],
         "summary": "Get Trending",
+        "description": "Charts snapshot (fresh on every call, used by the live Trending rail).",
         "operationId": "get_trending_api_tracks_trending_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/TrackSchema"
                   },
-                  "type": "array",
                   "title": "Response Get Trending Api Tracks Trending Get"
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
+        }
+      }
+    },
+    "/api/tracks/trending/weekly": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Get Weekly Trending",
+        "operationId": "get_weekly_trending_api_tracks_trending_weekly_get",
         "security": [
           {
             "HTTPBearer": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/tracks/history": {
@@ -1055,12 +1264,12 @@
       }
     },
     "/api/stream/{track_id}/audio": {
-      "head": {
+      "get": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_1",
+        "operationId": "stream_audio",
         "parameters": [
           {
             "name": "track_id",
@@ -1093,12 +1302,12 @@
           }
         }
       },
-      "get": {
+      "head": {
         "tags": [
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio",
+        "operationId": "stream_audio_1",
         "parameters": [
           {
             "name": "track_id",
@@ -3378,6 +3587,243 @@
         }
       }
     },
+    "/api/artists/following": {
+      "get": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "List Following",
+        "description": "Every artist the caller follows, newest follow first.",
+        "operationId": "list_following_api_artists_following_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Following Api Artists Following Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/artists/{artist_id}/status": {
+      "get": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Follow Status",
+        "description": "Follow state + any unseen release for one artist.",
+        "operationId": "follow_status_api_artists__artist_id__status_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Follow Status Api Artists  Artist Id  Status Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/artists/{artist_id}/follow": {
+      "post": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Follow Artist",
+        "description": "Follow an artist, caching their newest release for later notifications.",
+        "operationId": "follow_artist_api_artists__artist_id__follow_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Follow Artist Api Artists  Artist Id  Follow Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Unfollow Artist",
+        "operationId": "unfollow_artist_api_artists__artist_id__follow_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Unfollow Artist Api Artists  Artist Id  Follow Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/artists/{artist_id}/seen": {
+      "post": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Mark Release Seen",
+        "description": "Mark the artist's latest release as seen so it stops being 'new'.",
+        "operationId": "mark_release_seen_api_artists__artist_id__seen_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Mark Release Seen Api Artists  Artist Id  Seen Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/webhooks/clerk": {
       "post": {
         "tags": [
@@ -3778,6 +4224,16 @@
             "items": {},
             "type": "array",
             "title": "Albums"
+          },
+          "singles": {
+            "items": {},
+            "type": "array",
+            "title": "Singles"
+          },
+          "related": {
+            "items": {},
+            "type": "array",
+            "title": "Related"
           }
         },
         "type": "object",
@@ -4530,6 +4986,31 @@
           "tracks"
         ]
       },
+      "SmartSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SmartSearchRequest"
+      },
       "TokenResponse": {
         "properties": {
           "session_token": {
@@ -4620,6 +5101,11 @@
           "playCount": {
             "type": "integer",
             "title": "Playcount",
+            "default": 0
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank",
             "default": 0
           }
         },
