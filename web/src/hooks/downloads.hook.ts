@@ -11,6 +11,7 @@ import type { Track } from '@/types/track.types'
 import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
 import { playChime, downloadChimeEnabled } from '@/lib/sounds'
+import { downloadForeground } from '@/lib/downloadForeground'
 import { signalDownload } from '@/lib/signals'
 import type { FileNaming } from '@/types'
 
@@ -120,6 +121,20 @@ export function useDownloads() {
     }
   }, [jobs])
 
+  // ── Android foreground service lifecycle ──────────────────
+  // Holds the process alive (persistent notification) while any job is
+  // active, so downloads survive the screen locking or the app going to
+  // the background. No-op on web builds.
+  const activeCount = activeJobs.length
+  const activeHeadTitle = activeJobs[0]?.title
+  useEffect(() => {
+    if (activeCount > 0) {
+      void downloadForeground.start(activeHeadTitle, activeCount)
+    } else {
+      void downloadForeground.stop()
+    }
+  }, [activeCount, activeHeadTitle])
+
   // ── Actions ───────────────────────────────────────────────
 
   const download = useCallback(async (
@@ -195,6 +210,20 @@ export function useDownloads() {
     }
   }, [updateJob])
 
+  /** Resume a cancelled/failed/interrupted job from its staged bytes. */
+  const resume = useCallback(async (id: string) => {
+    updateJob(id, { status: 'queued', progress: 0, error: undefined })
+    try {
+      const job = await downloadsApi.retryDownloadResumed(id, true)
+      updateJob(id, job)
+    } catch (e) {
+      updateJob(id, {
+        status: 'error',
+        error:  e instanceof Error ? e.message : 'Resume failed',
+      })
+    }
+  }, [updateJob])
+
   return {
     jobs,
     activeJobs,
@@ -202,6 +231,7 @@ export function useDownloads() {
     download,
     cancel,
     retry,
+    resume,
     clearDone,
   }
 }

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.17.6"
+    "version": "2.17.7"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -1172,6 +1172,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RetryRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4667,6 +4684,28 @@
             ],
             "title": "Etaseconds"
           },
+          "resumable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resumable"
+          },
+          "stagedBytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stagedbytes"
+          },
           "embedMetadata": {
             "type": "boolean",
             "title": "Embedmetadata",
@@ -5275,6 +5314,24 @@
         },
         "type": "object",
         "title": "RestoreSchema"
+      },
+      "RetryRequest": {
+        "properties": {
+          "resume": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume"
+          }
+        },
+        "type": "object",
+        "title": "RetryRequest",
+        "description": "Optional body for retry: resume controls partial-data continuation.\n\nNone/omitted = auto (resume when staged bytes exist). False = fresh\ndownload. True = require staged data (silently degrades to fresh when\nnone exists \u2014 a resume flag with nothing to resume is meaningless)."
       },
       "SearchResultsSchema": {
         "properties": {
