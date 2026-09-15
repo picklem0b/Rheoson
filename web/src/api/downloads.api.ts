@@ -17,6 +17,9 @@ export const downloadsApi = {
 
   retryDownload: (id: string) =>
     api.post<DownloadJob>(`/downloads/${id}/retry`),
+  /** retry with explicit resume control — omit for auto (resume when staged data exists). */
+  retryDownloadResumed: (id: string, resume: boolean) =>
+    api.post<DownloadJob>(`/downloads/${id}/retry`, { resume }),
 
   deleteDownload: (id: string) =>
     api.delete<void>(`/downloads/${id}`),

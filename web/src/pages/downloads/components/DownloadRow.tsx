@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { CheckCircle2, XCircle, Loader2, Download, Trash2, RefreshCw, Music2 } from 'lucide-react'
+import { CheckCircle2, XCircle, Loader2, Download, Trash2, RefreshCw, Play, Music2 } from 'lucide-react'
 import { IconButton } from '@/components/ui/IconButton'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -27,6 +27,8 @@ interface DownloadRowProps {
   index:    number
   onCancel: () => void
   onRetry:  () => void
+  /** Continue from staged bytes — offered when the backend reports resumable. */
+  onResume?: () => void
 }
 
 /**
@@ -47,11 +49,12 @@ function transferDetail(job: DownloadJob): string {
     .join('  ·  ')
 }
 
-export default function DownloadRow({ job, index, onCancel, onRetry }: DownloadRowProps) {
+export default function DownloadRow({ job, index, onCancel, onRetry, onResume }: DownloadRowProps) {
   const cfg     = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.queued
   const active  = !['done', 'error', 'cancelled'].includes(job.status)
   const isError = job.status === 'error'
   const detail  = transferDetail(job)
+  const canResume = !active && job.resumable === true && Boolean(onResume)
 
   return (
     <motion.div
@@ -120,7 +123,15 @@ export default function DownloadRow({ job, index, onCancel, onRetry }: DownloadR
             {cfg.icon}
             <span className="ml-1">{cfg.label}</span>
           </Badge>
-          {isError && (
+          {canResume ? (
+            <IconButton
+              size="xs"
+              variant="ghost"
+              onClick={onResume}
+              title={`Resume — ${job.stagedBytes ? formatFileSize(job.stagedBytes) : 'partial data'} already downloaded`}>
+              <Play />
+            </IconButton>
+          ) : isError && (
             <IconButton size="xs" variant="ghost" onClick={onRetry} title="Retry">
               <RefreshCw />
             </IconButton>

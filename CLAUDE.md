@@ -25,7 +25,7 @@ Rheoson is a self-hosted music streaming + download app (Termux/Android APK firs
 - `app/core/config.py` — pydantic-settings; `MUSIC_DIR`, `EXTRA_MUSIC_DIRS`, Clerk keys, `MONGODB_URL`, rate limits. `all_music_dirs` returns only dirs that exist.
 - `app/core/auth.py` + `deps.py` — Clerk JWT verification (`get_current_user`); every data route requires a session (guest mode removed).
 - `app/services/` — the meat:
-  - `download_service.py` — job lifecycle, semaphore concurrency, persisted `.download_jobs.json`, yt-dlp progress regex (speed + ETA surfaced to WS).
+  - `download_service.py` — job lifecycle, semaphore concurrency, persisted `.download_jobs.json`, yt-dlp progress regex (speed + ETA surfaced to WS). **Resumable**: failed/cancelled/restart-interrupted jobs keep their yt-dlp `.part` staging data; `resumable`/`stagedBytes` are derived from disk at read time (`_with_resume_fields`), `retry_job(resume=None|True|False)` controls continuation, and DELETE keeps staging for running jobs.
   - `stream_router.py` — two-tier serving: local file cache (MD5 ids, range support) → remote fast path (resolve-then-tee, ~sub-second start) with a disk-backed remote segment cache.
   - `track_identity.py` — SQLite sidecar `videoId → downloaded file`; makes `isDownloaded` trustworthy.
   - `preferences.py` — per-user synced settings whitelist (type + range validated, stored on the Mongo user doc).
@@ -44,6 +44,7 @@ Rheoson is a self-hosted music streaming + download app (Termux/Android APK firs
 - **Settings** (`pages/settings/`): sections are honest — every toggle there has a live consumer. Don't add a control without wiring it; delete controls rather than leaving them decorative. `DiagnosticsSection` = Doctor (health probes → plain-language repairs).
 - **Player**: `PlayerBar` overflow menu → "Playback settings" opens `PlaybackSettings` (EQ + Sleep Timer) mounted once in `RootLayout`, listening for `rheoson:playback-settings`.
 - **NowPlaying**: Creator tab = Spotify-style artist header + lyrics only. Tap-to-seek uses lyric `startTime`.
+- **Downloads on Android**: `lib/downloadForeground.ts` → `DownloadForegroundPlugin` (registered explicitly in `MainActivity`) → `DownloadForegroundService` (foreground slot + persistent notification) keeps the process alive while jobs run. The hook starts it when `activeJobs` grows and stops it at zero. No-op on web.
 - **Types**: `types/openapi.json` is generated (`npm run generate:types`, exporter is deterministic — don't hand-edit either).
 
 ## Testing & verification (run before every commit)
@@ -53,7 +54,7 @@ cd web && npx tsc --noEmit && npm run lint && npm test && npm run build
 cd api && uv run python -m pytest -q
 ```
 
-Current baseline: 62 frontend + 144 backend tests, lint/tsc clean. Backend tests patch `app.core.database.get_db` as a FastAPI dependency; a mock-DB round trip in a test means the fixture resets `_shared_mock_db` state (see `tests/conftest.py::_clean_state`).
+Current baseline: 67 frontend + 155 backend tests, lint/tsc clean. Backend tests patch `app.core.database.get_db` as a FastAPI dependency; a mock-DB round trip in a test means the fixture resets `_shared_mock_db` state (see `tests/conftest.py::_clean_state`).
 
 ## Data map
 

@@ -122,10 +122,28 @@ async def cancel_download(job_id: str, _user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+class RetryRequest(BaseModel):
+    """Optional body for retry: resume controls partial-data continuation.
+
+    None/omitted = auto (resume when staged bytes exist). False = fresh
+    download. True = require staged data (silently degrades to fresh when
+    none exists — a resume flag with nothing to resume is meaningless).
+    """
+    resume: Optional[bool] = None
+
+
 @router.post("/{job_id}/retry", response_model=DownloadJobSchema)
-async def retry_download(job_id: str, _user: dict = Depends(get_current_user)):
+async def retry_download(
+    job_id: str,
+    body: RetryRequest | None = None,
+    _user: dict = Depends(get_current_user),
+):
     job_id = _validate_job_id(job_id)
-    job = await retry_job(job_id)
+    resume = body.resume if body is not None and body.resume is not None else None
+    job = await retry_job(job_id, resume=resume)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    return job
     if not job:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
     return job
@@ -134,9 +152,15 @@ async def retry_download(job_id: str, _user: dict = Depends(get_current_user)):
 @router.delete("/{job_id}")
 async def delete_download(job_id: str, _user: dict = Depends(get_current_user)):
     job_id = _validate_job_id(job_id)
-    from app.services.download_service import _jobs
+    from app.services.download_service import _jobs, _staging_dir
     if job_id not in _jobs:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    # Only wipe the staging dir when the job is actually gone-for-good.
+    # A running job (downloading/converting/tagging) keeps its process and
+    # its partial data; deleting its record must not corrupt that.
+    if _jobs[job_id].get("status") not in ("downloading", "converting", "tagging"):
+        import shutil
+        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
     del _jobs[job_id]
     _persist_jobs()
     return {"ok": True}

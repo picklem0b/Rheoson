@@ -54,6 +54,10 @@ class DownloadJobSchema(BaseModel):
     totalBytes: Optional[int] = None
     speedBps:   Optional[int] = None
     etaSeconds: Optional[int] = None
+    # Resume support: resumable=True when partial transfer data is staged
+    # for this job; stagedBytes is how much a resumed attempt can skip.
+    resumable:   Optional[bool] = None
+    stagedBytes: Optional[int] = None
     # Options recorded at enqueue time so a retry reproduces them exactly
     embedMetadata: bool        = True
     fileNaming:    FileNaming  = "artist-title"
