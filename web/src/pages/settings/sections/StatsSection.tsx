@@ -60,7 +60,7 @@ function PersonaCard({ persona }: { persona: NonNullable<TasteProfileInfo['perso
   return (
     <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-[var(--accent-subtle)] to-transparent border border-[var(--accent-border)]">
       <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-2xl bg-[var(--accent)]/15 flex items-center justify-center text-xl flex-shrink-0">
+        <div className="w-11 h-11 rounded-2xl bg-brand/15 flex items-center justify-center text-xl flex-shrink-0">
           {persona.emoji}
         </div>
         <div className="min-w-0">
