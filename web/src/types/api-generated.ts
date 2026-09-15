@@ -1075,6 +1075,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Backup
+         * @description Everything the signed-in user owns, as one JSON document.
+         *
+         *     Likes, hidden tracks, play history, playlists and artist follows. The
+         *     music files are not included — they are already on disk and can be
+         *     re-scanned; what cannot be recreated is the state that took months to
+         *     accumulate.
+         */
+        get: operations["export_backup_api_settings_backup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/directories": {
         parameters: {
             query?: never;
@@ -1127,6 +1152,26 @@ export interface paths {
         put?: never;
         /** Rescan Library */
         post: operations["rescan_library_api_settings_rescan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Backup
+         * @description Apply a backup bundle produced by GET /settings/backup.
+         */
+        post: operations["restore_backup_api_settings_restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2225,6 +2270,36 @@ export interface components {
             artists: components["schemas"]["ArtistSchema"][];
             /** Playlists */
             playlists: components["schemas"]["PlaylistResultSchema"][];
+        };
+        /** RestoreSchema */
+        RestoreSchema: {
+            /** Format */
+            format?: string | null;
+            /** Version */
+            version?: number | null;
+            /** Liked */
+            liked?: string[] | null;
+            /** Disliked */
+            disliked?: string[] | null;
+            /** History */
+            history?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Playlists */
+            playlists?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Follows */
+            follows?: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Merge
+             * @default true
+             */
+            merge: boolean;
         };
         /** SearchResultsSchema */
         SearchResultsSchema: {
@@ -4124,6 +4199,26 @@ export interface operations {
             };
         };
     };
+    export_backup_api_settings_backup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     get_directories_api_settings_directories_get: {
         parameters: {
             query?: never;
@@ -4218,6 +4313,39 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": components["schemas"]["RescanSchema"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_backup_api_settings_restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreSchema"];
             };
         };
         responses: {
