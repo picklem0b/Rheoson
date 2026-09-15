@@ -13,6 +13,8 @@ graphify-out/
 .env
 .env.local
 .env.production
+# VPS bind-mount payload — the whole library + user state lives here
+data/
 
 # Python
 __pycache__/
