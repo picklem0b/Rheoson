@@ -5,6 +5,7 @@ import { usePlayerStore } from '@/store/player.store'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlaylistMenuStore } from '@/store/playlistMenu.store'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
+import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
 import { IconButton } from '@/components/ui/IconButton'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { formatDuration, truncate } from '@/lib/formatters'
@@ -20,6 +21,8 @@ export default function QueueItem({ track, index }: QueueItemProps) {
   const { playTrack, removeFromQueue } = useQueue()
   const isActive = currentTrack?.id === track.id
   const contextMenu = useTrackContextMenu(track)
+  // Start buffering on hover/touch so tapping a queued track is instant.
+  const intent = usePrefetchOnIntent(track.id)
 
   return (
     <motion.div
@@ -35,6 +38,7 @@ export default function QueueItem({ track, index }: QueueItemProps) {
           : 'hover:bg-[var(--bg-elevated)]'
       )}
       {...contextMenu}
+      {...intent}
     >
       {/* Drag handle */}
       <GripVertical className="w-4 h-4 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 cursor-grab flex-shrink-0" />

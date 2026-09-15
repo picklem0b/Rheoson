@@ -10,6 +10,8 @@ import { getLocalFileUrl } from '@/lib/localFs';
 import { isNativePlatform } from '@/lib/capacitor';
 import { ensureEffectsChain } from '@/lib/audioEffects';
 import { prefetchQueue } from '@/lib/prefetch';
+import { getCachedObjectUrl, warmAudioCache } from '@/lib/audioCache';
+import { API_BASE } from '@/lib/constants';
 import { recommendationsApi } from '@/api/recommendations.api';
 import { signalPlayComplete, signalRepeat, signalSkip } from '@/lib/signals';
 import type { Track } from '@/types/track.types';
@@ -22,6 +24,10 @@ import type { Track } from '@/types/track.types';
 let _howl: Howl | null = null;
 let _loadedId: string | null = null;
 let _timer: number | null = null;
+// Object URL backing the current Howl when it plays from the local audio
+// cache. Owned here so it can be revoked the moment the track is replaced —
+// leaking one blob per track would pin hundreds of megabytes.
+let _objectUrl: string | null = null;
 // BUG #25: Generation counter — incremented each time a new track is loaded.
 // Howl callbacks from a previous generation are silently ignored, preventing
 // race conditions where a stale onload/onplay clobbers the current track state.
@@ -131,28 +137,51 @@ function _destroy() {
         _howl.unload();
         _howl = null;
     }
+    if (_objectUrl) {
+        try { URL.revokeObjectURL(_objectUrl); } catch { /* already gone */ }
+        _objectUrl = null;
+    }
     _loadedId = null;
 }
 
 // ── Resolve stream URL ────────────────────────────────────────
-// Three-tier URL resolution for maximum offline support:
+// Four-tier URL resolution, cheapest first:
+//   0. Bytes already in the local audio cache → blob URL, zero network, works
+//      offline, and starts playing immediately.
 //   1. If track has a filePath and we're on native → use file:// URI (zero network)
-//   2. If track is downloaded → use backend /api/stream (works offline via service worker)
-//   3. Otherwise → use backend /api/stream (yt-dlp pipe)
+//   2-3. Backend /api/stream — local file serve, or the yt-dlp pipe for
+//      anything not downloaded.
 
 async function _resolveUrl(track: {
     id: string;
     filePath?: string;
     isDownloaded?: boolean;
-}): Promise<string> {
+}): Promise<{ url: string; fromCache: boolean }> {
+    // Tier 0: cached audio bytes
+    const cachedUrl = await getCachedObjectUrl(track.id);
+    if (cachedUrl) {
+        _objectUrl = cachedUrl;
+        return { url: cachedUrl, fromCache: true };
+    }
+
     // Tier 1: Direct file access on native platform — zero network required
     if (isNativePlatform() && track.filePath) {
         const fileUrl = await getLocalFileUrl(track.filePath);
-        if (fileUrl) return fileUrl;
+        if (fileUrl) return { url: fileUrl, fromCache: false };
     }
 
     // Tiers 2 & 3: Go through the backend stream endpoint
-    return tracksApi.getStreamUrl(track.id);
+    return { url: tracksApi.getStreamUrl(track.id), fromCache: false };
+}
+
+/**
+ * Fill the client audio cache from the streaming URL, after playback has
+ * already started. This is what turns the *second* play of a track — and any
+ * skip back to it — into an instant, offline-capable start.
+ */
+function _fillCacheInBackground(trackId: string): void {
+    const url = `${API_BASE}/stream/${trackId}/audio`;
+    warmAudioCache(trackId, url).catch(() => { /* warming is best-effort */ });
 }
 
 // ── Hook ──────────────────────────────────────────────────────
@@ -271,14 +300,18 @@ export function usePlayer() {
 
             // Resolve the URL asynchronously — may need to check local filesystem
             const track = usePlayerStore.getState().currentTrack;
-            const urlPromise = track
+            const urlPromise: Promise<{ url: string; fromCache: boolean }> = track
                 ? _resolveUrl(track)
-                : Promise.resolve(tracksApi.getStreamUrl(trackId));
+                : Promise.resolve({
+                      url: tracksApi.getStreamUrl(trackId),
+                      fromCache: false,
+                  });
 
-            urlPromise.then((url) => {
+            urlPromise.then((resolved) => {
                 // Generation may have moved on while resolving
                 if (gen !== _generation) return;
 
+            const url = resolved.url;
             _howl = new Howl({
                 src: [url],
                 html5: true,
@@ -318,12 +351,22 @@ export function usePlayer() {
                     );
 
                     // Warm the next few queue tracks so skipping ahead or
-                    // auto-advance starts from an already-buffered file
+                    // auto-advance starts from an already-buffered file.
+                    // Five deep, because the cost of a wrong guess (one idle
+                    // yt-dlp fill) is far lower than the cost of a right one
+                    // (a visible seven-second wait on skip).
                     const upcoming = useQueueStore
                         .getState()
-                        .queue.slice(0, 3);
+                        .queue.slice(0, 5);
                     if (upcoming.length > 0) {
-                        prefetchQueue(upcoming.map(t => t.id), 3);
+                        prefetchQueue(upcoming.map(t => t.id), 5);
+                    }
+
+                    // Cache the track that is playing now. Doing it here (rather
+                    // than on the click) means the download overlaps with the
+                    // first listen instead of delaying it.
+                    if (!resolved.fromCache && /^[\w-]{11}$/.test(trackId)) {
+                        _fillCacheInBackground(trackId);
                     }
 
                     // Record play history (once per session per track)
