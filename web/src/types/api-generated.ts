@@ -4,24 +4,7 @@
  */
 
 export interface paths {
-    "/api/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search Endpoint */
-        get: operations["search_endpoint_api_search_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/search/suggest": {
+    "/api/analytics/listening-by-day": {
         parameters: {
             query?: never;
             header?: never;
@@ -29,11 +12,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Suggest Endpoint
-         * @description Instant autocomplete — returns in ~80ms.
-         *     No debounce needed — call on every keystroke.
+         * Listening By Day
+         * @description Get listening activity broken down by day of week.
          */
-        get: operations["suggest_endpoint_api_search_suggest_get"];
+        get: operations["listening_by_day_api_analytics_listening_by_day_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -42,7 +24,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/search/categories": {
+    "/api/analytics/listening-by-hour": {
         parameters: {
             query?: never;
             header?: never;
@@ -50,13 +32,96 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Categories
-         * @description Category tiles for the browse grid, with the current cache week.
+         * Listening By Hour
+         * @description Get listening activity broken down by hour of day.
+         */
+        get: operations["listening_by_hour_api_analytics_listening_by_hour_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listening Stats
+         * @description Get overall listening statistics for the current user.
+         */
+        get: operations["listening_stats_api_analytics_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/top-artists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Top Artists
+         * @description Get top artists by play count for a time period.
+         */
+        get: operations["top_artists_api_analytics_top_artists_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/top-tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Top Tracks
+         * @description Get top tracks by play count for a time period.
+         */
+        get: operations["top_tracks_api_analytics_top_tracks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/wrapped": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Wrapped
+         * @description Year-in-review — the Spotify Wrapped equivalent.
          *
-         *     Served from the backend so the grid, the weekly refresher and the smart
-         *     search's category intent can never disagree about which categories exist.
+         *     Aggregates the user's play signals for the given year: top artists,
+         *     top tracks (best-effort hydrated), total minutes, month activity,
+         *     genre breakdown (from the taste profile / artist classification),
+         *     and listening streaks. Every failure degrades to an empty report —
+         *     this endpoint must never 500 a celebration.
          */
-        get: operations["list_categories_api_search_categories_get"];
+        get: operations["wrapped_api_analytics_wrapped_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -65,7 +130,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/search/categories/{slug}/top": {
+    "/api/artists/following": {
         parameters: {
             query?: never;
             header?: never;
@@ -73,10 +138,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Category Top
-         * @description The best songs in one category, refreshed weekly and cached on disk.
+         * List Following
+         * @description Every artist the caller follows, newest follow first.
          */
-        get: operations["category_top_api_search_categories__slug__top_get"];
+        get: operations["list_following_api_artists_following_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -85,7 +150,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/search/smart": {
+    "/api/artists/{artist_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artist Detail */
+        get: operations["artist_detail_api_artists__artist_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/artists/{artist_id}/follow": {
         parameters: {
             query?: never;
             header?: never;
@@ -95,165 +177,83 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Smart Search Endpoint
-         * @description Natural-language search that understands what's playing.
+         * Follow Artist
+         * @description Follow an artist, caching their newest release for later notifications.
+         */
+        post: operations["follow_artist_api_artists__artist_id__follow_post"];
+        /** Unfollow Artist */
+        delete: operations["unfollow_artist_api_artists__artist_id__follow_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/artists/{artist_id}/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Release Seen
+         * @description Mark the artist's latest release as seen so it stops being 'new'.
+         */
+        post: operations["mark_release_seen_api_artists__artist_id__seen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/artists/{artist_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Follow Status
+         * @description Follow state + any unseen release for one artist.
+         */
+        get: operations["follow_status_api_artists__artist_id__status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Login via Clerk — verify credentials and create a session.
          *
-         *     Turns "more like this", "top 5 hip-hop this week" or "download that song
-         *     by X" into a labelled answer plus real, playable tracks.
+         *     Clerk's Backend API has no password-check endpoint, so we create a
+         *     real session for the matching Clerk account and hand its JWT back.
+         *     Clerk enforces the password on session creation: unknown credentials
+         *     return 404/422 here, which maps to a generic 401 for the client.
          */
-        post: operations["smart_search_endpoint_api_search_smart_post"];
+        post: operations["login_api_auth_login_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/search/resolve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Resolve Endpoint */
-        post: operations["resolve_endpoint_api_search_resolve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Tracks
-         * @description All files currently on disk — shared instance library.
-         */
-        get: operations["list_tracks_api_tracks__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/liked/count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Liked Count
-         * @description Cheap count for the Library pinned card — no track hydration.
-         */
-        get: operations["get_liked_count_api_tracks_liked_count_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/liked": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Liked */
-        get: operations["get_liked_api_tracks_liked_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/recently-played": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Recently Played */
-        get: operations["get_recently_played_api_tracks_recently_played_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/trending": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Trending
-         * @description Charts snapshot (fresh on every call, used by the live Trending rail).
-         */
-        get: operations["get_trending_api_tracks_trending_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/trending/weekly": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Weekly Trending */
-        get: operations["get_weekly_trending_api_tracks_trending_weekly_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Clear History */
-        delete: operations["clear_history_api_tracks_history_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/signals": {
+    "/api/auth/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -263,20 +263,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Report Signal
-         * @description Record a behavioral signal from the frontend.
-         *
-         *     Accepts: { signal, track_id?, artist?, progress?, context? }
-         *     Requires the database (signals drive the Mongo recommendation profiler).
+         * Logout
+         * @description Revoke the Clerk session so the JWT dies server-side, not just locally.
          */
-        post: operations["report_signal_api_tracks_signals_post"];
+        post: operations["logout_api_auth_logout_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/tracks/stats/{track_id}": {
+    "/api/auth/me": {
         parameters: {
             query?: never;
             header?: never;
@@ -284,54 +281,23 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Track Stats
-         * @description Return play count, like count, and last played for a track (per user).
+         * Get Profile
+         * @description Get the current user's profile from Clerk.
          */
-        get: operations["get_track_stats_api_tracks_stats__track_id__get"];
+        get: operations["get_profile_api_auth_me_get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Profile
+         * @description Update user profile in MongoDB.
+         */
+        patch: operations["update_profile_api_auth_me_patch"];
         trace?: never;
     };
-    "/api/tracks/{track_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Track */
-        get: operations["get_track_api_tracks__track_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/{track_id}/like": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Like Track */
-        post: operations["like_track_api_tracks__track_id__like_post"];
-        /** Unlike Track */
-        delete: operations["unlike_track_api_tracks__track_id__like_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracks/{track_id}/dislike": {
+    "/api/auth/register": {
         parameters: {
             query?: never;
             header?: never;
@@ -341,31 +307,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Dislike Track
-         * @description Hide a track: stops it appearing in recommendations/autoplay and
-         *     removes it from Liked songs. Explicit dislikes are stored per-user in
-         *     MongoDB (disliked_tracks) with a local mirror, and recorded as a
-         *     strong-negative DISLIKE signal for the taste profiler.
+         * Register
+         * @description Register a new user via Clerk Backend API.
          */
-        post: operations["dislike_track_api_tracks__track_id__dislike_post"];
-        /** Undislike Track */
-        delete: operations["undislike_track_api_tracks__track_id__dislike_delete"];
+        post: operations["register_api_auth_register_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/tracks/{track_id}/play": {
+    "/api/auth/visitor-count": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Visitor Count
+         * @description Get the registered-account total. Session required (no guest counting).
+         */
+        get: operations["visitor_count_api_auth_visitor_count_get"];
         put?: never;
-        /** Record Play */
-        post: operations["record_play_api_tracks__track_id__play_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -384,6 +349,26 @@ export interface paths {
         put?: never;
         /** Start Download */
         post: operations["start_download_api_downloads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/downloads/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Batch Download
+         * @description Start multiple downloads at once (max 20).
+         */
+        post: operations["batch_download_api_downloads_batch_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -442,68 +427,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/downloads/batch": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Batch Download
-         * @description Start multiple downloads at once (max 20).
-         */
-        post: operations["batch_download_api_downloads_batch_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stream/{track_id}/warm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Warm Stream
-         * @description Start buffering a remote track in the background (idempotent).
-         *
-         *     Uses the same single-fill-per-track session as the audio route, so a
-         *     warm request and a concurrent play request share one yt-dlp process.
-         */
-        post: operations["warm_stream_api_stream__track_id__warm_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stream/{track_id}/audio": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Stream Audio */
-        get: operations["stream_audio"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        /** Stream Audio */
-        head: operations["stream_audio_1"];
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stream/{track_id}/artwork": {
+    "/api/equalizer/presets": {
         parameters: {
             query?: never;
             header?: never;
@@ -511,12 +435,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Artwork
-         * @description Serve embedded artwork from a locally downloaded file.
-         *     Returns 204 if the file exists but has no embedded art.
-         *     Returns 404 if the track is not downloaded.
+         * List Presets
+         * @description Return all built-in equalizer presets.
          */
-        get: operations["get_artwork_api_stream__track_id__artwork_get"];
+        get: operations["list_presets_api_equalizer_presets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -525,7 +447,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/stream/{track_id}/artwork-proxy": {
+    "/api/equalizer/presets/{preset_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -533,20 +455,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Proxy Artwork
-         * @description Proxy a remote artwork URL (ytmusicapi thumbnail) through the API server.
-         *
-         *     Why this endpoint exists:
-         *       - The APK WebView sometimes can't fetch i.ytimg.com / lh3.googleusercontent.com
-         *         directly due to network restrictions or CORS on Android WebViews.
-         *       - Render's free tier IPs can hit rate limits on Google's image CDN.
-         *       - By proxying through the API, we get server-side caching and the
-         *         frontend only ever talks to our own domain.
-         *
-         *     The frontend should call this as:
-         *       /api/stream/{videoId}/artwork-proxy?url={encodeURIComponent(artworkUrl)}
+         * Get Preset
+         * @description Return full band configuration for a preset.
          */
-        get: operations["proxy_artwork_api_stream__track_id__artwork_proxy_get"];
+        get: operations["get_preset_api_equalizer_presets__preset_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -555,60 +467,120 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/stream/cache/clear": {
+    "/api/health": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * Clear Stream Cache
-         * @description Clear the in-memory stream file index — forces a rescan on next request.
+         * Health
+         * @description Full cheap health snapshot with per-subsystem checks.
+         *
+         *     Backed by the background probe cache — no expensive work per request.
          */
-        post: operations["clear_stream_cache_api_stream_cache_clear_post"];
+        get: operations["health_api_health_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/stream/remote-cache/clear": {
+    "/api/health/diag": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * Clear Remote Cache
-         * @description Clear the in-memory remote stream cache (cached yt-dlp audio files).
+         * Health Diag
+         * @description Authenticated deep diagnostics: forces a fresh, bounded probe of every
+         *     subsystem (DB ping latency, yt-dlp/ffmpeg versions, config validation)
+         *     and returns recent error/latency metrics.
          */
-        post: operations["clear_remote_cache_api_stream_remote_cache_clear_post"];
+        get: operations["health_diag_api_health_diag_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/stream/artwork/cache/clear": {
+    "/api/library/albums": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Library Albums */
+        get: operations["library_albums_api_library_albums_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/albums/{album_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         /**
-         * Clear Artwork Cache
-         * @description Clear the in-memory artwork proxy cache.
+         * Library Album Detail
+         * @description Album detail page: cover + full track list.
+         *
+         *     Remote YouTube Music albums (browse IDs like MPREb…) are served from
+         *     ytmusicapi's get_album. Local library albums (md5-derived IDs or a
+         *     ?name= fallback) are aggregated from the file index so the Album page
+         *     works fully offline too.
          */
-        post: operations["clear_artwork_cache_api_stream_artwork_cache_clear_post"];
+        get: operations["library_album_detail_api_library_albums__album_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/artists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Library Artists */
+        get: operations["library_artists_api_library_artists_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/featured": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Library Featured */
+        get: operations["library_featured_api_library_featured_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -705,59 +677,19 @@ export interface paths {
         patch: operations["update_playlist_api_playlists__playlist_id__patch"];
         trace?: never;
     };
-    "/api/playlists/{playlist_id}/tracks": {
+    "/api/playlists/{playlist_id}/export": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Export Playlist
+         * @description Export playlist as JSON with hydrated track metadata.
+         */
+        get: operations["export_playlist_api_playlists__playlist_id__export_get"];
         put?: never;
-        /**
-         * Add Track
-         * @description Add a track to a playlist.
-         */
-        post: operations["add_track_api_playlists__playlist_id__tracks_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/playlists/{playlist_id}/tracks/{track_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove Track
-         * @description Remove a track from a playlist.
-         */
-        delete: operations["remove_track_api_playlists__playlist_id__tracks__track_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/playlists/{playlist_id}/tracks/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Reorder Tracks
-         * @description Reorder tracks in a playlist.
-         */
-        put: operations["reorder_tracks_api_playlists__playlist_id__tracks_reorder_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -785,7 +717,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/playlists/{playlist_id}/export": {
+    "/api/playlists/{playlist_id}/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Track
+         * @description Add a track to a playlist.
+         */
+        post: operations["add_track_api_playlists__playlist_id__tracks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/playlists/{playlist_id}/tracks/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder Tracks
+         * @description Reorder tracks in a playlist.
+         */
+        put: operations["reorder_tracks_api_playlists__playlist_id__tracks_reorder_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/playlists/{playlist_id}/tracks/{track_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Track
+         * @description Remove a track from a playlist.
+         */
+        delete: operations["remove_track_api_playlists__playlist_id__tracks__track_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/autoplay": {
         parameters: {
             query?: never;
             header?: never;
@@ -793,10 +785,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Playlist
-         * @description Export playlist as JSON with hydrated track metadata.
+         * Get Autoplay
+         * @description Get autoplay candidates when the current track ends.
          */
-        get: operations["export_playlist_api_playlists__playlist_id__export_get"];
+        get: operations["get_autoplay_api_recommendations_autoplay_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -805,7 +797,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/settings/spotify/status": {
+    "/api/recommendations/discover": {
         parameters: {
             query?: never;
             header?: never;
@@ -813,10 +805,268 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Spotify Status
-         * @description Check if Spotify credentials are configured via environment.
+         * Get Discover
+         * @description Get discovery recommendations — diverse, exploratory tracks.
          */
-        get: operations["spotify_status_api_settings_spotify_status_get"];
+        get: operations["get_discover_api_recommendations_discover_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Home Recommendations
+         * @description Get personalized home page recommendations for the current user.
+         */
+        get: operations["get_home_recommendations_api_recommendations_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/mixes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Daily Mixes
+         * @description Spotify-style Daily Mixes — one infinite-feeling playlist per top genre.
+         *
+         *     Genres come from the user's taste profile (Mongo signals or local mirror);
+         *     each mix searches that genre and returns fully hydrated track dicts so the
+         *     frontend can queue them immediately. Tracks are deduped across mixes and
+         *     diverse per artist inside a mix. Hidden/disliked tracks are excluded.
+         *
+         *     Cold-start users (no taste yet) get an empty list — the UI hides the row.
+         */
+        get: operations["get_daily_mixes_api_recommendations_mixes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/onboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Onboard Artists
+         * @description Seed the taste profile from an onboarding artist picker.
+         *
+         *     Body: { "artists": ["Drake", {"name": "Radiohead"}, ...] } (max 8).
+         *     For each artist we resolve one real track, then record LIKE + PLAY_START
+         *     signals (and the local mirrors) so recommendations personalise
+         *     immediately instead of waiting for 10+ natural plays.
+         */
+        post: operations["onboard_artists_api_recommendations_onboard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/radio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Radio
+         * @description One-tap radio: an endless-feeling stream seeded by a single track.
+         *
+         *     Builds candidates from similar-artist search, the artist's related
+         *     artists (when resolvable), and trending — deduped, diverse, with the
+         *     seed excluded and hidden tracks removed. Returns fully hydrated track
+         *     dicts so the frontend queues them and keeps autoplaying on end.
+         */
+        get: operations["get_radio_api_recommendations_radio_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Force Refresh
+         * @description Force a full recommendation refresh for the current user.
+         */
+        post: operations["force_refresh_api_recommendations_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recommendations/taste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Taste Profile
+         * @description Get the current user's taste profile (Mongo signals or local mirror).
+         */
+        get: operations["get_taste_profile_api_recommendations_taste_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Endpoint */
+        get: operations["search_endpoint_api_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Categories
+         * @description Category tiles for the browse grid, with the current cache week.
+         *
+         *     Served from the backend so the grid, the weekly refresher and the smart
+         *     search's category intent can never disagree about which categories exist.
+         */
+        get: operations["list_categories_api_search_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search/categories/{slug}/top": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Category Top
+         * @description The best songs in one category, refreshed weekly and cached on disk.
+         */
+        get: operations["category_top_api_search_categories__slug__top_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Endpoint */
+        post: operations["resolve_endpoint_api_search_resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search/smart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Smart Search Endpoint
+         * @description Natural-language search that understands what's playing.
+         *
+         *     Turns "more like this", "top 5 hip-hop this week" or "download that song
+         *     by X" into a labelled answer plus real, playable tracks.
+         */
+        post: operations["smart_search_endpoint_api_search_smart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest Endpoint
+         * @description Instant autocomplete — returns in ~80ms.
+         *     No debounce needed — call on every keystroke.
+         */
+        get: operations["suggest_endpoint_api_search_suggest_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -883,72 +1133,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Register
-         * @description Register a new user via Clerk Backend API.
-         */
-        post: operations["register_api_auth_register_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Login
-         * @description Login via Clerk — verify credentials and create a session.
-         *
-         *     Clerk's Backend API has no password-check endpoint, so we create a
-         *     real session for the matching Clerk account and hand its JWT back.
-         *     Clerk enforces the password on session creation: unknown credentials
-         *     return 404/422 here, which maps to a generic 401 for the client.
-         */
-        post: operations["login_api_auth_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Logout
-         * @description Revoke the Clerk session so the JWT dies server-side, not just locally.
-         */
-        post: operations["logout_api_auth_logout_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/me": {
+    "/api/settings/spotify/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -956,251 +1141,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Profile
-         * @description Get the current user's profile from Clerk.
+         * Spotify Status
+         * @description Check if Spotify credentials are configured via environment.
          */
-        get: operations["get_profile_api_auth_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Profile
-         * @description Update user profile in MongoDB.
-         */
-        patch: operations["update_profile_api_auth_me_patch"];
-        trace?: never;
-    };
-    "/api/auth/visitor-count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Visitor Count
-         * @description Get the registered-account total. Session required (no guest counting).
-         */
-        get: operations["visitor_count_api_auth_visitor_count_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recommendations/home": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Home Recommendations
-         * @description Get personalized home page recommendations for the current user.
-         */
-        get: operations["get_home_recommendations_api_recommendations_home_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recommendations/autoplay": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Autoplay
-         * @description Get autoplay candidates when the current track ends.
-         */
-        get: operations["get_autoplay_api_recommendations_autoplay_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recommendations/discover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Discover
-         * @description Get discovery recommendations — diverse, exploratory tracks.
-         */
-        get: operations["get_discover_api_recommendations_discover_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recommendations/taste": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Taste Profile
-         * @description Get the current user's taste profile (Mongo signals or local mirror).
-         */
-        get: operations["get_taste_profile_api_recommendations_taste_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recommendations/mixes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Daily Mixes
-         * @description Spotify-style Daily Mixes — one infinite-feeling playlist per top genre.
-         *
-         *     Genres come from the user's taste profile (Mongo signals or local mirror);
-         *     each mix searches that genre and returns fully hydrated track dicts so the
-         *     frontend can queue them immediately. Tracks are deduped across mixes and
-         *     diverse per artist inside a mix. Hidden/disliked tracks are excluded.
-         *
-         *     Cold-start users (no taste yet) get an empty list — the UI hides the row.
-         */
-        get: operations["get_daily_mixes_api_recommendations_mixes_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recommendations/radio": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Radio
-         * @description One-tap radio: an endless-feeling stream seeded by a single track.
-         *
-         *     Builds candidates from similar-artist search, the artist's related
-         *     artists (when resolvable), and trending — deduped, diverse, with the
-         *     seed excluded and hidden tracks removed. Returns fully hydrated track
-         *     dicts so the frontend queues them and keeps autoplaying on end.
-         */
-        get: operations["get_radio_api_recommendations_radio_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recommendations/onboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Onboard Artists
-         * @description Seed the taste profile from an onboarding artist picker.
-         *
-         *     Body: { "artists": ["Drake", {"name": "Radiohead"}, ...] } (max 8).
-         *     For each artist we resolve one real track, then record LIKE + PLAY_START
-         *     signals (and the local mirrors) so recommendations personalise
-         *     immediately instead of waiting for 10+ natural plays.
-         */
-        post: operations["onboard_artists_api_recommendations_onboard_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/recommendations/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Force Refresh
-         * @description Force a full recommendation refresh for the current user.
-         */
-        post: operations["force_refresh_api_recommendations_refresh_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/equalizer/presets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Presets
-         * @description Return all built-in equalizer presets.
-         */
-        get: operations["list_presets_api_equalizer_presets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/equalizer/presets/{preset_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Preset
-         * @description Return full band configuration for a preset.
-         */
-        get: operations["get_preset_api_equalizer_presets__preset_id__get"];
+        get: operations["spotify_status_api_settings_spotify_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1255,7 +1199,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/analytics/stats": {
+    "/api/smart-playlists/discover": {
         parameters: {
             query?: never;
             header?: never;
@@ -1263,116 +1207,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Listening Stats
-         * @description Get overall listening statistics for the current user.
+         * Discover
+         * @description Tracks the user has in their library but rarely plays — hidden gems.
          */
-        get: operations["listening_stats_api_analytics_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/wrapped": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Wrapped
-         * @description Year-in-review — the Spotify Wrapped equivalent.
-         *
-         *     Aggregates the user's play signals for the given year: top artists,
-         *     top tracks (best-effort hydrated), total minutes, month activity,
-         *     genre breakdown (from the taste profile / artist classification),
-         *     and listening streaks. Every failure degrades to an empty report —
-         *     this endpoint must never 500 a celebration.
-         */
-        get: operations["wrapped_api_analytics_wrapped_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/top-artists": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Top Artists
-         * @description Get top artists by play count for a time period.
-         */
-        get: operations["top_artists_api_analytics_top_artists_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/top-tracks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Top Tracks
-         * @description Get top tracks by play count for a time period.
-         */
-        get: operations["top_tracks_api_analytics_top_tracks_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/listening-by-hour": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Listening By Hour
-         * @description Get listening activity broken down by hour of day.
-         */
-        get: operations["listening_by_hour_api_analytics_listening_by_hour_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/listening-by-day": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Listening By Day
-         * @description Get listening activity broken down by day of week.
-         */
-        get: operations["listening_by_day_api_analytics_listening_by_day_get"];
+        get: operations["discover_api_smart_playlists_discover_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1421,26 +1259,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/smart-playlists/discover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Discover
-         * @description Tracks the user has in their library but rarely plays — hidden gems.
-         */
-        get: operations["discover_api_smart_playlists_discover_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/smart-playlists/time-capsule": {
         parameters: {
             query?: never;
@@ -1461,47 +1279,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artists/following": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Following
-         * @description Every artist the caller follows, newest follow first.
-         */
-        get: operations["list_following_api_artists_following_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/artists/{artist_id}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Follow Status
-         * @description Follow state + any unseen release for one artist.
-         */
-        get: operations["follow_status_api_artists__artist_id__status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/artists/{artist_id}/follow": {
+    "/api/stream/artwork/cache/clear": {
         parameters: {
             query?: never;
             header?: never;
@@ -1511,18 +1289,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Follow Artist
-         * @description Follow an artist, caching their newest release for later notifications.
+         * Clear Artwork Cache
+         * @description Clear the in-memory artwork proxy cache.
          */
-        post: operations["follow_artist_api_artists__artist_id__follow_post"];
-        /** Unfollow Artist */
-        delete: operations["unfollow_artist_api_artists__artist_id__follow_delete"];
+        post: operations["clear_artwork_cache_api_stream_artwork_cache_clear_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/artists/{artist_id}/seen": {
+    "/api/stream/cache/clear": {
         parameters: {
             query?: never;
             header?: never;
@@ -1532,10 +1309,387 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Mark Release Seen
-         * @description Mark the artist's latest release as seen so it stops being 'new'.
+         * Clear Stream Cache
+         * @description Clear the in-memory stream file index — forces a rescan on next request.
          */
-        post: operations["mark_release_seen_api_artists__artist_id__seen_post"];
+        post: operations["clear_stream_cache_api_stream_cache_clear_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stream/remote-cache/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Remote Cache
+         * @description Clear the in-memory remote stream cache (cached yt-dlp audio files).
+         */
+        post: operations["clear_remote_cache_api_stream_remote_cache_clear_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stream/{track_id}/artwork": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Artwork
+         * @description Serve embedded artwork from a locally downloaded file.
+         *     Returns 204 if the file exists but has no embedded art.
+         *     Returns 404 if the track is not downloaded.
+         */
+        get: operations["get_artwork_api_stream__track_id__artwork_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stream/{track_id}/artwork-proxy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Proxy Artwork
+         * @description Proxy a remote artwork URL (ytmusicapi thumbnail) through the API server.
+         *
+         *     Why this endpoint exists:
+         *       - The APK WebView sometimes can't fetch i.ytimg.com / lh3.googleusercontent.com
+         *         directly due to network restrictions or CORS on Android WebViews.
+         *       - Render's free tier IPs can hit rate limits on Google's image CDN.
+         *       - By proxying through the API, we get server-side caching and the
+         *         frontend only ever talks to our own domain.
+         *
+         *     The frontend should call this as:
+         *       /api/stream/{videoId}/artwork-proxy?url={encodeURIComponent(artworkUrl)}
+         */
+        get: operations["proxy_artwork_api_stream__track_id__artwork_proxy_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stream/{track_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream Audio */
+        get: operations["stream_audio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /** Stream Audio */
+        head: operations["stream_audio_1"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stream/{track_id}/warm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Warm Stream
+         * @description Start buffering a remote track in the background (idempotent).
+         *
+         *     Uses the same single-fill-per-track session as the audio route, so a
+         *     warm request and a concurrent play request share one yt-dlp process.
+         */
+        post: operations["warm_stream_api_stream__track_id__warm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tracks
+         * @description All files currently on disk — shared instance library.
+         */
+        get: operations["list_tracks_api_tracks__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Clear History */
+        delete: operations["clear_history_api_tracks_history_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/liked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Liked */
+        get: operations["get_liked_api_tracks_liked_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/liked/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Liked Count
+         * @description Cheap count for the Library pinned card — no track hydration.
+         */
+        get: operations["get_liked_count_api_tracks_liked_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/recently-played": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Recently Played */
+        get: operations["get_recently_played_api_tracks_recently_played_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report Signal
+         * @description Record a behavioral signal from the frontend.
+         *
+         *     Accepts: { signal, track_id?, artist?, progress?, context? }
+         *     Requires the database (signals drive the Mongo recommendation profiler).
+         */
+        post: operations["report_signal_api_tracks_signals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/stats/{track_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Track Stats
+         * @description Return play count, like count, and last played for a track (per user).
+         */
+        get: operations["get_track_stats_api_tracks_stats__track_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/trending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Trending
+         * @description Charts snapshot (fresh on every call, used by the live Trending rail).
+         */
+        get: operations["get_trending_api_tracks_trending_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/trending/weekly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Weekly Trending */
+        get: operations["get_weekly_trending_api_tracks_trending_weekly_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{track_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Track */
+        get: operations["get_track_api_tracks__track_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{track_id}/dislike": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dislike Track
+         * @description Hide a track: stops it appearing in recommendations/autoplay and
+         *     removes it from Liked songs. Explicit dislikes are stored per-user in
+         *     MongoDB (disliked_tracks) with a local mirror, and recorded as a
+         *     strong-negative DISLIKE signal for the taste profiler.
+         */
+        post: operations["dislike_track_api_tracks__track_id__dislike_post"];
+        /** Undislike Track */
+        delete: operations["undislike_track_api_tracks__track_id__dislike_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{track_id}/like": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Like Track */
+        post: operations["like_track_api_tracks__track_id__like_post"];
+        /** Unlike Track */
+        delete: operations["unlike_track_api_tracks__track_id__like_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{track_id}/play": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Play */
+        post: operations["record_play_api_tracks__track_id__play_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Version Info */
+        get: operations["version_info_api_version_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1563,160 +1717,6 @@ export interface paths {
          *     5. Returns 200 quickly — processing is best-effort
          */
         post: operations["clerk_webhook_api_webhooks_clerk_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health
-         * @description Full cheap health snapshot with per-subsystem checks.
-         *
-         *     Backed by the background probe cache — no expensive work per request.
-         */
-        get: operations["health_api_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/health/diag": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health Diag
-         * @description Authenticated deep diagnostics: forces a fresh, bounded probe of every
-         *     subsystem (DB ping latency, yt-dlp/ffmpeg versions, config validation)
-         *     and returns recent error/latency metrics.
-         */
-        get: operations["health_diag_api_health_diag_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/version": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Version Info */
-        get: operations["version_info_api_version_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/library/featured": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Library Featured */
-        get: operations["library_featured_api_library_featured_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/library/albums": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Library Albums */
-        get: operations["library_albums_api_library_albums_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/library/artists": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Library Artists */
-        get: operations["library_artists_api_library_artists_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/library/albums/{album_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Library Album Detail
-         * @description Album detail page: cover + full track list.
-         *
-         *     Remote YouTube Music albums (browse IDs like MPREb…) are served from
-         *     ytmusicapi's get_album. Local library albums (md5-derived IDs or a
-         *     ?name= fallback) are aggregated from the file index so the Album page
-         *     works fully offline too.
-         */
-        get: operations["library_album_detail_api_library_albums__album_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/artists/{artist_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Artist Detail */
-        get: operations["artist_detail_api_artists__artist_id__get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2350,11 +2350,10 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    search_endpoint_api_search_get: {
+    listening_by_day_api_analytics_listening_by_day_get: {
         parameters: {
-            query: {
-                q: string;
-                filter?: string | null;
+            query?: {
+                days?: number;
             };
             header?: never;
             path?: never;
@@ -2368,7 +2367,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SearchResultsSchema"];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -2382,10 +2381,10 @@ export interface operations {
             };
         };
     };
-    suggest_endpoint_api_search_suggest_get: {
+    listening_by_hour_api_analytics_listening_by_hour_get: {
         parameters: {
-            query: {
-                q: string;
+            query?: {
+                days?: number;
             };
             header?: never;
             path?: never;
@@ -2399,7 +2398,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -2413,7 +2412,122 @@ export interface operations {
             };
         };
     };
-    list_categories_api_search_categories_get: {
+    listening_stats_api_analytics_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    top_artists_api_analytics_top_artists_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    top_tracks_api_analytics_top_tracks_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wrapped_api_analytics_wrapped_get: {
+        parameters: {
+            query?: {
+                year?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_following_api_artists_following_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -2435,227 +2549,16 @@ export interface operations {
             };
         };
     };
-    category_top_api_search_categories__slug__top_get: {
+    artist_detail_api_artists__artist_id__get: {
         parameters: {
             query?: {
-                limit?: number;
+                /** @description Fallback match by artist name */
+                name?: string;
             };
             header?: never;
             path: {
-                slug: string;
+                artist_id: string;
             };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    smart_search_endpoint_api_search_smart_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SmartSearchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resolve_endpoint_api_search_resolve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResolveRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResolveResponseSchema"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_tracks_api_tracks__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrackSchema"][];
-                };
-            };
-        };
-    };
-    get_liked_count_api_tracks_liked_count_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_liked_api_tracks_liked_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrackSchema"][];
-                };
-            };
-        };
-    };
-    get_recently_played_api_tracks_recently_played_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrackSchema"][];
-                };
-            };
-        };
-    };
-    get_trending_api_tracks_trending_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrackSchema"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_weekly_trending_api_tracks_trending_weekly_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -2680,34 +2583,16 @@ export interface operations {
             };
         };
     };
-    clear_history_api_tracks_history_delete: {
+    follow_artist_api_artists__artist_id__follow_post: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
+            path: {
+                artist_id: string;
             };
-        };
-    };
-    report_signal_api_tracks_signals_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": {
                     [key: string]: unknown;
@@ -2721,7 +2606,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -2735,16 +2622,190 @@ export interface operations {
             };
         };
     };
-    get_track_stats_api_tracks_stats__track_id__get: {
+    unfollow_artist_api_artists__artist_id__follow_delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                track_id: string;
+                artist_id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_release_seen_api_artists__artist_id__seen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artist_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    follow_status_api_artists__artist_id__status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artist_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_api_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_profile_api_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_profile_api_auth_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -2766,24 +2827,26 @@ export interface operations {
             };
         };
     };
-    get_track_api_tracks__track_id__get: {
+    register_api_auth_register_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                track_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrackSchema"];
+                    "application/json": components["schemas"]["TokenResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2797,13 +2860,11 @@ export interface operations {
             };
         };
     };
-    like_track_api_tracks__track_id__like_post: {
+    visitor_count_api_auth_visitor_count_get: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                track_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -2815,139 +2876,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    unlike_track_api_tracks__track_id__like_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    dislike_track_api_tracks__track_id__dislike_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    undislike_track_api_tracks__track_id__dislike_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    record_play_api_tracks__track_id__play_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2992,6 +2920,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DownloadJobSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    batch_download_api_downloads_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchDownloadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadJobSchema"][];
                 };
             };
             /** @description Validation Error */
@@ -3129,198 +3090,7 @@ export interface operations {
             };
         };
     };
-    batch_download_api_downloads_batch_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BatchDownloadRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DownloadJobSchema"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    warm_stream_api_stream__track_id__warm_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stream_audio: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stream_audio_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_artwork_api_stream__track_id__artwork_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    proxy_artwork_api_stream__track_id__artwork_proxy_get: {
-        parameters: {
-            query: {
-                /** @description Remote artwork URL to proxy */
-                url: string;
-            };
-            header?: never;
-            path: {
-                track_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    clear_stream_cache_api_stream_cache_clear_post: {
+    list_presets_api_equalizer_presets_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3340,7 +3110,38 @@ export interface operations {
             };
         };
     };
-    clear_remote_cache_api_stream_remote_cache_clear_post: {
+    get_preset_api_equalizer_presets__preset_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    health_api_health_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3360,7 +3161,7 @@ export interface operations {
             };
         };
     };
-    clear_artwork_cache_api_stream_artwork_cache_clear_post: {
+    health_diag_api_health_diag_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3376,6 +3177,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    library_albums_api_library_albums_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    library_album_detail_api_library_albums__album_id__get: {
+        parameters: {
+            query?: {
+                /** @description Fallback match by album title */
+                name?: string;
+            };
+            header?: never;
+            path: {
+                album_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    library_artists_api_library_artists_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    library_featured_api_library_featured_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3595,7 +3501,112 @@ export interface operations {
             };
         };
     };
+    export_playlist_api_playlists__playlist_id__export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                playlist_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_into_playlist_api_playlists__playlist_id__import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                playlist_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_track_api_playlists__playlist_id__tracks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                playlist_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_tracks_api_playlists__playlist_id__tracks_reorder_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -3664,87 +3675,15 @@ export interface operations {
             };
         };
     };
-    reorder_tracks_api_playlists__playlist_id__tracks_reorder_put: {
+    get_autoplay_api_recommendations_autoplay_get: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Current track ID */
+                track_id: string;
+                limit?: number;
+            };
             header?: never;
-            path: {
-                playlist_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    import_into_playlist_api_playlists__playlist_id__import_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                playlist_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    export_playlist_api_playlists__playlist_id__export_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                playlist_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -3769,7 +3708,169 @@ export interface operations {
             };
         };
     };
-    spotify_status_api_settings_spotify_status_get: {
+    get_discover_api_recommendations_discover_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_home_recommendations_api_recommendations_home_get: {
+        parameters: {
+            query?: {
+                /** @description Force refresh recommendations */
+                force?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_daily_mixes_api_recommendations_mixes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    onboard_artists_api_recommendations_onboard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_radio_api_recommendations_radio_get: {
+        parameters: {
+            query: {
+                /** @description Seed track ID */
+                track_id: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    force_refresh_api_recommendations_refresh_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3785,6 +3886,214 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_taste_profile_api_recommendations_taste_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    search_endpoint_api_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                filter?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultsSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_categories_api_search_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    category_top_api_search_categories__slug__top_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_endpoint_api_search_resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveResponseSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    smart_search_endpoint_api_search_smart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmartSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_endpoint_api_search_suggest_get: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3906,73 +4215,7 @@ export interface operations {
             };
         };
     };
-    register_api_auth_register_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    login_api_auth_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    logout_api_auth_logout_post: {
+    spotify_status_api_settings_spotify_status_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3988,365 +4231,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_profile_api_auth_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    update_profile_api_auth_me_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateProfileRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    visitor_count_api_auth_visitor_count_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_home_recommendations_api_recommendations_home_get: {
-        parameters: {
-            query?: {
-                /** @description Force refresh recommendations */
-                force?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_autoplay_api_recommendations_autoplay_get: {
-        parameters: {
-            query: {
-                /** @description Current track ID */
-                track_id: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_discover_api_recommendations_discover_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_taste_profile_api_recommendations_taste_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_daily_mixes_api_recommendations_mixes_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_radio_api_recommendations_radio_get: {
-        parameters: {
-            query: {
-                /** @description Seed track ID */
-                track_id: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    onboard_artists_api_recommendations_onboard_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    force_refresh_api_recommendations_refresh_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    list_presets_api_equalizer_presets_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_preset_api_equalizer_presets__preset_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                preset_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4420,156 +4304,10 @@ export interface operations {
             };
         };
     };
-    listening_stats_api_analytics_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    wrapped_api_analytics_wrapped_get: {
+    discover_api_smart_playlists_discover_get: {
         parameters: {
             query?: {
-                year?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    top_artists_api_analytics_top_artists_get: {
-        parameters: {
-            query?: {
-                days?: number;
                 limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    top_tracks_api_analytics_top_tracks_get: {
-        parameters: {
-            query?: {
-                days?: number;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    listening_by_hour_api_analytics_listening_by_hour_get: {
-        parameters: {
-            query?: {
-                days?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    listening_by_day_api_analytics_listening_by_day_get: {
-        parameters: {
-            query?: {
-                days?: number;
             };
             header?: never;
             path?: never;
@@ -4660,37 +4398,6 @@ export interface operations {
             };
         };
     };
-    discover_api_smart_playlists_discover_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     time_capsule_api_smart_playlists_time_capsule_get: {
         parameters: {
             query?: {
@@ -4722,7 +4429,7 @@ export interface operations {
             };
         };
     };
-    list_following_api_artists_following_get: {
+    clear_artwork_cache_api_stream_artwork_cache_clear_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4737,19 +4444,57 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": unknown;
                 };
             };
         };
     };
-    follow_status_api_artists__artist_id__status_get: {
+    clear_stream_cache_api_stream_cache_clear_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    clear_remote_cache_api_stream_remote_cache_clear_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_artwork_api_stream__track_id__artwork_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                artist_id: string;
+                track_id: string;
             };
             cookie?: never;
         };
@@ -4761,9 +4506,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -4777,16 +4520,241 @@ export interface operations {
             };
         };
     };
-    follow_artist_api_artists__artist_id__follow_post: {
+    proxy_artwork_api_stream__track_id__artwork_proxy_get: {
+        parameters: {
+            query: {
+                /** @description Remote artwork URL to proxy */
+                url: string;
+            };
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_audio: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                artist_id: string;
+                track_id: string;
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_audio_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    warm_stream_api_stream__track_id__warm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tracks_api_tracks__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackSchema"][];
+                };
+            };
+        };
+    };
+    clear_history_api_tracks_history_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_liked_api_tracks_liked_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackSchema"][];
+                };
+            };
+        };
+    };
+    get_liked_count_api_tracks_liked_count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_recently_played_api_tracks_recently_played_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackSchema"][];
+                };
+            };
+        };
+    };
+    report_signal_api_tracks_signals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
             content: {
                 "application/json": {
                     [key: string]: unknown;
@@ -4800,9 +4768,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -4816,12 +4782,12 @@ export interface operations {
             };
         };
     };
-    unfollow_artist_api_artists__artist_id__follow_delete: {
+    get_track_stats_api_tracks_stats__track_id__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                artist_id: string;
+                track_id: string;
             };
             cookie?: never;
         };
@@ -4833,9 +4799,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -4849,13 +4813,13 @@ export interface operations {
             };
         };
     };
-    mark_release_seen_api_artists__artist_id__seen_post: {
+    get_trending_api_tracks_trending_get: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                artist_id: string;
+            query?: {
+                limit?: number;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -4866,9 +4830,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TrackSchema"][];
                 };
             };
             /** @description Validation Error */
@@ -4882,87 +4844,7 @@ export interface operations {
             };
         };
     };
-    clerk_webhook_api_webhooks_clerk_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    health_api_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    health_diag_api_health_diag_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    version_info_api_version_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    library_featured_api_library_featured_get: {
+    get_weekly_trending_api_tracks_trending_weekly_get: {
         parameters: {
             query?: {
                 limit?: number;
@@ -4993,55 +4875,43 @@ export interface operations {
             };
         };
     };
-    library_albums_api_library_albums_get: {
+    get_track_api_tracks__track_id__get: {
         parameters: {
             query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    library_artists_api_library_artists_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    library_album_detail_api_library_albums__album_id__get: {
-        parameters: {
-            query?: {
-                /** @description Fallback match by album title */
-                name?: string;
-            };
             header?: never;
             path: {
-                album_id: string;
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dislike_track_api_tracks__track_id__dislike_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
             };
             cookie?: never;
         };
@@ -5067,15 +4937,12 @@ export interface operations {
             };
         };
     };
-    artist_detail_api_artists__artist_id__get: {
+    undislike_track_api_tracks__track_id__dislike_delete: {
         parameters: {
-            query?: {
-                /** @description Fallback match by artist name */
-                name?: string;
-            };
+            query?: never;
             header?: never;
             path: {
-                artist_id: string;
+                track_id: string;
             };
             cookie?: never;
         };
@@ -5097,6 +4964,139 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    like_track_api_tracks__track_id__like_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlike_track_api_tracks__track_id__like_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_play_api_tracks__track_id__play_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    version_info_api_version_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    clerk_webhook_api_webhooks_clerk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

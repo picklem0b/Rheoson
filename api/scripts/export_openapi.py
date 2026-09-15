@@ -80,6 +80,22 @@ for path in sorted(schema.get("paths", {})):
             oid = operation["operationId"]
         used_ids.add(oid)
 
+# ── Normalise the method order inside each path ────────────────
+# FastAPI keeps a route's methods in a set, so which of `get`/`head` was
+# written first for a single endpoint varied between runs. That made the
+# committed contract churn on every regeneration even when the API had not
+# changed, which trains everyone to ignore the diff. Re-emit each path with a
+# fixed method order so the file only moves when the API actually moves.
+_normalised: dict = {}
+for _path in sorted(schema.get("paths", {})):
+    _item = schema["paths"][_path]
+    _ordered = {m: _item[m] for m in METHOD_ORDER if m in _item}
+    for _key, _value in _item.items():
+        if _key not in _ordered:
+            _ordered[_key] = _value
+    _normalised[_path] = _ordered
+schema["paths"] = _normalised
+
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 OUTPUT.write_text(json.dumps(schema, indent=2, default=str))
 
