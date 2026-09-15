@@ -48,6 +48,12 @@ class DownloadJobSchema(BaseModel):
     error:      Optional[str] = None
     filePath:   Optional[str] = None
     createdAt:  str           = ""
+    # Live transfer telemetry, parsed from yt-dlp's progress line. All three
+    # are absent rather than zero when the server cannot report them, so the
+    # UI can distinguish "no data yet" from "stopped moving".
+    totalBytes: Optional[int] = None
+    speedBps:   Optional[int] = None
+    etaSeconds: Optional[int] = None
     # Options recorded at enqueue time so a retry reproduces them exactly
     embedMetadata: bool        = True
     fileNaming:    FileNaming  = "artist-title"

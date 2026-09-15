@@ -30,7 +30,7 @@ function RankedRow({ rank, title, subtitle, plays, maxPlays, imageText }: {
       <span className="text-sm font-black text-[var(--text-muted)] w-6 text-center tabular-nums">
         {rank}
       </span>
-      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[var(--accent)]/30 to-transparent border border-[var(--border)] flex items-center justify-center flex-shrink-0">
+      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-brand/30 to-transparent border border-[var(--border)] flex items-center justify-center flex-shrink-0">
         <span className="text-sm font-black text-[var(--accent)]">{imageText ?? ''}</span>
       </div>
       <div className="flex-1 min-w-0">

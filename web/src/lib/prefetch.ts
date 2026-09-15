@@ -17,8 +17,26 @@
 
 import { API_BASE } from './constants';
 import { isOnline } from './network';
+import { warmAudioCache, cacheLimitBytes } from './audioCache';
 
 const _inflight = new Map<string, AbortController>();
+
+/**
+ * Cache the next tracks' bytes locally, in the background.
+ *
+ * Server warm-up (above) removes the yt-dlp spawn cost for the *next* play;
+ * this removes the network cost entirely, which is what makes a skip to the
+ * next track feel instant. Concurrency is capped inside audioCache.
+ */
+export function cacheUpcomingTracks(trackIds: string[], limit = 2): void {
+  if (!isOnline() || cacheLimitBytes() <= 0) return;
+  trackIds.slice(0, limit).forEach((id) => {
+    if (!id) return;
+    warmAudioCache(id, `${API_BASE}/stream/${id}/audio`).catch(() => {
+      /* best-effort */
+    });
+  });
+}
 
 /**
  * Warm a single track's stream.  Safe to call multiple times for the
@@ -54,9 +72,15 @@ export function prefetchSearchResults(trackIds: string[], limit = 5): void {
 
 /**
  * Warm upcoming queue tracks so skip / auto-advance starts instantly.
+ * Warms the server AND starts filling the local byte cache for the first
+ * couple of tracks.
  */
-export function prefetchQueue(trackIds: string[], limit = 3): void {
+export function prefetchQueue(trackIds: string[], limit = 5): void {
   trackIds.slice(0, limit).forEach((id) => prefetchStream(id));
+  // Fewer full downloads than warms: filling the local byte cache is far
+  // heavier than asking the server to start buffering, and three tracks of
+  // ahead-buffered audio already covers realistic skip behaviour.
+  cacheUpcomingTracks(trackIds, 3);
 }
 
 /**

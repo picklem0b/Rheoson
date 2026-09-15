@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatDuration, formatFileSize, formatCount, formatTrackCount, truncate, capitalize, formatTotalDuration } from '@/lib/formatters'
+import { formatDuration, formatFileSize, formatCount, formatTrackCount, truncate, capitalize, formatTotalDuration, formatEta, formatSpeed } from '@/lib/formatters'
 
 describe('formatDuration', () => {
   it('formats seconds to mm:ss', () => {
@@ -31,6 +31,44 @@ describe('formatFileSize', () => {
     expect(formatFileSize(1024)).toBe('1.0 KB')
     expect(formatFileSize(1048576)).toBe('1.0 MB')
     expect(formatFileSize(1073741824)).toBe('1.0 GB')
+  })
+})
+
+describe('formatEta', () => {
+  it('stays coarse rather than reporting jitter', () => {
+    expect(formatEta(0)).toBe('<1 min left')
+    expect(formatEta(1)).toBe('<1 min left')
+    expect(formatEta(59)).toBe('<1 min left')
+    expect(formatEta(60)).toBe('1 min left')
+    expect(formatEta(150)).toBe('3 min left')
+  })
+
+  it('rolls up into hours', () => {
+    expect(formatEta(3600)).toBe('1 hr left')
+    expect(formatEta(5400)).toBe('1 hr 30 min left')
+  })
+
+  it('returns empty for absent or invalid values, not a zero', () => {
+    // yt-dlp reports "Unknown" for streams with no ETA. Rendering "0 min left"
+    // there would be a lie, so the caller is given nothing to render.
+    expect(formatEta(null)).toBe('')
+    expect(formatEta(undefined)).toBe('')
+    expect(formatEta(NaN)).toBe('')
+    expect(formatEta(-5)).toBe('')
+  })
+})
+
+describe('formatSpeed', () => {
+  it('formats bytes per second', () => {
+    expect(formatSpeed(1024)).toBe('1.0 KB/s')
+    expect(formatSpeed(1048576)).toBe('1.0 MB/s')
+  })
+
+  it('returns empty for absent or non-positive rates', () => {
+    expect(formatSpeed(0)).toBe('')
+    expect(formatSpeed(null)).toBe('')
+    expect(formatSpeed(undefined)).toBe('')
+    expect(formatSpeed(NaN)).toBe('')
   })
 })
 

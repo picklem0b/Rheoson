@@ -1,34 +1,49 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Settings, Music2, Moon, X } from 'lucide-react'
+import { Music2, Moon, X } from 'lucide-react'
 import { useUIStore } from '@/store/ui.store'
 import { IconButton } from '@/components/ui/IconButton'
-import CrossfadeControl from './CrossfadeControl'
 import SleepTimer from './SleepTimer'
 import { cn } from '@/lib/utils'
 
-type Tab = 'crossfade' | 'equalizer' | 'sleep'
+type Tab = 'equalizer' | 'sleep'
 
 /**
- * PlaybackSettings — unified drawer for all playback customization.
- * Crossfade, equalizer presets, and sleep timer in one place.
+ * PlaybackSettings — drawer for playback customization.
+ *
+ * The crossfade tab was removed: the audio engine has no crossfade
+ * implementation, so that tab only ever wrote an unread localStorage key
+ * (and corrupted the `crossfade` key's type — boolean here vs number in
+ * the old player drawer). Sleep Timer is reachable again through this
+ * drawer after its previous home was deleted as dead code.
  */
-export default function PlaybackSettings() {
+export default function PlaybackSettings({ trigger = true }: { trigger?: boolean }) {
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<Tab>('crossfade')
+  const [tab, setTab] = useState<Tab>('equalizer')
   const [sleepOpen, setSleepOpen] = useState(false)
   const { toggleEqualizer } = useUIStore()
 
+  // The PlayerBar overflow menu opens this drawer via a CustomEvent, so the
+  // settings stay reachable from mobile too — the drawer previously lived
+  // only behind a dead mount point and the sleep timer with it.
+  useEffect(() => {
+    const open2 = () => setOpen(true)
+    window.addEventListener('rheoson:playback-settings', open2)
+    return () => window.removeEventListener('rheoson:playback-settings', open2)
+  }, [])
+
   return (
     <>
-      <IconButton
-        size="sm"
-        variant="ghost"
-        onClick={() => setOpen(true)}
-        title="Playback settings"
-      >
-        <Settings className="w-4 h-4" />
-      </IconButton>
+      {trigger && (
+        <IconButton
+          size="sm"
+          variant="ghost"
+          onClick={() => setOpen(true)}
+          title="Playback settings"
+        >
+          <Music2 className="w-4 h-4" />
+        </IconButton>
+      )}
 
       <SleepTimer open={sleepOpen} onClose={() => setSleepOpen(false)} />
 
@@ -61,7 +76,6 @@ export default function PlaybackSettings() {
                 {/* Tab bar */}
                 <div className="flex border-b border-[var(--border)] flex-shrink-0">
                   {([
-                    { id: 'crossfade' as Tab, icon: Settings, label: 'Crossfade' },
                     { id: 'equalizer' as Tab, icon: Music2, label: 'Equalizer' },
                     { id: 'sleep' as Tab, icon: Moon, label: 'Sleep' },
                   ]).map(t => (
@@ -91,9 +105,8 @@ export default function PlaybackSettings() {
                   ))}
                 </div>
 
-                {/* Content */}
+                {/* Content — each tab hands off to its dedicated surface */}
                 <div className="p-5 overflow-y-auto flex-1">
-                  {tab === 'crossfade' && <CrossfadeControl />}
                   {tab === 'equalizer' && (
                     <p className="text-sm text-[var(--text-muted)] text-center py-8">
                       Opening equalizer panel...

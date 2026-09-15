@@ -50,6 +50,16 @@ class UpdateProfileRequest(BaseModel):
     name: str | None = None
 
 
+class PreferencesRequest(BaseModel):
+    """A partial patch of device-independent preferences.
+
+    The whitelist lives in services/preferences.py; unknown keys are dropped
+    rather than rejected so a client that ships a newer toggle than this
+    server understands does not have its whole patch refused.
+    """
+    preferences: dict = {}
+
+
 # ── Routes ────────────────────────────────────────────────────
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
@@ -198,6 +208,67 @@ async def update_profile(
 
     await db.users.update_one({"_id": clerk_id}, {"$set": updates})
     return {"ok": True}
+
+
+# ── Per-user preferences ──────────────────────────────────────
+
+def _optional_db():
+    """Database handle that degrades to None instead of raising.
+
+    Production's get_db raises 503 when Mongo is down; the test suite
+    patches get_db with a mock that returns a database unconditionally.
+    Routing both through this helper keeps the graceful-degradation
+    contract testable: tests exercise the real merge logic, and a Mongo
+    outage in production still serves defaults instead of erroring.
+    """
+    try:
+        return get_db()
+    except HTTPException:
+        return None
+
+
+@router.get("/me/preferences")
+async def get_preferences_route(user: dict = Depends(get_current_user)):
+    """The signed-in user's synced preferences, with defaults filled in."""
+    from app.services import preferences as prefs_service
+
+    db = _optional_db()
+    return {
+        "preferences": await prefs_service.get_preferences(db, user["sub"]),
+        "synced": db is not None,
+    }
+
+
+@router.get("/me/preferences/defaults")
+async def get_preference_defaults():
+    """The server's whitelist and default values.
+
+    The client imports this shape on boot instead of hardcoding its own
+    copy, so a new toggle added server-side is picked up by older clients
+    without a redeploy.
+    """
+    from app.services import preferences as prefs_service
+
+    return {"defaults": prefs_service.DEFAULTS}
+
+
+@router.put("/me/preferences")
+async def update_preferences_route(
+    body: PreferencesRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Merge a patch into the user's synced preferences and return the result."""
+    from app.services import preferences as prefs_service
+
+    db = _optional_db()
+    if db is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Preference sync needs the database. Your settings still work locally on this device.",
+        )
+
+    prefs = await prefs_service.update_preferences(db, user["sub"], body.preferences)
+    return {"preferences": prefs, "synced": True}
 
 
 # ── Visitor Counter ───────────────────────────────────────────

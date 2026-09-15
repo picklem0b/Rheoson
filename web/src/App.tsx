@@ -20,6 +20,7 @@ import { unlockAudioContext } from '@/lib/audioEffects'
 import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
 import ClerkUserSync from '@/components/auth/ClerkUserSync'
 import { useAuthStore } from '@/store/auth.store'
+import { usePreferenceSync } from '@/hooks/preferenceSync.hook'
 
 // ── Player error toast ────────────────────────────────────────
 function usePlayerErrorToast() {
@@ -41,6 +42,7 @@ function AppInner() {
   useKeyboardShortcuts()
   useMediaSession()
   usePlayerErrorToast()
+  usePreferenceSync()
   return (
     <ErrorBoundary>
       <NetworkErrorBanner />

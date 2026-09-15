@@ -1,0 +1,75 @@
+# ── VPS production stack ─────────────────────────────────────────────
+# Deploys the whole app behind one domain with automatic HTTPS.
+#
+#   cp api/.env.vps.example api/.env   # fill it in
+#   bash scripts/vps-deploy.sh
+#
+# Everything that must survive redeploys lives in ./data/ on the host as
+# bind mounts — a rebuild, upgrade, or full server migration moves the
+# data by moving the directory, exactly like Termux.
+#
+# Difference vs docker-compose.prod.yml: that file still expects the dev
+# topology (built images + a separate nginx container); this one is the
+# supported single-host production topology. Render remains the fallback
+# streaming-only target (render.yaml is unchanged).
+
+services:
+  api:
+    build: ./api
+    restart: unless-stopped
+    env_file: ./api/.env
+    environment:
+      - ENV=production
+      # Container paths — these are bind-mounted from ./data below.
+      # MUSIC_DIR is the library AND the download target; DOWNLOADS_DIR
+      # is legacy and unused by the pipeline (kept for schema compat).
+      - MUSIC_DIR=/data/music
+      - DOWNLOADS_DIR=/data/downloads
+      - EXTRA_MUSIC_DIRS=[]
+    volumes:
+      # The whole payload on the host: music, per-user JSON sidecars,
+      # .track_map.sqlite, .download_jobs.json, weekly cache.
+      - ./data/music:/data/music
+      - ./data/downloads:/data/downloads
+      # Prefer host networking for WebSocket latency? No — the bridge is
+      # fine and keeps Caddy's upstreams simple. Nothing here needs NAT
+      # traversal: Caddy terminates TLS and proxies both /api and the SPA.
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  web:
+    build:
+      context: ./web
+      args:
+        # SAME-ORIGIN MODE: empty string switches the SPA to relative
+        # /api + same-origin WebSocket (see web/src/lib/constants.ts).
+        # One domain, no CORS, no second DNS record.
+        VITE_API_URL: ""
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+
+volumes:
+  caddy_data:    # TLS certificates — must persist or Let's Encrypt re-issues (rate limits)
+  caddy_config:

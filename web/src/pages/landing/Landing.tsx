@@ -68,7 +68,7 @@ function GateBody({ clerkEnabled, authed = false }: GateBodyProps) {
           initial={{ scale: 0.85, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.08, type: 'spring', damping: 20 }}
-          className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--accent)] shadow-lg shadow-[var(--accent)]/25"
+          className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--accent)] shadow-lg shadow-brand/25"
         >
           <Music className="h-8 w-8 text-white" />
         </motion.div>
@@ -84,7 +84,7 @@ function GateBody({ clerkEnabled, authed = false }: GateBodyProps) {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate('/auth')}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--accent)] px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-[var(--accent)]/25 transition-shadow hover:shadow-xl hover:shadow-[var(--accent)]/35"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--accent)] px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-brand/25 transition-shadow hover:shadow-xl hover:shadow-brand/35"
         >
           Continue with Clerk
           <ArrowRight className="h-4 w-4" />
