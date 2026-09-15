@@ -154,6 +154,50 @@ async def update_latest_release(
         return True
 
 
+async def restore_follows(
+    user_id: str,
+    records: list[dict[str, Any]],
+    *,
+    merge: bool = True,
+) -> int:
+    """Restore follows from a backup bundle. Returns the stored count.
+
+    Fields are re-derived rather than trusted: a bundle is a file the user can
+    edit, and a follow record with a missing `id` or a non-numeric listener
+    count would otherwise poison every later read of the list.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    cleaned: list[dict[str, Any]] = []
+    for r in records or []:
+        if not isinstance(r, dict) or not r.get("id"):
+            continue
+        latest = r.get("latestRelease")
+        cleaned.append(
+            {
+                "id": str(r["id"]),
+                "name": str(r.get("name") or ""),
+                "imageUrl": str(r.get("imageUrl") or ""),
+                "monthlyListeners": int(r.get("monthlyListeners") or 0),
+                "latestRelease": latest if isinstance(latest, dict) else None,
+                "followedAt": str(r.get("followedAt") or now),
+                "updatedAt": str(r.get("updatedAt") or now),
+            }
+        )
+
+    if not cleaned:
+        return 0
+
+    async with _lock:
+        current = _read(user_id) if merge else []
+        incoming_ids = {str(c["id"]) for c in cleaned}
+        combined = cleaned + [
+            f for f in current if str(f.get("id")) not in incoming_ids
+        ]
+        stored = combined[:MAX_FOLLOWS]
+        _write(user_id, stored)
+        return len(stored)
+
+
 async def mark_release_seen(user_id: str, artist_id: str, release_id: str) -> bool:
     """Remember that a release has been surfaced to the user.
 

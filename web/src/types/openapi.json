@@ -2653,6 +2653,31 @@
         }
       }
     },
+    "/api/settings/backup": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Export Backup",
+        "description": "Everything the signed-in user owns, as one JSON document.\n\nLikes, hidden tracks, play history, playlists and artist follows. The\nmusic files are not included \u2014 they are already on disk and can be\nre-scanned; what cannot be recreated is the state that took months to\naccumulate.",
+        "operationId": "export_backup_api_settings_backup_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/settings/directories": {
       "get": {
         "tags": [
@@ -2789,6 +2814,51 @@
               }
             }
           }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/settings/restore": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Restore Backup",
+        "description": "Apply a backup bundle produced by GET /settings/backup.",
+        "operationId": "restore_backup_api_settings_restore_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreSchema"
+              }
+            }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -4965,6 +5035,112 @@
           "tracks",
           "type"
         ]
+      },
+      "RestoreSchema": {
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "liked": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liked"
+          },
+          "disliked": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disliked"
+          },
+          "history": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History"
+          },
+          "playlists": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playlists"
+          },
+          "follows": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follows"
+          },
+          "merge": {
+            "type": "boolean",
+            "title": "Merge",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "RestoreSchema"
       },
       "SearchResultsSchema": {
         "properties": {

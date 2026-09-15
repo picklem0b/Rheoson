@@ -224,3 +224,43 @@ async def update_tools(user: dict = Depends(get_current_user)):
 
     ok, output = await loop.run_in_executor(None, _run)
     return {"ok": ok, "output": output}
+
+
+# ── Backup & restore ──────────────────────────────────────────
+
+@router.get("/backup")
+async def export_backup(user: dict = Depends(get_current_user)):
+    """Everything the signed-in user owns, as one JSON document.
+
+    Likes, hidden tracks, play history, playlists and artist follows. The
+    music files are not included — they are already on disk and can be
+    re-scanned; what cannot be recreated is the state that took months to
+    accumulate.
+    """
+    from app.services.backup_service import export_state
+
+    return await export_state(user["sub"])
+
+
+class RestoreSchema(BaseModel):
+    format: str | None = None
+    version: int | None = None
+    liked: list[str] | None = None
+    disliked: list[str] | None = None
+    history: list[dict] | None = None
+    playlists: dict[str, dict] | None = None
+    follows: list[dict] | None = None
+    # True unions with existing state (safe default); False replaces it, which
+    # is what restoring onto a fresh install wants.
+    merge: bool = True
+
+
+@router.post("/restore")
+async def restore_backup(body: RestoreSchema, user: dict = Depends(get_current_user)):
+    """Apply a backup bundle produced by GET /settings/backup."""
+    from app.services.backup_service import restore_state
+
+    try:
+        return await restore_state(user["sub"], body.model_dump(), merge=body.merge)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

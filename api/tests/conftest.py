@@ -298,7 +298,18 @@ def _clean_state():
     """Reset file-backed stores and rate limiter between tests."""
     import glob as _glob
     music = os.environ["MUSIC_DIR"]
-    for pattern in (".liked-*.json", ".history-*.json", ".playlists-*.json", ".track_map.sqlite"):
+    # NOTE: .disliked-*.json and .following-*.json are also per-user state in
+    # MUSIC_DIR. Leaving them out let hidden-track and followed-artist state
+    # leak between tests, which is exactly the kind of coupling that makes a
+    # suite pass locally and fail in a different order.
+    for pattern in (
+        ".liked-*.json",
+        ".history-*.json",
+        ".disliked-*.json",
+        ".following-*.json",
+        ".playlists-*.json",
+        ".track_map.sqlite",
+    ):
         for f in _glob.glob(os.path.join(music, pattern)):
             os.unlink(f)
     # The in-memory identity mirrors outlive the file deletion — reset them.
@@ -308,7 +319,18 @@ def _clean_state():
     except Exception:
         pass
     yield
-    for pattern in (".liked-*.json", ".history-*.json", ".playlists-*.json", ".track_map.sqlite"):
+    # NOTE: .disliked-*.json and .following-*.json are also per-user state in
+    # MUSIC_DIR. Leaving them out let hidden-track and followed-artist state
+    # leak between tests, which is exactly the kind of coupling that makes a
+    # suite pass locally and fail in a different order.
+    for pattern in (
+        ".liked-*.json",
+        ".history-*.json",
+        ".disliked-*.json",
+        ".following-*.json",
+        ".playlists-*.json",
+        ".track_map.sqlite",
+    ):
         for f in _glob.glob(os.path.join(music, pattern)):
             os.unlink(f)
     try:

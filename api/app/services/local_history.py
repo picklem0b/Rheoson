@@ -151,3 +151,80 @@ async def undislike_local(user_id: str, track_id: str) -> list[str]:
         disliked = [str(i) for i in _read_json(_disliked_file(user_id)) if str(i) != track_id]
         _write_json(_disliked_file(user_id), disliked)
         return disliked
+
+
+# ── Backup / restore ──────────────────────────────────────────
+
+
+def _dedupe(ids: list) -> list[str]:
+    """Order-preserving de-duplication of ids read from a backup bundle."""
+    return list(dict.fromkeys([str(i) for i in ids if i]))
+
+
+async def restore_local_state(
+    user_id: str,
+    *,
+    liked: list | None = None,
+    disliked: list | None = None,
+    history: list | None = None,
+    merge: bool = True,
+) -> dict[str, int]:
+    """Restore liked, hidden and history from a backup bundle.
+
+    Writes the files directly instead of replaying like/dislike calls: those
+    carry deliberate side effects (hiding a track also unlikes it), which would
+    corrupt a bundle restored in the wrong order.
+
+    `merge` (the default) unions with what is already stored, so importing a
+    backup onto a device that has been used since cannot silently delete the
+    newer activity. `merge=False` replaces instead, which is what moving onto
+    a fresh install wants.
+    """
+    counts = {"liked": 0, "disliked": 0, "history": 0}
+
+    if liked is not None:
+        incoming = _dedupe(liked)
+        async with _liked_lock:
+            current = [str(i) for i in _read_json(_liked_file(user_id))]
+            merged = _dedupe([*incoming, *current]) if merge else incoming
+            _write_json(_liked_file(user_id), merged)
+            counts["liked"] = len(merged)
+
+    if disliked is not None:
+        incoming = _dedupe(disliked)
+        async with _disliked_lock:
+            current = [str(i) for i in _read_json(_disliked_file(user_id))]
+            merged = _dedupe([*incoming, *current]) if merge else incoming
+            _write_json(_disliked_file(user_id), merged)
+            counts["disliked"] = len(merged)
+
+    if history is not None:
+        incoming = [
+            {"id": str(e.get("id")), "playedAt": str(e.get("playedAt") or "")}
+            for e in history
+            if isinstance(e, dict) and e.get("id")
+        ]
+        async with _history_lock:
+            current = _read_json(_history_file(user_id))
+            if merge:
+                # Keep the newest timestamp per track so a merge cannot
+                # resurrect an older play over a newer one.
+                by_id: dict[str, dict] = {}
+                for entry in [*incoming, *current]:
+                    if not isinstance(entry, dict) or not entry.get("id"):
+                        continue
+                    tid = str(entry["id"])
+                    stamp = str(entry.get("playedAt") or "")
+                    prev = by_id.get(tid)
+                    if prev is None or stamp > str(prev.get("playedAt") or ""):
+                        by_id[tid] = {"id": tid, "playedAt": stamp}
+                merged = sorted(
+                    by_id.values(), key=lambda e: e["playedAt"], reverse=True
+                )
+            else:
+                merged = incoming
+            trimmed = merged[:HISTORY_MAX]
+            _write_json(_history_file(user_id), trimmed)
+            counts["history"] = len(trimmed)
+
+    return counts
