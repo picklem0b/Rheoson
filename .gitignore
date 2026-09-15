@@ -22,8 +22,13 @@ dump.rdb
 
 # Logs
 *.log
+*.logs
 music/*.json
 downloads/
+
+# Local design references — screenshots kept on disk for reference only,
+# never shipped and never committed.
+reference/
 
 # OS
 .DS_Store
