@@ -24,7 +24,9 @@ dump.rdb
 *.log
 *.logs
 music/*.json
-downloads/
+# Anchored: an unanchored `downloads/` also matches web/src/pages/downloads/,
+# which is the app's Downloads page source, not a build artefact.
+/downloads/
 
 # Local design references — screenshots kept on disk for reference only,
 # never shipped and never committed.
