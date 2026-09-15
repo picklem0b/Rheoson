@@ -2,16 +2,17 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.16.4"
+    "version": "2.17.6"
   },
   "paths": {
-    "/api/search": {
+    "/api/analytics/listening-by-day": {
       "get": {
         "tags": [
-          "search"
+          "analytics"
         ],
-        "summary": "Search Endpoint",
-        "operationId": "search_endpoint_api_search_get",
+        "summary": "Listening By Day",
+        "description": "Get listening activity broken down by day of week.",
+        "operationId": "listening_by_day_api_analytics_listening_by_day_get",
         "security": [
           {
             "HTTPBearer": []
@@ -19,30 +20,266 @@
         ],
         "parameters": [
           {
-            "name": "q",
+            "name": "days",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
-              "minLength": 1,
-              "title": "Q"
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "default": 7,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/listening-by-hour": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Listening By Hour",
+        "description": "Get listening activity broken down by hour of day.",
+        "operationId": "listening_by_hour_api_analytics_listening_by_hour_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/stats": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Listening Stats",
+        "description": "Get overall listening statistics for the current user.",
+        "operationId": "listening_stats_api_analytics_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/top-artists": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Top Artists",
+        "description": "Get top artists by play count for a time period.",
+        "operationId": "top_artists_api_analytics_top_artists_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
             }
           },
           {
-            "name": "filter",
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/top-tracks": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Top Tracks",
+        "description": "Get top tracks by play count for a time period.",
+        "operationId": "top_tracks_api_analytics_top_tracks_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/wrapped": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Wrapped",
+        "description": "Year-in-review \u2014 the Spotify Wrapped equivalent.\n\nAggregates the user's play signals for the given year: top artists,\ntop tracks (best-effort hydrated), total minutes, month activity,\ngenre breakdown (from the taste profile / artist classification),\nand listening streaks. Every failure degrades to an empty report \u2014\nthis endpoint must never 500 a celebration.",
+        "operationId": "wrapped_api_analytics_wrapped_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "string",
-                  "pattern": "^(tracks|songs|albums|artists|playlists)$"
+                  "type": "integer",
+                  "maximum": 2100,
+                  "minimum": 2000
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Filter"
+              "title": "Year"
             }
           }
         ],
@@ -51,9 +288,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SearchResultsSchema"
-                }
+                "schema": {}
               }
             }
           },
@@ -70,14 +305,42 @@
         }
       }
     },
-    "/api/search/suggest": {
+    "/api/artists/following": {
       "get": {
         "tags": [
-          "search"
+          "artists"
         ],
-        "summary": "Suggest Endpoint",
-        "description": "Instant autocomplete \u2014 returns in ~80ms.\nNo debounce needed \u2014 call on every keystroke.",
-        "operationId": "suggest_endpoint_api_search_suggest_get",
+        "summary": "List Following",
+        "description": "Every artist the caller follows, newest follow first.",
+        "operationId": "list_following_api_artists_following_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Following Api Artists Following Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/artists/{artist_id}": {
+      "get": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Artist Detail",
+        "operationId": "artist_detail_api_artists__artist_id__get",
         "security": [
           {
             "HTTPBearer": []
@@ -85,14 +348,25 @@
         ],
         "parameters": [
           {
-            "name": "q",
-            "in": "query",
+            "name": "artist_id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "minLength": 1,
-              "title": "Q"
+              "title": "Artist Id"
             }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fallback match by artist name",
+              "default": "",
+              "title": "Name"
+            },
+            "description": "Fallback match by artist name"
           }
         ],
         "responses": {
@@ -100,13 +374,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "title": "Response Suggest Endpoint Api Search Suggest Get"
-                }
+                "schema": {}
               }
             }
           },
@@ -123,239 +391,319 @@
         }
       }
     },
-    "/api/search/resolve": {
+    "/api/artists/{artist_id}/follow": {
       "post": {
         "tags": [
-          "search"
+          "artists"
         ],
-        "summary": "Resolve Endpoint",
-        "operationId": "resolve_endpoint_api_search_resolve_post",
+        "summary": "Follow Artist",
+        "description": "Follow an artist, caching their newest release for later notifications.",
+        "operationId": "follow_artist_api_artists__artist_id__follow_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ResolveRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolveResponseSchema"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/tracks/": {
-      "get": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "List Tracks",
-        "description": "All files currently on disk \u2014 shared instance library.",
-        "operationId": "list_tracks_api_tracks__get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TrackSchema"
-                  },
-                  "type": "array",
-                  "title": "Response List Tracks Api Tracks  Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/tracks/liked/count": {
-      "get": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Get Liked Count",
-        "description": "Cheap count for the Library pinned card \u2014 no track hydration.",
-        "operationId": "get_liked_count_api_tracks_liked_count_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/tracks/liked": {
-      "get": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Get Liked",
-        "operationId": "get_liked_api_tracks_liked_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TrackSchema"
-                  },
-                  "type": "array",
-                  "title": "Response Get Liked Api Tracks Liked Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/tracks/recently-played": {
-      "get": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Get Recently Played",
-        "operationId": "get_recently_played_api_tracks_recently_played_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TrackSchema"
-                  },
-                  "type": "array",
-                  "title": "Response Get Recently Played Api Tracks Recently Played Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/tracks/trending": {
-      "get": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Get Trending",
-        "operationId": "get_trending_api_tracks_trending_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TrackSchema"
-                  },
-                  "type": "array",
-                  "title": "Response Get Trending Api Tracks Trending Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/tracks/history": {
-      "delete": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Clear History",
-        "operationId": "clear_history_api_tracks_history_delete",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/tracks/signals": {
-      "post": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Report Signal",
-        "description": "Record a behavioral signal from the frontend.\n\nAccepts: { signal, track_id?, artist?, progress?, context? }\nRequires the database (signals drive the Mongo recommendation profiler).",
-        "operationId": "report_signal_api_tracks_signals_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
                 "type": "object",
+                "additionalProperties": true,
                 "title": "Body"
               }
             }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Follow Artist Api Artists  Artist Id  Follow Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Unfollow Artist",
+        "operationId": "unfollow_artist_api_artists__artist_id__follow_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Unfollow Artist Api Artists  Artist Id  Follow Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/artists/{artist_id}/seen": {
+      "post": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Mark Release Seen",
+        "description": "Mark the artist's latest release as seen so it stops being 'new'.",
+        "operationId": "mark_release_seen_api_artists__artist_id__seen_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Mark Release Seen Api Artists  Artist Id  Seen Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/artists/{artist_id}/status": {
+      "get": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Follow Status",
+        "description": "Follow state + any unseen release for one artist.",
+        "operationId": "follow_status_api_artists__artist_id__status_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artist Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Follow Status Api Artists  Artist Id  Status Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "Login via Clerk \u2014 verify credentials and create a session.\n\nClerk's Backend API has no password-check endpoint, so we create a\nreal session for the matching Clerk account and hand its JWT back.\nClerk enforces the password on session creation: unknown credentials\nreturn 404/422 here, which maps to a generic 401 for the client.",
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "Revoke the Clerk session so the JWT dies server-side, not just locally.",
+        "operationId": "logout_api_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get Profile",
+        "description": "Get the current user's profile from Clerk.",
+        "operationId": "get_profile_api_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Profile",
+        "description": "Update user profile in MongoDB.",
+        "operationId": "update_profile_api_auth_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
           },
           "required": true
         },
@@ -386,30 +734,47 @@
         ]
       }
     },
-    "/api/tracks/stats/{track_id}": {
+    "/api/auth/me/preferences": {
       "get": {
         "tags": [
-          "tracks"
+          "auth"
         ],
-        "summary": "Get Track Stats",
-        "description": "Return play count, like count, and last played for a track (per user).",
-        "operationId": "get_track_stats_api_tracks_stats__track_id__get",
+        "summary": "Get Preferences Route",
+        "description": "The signed-in user's synced preferences, with defaults filled in.",
+        "operationId": "get_preferences_route_api_auth_me_preferences_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
         "security": [
           {
             "HTTPBearer": []
           }
+        ]
+      },
+      "put": {
+        "tags": [
+          "auth"
         ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
+        "summary": "Update Preferences Route",
+        "description": "Merge a patch into the user's synced preferences and return the result.",
+        "operationId": "update_preferences_route_api_auth_me_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesRequest"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -429,39 +794,59 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
-    "/api/tracks/{track_id}": {
+    "/api/auth/me/preferences/defaults": {
       "get": {
         "tags": [
-          "tracks"
+          "auth"
         ],
-        "summary": "Get Track",
-        "operationId": "get_track_api_tracks__track_id__get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
+        "summary": "Get Preference Defaults",
+        "description": "The server's whitelist and default values.\n\nThe client imports this shape on boot instead of hardcoding its own\ncopy, so a new toggle added server-side is picked up by older clients\nwithout a redeploy.",
+        "operationId": "get_preference_defaults_api_auth_me_preferences_defaults_get",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register",
+        "description": "Register a new user via Clerk Backend API.",
+        "operationId": "register_api_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TrackSchema"
+                  "$ref": "#/components/schemas/TokenResponse"
                 }
               }
             }
@@ -479,29 +864,14 @@
         }
       }
     },
-    "/api/tracks/{track_id}/like": {
-      "post": {
+    "/api/auth/visitor-count": {
+      "get": {
         "tags": [
-          "tracks"
+          "auth"
         ],
-        "summary": "Like Track",
-        "operationId": "like_track_api_tracks__track_id__like_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
+        "summary": "Visitor Count",
+        "description": "Get the registered-account total. Session required (no guest counting).",
+        "operationId": "visitor_count_api_auth_visitor_count_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -510,195 +880,13 @@
                 "schema": {}
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
-      },
-      "delete": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Unlike Track",
-        "operationId": "unlike_track_api_tracks__track_id__like_delete",
+        },
         "security": [
           {
             "HTTPBearer": []
           }
-        ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/tracks/{track_id}/dislike": {
-      "post": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Dislike Track",
-        "description": "Hide a track: stops it appearing in recommendations/autoplay and\nremoves it from Liked songs. Explicit dislikes are stored per-user in\nMongoDB (disliked_tracks) with a local mirror, and recorded as a\nstrong-negative DISLIKE signal for the taste profiler.",
-        "operationId": "dislike_track_api_tracks__track_id__dislike_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Undislike Track",
-        "operationId": "undislike_track_api_tracks__track_id__dislike_delete",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/tracks/{track_id}/play": {
-      "post": {
-        "tags": [
-          "tracks"
-        ],
-        "summary": "Record Play",
-        "operationId": "record_play_api_tracks__track_id__play_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/api/downloads": {
@@ -753,6 +941,57 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DownloadJobSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/downloads/batch": {
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Batch Download",
+        "description": "Start multiple downloads at once (max 20).",
+        "operationId": "batch_download_api_downloads_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchDownloadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DownloadJobSchema"
+                  },
+                  "type": "array",
+                  "title": "Response Batch Download Api Downloads Batch Post"
                 }
               }
             }
@@ -957,46 +1196,20 @@
         }
       }
     },
-    "/api/downloads/batch": {
-      "post": {
+    "/api/equalizer/presets": {
+      "get": {
         "tags": [
-          "downloads"
+          "equalizer"
         ],
-        "summary": "Batch Download",
-        "description": "Start multiple downloads at once (max 20).",
-        "operationId": "batch_download_api_downloads_batch_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BatchDownloadRequest"
-              }
-            }
-          },
-          "required": true
-        },
+        "summary": "List Presets",
+        "description": "Return all built-in equalizer presets.",
+        "operationId": "list_presets_api_equalizer_presets_get",
         "responses": {
-          "202": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DownloadJobSchema"
-                  },
-                  "type": "array",
-                  "title": "Response Batch Download Api Downloads Batch Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": {}
               }
             }
           }
@@ -1008,14 +1221,14 @@
         ]
       }
     },
-    "/api/stream/{track_id}/warm": {
-      "post": {
+    "/api/equalizer/presets/{preset_id}": {
+      "get": {
         "tags": [
-          "stream"
+          "equalizer"
         ],
-        "summary": "Warm Stream",
-        "description": "Start buffering a remote track in the background (idempotent).\n\nUses the same single-fill-per-track session as the audio route, so a\nwarm request and a concurrent play request share one yt-dlp process.",
-        "operationId": "warm_stream_api_stream__track_id__warm_post",
+        "summary": "Get Preset",
+        "description": "Return full band configuration for a preset.",
+        "operationId": "get_preset_api_equalizer_presets__preset_id__get",
         "security": [
           {
             "HTTPBearer": []
@@ -1023,12 +1236,12 @@
         ],
         "parameters": [
           {
-            "name": "track_id",
+            "name": "preset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Track Id"
+              "title": "Preset Id"
             }
           }
         ],
@@ -1054,103 +1267,34 @@
         }
       }
     },
-    "/api/stream/{track_id}/audio": {
-      "head": {
-        "tags": [
-          "stream"
-        ],
-        "summary": "Stream Audio",
-        "operationId": "stream_audio_1",
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
+    "/api/health": {
       "get": {
         "tags": [
-          "stream"
+          "health"
         ],
-        "summary": "Stream Audio",
-        "operationId": "stream_audio",
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
+        "summary": "Health",
+        "description": "Full cheap health snapshot with per-subsystem checks.\n\nBacked by the background probe cache \u2014 no expensive work per request.",
+        "operationId": "health_api_health_get",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
               }
             }
           }
         }
       }
     },
-    "/api/stream/{track_id}/artwork": {
+    "/api/health/diag": {
       "get": {
         "tags": [
-          "stream"
+          "health"
         ],
-        "summary": "Get Artwork",
-        "description": "Serve embedded artwork from a locally downloaded file.\nReturns 204 if the file exists but has no embedded art.\nReturns 404 if the track is not downloaded.",
-        "operationId": "get_artwork_api_stream__track_id__artwork_get",
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Track Id"
-            }
-          }
-        ],
+        "summary": "Health Diag",
+        "description": "Authenticated deep diagnostics: forces a fresh, bounded probe of every\nsubsystem (DB ping latency, yt-dlp/ffmpeg versions, config validation)\nand returns recent error/latency metrics.",
+        "operationId": "health_diag_api_health_diag_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1159,48 +1303,73 @@
                 "schema": {}
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/library/albums": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Library Albums",
+        "operationId": "library_albums_api_library_albums_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": {}
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
-    "/api/stream/{track_id}/artwork-proxy": {
+    "/api/library/albums/{album_id}": {
       "get": {
         "tags": [
-          "stream"
+          "library"
         ],
-        "summary": "Proxy Artwork",
-        "description": "Proxy a remote artwork URL (ytmusicapi thumbnail) through the API server.\n\nWhy this endpoint exists:\n  - The APK WebView sometimes can't fetch i.ytimg.com / lh3.googleusercontent.com\n    directly due to network restrictions or CORS on Android WebViews.\n  - Render's free tier IPs can hit rate limits on Google's image CDN.\n  - By proxying through the API, we get server-side caching and the\n    frontend only ever talks to our own domain.\n\nThe frontend should call this as:\n  /api/stream/{videoId}/artwork-proxy?url={encodeURIComponent(artworkUrl)}",
-        "operationId": "proxy_artwork_api_stream__track_id__artwork_proxy_get",
+        "summary": "Library Album Detail",
+        "description": "Album detail page: cover + full track list.\n\nRemote YouTube Music albums (browse IDs like MPREb\u2026) are served from\nytmusicapi's get_album. Local library albums (md5-derived IDs or a\n?name= fallback) are aggregated from the file index so the Album page\nworks fully offline too.",
+        "operationId": "library_album_detail_api_library_albums__album_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
-            "name": "track_id",
+            "name": "album_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Track Id"
+              "title": "Album Id"
             }
           },
           {
-            "name": "url",
+            "name": "name",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "description": "Remote artwork URL to proxy",
-              "title": "Url"
+              "description": "Fallback match by album title",
+              "default": "",
+              "title": "Name"
             },
-            "description": "Remote artwork URL to proxy"
+            "description": "Fallback match by album title"
           }
         ],
         "responses": {
@@ -1225,14 +1394,13 @@
         }
       }
     },
-    "/api/stream/cache/clear": {
-      "post": {
+    "/api/library/artists": {
+      "get": {
         "tags": [
-          "stream"
+          "library"
         ],
-        "summary": "Clear Stream Cache",
-        "description": "Clear the in-memory stream file index \u2014 forces a rescan on next request.",
-        "operationId": "clear_stream_cache_api_stream_cache_clear_post",
+        "summary": "Library Artists",
+        "operationId": "library_artists_api_library_artists_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1250,14 +1418,32 @@
         ]
       }
     },
-    "/api/stream/remote-cache/clear": {
-      "post": {
+    "/api/library/featured": {
+      "get": {
         "tags": [
-          "stream"
+          "library"
         ],
-        "summary": "Clear Remote Cache",
-        "description": "Clear the in-memory remote stream cache (cached yt-dlp audio files).",
-        "operationId": "clear_remote_cache_api_stream_remote_cache_clear_post",
+        "summary": "Library Featured",
+        "operationId": "library_featured_api_library_featured_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1266,38 +1452,18 @@
                 "schema": {}
               }
             }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/stream/artwork/cache/clear": {
-      "post": {
-        "tags": [
-          "stream"
-        ],
-        "summary": "Clear Artwork Cache",
-        "description": "Clear the in-memory artwork proxy cache.",
-        "operationId": "clear_artwork_cache_api_stream_artwork_cache_clear_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
+          },
+          "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/lyrics/{track_id}": {
@@ -1536,6 +1702,45 @@
           }
         }
       },
+      "delete": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Delete Playlist",
+        "description": "Delete a playlist.\n\nIdempotent: deleting a playlist that no longer exists is a success (204).\nThe frontend queues deletions for offline sync and replays them later \u2014 a\n404 on replay would surface as a spurious sync error.",
+        "operationId": "delete_playlist_api_playlists__playlist_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Playlist Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "playlists"
@@ -1591,14 +1796,16 @@
             }
           }
         }
-      },
-      "delete": {
+      }
+    },
+    "/api/playlists/{playlist_id}/export": {
+      "get": {
         "tags": [
           "playlists"
         ],
-        "summary": "Delete Playlist",
-        "description": "Delete a playlist.\n\nIdempotent: deleting a playlist that no longer exists is a success (204).\nThe frontend queues deletions for offline sync and replays them later \u2014 a\n404 on replay would surface as a spurious sync error.",
-        "operationId": "delete_playlist_api_playlists__playlist_id__delete",
+        "summary": "Export Playlist",
+        "description": "Export playlist as JSON with hydrated track metadata.",
+        "operationId": "export_playlist_api_playlists__playlist_id__export_get",
         "security": [
           {
             "HTTPBearer": []
@@ -1616,8 +1823,71 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/playlists/{playlist_id}/import": {
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Import Into Playlist",
+        "description": "Import tracks from a shared URL into an existing playlist.",
+        "operationId": "import_into_playlist_api_playlists__playlist_id__import_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Playlist Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -1640,6 +1910,64 @@
         "summary": "Add Track",
         "description": "Add a track to a playlist.",
         "operationId": "add_track_api_playlists__playlist_id__tracks_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Playlist Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/playlists/{playlist_id}/tracks/reorder": {
+      "put": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Reorder Tracks",
+        "description": "Reorder tracks in a playlist.",
+        "operationId": "reorder_tracks_api_playlists__playlist_id__tracks_reorder_put",
         "security": [
           {
             "HTTPBearer": []
@@ -1745,130 +2073,14 @@
         }
       }
     },
-    "/api/playlists/{playlist_id}/tracks/reorder": {
-      "put": {
-        "tags": [
-          "playlists"
-        ],
-        "summary": "Reorder Tracks",
-        "description": "Reorder tracks in a playlist.",
-        "operationId": "reorder_tracks_api_playlists__playlist_id__tracks_reorder_put",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "playlist_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Playlist Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "title": "Body"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/playlists/{playlist_id}/import": {
-      "post": {
-        "tags": [
-          "playlists"
-        ],
-        "summary": "Import Into Playlist",
-        "description": "Import tracks from a shared URL into an existing playlist.",
-        "operationId": "import_into_playlist_api_playlists__playlist_id__import_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "playlist_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Playlist Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "title": "Body"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/playlists/{playlist_id}/export": {
+    "/api/recommendations/autoplay": {
       "get": {
         "tags": [
-          "playlists"
+          "recommendations"
         ],
-        "summary": "Export Playlist",
-        "description": "Export playlist as JSON with hydrated track metadata.",
-        "operationId": "export_playlist_api_playlists__playlist_id__export_get",
+        "summary": "Get Autoplay",
+        "description": "Get autoplay candidates when the current track ends.",
+        "operationId": "get_autoplay_api_recommendations_autoplay_get",
         "security": [
           {
             "HTTPBearer": []
@@ -1876,12 +2088,26 @@
         ],
         "parameters": [
           {
-            "name": "playlist_id",
-            "in": "path",
+            "name": "track_id",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Playlist Id"
+              "description": "Current track ID",
+              "title": "Track Id"
+            },
+            "description": "Current track ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
             }
           }
         ],
@@ -1907,14 +2133,622 @@
         }
       }
     },
-    "/api/settings/spotify/status": {
+    "/api/recommendations/discover": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Discover",
+        "description": "Get discovery recommendations \u2014 diverse, exploratory tracks.",
+        "operationId": "get_discover_api_recommendations_discover_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/home": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Home Recommendations",
+        "description": "Get personalized home page recommendations for the current user.",
+        "operationId": "get_home_recommendations_api_recommendations_home_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Force refresh recommendations",
+              "default": false,
+              "title": "Force"
+            },
+            "description": "Force refresh recommendations"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/mixes": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Daily Mixes",
+        "description": "Spotify-style Daily Mixes \u2014 one infinite-feeling playlist per top genre.\n\nGenres come from the user's taste profile (Mongo signals or local mirror);\neach mix searches that genre and returns fully hydrated track dicts so the\nfrontend can queue them immediately. Tracks are deduped across mixes and\ndiverse per artist inside a mix. Hidden/disliked tracks are excluded.\n\nCold-start users (no taste yet) get an empty list \u2014 the UI hides the row.",
+        "operationId": "get_daily_mixes_api_recommendations_mixes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 5,
+              "default": 15,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/onboard": {
+      "post": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Onboard Artists",
+        "description": "Seed the taste profile from an onboarding artist picker.\n\nBody: { \"artists\": [\"Drake\", {\"name\": \"Radiohead\"}, ...] } (max 8).\nFor each artist we resolve one real track, then record LIKE + PLAY_START\nsignals (and the local mirrors) so recommendations personalise\nimmediately instead of waiting for 10+ natural plays.",
+        "operationId": "onboard_artists_api_recommendations_onboard_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/recommendations/radio": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Radio",
+        "description": "One-tap radio: an endless-feeling stream seeded by a single track.\n\nBuilds candidates from similar-artist search, the artist's related\nartists (when resolvable), and trending \u2014 deduped, diverse, with the\nseed excluded and hidden tracks removed. Returns fully hydrated track\ndicts so the frontend queues them and keeps autoplaying on end.",
+        "operationId": "get_radio_api_recommendations_radio_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Seed track ID",
+              "title": "Track Id"
+            },
+            "description": "Seed track ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 10,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/refresh": {
+      "post": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Force Refresh",
+        "description": "Force a full recommendation refresh for the current user.",
+        "operationId": "force_refresh_api_recommendations_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/recommendations/taste": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Get Taste Profile",
+        "description": "Get the current user's taste profile (Mongo signals or local mirror).",
+        "operationId": "get_taste_profile_api_recommendations_taste_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/search": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search Endpoint",
+        "operationId": "search_endpoint_api_search_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(tracks|songs|albums|artists|playlists)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResultsSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search/categories": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "List Categories",
+        "description": "Category tiles for the browse grid, with the current cache week.\n\nServed from the backend so the grid, the weekly refresher and the smart\nsearch's category intent can never disagree about which categories exist.",
+        "operationId": "list_categories_api_search_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Categories Api Search Categories Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/search/categories/{slug}/top": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Category Top",
+        "description": "The best songs in one category, refreshed weekly and cached on disk.",
+        "operationId": "category_top_api_search_categories__slug__top_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Category Top Api Search Categories  Slug  Top Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search/resolve": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Resolve Endpoint",
+        "operationId": "resolve_endpoint_api_search_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/search/smart": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Smart Search Endpoint",
+        "description": "Natural-language search that understands what's playing.\n\nTurns \"more like this\", \"top 5 hip-hop this week\" or \"download that song\nby X\" into a labelled answer plus real, playable tracks.",
+        "operationId": "smart_search_endpoint_api_search_smart_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SmartSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Smart Search Endpoint Api Search Smart Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/search/suggest": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Suggest Endpoint",
+        "description": "Instant autocomplete \u2014 returns in ~80ms.\nNo debounce needed \u2014 call on every keystroke.",
+        "operationId": "suggest_endpoint_api_search_suggest_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Suggest Endpoint Api Search Suggest Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/backup": {
       "get": {
         "tags": [
           "settings"
         ],
-        "summary": "Spotify Status",
-        "description": "Check if Spotify credentials are configured via environment.",
-        "operationId": "spotify_status_api_settings_spotify_status_get",
+        "summary": "Export Backup",
+        "description": "Everything the signed-in user owns, as one JSON document.\n\nLikes, hidden tracks, play history, playlists and artist follows. The\nmusic files are not included \u2014 they are already on disk and can be\nre-scanned; what cannot be recreated is the state that took months to\naccumulate.",
+        "operationId": "export_backup_api_settings_backup_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2096,151 +2930,19 @@
         ]
       }
     },
-    "/api/auth/register": {
+    "/api/settings/restore": {
       "post": {
         "tags": [
-          "auth"
+          "settings"
         ],
-        "summary": "Register",
-        "description": "Register a new user via Clerk Backend API.",
-        "operationId": "register_api_auth_register_post",
+        "summary": "Restore Backup",
+        "description": "Apply a backup bundle produced by GET /settings/backup.",
+        "operationId": "restore_backup_api_settings_restore_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RegisterRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/auth/login": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Login",
-        "description": "Login via Clerk \u2014 verify credentials and create a session.\n\nClerk's Backend API has no password-check endpoint, so we create a\nreal session for the matching Clerk account and hand its JWT back.\nClerk enforces the password on session creation: unknown credentials\nreturn 404/422 here, which maps to a generic 401 for the client.",
-        "operationId": "login_api_auth_login_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/auth/logout": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Logout",
-        "description": "Revoke the Clerk session so the JWT dies server-side, not just locally.",
-        "operationId": "logout_api_auth_logout_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/auth/me": {
-      "get": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Get Profile",
-        "description": "Get the current user's profile from Clerk.",
-        "operationId": "get_profile_api_auth_me_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      },
-      "patch": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Update Profile",
-        "description": "Update user profile in MongoDB.",
-        "operationId": "update_profile_api_auth_me_patch",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateProfileRequest"
+                "$ref": "#/components/schemas/RestoreSchema"
               }
             }
           },
@@ -2273,14 +2975,14 @@
         ]
       }
     },
-    "/api/auth/visitor-count": {
+    "/api/settings/spotify/status": {
       "get": {
         "tags": [
-          "auth"
+          "settings"
         ],
-        "summary": "Visitor Count",
-        "description": "Get the registered-account total. Session required (no guest counting).",
-        "operationId": "visitor_count_api_auth_visitor_count_get",
+        "summary": "Spotify Status",
+        "description": "Check if Spotify credentials are configured via environment.",
+        "operationId": "spotify_status_api_settings_spotify_status_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2298,353 +3000,14 @@
         ]
       }
     },
-    "/api/recommendations/home": {
-      "get": {
-        "tags": [
-          "recommendations"
-        ],
-        "summary": "Get Home Recommendations",
-        "description": "Get personalized home page recommendations for the current user.",
-        "operationId": "get_home_recommendations_api_recommendations_home_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "force",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "description": "Force refresh recommendations",
-              "default": false,
-              "title": "Force"
-            },
-            "description": "Force refresh recommendations"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/recommendations/autoplay": {
-      "get": {
-        "tags": [
-          "recommendations"
-        ],
-        "summary": "Get Autoplay",
-        "description": "Get autoplay candidates when the current track ends.",
-        "operationId": "get_autoplay_api_recommendations_autoplay_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Current track ID",
-              "title": "Track Id"
-            },
-            "description": "Current track ID"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 20,
-              "minimum": 1,
-              "default": 5,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/recommendations/discover": {
-      "get": {
-        "tags": [
-          "recommendations"
-        ],
-        "summary": "Get Discover",
-        "description": "Get discovery recommendations \u2014 diverse, exploratory tracks.",
-        "operationId": "get_discover_api_recommendations_discover_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
-              "default": 20,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/recommendations/taste": {
-      "get": {
-        "tags": [
-          "recommendations"
-        ],
-        "summary": "Get Taste Profile",
-        "description": "Get the current user's taste profile (Mongo signals or local mirror).",
-        "operationId": "get_taste_profile_api_recommendations_taste_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/recommendations/mixes": {
-      "get": {
-        "tags": [
-          "recommendations"
-        ],
-        "summary": "Get Daily Mixes",
-        "description": "Spotify-style Daily Mixes \u2014 one infinite-feeling playlist per top genre.\n\nGenres come from the user's taste profile (Mongo signals or local mirror);\neach mix searches that genre and returns fully hydrated track dicts so the\nfrontend can queue them immediately. Tracks are deduped across mixes and\ndiverse per artist inside a mix. Hidden/disliked tracks are excluded.\n\nCold-start users (no taste yet) get an empty list \u2014 the UI hides the row.",
-        "operationId": "get_daily_mixes_api_recommendations_mixes_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 30,
-              "minimum": 5,
-              "default": 15,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/recommendations/radio": {
-      "get": {
-        "tags": [
-          "recommendations"
-        ],
-        "summary": "Get Radio",
-        "description": "One-tap radio: an endless-feeling stream seeded by a single track.\n\nBuilds candidates from similar-artist search, the artist's related\nartists (when resolvable), and trending \u2014 deduped, diverse, with the\nseed excluded and hidden tracks removed. Returns fully hydrated track\ndicts so the frontend queues them and keeps autoplaying on end.",
-        "operationId": "get_radio_api_recommendations_radio_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "track_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Seed track ID",
-              "title": "Track Id"
-            },
-            "description": "Seed track ID"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 10,
-              "default": 20,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/recommendations/onboard": {
+    "/api/settings/tools/update": {
       "post": {
         "tags": [
-          "recommendations"
+          "settings"
         ],
-        "summary": "Onboard Artists",
-        "description": "Seed the taste profile from an onboarding artist picker.\n\nBody: { \"artists\": [\"Drake\", {\"name\": \"Radiohead\"}, ...] } (max 8).\nFor each artist we resolve one real track, then record LIKE + PLAY_START\nsignals (and the local mirrors) so recommendations personalise\nimmediately instead of waiting for 10+ natural plays.",
-        "operationId": "onboard_artists_api_recommendations_onboard_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "type": "object",
-                "title": "Body"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/recommendations/refresh": {
-      "post": {
-        "tags": [
-          "recommendations"
-        ],
-        "summary": "Force Refresh",
-        "description": "Force a full recommendation refresh for the current user.",
-        "operationId": "force_refresh_api_recommendations_refresh_post",
+        "summary": "Update Tools",
+        "description": "Update yt-dlp in place.\n\nThe most common cause of \"this track refuses to play\" is a yt-dlp that\nhas fallen behind YouTube's player changes, and the upstream fix is its\nown `-U` self-update. That already runs on a daily cron, but a user\nstaring at a broken track should not have to wait for 03:00 UTC \u2014 the\ndiagnostics screen offers it as a one-tap repair instead.",
+        "operationId": "update_tools_api_settings_tools_update_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2660,77 +3023,6 @@
             "HTTPBearer": []
           }
         ]
-      }
-    },
-    "/api/equalizer/presets": {
-      "get": {
-        "tags": [
-          "equalizer"
-        ],
-        "summary": "List Presets",
-        "description": "Return all built-in equalizer presets.",
-        "operationId": "list_presets_api_equalizer_presets_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/equalizer/presets/{preset_id}": {
-      "get": {
-        "tags": [
-          "equalizer"
-        ],
-        "summary": "Get Preset",
-        "description": "Return full band configuration for a preset.",
-        "operationId": "get_preset_api_equalizer_presets__preset_id__get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "preset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Preset Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/share/{track_id}/card": {
@@ -2870,112 +3162,20 @@
         }
       }
     },
-    "/api/analytics/stats": {
+    "/api/smart-playlists/discover": {
       "get": {
         "tags": [
-          "analytics"
+          "smart-playlists"
         ],
-        "summary": "Listening Stats",
-        "description": "Get overall listening statistics for the current user.",
-        "operationId": "listening_stats_api_analytics_stats_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/analytics/wrapped": {
-      "get": {
-        "tags": [
-          "analytics"
-        ],
-        "summary": "Wrapped",
-        "description": "Year-in-review \u2014 the Spotify Wrapped equivalent.\n\nAggregates the user's play signals for the given year: top artists,\ntop tracks (best-effort hydrated), total minutes, month activity,\ngenre breakdown (from the taste profile / artist classification),\nand listening streaks. Every failure degrades to an empty report \u2014\nthis endpoint must never 500 a celebration.",
-        "operationId": "wrapped_api_analytics_wrapped_get",
+        "summary": "Discover",
+        "description": "Tracks the user has in their library but rarely plays \u2014 hidden gems.",
+        "operationId": "discover_api_smart_playlists_discover_get",
         "security": [
           {
             "HTTPBearer": []
           }
         ],
         "parameters": [
-          {
-            "name": "year",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "maximum": 2100,
-                  "minimum": 2000
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Year"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/analytics/top-artists": {
-      "get": {
-        "tags": [
-          "analytics"
-        ],
-        "summary": "Top Artists",
-        "description": "Get top artists by play count for a time period.",
-        "operationId": "top_artists_api_analytics_top_artists_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "days",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 365,
-              "minimum": 1,
-              "default": 30,
-              "title": "Days"
-            }
-          },
           {
             "name": "limit",
             "in": "query",
@@ -2984,167 +3184,8 @@
               "type": "integer",
               "maximum": 50,
               "minimum": 1,
-              "default": 10,
+              "default": 20,
               "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/analytics/top-tracks": {
-      "get": {
-        "tags": [
-          "analytics"
-        ],
-        "summary": "Top Tracks",
-        "description": "Get top tracks by play count for a time period.",
-        "operationId": "top_tracks_api_analytics_top_tracks_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "days",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 365,
-              "minimum": 1,
-              "default": 30,
-              "title": "Days"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
-              "default": 10,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/analytics/listening-by-hour": {
-      "get": {
-        "tags": [
-          "analytics"
-        ],
-        "summary": "Listening By Hour",
-        "description": "Get listening activity broken down by hour of day.",
-        "operationId": "listening_by_hour_api_analytics_listening_by_hour_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "days",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 365,
-              "minimum": 1,
-              "default": 30,
-              "title": "Days"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/analytics/listening-by-day": {
-      "get": {
-        "tags": [
-          "analytics"
-        ],
-        "summary": "Listening By Day",
-        "description": "Get listening activity broken down by day of week.",
-        "operationId": "listening_by_day_api_analytics_listening_by_day_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "days",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 30,
-              "minimum": 1,
-              "default": 7,
-              "title": "Days"
             }
           }
         ],
@@ -3280,55 +3321,6 @@
         }
       }
     },
-    "/api/smart-playlists/discover": {
-      "get": {
-        "tags": [
-          "smart-playlists"
-        ],
-        "summary": "Discover",
-        "description": "Tracks the user has in their library but rarely plays \u2014 hidden gems.",
-        "operationId": "discover_api_smart_playlists_discover_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
-              "default": 20,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/smart-playlists/time-capsule": {
       "get": {
         "tags": [
@@ -3378,54 +3370,14 @@
         }
       }
     },
-    "/api/webhooks/clerk": {
+    "/api/stream/artwork/cache/clear": {
       "post": {
         "tags": [
-          "webhooks"
+          "stream"
         ],
-        "summary": "Clerk Webhook",
-        "description": "Receive and process Clerk webhook events.\n\nThis endpoint:\n1. Reads raw body for signature verification\n2. Verifies the Svix HMAC-SHA256 signature\n3. Checks timestamp freshness (5-minute window)\n4. Dispatches to the appropriate event handler\n5. Returns 200 quickly \u2014 processing is best-effort",
-        "operationId": "clerk_webhook_api_webhooks_clerk_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/health": {
-      "get": {
-        "tags": [
-          "health"
-        ],
-        "summary": "Health",
-        "description": "Full cheap health snapshot with per-subsystem checks.\n\nBacked by the background probe cache \u2014 no expensive work per request.",
-        "operationId": "health_api_health_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/health/diag": {
-      "get": {
-        "tags": [
-          "health"
-        ],
-        "summary": "Health Diag",
-        "description": "Authenticated deep diagnostics: forces a fresh, bounded probe of every\nsubsystem (DB ping latency, yt-dlp/ffmpeg versions, config validation)\nand returns recent error/latency metrics.",
-        "operationId": "health_diag_api_health_diag_get",
+        "summary": "Clear Artwork Cache",
+        "description": "Clear the in-memory artwork proxy cache.",
+        "operationId": "clear_artwork_cache_api_stream_artwork_cache_clear_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3443,13 +3395,14 @@
         ]
       }
     },
-    "/api/version": {
-      "get": {
+    "/api/stream/cache/clear": {
+      "post": {
         "tags": [
-          "version"
+          "stream"
         ],
-        "summary": "Version Info",
-        "operationId": "version_info_api_version_get",
+        "summary": "Clear Stream Cache",
+        "description": "Clear the in-memory stream file index \u2014 forces a rescan on next request.",
+        "operationId": "clear_stream_cache_api_stream_cache_clear_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3459,16 +3412,497 @@
               }
             }
           }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/stream/remote-cache/clear": {
+      "post": {
+        "tags": [
+          "stream"
+        ],
+        "summary": "Clear Remote Cache",
+        "description": "Clear the in-memory remote stream cache (cached yt-dlp audio files).",
+        "operationId": "clear_remote_cache_api_stream_remote_cache_clear_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/stream/{track_id}/artwork": {
+      "get": {
+        "tags": [
+          "stream"
+        ],
+        "summary": "Get Artwork",
+        "description": "Serve embedded artwork from a locally downloaded file.\nReturns 204 if the file exists but has no embedded art.\nReturns 404 if the track is not downloaded.",
+        "operationId": "get_artwork_api_stream__track_id__artwork_get",
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
         }
       }
     },
-    "/api/library/featured": {
+    "/api/stream/{track_id}/artwork-proxy": {
       "get": {
         "tags": [
-          "library"
+          "stream"
         ],
-        "summary": "Library Featured",
-        "operationId": "library_featured_api_library_featured_get",
+        "summary": "Proxy Artwork",
+        "description": "Proxy a remote artwork URL (ytmusicapi thumbnail) through the API server.\n\nWhy this endpoint exists:\n  - The APK WebView sometimes can't fetch i.ytimg.com / lh3.googleusercontent.com\n    directly due to network restrictions or CORS on Android WebViews.\n  - Render's free tier IPs can hit rate limits on Google's image CDN.\n  - By proxying through the API, we get server-side caching and the\n    frontend only ever talks to our own domain.\n\nThe frontend should call this as:\n  /api/stream/{videoId}/artwork-proxy?url={encodeURIComponent(artworkUrl)}",
+        "operationId": "proxy_artwork_api_stream__track_id__artwork_proxy_get",
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          },
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Remote artwork URL to proxy",
+              "title": "Url"
+            },
+            "description": "Remote artwork URL to proxy"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stream/{track_id}/audio": {
+      "get": {
+        "tags": [
+          "stream"
+        ],
+        "summary": "Stream Audio",
+        "operationId": "stream_audio",
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "head": {
+        "tags": [
+          "stream"
+        ],
+        "summary": "Stream Audio",
+        "operationId": "stream_audio_1",
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stream/{track_id}/warm": {
+      "post": {
+        "tags": [
+          "stream"
+        ],
+        "summary": "Warm Stream",
+        "description": "Start buffering a remote track in the background (idempotent).\n\nUses the same single-fill-per-track session as the audio route, so a\nwarm request and a concurrent play request share one yt-dlp process.",
+        "operationId": "warm_stream_api_stream__track_id__warm_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tracks/": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "List Tracks",
+        "description": "All files currently on disk \u2014 shared instance library.",
+        "operationId": "list_tracks_api_tracks__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrackSchema"
+                  },
+                  "type": "array",
+                  "title": "Response List Tracks Api Tracks  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/tracks/history": {
+      "delete": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Clear History",
+        "operationId": "clear_history_api_tracks_history_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/tracks/liked": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Get Liked",
+        "operationId": "get_liked_api_tracks_liked_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrackSchema"
+                  },
+                  "type": "array",
+                  "title": "Response Get Liked Api Tracks Liked Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/tracks/liked/count": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Get Liked Count",
+        "description": "Cheap count for the Library pinned card \u2014 no track hydration.",
+        "operationId": "get_liked_count_api_tracks_liked_count_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/tracks/recently-played": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Get Recently Played",
+        "operationId": "get_recently_played_api_tracks_recently_played_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrackSchema"
+                  },
+                  "type": "array",
+                  "title": "Response Get Recently Played Api Tracks Recently Played Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/tracks/signals": {
+      "post": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Report Signal",
+        "description": "Record a behavioral signal from the frontend.\n\nAccepts: { signal, track_id?, artist?, progress?, context? }\nRequires the database (signals drive the Mongo recommendation profiler).",
+        "operationId": "report_signal_api_tracks_signals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/tracks/stats/{track_id}": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Get Track Stats",
+        "description": "Return play count, like count, and last played for a track (per user).",
+        "operationId": "get_track_stats_api_tracks_stats__track_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tracks/trending": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Get Trending",
+        "description": "Charts snapshot (fresh on every call, used by the live Trending rail).",
+        "operationId": "get_trending_api_tracks_trending_get",
         "security": [
           {
             "HTTPBearer": []
@@ -3481,8 +3915,58 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrackSchema"
+                  },
+                  "title": "Response Get Trending Api Tracks Trending Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tracks/trending/weekly": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Get Weekly Trending",
+        "operationId": "get_weekly_trending_api_tracks_trending_weekly_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
               "default": 10,
               "title": "Limit"
             }
@@ -3510,62 +3994,13 @@
         }
       }
     },
-    "/api/library/albums": {
+    "/api/tracks/{track_id}": {
       "get": {
         "tags": [
-          "library"
+          "tracks"
         ],
-        "summary": "Library Albums",
-        "operationId": "library_albums_api_library_albums_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/library/artists": {
-      "get": {
-        "tags": [
-          "library"
-        ],
-        "summary": "Library Artists",
-        "operationId": "library_artists_api_library_artists_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/library/albums/{album_id}": {
-      "get": {
-        "tags": [
-          "library"
-        ],
-        "summary": "Library Album Detail",
-        "description": "Album detail page: cover + full track list.\n\nRemote YouTube Music albums (browse IDs like MPREb\u2026) are served from\nytmusicapi's get_album. Local library albums (md5-derived IDs or a\n?name= fallback) are aggregated from the file index so the Album page\nworks fully offline too.",
-        "operationId": "library_album_detail_api_library_albums__album_id__get",
+        "summary": "Get Track",
+        "operationId": "get_track_api_tracks__track_id__get",
         "security": [
           {
             "HTTPBearer": []
@@ -3573,25 +4008,104 @@
         ],
         "parameters": [
           {
-            "name": "album_id",
+            "name": "track_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Album Id"
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackSchema"
+                }
+              }
             }
           },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tracks/{track_id}/dislike": {
+      "post": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Dislike Track",
+        "description": "Hide a track: stops it appearing in recommendations/autoplay and\nremoves it from Liked songs. Explicit dislikes are stored per-user in\nMongoDB (disliked_tracks) with a local mirror, and recorded as a\nstrong-negative DISLIKE signal for the taste profiler.",
+        "operationId": "dislike_track_api_tracks__track_id__dislike_post",
+        "security": [
           {
-            "name": "name",
-            "in": "query",
-            "required": false,
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
             "schema": {
               "type": "string",
-              "description": "Fallback match by album title",
-              "default": "",
-              "title": "Name"
-            },
-            "description": "Fallback match by album title"
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Undislike Track",
+        "operationId": "undislike_track_api_tracks__track_id__dislike_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
           }
         ],
         "responses": {
@@ -3616,13 +4130,13 @@
         }
       }
     },
-    "/api/artists/{artist_id}": {
-      "get": {
+    "/api/tracks/{track_id}/like": {
+      "post": {
         "tags": [
-          "artists"
+          "tracks"
         ],
-        "summary": "Artist Detail",
-        "operationId": "artist_detail_api_artists__artist_id__get",
+        "summary": "Like Track",
+        "operationId": "like_track_api_tracks__track_id__like_post",
         "security": [
           {
             "HTTPBearer": []
@@ -3630,25 +4144,13 @@
         ],
         "parameters": [
           {
-            "name": "artist_id",
+            "name": "track_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Artist Id"
+              "title": "Track Id"
             }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Fallback match by artist name",
-              "default": "",
-              "title": "Name"
-            },
-            "description": "Fallback match by artist name"
           }
         ],
         "responses": {
@@ -3667,6 +4169,133 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Unlike Track",
+        "operationId": "unlike_track_api_tracks__track_id__like_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tracks/{track_id}/play": {
+      "post": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Record Play",
+        "operationId": "record_play_api_tracks__track_id__play_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Version Info",
+        "operationId": "version_info_api_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/clerk": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Clerk Webhook",
+        "description": "Receive and process Clerk webhook events.\n\nThis endpoint:\n1. Reads raw body for signature verification\n2. Verifies the Svix HMAC-SHA256 signature\n3. Checks timestamp freshness (5-minute window)\n4. Dispatches to the appropriate event handler\n5. Returns 200 quickly \u2014 processing is best-effort",
+        "operationId": "clerk_webhook_api_webhooks_clerk_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -3778,6 +4407,16 @@
             "items": {},
             "type": "array",
             "title": "Albums"
+          },
+          "singles": {
+            "items": {},
+            "type": "array",
+            "title": "Singles"
+          },
+          "related": {
+            "items": {},
+            "type": "array",
+            "title": "Related"
           }
         },
         "type": "object",
@@ -3994,6 +4633,39 @@
             "type": "string",
             "title": "Createdat",
             "default": ""
+          },
+          "totalBytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalbytes"
+          },
+          "speedBps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speedbps"
+          },
+          "etaSeconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etaseconds"
           },
           "embedMetadata": {
             "type": "boolean",
@@ -4370,6 +5042,19 @@
           "tracks"
         ]
       },
+      "PreferencesRequest": {
+        "properties": {
+          "preferences": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Preferences",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "title": "PreferencesRequest",
+        "description": "A partial patch of device-independent preferences.\n\nThe whitelist lives in services/preferences.py; unknown keys are dropped\nrather than rejected so a client that ships a newer toggle than this\nserver understands does not have its whole patch refused."
+      },
       "RegisterRequest": {
         "properties": {
           "email": {
@@ -4485,6 +5170,112 @@
           "type"
         ]
       },
+      "RestoreSchema": {
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "liked": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liked"
+          },
+          "disliked": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disliked"
+          },
+          "history": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History"
+          },
+          "playlists": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playlists"
+          },
+          "follows": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follows"
+          },
+          "merge": {
+            "type": "boolean",
+            "title": "Merge",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "RestoreSchema"
+      },
       "SearchResultsSchema": {
         "properties": {
           "query": {
@@ -4529,6 +5320,31 @@
           "playlists",
           "tracks"
         ]
+      },
+      "SmartSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SmartSearchRequest"
       },
       "TokenResponse": {
         "properties": {
@@ -4620,6 +5436,11 @@
           "playCount": {
             "type": "integer",
             "title": "Playcount",
+            "default": 0
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank",
             "default": 0
           }
         },

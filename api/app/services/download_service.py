@@ -241,7 +241,64 @@ _AUDIO_EXTS = {'.mp3', '.m4a', '.flac', '.opus', '.wav', '.ogg'}
 
 # yt-dlp prints `[download]  12.3%` progress lines to stderr when --newline
 # is passed; used for live 0-80% job progress.
-_PROGRESS_RE = re.compile(r'\[download\]\s+([\d.]+)%')
+# yt-dlp prints one of these per progress tick, e.g.
+#   [download]  45.2% of    3.85MiB at    1.23MiB/s ETA 00:02
+#   [download]  12.0% of ~  120.4MiB at  Unknown B/s ETA Unknown
+# Capturing size/speed/ETA turns "45%" into the thing a user actually wants
+# to know: how much is left and how long it will take.
+_PROGRESS_RE = re.compile(
+    r'\[download\]\s+(?P<pct>[\d.]+)%'
+    r'(?:\s+of\s+~?\s*(?P<size>[\d.]+\s*[KMGT]?i?B))?'
+    r'(?:\s+at\s+(?P<speed>[\d.]+\s*[KMGT]?i?B/s|Unknown[^E]*))?'
+    r'(?:\s+ETA\s+(?P<eta>[\d:]+|Unknown))?'
+)
+
+_SIZE_RE = re.compile(r'(?P<value>[\d.]+)\s*(?P<unit>[KMGT]?i?B)', re.IGNORECASE)
+
+_SIZE_UNITS = {
+    'b': 1,
+    'kib': 1024,
+    'mib': 1024 ** 2,
+    'gib': 1024 ** 3,
+    'tib': 1024 ** 4,
+    'kb': 1000,
+    'mb': 1000 ** 2,
+    'gb': 1000 ** 3,
+    'tb': 1000 ** 4,
+}
+
+
+def _parse_size(text: str | None) -> int | None:
+    """'3.85MiB' → 4037017. Returns None for unknown/absent values."""
+    if not text or 'unknown' in text.lower():
+        return None
+    m = _SIZE_RE.search(text)
+    if not m:
+        return None
+    factor = _SIZE_UNITS.get(m.group('unit').lower())
+    if not factor:
+        return None
+    try:
+        return int(float(m.group('value')) * factor)
+    except ValueError:
+        return None
+
+
+def _parse_eta(text: str | None) -> int | None:
+    """'01:23' / '1:02:03' → seconds. Returns None for unknown/absent."""
+    if not text or 'unknown' in text.lower():
+        return None
+    parts = text.strip().split(':')
+    if not parts or not all(p.isdigit() for p in parts):
+        return None
+    try:
+        numbers = [int(p) for p in parts]
+    except ValueError:
+        return None
+    seconds = 0
+    for n in numbers:
+        seconds = seconds * 60 + n
+    return seconds
 
 
 async def _run_download(
@@ -327,17 +384,30 @@ async def _run_download(
                     stderr_tail.pop(0)
             m = _PROGRESS_RE.search(text)
             if m:
-                pct = float(m.group(1))
+                pct = float(m.group('pct'))
                 if pct != last_pct:
                     last_pct = pct
                     scaled = round(min(80.0, pct * 0.8), 1)
-                    _update(job_id, status='downloading', progress=scaled)
+                    total_bytes = _parse_size(m.group('size'))
+                    speed_bps = _parse_size(m.group('speed'))
+                    eta_s = _parse_eta(m.group('eta'))
+                    _update(
+                        job_id,
+                        status='downloading',
+                        progress=scaled,
+                        totalBytes=total_bytes,
+                        speedBps=speed_bps,
+                        etaSeconds=eta_s,
+                    )
                     # Emit throttled WS updates (each ~5% bucket) — avoids
                     # flooding the socket with every 0.1% tick.
                     if int(pct) % 5 == 0 or pct >= 99.0:
                         await ws_manager.emit_download_progress(
                             job_id, scaled, 'downloading',
                             title=job.get('title'),
+                            totalBytes=total_bytes,
+                            speedBps=speed_bps,
+                            etaSeconds=eta_s,
                         )
         rc = await proc.wait()
     except asyncio.CancelledError:

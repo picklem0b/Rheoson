@@ -1,39 +1,26 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { usePersisted } from "@/hooks/persisted.hook";
 import {
    SettingsGroup,
    SettingsRow,
    Toggle,
    RadioGroup,
-   Slider,
    Stepper
 } from "../components/SettingsPrimitives";
 
+/**
+ * Download settings — only controls the download pipeline actually reads.
+ * File naming, save location, and speed limits are decided by the backend
+ * (MUSIC_DIR layout, yt-dlp), so those controls would be decoration.
+ */
 export default function DownloadsSection() {
    const [fmt, setFmt] = usePersisted<string>("dl-format", "mp3");
    const [quality, setQuality] = usePersisted<string>("dl-quality", "320");
    const [artwork, setArtwork] = usePersisted("dl-artwork", true);
    const [lyrics, setLyrics] = usePersisted("dl-lyrics", true);
    const [metadata, setMetadata] = usePersisted("dl-metadata", true);
-   const [chapters, setChapters] = usePersisted("dl-chapters", false);
    const [wifiOnly, setWifi] = usePersisted("dl-wifi-only", false);
    const [autoRetry, setAutoRetry] = usePersisted("dl-auto-retry", true);
-   const [retries, setRetries] = usePersisted("dl-retries", 3);
    const [maxConc, setMaxConc] = usePersisted("dl-concurrent", 3);
-   const [speedCap, setSpeedCap] = usePersisted("dl-speed-cap", 0);
-   const [naming, setNaming] = usePersisted<
-      "title-artist" | "artist-title" | "id"
-   >("dl-naming", "title-artist");
-   const [customPath, setCustomPath] = usePersisted("dl-custom-path", "");
-
-   const [editingPath, setEditingPath] = useState(false);
-   const [pathInput, setPathInput] = useState(customPath);
-
-   const saveCustomPath = () => {
-      setCustomPath(pathInput.trim());
-      setEditingPath(false);
-   };
 
    return (
       <div className='pb-4'>
@@ -128,82 +115,10 @@ export default function DownloadsSection() {
                description='Title, artist, album, year, genre, and track number'>
                <Toggle value={metadata} onChange={setMetadata} />
             </SettingsRow>
-            <SettingsRow
-               label='Split chapters'
-               description='Not available yet — long videos download as a single file'>
-               <Toggle value={chapters} onChange={setChapters} disabled />
-            </SettingsRow>
          </SettingsGroup>
 
-         {/* File naming */}
-         <SettingsGroup title='File naming'>
-            <RadioGroup
-               value={naming}
-               onChange={setNaming}
-               options={[
-                  {
-                     value: "title-artist",
-                     label: "Title – Artist",
-                     sub: "Blinding Lights – The Weeknd.mp3"
-                  },
-                  {
-                     value: "artist-title",
-                     label: "Artist – Title",
-                     sub: "The Weeknd – Blinding Lights.mp3"
-                  },
-                  { value: "id", label: "Video ID", sub: "dQw4w9WgXcQ.mp3" }
-               ]}
-            />
-         </SettingsGroup>
-
-         {/* Save location */}
-         <SettingsGroup title='Save location'>
-            <SettingsRow
-               label='Custom path'
-               description={customPath || "Default Rheoson music directory — Artist/Track layout"}
-               onClick={() => {
-                  setPathInput(customPath);
-                  setEditingPath(!editingPath);
-               }}
-            />
-            <AnimatePresence>
-               {editingPath && (
-                  <motion.div
-                     initial={{ height: 0, opacity: 0 }}
-                     animate={{ height: "auto", opacity: 1 }}
-                     exit={{ height: 0, opacity: 0 }}
-                     transition={{
-                        type: "spring",
-                        damping: 26,
-                        stiffness: 300
-                     }}
-                     className='overflow-hidden border-t border-[var(--border)]/50'>
-                     <div className='px-4 py-3 flex gap-2'>
-                        <input
-                           autoFocus
-                           value={pathInput}
-                           onChange={e => setPathInput(e.target.value)}
-                           onKeyDown={e =>
-                              e.key === "Enter" && saveCustomPath()
-                           }
-                           placeholder='/storage/emulated/0/Music'
-                           className='flex-1 h-10 px-3 text-[13px] font-mono rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 outline-none focus:border-[var(--accent)] transition-colors'
-                        />
-                        <button
-                           onClick={saveCustomPath}
-                           className='px-4 h-10 rounded-2xl bg-[var(--accent)] text-white text-[13px] font-semibold'>
-                           Save
-                        </button>
-                        <button
-                           onClick={() => setEditingPath(false)}
-                           className='px-4 h-10 rounded-2xl bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-[13px]'>
-                           Cancel
-                        </button>
-                     </div>
-                  </motion.div>
-               )}
-            </AnimatePresence>
-         </SettingsGroup>
+         {/* File naming / save location / speed caps are backend-decided
+             (MUSIC_DIR + yt-dlp) and intentionally not configurable here. */}
 
          {/* Behaviour */}
          <SettingsGroup title='Download behaviour'>
@@ -214,45 +129,14 @@ export default function DownloadsSection() {
             </SettingsRow>
             <SettingsRow
                label='Auto-retry on failure'
-               description='Automatically retry failed downloads'>
+               description='Failed downloads are retried automatically with backoff'>
                <Toggle value={autoRetry} onChange={setAutoRetry} />
             </SettingsRow>
-            {autoRetry && (
-               <SettingsRow
-                  label='Max retries'
-                  description='Attempts before giving up'>
-                  <Stepper
-                     value={retries}
-                     onChange={setRetries}
-                     min={1}
-                     max={10}
-                  />
-               </SettingsRow>
-            )}
             <SettingsRow
                label='Concurrent downloads'
                description='Tracks downloading simultaneously'>
                <Stepper value={maxConc} onChange={setMaxConc} min={1} max={8} />
             </SettingsRow>
-         </SettingsGroup>
-
-         {/* Speed limit */}
-         <SettingsGroup
-            title='Speed limit'
-            footer={
-               speedCap === 0
-                  ? "No limit — downloads as fast as possible."
-                  : `Capped at ${speedCap} KB/s`
-            }>
-            <Slider
-               value={speedCap}
-               onChange={setSpeedCap}
-               min={0}
-               max={5000}
-               step={100}
-               label='Max download speed'
-               formatValue={v => (v === 0 ? "Unlimited" : `${v} KB/s`)}
-            />
          </SettingsGroup>
       </div>
    );

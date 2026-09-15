@@ -45,7 +45,7 @@ interface CategoryGridProps {
 export function CategoryGrid({ onSelect }: CategoryGridProps) {
    const [expanded, setExpanded] = useState<string | null>(null)
 
-   const { data, isLoading } = useQuery({
+   const { data } = useQuery({
       queryKey: ['search', 'categories'],
       queryFn: () => searchApi.getCategories(),
       staleTime: 60 * 60_000,

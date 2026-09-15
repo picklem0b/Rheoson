@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import { Mic, Sparkles, X } from 'lucide-react'
 import type { SmartSearchResult } from '@/api/search.api'
-import { useQueue } from '@/hooks/queue.hook'
 import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
 import { usePlayerStore } from '@/store/player.store'
 import { Spinner } from '@/components/ui/Spinner'

@@ -8,12 +8,17 @@
 //
 // VITE_API_URL must be the bare origin with no trailing slash:
 //   https://rheoson-api-vnny.onrender.com
-//
+// Special value "" (explicitly empty) = same-origin deployment: nginx
+// reverse-proxies /api and /socket.io on the same domain that serves the
+// SPA (see docker-compose.vps.yml). Unset keeps the legacy Render default
+// so APK builds without an env file keep working.
 // For the APK build, set it in web/.env.production before running:
 //   npm run build && npx cap sync
 
+const RAW_API_URL: string | undefined = import.meta.env.VITE_API_URL;
+const SAME_ORIGIN = RAW_API_URL === "";
 const PROD_API_ORIGIN =
-   import.meta.env.VITE_API_URL ?? "https://rheoson-9e4c.onrender.com";
+   RAW_API_URL === undefined ? "https://rheoson-9e4c.onrender.com" : RAW_API_URL;
 
 // ── API_BASE ──────────────────────────────────────────────────
 // Used by the api client (client.api.ts) for all REST requests.
@@ -23,7 +28,7 @@ const PROD_API_ORIGIN =
 //
 // FIX: Use import.meta.env.DEV (set by Vite) for accurate detection.
 // Previously used import.meta.env.PROD which could be stale.
-export const API_BASE = (import.meta.env.DEV) ? "/api" : `${PROD_API_ORIGIN}/api`;
+export const API_BASE = (import.meta.env.DEV || SAME_ORIGIN) ? "/api" : `${PROD_API_ORIGIN}/api`;
 
 // ── WS_URL ────────────────────────────────────────────────────
 // Used by websocket.lib.ts for the Socket.IO connection.
@@ -35,7 +40,9 @@ export const API_BASE = (import.meta.env.DEV) ? "/api" : `${PROD_API_ORIGIN}/api
 //
 export const WS_URL = (import.meta.env.DEV)
    ? (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000")
-   : PROD_API_ORIGIN;
+   : SAME_ORIGIN
+     ? typeof window !== "undefined" ? window.location.origin : ""
+     : PROD_API_ORIGIN;
 
 // ── Endpoints ─────────────────────────────────────────────────
 
@@ -92,7 +99,7 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const APP_NAME = "Rheoson";
-export const APP_VERSION = "2.17.6";
+export const APP_VERSION = "2.17.7";
 
 // ── Clerk ────────────────────────────────────────────────────
 // Publishable key for Clerk auth. Must be set in .env (VITE_CLERK_PUBLISHABLE_KEY).

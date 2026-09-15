@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette, Volume2, Download, Keyboard, Info,
   ChevronRight, ChevronLeft, User, Bell, Shield,
-  HardDrive, Layout, BarChart3,
+  HardDrive, Layout, BarChart3, Stethoscope,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { ProfileRow } from '@/components/ui/ProfileRow'
@@ -21,51 +21,59 @@ import NotificationsSection from './sections/NotificationsSection'
 import ShortcutsSection     from './sections/ShortcutsSection'
 import AboutSection         from './sections/AboutSection'
 import StatsSection         from './sections/StatsSection'
+import DiagnosticsSection   from './sections/DiagnosticsSection'
 
 type Section =
   | 'appearance' | 'layout'  | 'audio'
   | 'downloads'  | 'storage' | 'notifications'
   | 'account'    | 'privacy' | 'shortcuts' | 'about'
-  | 'stats'
+  | 'stats'      | 'diagnostics'
 
 interface SectionMeta {
   id:    Section
   label: string
   desc:  string
   Icon:  React.ElementType
-  bg:    string
 }
 
+// Icon tiles are intentionally monochrome.
+//
+// Each row used to carry its own saturated colour (violet, blue, pink, teal,
+// olive…), which made the list read as thirteen unrelated products and fought
+// the single-accent identity the rest of the app is built on. Neutral tiles
+// with the accent reserved for the row you are in is both quieter and a much
+// clearer "where am I" signal.
 const GROUPS: { label: string; items: SectionMeta[] }[] = [
   {
     label: 'Personalisation',
     items: [
-      { id: 'appearance', label: 'Appearance',    desc: 'Theme, accent, transparency',   Icon: Palette,   bg: '#8B5CF6' },
-      { id: 'layout',     label: 'Layout',        desc: 'Navigation, fonts, sidebar',    Icon: Layout,    bg: '#3B82F6' },
-      { id: 'audio',      label: 'Audio',         desc: 'Quality, crossfade, EQ',        Icon: Volume2,   bg: '#0EA5E9' },
-      { id: 'downloads',  label: 'Downloads',     desc: 'Format, quality, concurrency',  Icon: Download,  bg: '#22C55E' },
-      { id: 'storage',    label: 'Storage',       desc: 'Directories, library, cache',   Icon: HardDrive, bg: '#F97316' },
+      { id: 'appearance', label: 'Appearance',    desc: 'Theme, accent, transparency',  Icon: Palette },
+      { id: 'layout',     label: 'Layout',        desc: 'Navigation, fonts, sidebar',   Icon: Layout },
+      { id: 'audio',      label: 'Audio',         desc: 'Autoplay, EQ, normalisation',  Icon: Volume2 },
+      { id: 'downloads',  label: 'Downloads',     desc: 'Format, quality, concurrency', Icon: Download },
+      { id: 'storage',    label: 'Storage',       desc: 'Directories, library, cache',  Icon: HardDrive },
     ],
   },
   {
     label: 'Account & privacy',
     items: [
-      { id: 'notifications', label: 'Notifications', desc: 'Alerts, sounds, updates',      Icon: Bell,     bg: '#EAB308' },
-      { id: 'account',       label: 'Account',       desc: 'Profile, Spotify credentials', Icon: User,     bg: '#EC4899' },
-      { id: 'privacy',       label: 'Privacy',       desc: 'History, data, legal',         Icon: Shield,   bg: '#6B7280' },
+      { id: 'notifications', label: 'Notifications', desc: 'Sound effects & chimes',      Icon: Bell },
+      { id: 'account',       label: 'Account',       desc: 'Profile, Spotify credentials', Icon: User },
+      { id: 'privacy',       label: 'Privacy',       desc: 'History, backup, legal',       Icon: Shield },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { id: 'stats',     label: 'Stats',     desc: 'Listening analytics & charts', Icon: BarChart3, bg: '#8B5CF6' },
+      { id: 'stats', label: 'Stats', desc: 'Listening analytics & charts', Icon: BarChart3 },
     ],
   },
   {
     label: 'App',
     items: [
-      { id: 'shortcuts', label: 'Shortcuts', desc: 'Keyboard controls',           Icon: Keyboard, bg: '#64748B' },
-      { id: 'about',     label: 'About',     desc: `v${APP_VERSION} · Credits`,   Icon: Info,     bg: '#14B8A6' },
+      { id: 'diagnostics', label: 'Doctor',   desc: 'Health, problems, repairs',  Icon: Stethoscope },
+      { id: 'shortcuts',   label: 'Shortcuts', desc: 'Keyboard controls',         Icon: Keyboard },
+      { id: 'about',       label: 'About',     desc: `v${APP_VERSION} · Credits`, Icon: Info },
     ],
   },
 ]
@@ -83,6 +91,7 @@ function SectionContent({ id }: { id: Section }) {
     case 'shortcuts':     return <ShortcutsSection />
     case 'about':         return <AboutSection />
     case 'stats':         return <StatsSection />
+    case 'diagnostics':   return <DiagnosticsSection />
     default:              return null
   }
 }
@@ -93,6 +102,19 @@ export default function Settings() {
   const [active, setActive] = useState<Section | null>(null)
   const meta = GROUPS.flatMap((g) => g.items).find((s) => s.id === active) ?? null
 
+  // Lets a section send the user to another one — the Doctor's storage finding
+  // links straight to the storage controls it is complaining about.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail
+      if (id && GROUPS.some((g) => g.items.some((s) => s.id === id))) {
+        setActive(id as Section)
+      }
+    }
+    window.addEventListener('rheoson:settings-section', handler)
+    return () => window.removeEventListener('rheoson:settings-section', handler)
+  }, [])
+
   return (
     <div className="flex h-full overflow-hidden bg-[var(--bg-base)]">
 
@@ -101,14 +123,16 @@ export default function Settings() {
         'flex-shrink-0 w-full lg:w-[310px] flex flex-col border-r border-[var(--border)]/40',
         active ? 'hidden lg:flex' : 'flex',
       )}>
-        <div className="px-5 pt-12 pb-3 flex-shrink-0 space-y-4">
+        {/* pt-12 clears the mobile status bar; on desktop there is no status
+            bar to clear, so it collapses back to normal padding. */}
+        <div className="px-5 pt-12 lg:pt-8 pb-3 flex-shrink-0 space-y-4">
           <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[var(--text-primary)] leading-tight">
             Settings
           </h1>
           <ProfileRow />
         </div>
 
-        <ScrollArea className="flex-1 px-4 pb-6 pt-3">
+        <ScrollArea className="flex-1 px-4 pb-6 pt-1">
           {GROUPS.map((g) => (
             <div key={g.label} className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2 px-1">
@@ -125,14 +149,18 @@ export default function Settings() {
                     onClick={() => setActive(s.id)}
                     className={cn(
                       'w-full flex items-center gap-3 px-3.5 py-[11px] text-left transition-colors duration-100',
-                      active === s.id ? 'bg-[var(--accent)]/8' : 'hover:bg-[var(--bg-elevated)]',
+                      active === s.id ? 'bg-brand/10' : 'hover:bg-[var(--bg-elevated)]',
                     )}
                   >
                     <div
-                      className="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center flex-shrink-0"
-                      style={{ background: s.bg }}
+                      className={cn(
+                        'w-[32px] h-[32px] rounded-[10px] flex items-center justify-center flex-shrink-0 transition-colors duration-150',
+                        active === s.id
+                          ? 'bg-brand/15 text-[var(--accent)]'
+                          : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]',
+                      )}
                     >
-                      <s.Icon className="w-[17px] h-[17px] text-white" />
+                      <s.Icon className="w-[17px] h-[17px]" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className={cn(
@@ -174,8 +202,9 @@ export default function Settings() {
               transition={DETAIL_SPRING}
               className="flex flex-col h-full"
             >
-              {/* Detail header */}
-              <div className="flex items-center gap-3 px-4 lg:px-5 pt-12 pb-2 flex-shrink-0">
+              {/* Detail header */}              <div className="flex items-center gap-3 px-4 lg:px-5 pt-12 lg:pt-8 pb-2 flex-shrink-0">
+
+
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setActive(null)}
@@ -185,12 +214,9 @@ export default function Settings() {
                   <span className="text-[17px]">Settings</span>
                 </motion.button>
                 <div className="flex-1 flex items-center gap-3 min-w-0">
-                  <div
-                    className="hidden lg:flex w-9 h-9 rounded-[10px] items-center justify-center flex-shrink-0"
-                    style={{ background: meta.bg }}
-                  >
-                    <meta.Icon className="w-5 h-5 text-white" />
-                  </div>
+                <div className="hidden lg:flex w-9 h-9 rounded-[10px] items-center justify-center flex-shrink-0 bg-brand/15 text-[var(--accent)]">
+                  <meta.Icon className="w-5 h-5" />
+                </div>
                   <h2 className="text-[26px] font-bold tracking-tight text-[var(--text-primary)] lg:text-[20px] leading-tight">
                     {meta.label}
                   </h2>

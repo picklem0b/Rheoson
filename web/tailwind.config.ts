@@ -40,6 +40,18 @@ export default {
         accent:           '#1A1A1A',
         'muted-foreground': '#A3A3A3',
 
+        // The theme accent, with alpha support.
+        //
+        // `accent` above is a near-black surface alias the shared component kit
+        // was authored against. This is the *actual* accent colour, expressed
+        // as RGB channels rather than a hex so Tailwind's opacity modifier
+        // works: `bg-brand/20`, `border-brand/30`, `text-brand`.
+        //
+        // Writing `bg-[var(--accent)]/20` generates no rule at all — Tailwind
+        // cannot split an arbitrary var() into channels — so every tinted
+        // surface using that form rendered with no background whatsoever.
+        brand: 'rgb(var(--accent-rgb) / <alpha-value>)',
+
         // Accent used by the GitHub star button
         star:      '#EAB308',
         'star-glow': '#FACC15',
