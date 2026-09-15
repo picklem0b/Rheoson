@@ -87,6 +87,12 @@ def _load_jobs() -> None:
                     if job.get("status") in ("downloading", "converting", "tagging", "queued"):
                         job["status"] = "error"
                         job["error"]  = "Server restarted during download"
+                        # yt-dlp's .part files survive the restart in the job's
+                        # staging dir — offer Resume instead of a from-scratch
+                        # retry. _staged_bytes() recomputes the real size.
+                        staged = _staged_bytes(jid)
+                        job["resumable"] = staged > 0
+                        job["stagedBytes"] = staged or None
                     _jobs[jid] = job
                 log.info("download.jobs.loaded", count=len(_jobs))
         except Exception as e:
@@ -147,6 +153,11 @@ def _new_job(
         'error':        None,
         'filePath':     None,
         'createdAt':    datetime.now(timezone.utc).isoformat(),
+        # Resume support: resumable=True when partial data is staged for
+        # this job (crash, cancel, network loss); stagedBytes reports how
+        # much can be skipped on the next attempt.
+        'resumable':    False,
+        'stagedBytes':  None,
         # Options recorded at enqueue time so retries reproduce them exactly
         'embedMetadata': embed_metadata,
         'embedArtwork':  embed_artwork,
@@ -165,8 +176,30 @@ def _update(job_id: str, **kwargs) -> None:
         _persist_jobs()  # BUG #21: persist after every update
 
 
-def get_all_jobs()       -> list[dict]: return list(reversed(list(_jobs.values())))
-def get_job(job_id: str) -> dict | None: return _jobs.get(job_id)
+def _with_resume_fields(job: dict) -> dict:
+    """Refresh resumable/stagedBytes from the live staging dir.
+
+    Derived at read time, not stored: staging is the source of truth, so a
+    job can never advertise resume with nothing on disk, or hide staged
+    data that a crash left behind before the flag existed.
+    """
+    if job.get("status") in ("error", "cancelled"):
+        staged = _staged_bytes(job["id"])
+        job["resumable"] = staged > 0
+        job["stagedBytes"] = staged or None
+    return job
+
+
+def get_all_jobs() -> list[dict]:
+    return [
+        _with_resume_fields(dict(j))
+        for j in reversed(list(_jobs.values()))
+    ]
+
+
+def get_job(job_id: str) -> dict | None:
+    job = _jobs.get(job_id)
+    return _with_resume_fields(dict(job)) if job else None
 
 # ── URL resolution ────────────────────────────────────────────
 
@@ -306,6 +339,7 @@ async def _run_download(
     yt_url:        str,
     artist:        str,
     playlist_name: Optional[str] = None,
+    resume:        bool = False,
 ) -> Optional[Path]:
     """Download + convert one job, honoring its recorded options.
 
@@ -313,6 +347,11 @@ async def _run_download(
     DOWNLOADS_DIR, then moved to its final location. This makes custom
     paths and naming rules exact — the server composes the final file
     from the resolved title/artist instead of trusting yt-dlp's template.
+
+    With resume=True the staging dir is kept instead of wiped, and
+    yt-dlp's --continue flag picks up its .part files from where the
+    previous attempt died — a restarted server or a resumed cancel costs
+    the remaining bytes, not the whole transfer.
     """
     job = _jobs.get(job_id, {})
     fmt            = job.get('format', 'mp3')
@@ -328,7 +367,8 @@ async def _run_download(
     quality_q = '0' if quality == 'best' else quality
 
     staging = _staging_dir(job_id)
-    shutil.rmtree(staging, ignore_errors=True)
+    if not resume:
+        shutil.rmtree(staging, ignore_errors=True)
     staging.mkdir(parents=True, exist_ok=True)
     out_tmpl = str(staging / '%(title)s.%(ext)s')
 
@@ -341,6 +381,10 @@ async def _run_download(
         '-x', '--audio-format', fmt, '--audio-quality', quality_q,
         '-o', out_tmpl,
     ]
+    if resume:
+        # Resume partially downloaded .part files left by an earlier
+        # attempt (crash, cancel, network loss). No-op when starting fresh.
+        cmd.append('--continue')
     if embed_metadata:
         cmd += ['--add-metadata']
     if embed_artwork:
@@ -421,7 +465,11 @@ async def _run_download(
 
     if rc != 0:
         tail = ' | '.join(stderr_tail[-6:])
-        shutil.rmtree(staging, ignore_errors=True)
+        # Keep the staging dir when it holds partial data — that is exactly
+        # what a later resume continues from. Only truly empty attempts
+        # (instant failures) are cleaned up.
+        if _staged_bytes(job_id) == 0:
+            shutil.rmtree(staging, ignore_errors=True)
         raise RuntimeError(f'yt-dlp exited with code {rc}: {tail[:300]}')
 
     files = [
@@ -489,6 +537,28 @@ def _staging_dir(job_id: str) -> Path:
     return Path(settings.DOWNLOADS_DIR) / f'.staging-{job_id}'
 
 
+def _staged_bytes(job_id: str) -> int:
+    """Total bytes of partial download data kept in a job's staging dir.
+
+    yt-dlp writes .part files that it can resume from natively; this is
+    what makes a retry-with-resume cheaper than a fresh download.
+    """
+    staging = _staging_dir(job_id)
+    if not staging.is_dir():
+        return 0
+    total = 0
+    try:
+        for p in staging.rglob('*'):
+            if p.is_file():
+                try:
+                    total += p.stat().st_size
+                except OSError:
+                    pass
+    except OSError:
+        return 0
+    return total
+
+
 async def _tag_and_finish(
     job_id:       str,
     file_path:    Path,
@@ -523,12 +593,19 @@ async def _download_task(
     yt_url:        str,
     artist:        str,
     playlist_name: Optional[str] = None,
+    resume:        bool = False,
 ) -> None:
     try:
-        _update(job_id, status='downloading', progress=0.0)
+        _update(
+            job_id,
+            status='downloading', progress=0.0,
+            resumable=False, stagedBytes=None,
+        )
         await ws_manager.emit_download_progress(job_id, 0.0, 'downloading')
 
-        file_path = await _run_download(job_id, yt_url, artist, playlist_name)
+        file_path = await _run_download(
+            job_id, yt_url, artist, playlist_name, resume=resume,
+        )
         if not file_path or not file_path.exists():
             raise RuntimeError('Output file not found after download')
 
@@ -583,13 +660,23 @@ async def _download_task(
         # frontend can distinguish user-initiated cancellation from failures.
         _kill_job_process(job_id)
         _update(job_id, status='cancelled', error='Cancelled by user')
-        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
+        # Keep partial .part data — the point of cancel-and-resume is to
+        # not throw away a half-finished transfer.
+        staged = _staged_bytes(job_id)
+        if staged > 0:
+            _update(job_id, resumable=True, stagedBytes=staged)
+        else:
+            shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
         await ws_manager.emit_download_error(job_id, 'Cancelled by user')
     except Exception as e:
         log.error('download.failed', job_id=job_id, error=str(e))
-        # Clean up the staging dir so failed/cancelled downloads can't leak
-        # partially-written files on disk.
-        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
+        # Preserve partially-written data for resume; only wipe staging
+        # when the attempt produced nothing resumable.
+        staged = _staged_bytes(job_id)
+        if staged == 0:
+            shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
+        else:
+            _update(job_id, resumable=True, stagedBytes=staged)
         # BUG #16: Set the correct intermediate status based on where it failed
         current = _jobs.get(job_id, {}).get('status', 'error')
         if current == 'downloading':
@@ -623,6 +710,7 @@ async def enqueue_download(
     concurrency:     int           = 3,
     job_id:          Optional[str] = None,
     playlist_name:   Optional[str] = None,
+    resume:          bool          = False,
 ) -> dict:
     global _jobs_loaded
     # BUG #21: Load persisted jobs on first use
@@ -655,10 +743,11 @@ async def enqueue_download(
     _jobs[job['id']] = job
 
     task = asyncio.create_task(
-        _download_task(job['id'], yt_url, artist, playlist_name),
+        _download_task(job['id'], yt_url, artist, playlist_name, resume=resume),
     )
     _tasks[job['id']] = task
-    log.info('download.enqueued', job_id=job['id'], title=title, playlist=playlist_name)
+    log.info('download.enqueued', job_id=job['id'], title=title,
+             playlist=playlist_name, resume=resume)
     return job
 
 
@@ -684,7 +773,17 @@ async def cancel_job(job_id: str) -> bool:
     return True
 
 
-async def retry_job(job_id: str) -> Optional[dict]:
+async def retry_job(job_id: str, resume: Optional[bool] = None) -> Optional[dict]:
+    """Re-run a failed or cancelled job.
+
+    resume semantics (default: auto):
+      - True  → continue from the staging dir's partial data (yt-dlp
+        --continue). Falls back to a fresh download when there is nothing
+        staged; a resume flag on the job with zero staged bytes would
+        otherwise poison every future attempt.
+      - False → wipe staging and start over (the old behaviour).
+      - None  → resume when partial data exists, fresh otherwise.
+    """
     job = _jobs.get(job_id)
     if not job:
         return None
@@ -697,7 +796,18 @@ async def retry_job(job_id: str) -> Optional[dict]:
         except (asyncio.TimeoutError, asyncio.CancelledError):
             pass
         _kill_job_process(job_id)
-    _update(job_id, status='queued', progress=0.0, error=None)
+
+    if resume is None:
+        resume = bool(job.get('resumable')) or _staged_bytes(job_id) > 0
+    elif resume and _staged_bytes(job_id) == 0:
+        resume = False
+    elif resume is False:
+        # Explicit fresh start: drop staged data now rather than waiting
+        # for the download task, so "fresh" never races with later reads.
+        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
+
+    _update(job_id, status='queued', progress=0.0, error=None,
+            resumable=False, stagedBytes=None)
     return await enqueue_download(
         track_id=job.get('trackId') or None,
         fmt=job.get('format', 'mp3'),
@@ -711,4 +821,5 @@ async def retry_job(job_id: str) -> Optional[dict]:
         speed_limit=int(job.get('speedLimit', 0)),
         concurrency=int(job.get('concurrency', settings.MAX_CONCURRENT_DOWNLOADS)),
         job_id=job_id,
+        resume=resume,
     )
