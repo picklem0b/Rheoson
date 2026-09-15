@@ -9,149 +9,199 @@ import { applyFromStorage } from "@/lib/audioEffects";
  * Pulls the account's synced preferences over the device's local values and
  * pushes local edits back up while signed in.
  *
- * Direction of truth:
- * - On sign-in the SERVER copy wins for whitelisted keys, so the same person
- *   lands in the same app everywhere they sign in. Keys the server copy
- *   doesn't mention are left as stored locally — device-only customisation
- *   survives instead of snapping to factory.
- * - While signed in, every whitelisted toggle is mirrored to the account as
- *   it changes, so a fresh device inherits it mid-session.
- * - Signed-out devices are untouched: local-first stays true for people who
- *   never make an account.
+ * Ordering contract (this is what prevents a stale device from clobbering
+ * newer server state):
+ * 1. On sign-in the server copy is pulled and applied — server wins.
+ * 2. Only AFTER a successful pull does pushing start. If the pull fails,
+ *    the hook keeps retrying the pull and never pushes, so a device that
+ *    just came online cannot overwrite the account with stale values —
+ *    it converges on the server's state first.
+ * 3. While pulled, only keys whose local value actually changed since the
+ *    last sync are pushed (diff, not dump).
+ *
+ * Signed-out devices are untouched: local-first stays true for people who
+ * never make an account.
  */
-export function usePreferenceSync() {
-   const token = useAuthStore(s => s.token);
-   const ready = useAuthStore(s => s.ready);
-   const lastPushed = useRef<PreferenceValues>({});
 
-   const signedIn = Boolean(token && ready);
+/** Keys synced to the account. Keep in lockstep with the server whitelist
+ * (api/app/services/preferences.py DEFAULTS) and the sections' usePersisted keys. */
+export const SYNC_KEYS = [
+   "autoplay",
+   "normalize",
+   "bass-boost",
+   "mono",
+   "pre-amp-gain",
+   "eq-preset",
+   "notif-sound",
+   "notif-dl-done",
+   "save-history",
+   "save-search-log",
+   "theme-accent",
+   "theme-surface",
+   "glass-opacity",
+   "nav-style",
+   "nav-position"
+] as const;
 
-   useEffect(() => {
-      if (!signedIn) return;
-      let cancelled = false;
+type SyncKey = (typeof SYNC_KEYS)[number];
 
-      (async () => {
-         try {
-            const { preferences: server } = await preferencesApi.get();
-            if (cancelled) return;
-
-            // ── Server copy wins for whitelisted, known keys ──
-            for (const [key, value] of Object.entries(server)) {
-               localStorage.setItem(`rheoson-${key}`, JSON.stringify(value));
-            }
-
-            // Re-apply the store-backed surfaces immediately so the whole
-            // UI reflects the synced values without a reload.
-            const theme = useThemeStore.getState();
-            const accent = server["theme-accent"];
-            const surface = server["theme-surface"];
-            const glass = server["glass-opacity"];
-            if (typeof accent === "string" && accent !== theme.theme.accent) {
-               theme.setAccent(accent as never);
-            }
-            if (
-               typeof surface === "string" &&
-               surface !== theme.theme.surface
-            ) {
-               theme.setSurface(surface as never);
-            }
-            if (typeof glass === "number" && glass !== theme.glassOpacity) {
-               theme.setGlassOpacity(glass);
-            }
-
-            const ui = useUIStore.getState();
-            const navStyle = server["nav-style"];
-            const navPosition = server["nav-position"];
-            if (
-               typeof navStyle === "string" &&
-               navStyle !== ui.navStyle
-            ) {
-               ui.setNavStyle(navStyle as never);
-            }
-            if (
-               typeof navPosition === "string" &&
-               navPosition !== ui.navPosition
-            ) {
-               ui.setNavPosition(navPosition as never);
-            }
-
-            applyFromStorage();
-
-            lastPushed.current = { ...server };
-         } catch {
-            // Server copy unreachable — local values keep working untouched.
-         }
-      })();
-
-      return () => {
-         cancelled = true;
-      };
-   }, [signedIn]);
-
-   // ── Push local edits up while signed in ──
-   useEffect(() => {
-      if (!signedIn) return;
-
-      const KEYS = [
-         "autoplay",
-         "normalize",
-         "bass-boost",
-         "mono",
-         "pre-amp-gain",
-         "eq-preset",
-         "notif-sound",
-         "notif-dl-done",
-         "save-history",
-         "save-search-log",
-         "theme-accent",
-         "theme-surface",
-         "glass-opacity",
-         "nav-style",
-         "nav-position"
-      ] as const;
-
-      // Theme/nav live in Zustand persist blobs, not rheoson-* keys; read
-      // them from the stores so both surfaces push through the same path.
-      const readKey = (key: (typeof KEYS)[number]): unknown => {
-         if (key === "theme-accent")
-            return useThemeStore.getState().theme.accent;
-         if (key === "theme-surface")
-            return useThemeStore.getState().theme.surface;
-         if (key === "glass-opacity")
-            return useThemeStore.getState().glassOpacity;
-         if (key === "nav-style") return useUIStore.getState().navStyle;
-         if (key === "nav-position") return useUIStore.getState().navPosition;
+/** Theme/nav live in Zustand persist blobs, not rheoson-* keys; read them
+ * from the stores so both surfaces flow through the same sync path. */
+function readKeyValue(key: SyncKey): string | number | boolean | undefined {
+   switch (key) {
+      case "theme-accent":
+         return useThemeStore.getState().theme.accent;
+      case "theme-surface":
+         return useThemeStore.getState().theme.surface;
+      case "glass-opacity":
+         return useThemeStore.getState().glassOpacity;
+      case "nav-style":
+         return useUIStore.getState().navStyle;
+      case "nav-position":
+         return useUIStore.getState().navPosition;
+      default:
          try {
             const raw = localStorage.getItem(`rheoson-${key}`);
             return raw !== null ? JSON.parse(raw) : undefined;
          } catch {
             return undefined;
          }
+   }
+}
+
+/** Apply one server value to its owning surface. */
+function applyServerValue(key: string, value: unknown): void {
+   switch (key) {
+      case "theme-accent":
+         if (
+            typeof value === "string" &&
+            value !== useThemeStore.getState().theme.accent
+         ) {
+            useThemeStore.getState().setAccent(value as never);
+         }
+         return;
+      case "theme-surface":
+         if (
+            typeof value === "string" &&
+            value !== useThemeStore.getState().theme.surface
+         ) {
+            useThemeStore.getState().setSurface(value as never);
+         }
+         return;
+      case "glass-opacity":
+         if (
+            typeof value === "number" &&
+            value !== useThemeStore.getState().glassOpacity
+         ) {
+            useThemeStore.getState().setGlassOpacity(value);
+         }
+         return;
+      case "nav-style":
+         if (
+            typeof value === "string" &&
+            value !== useUIStore.getState().navStyle
+         ) {
+            useUIStore.getState().setNavStyle(value as never);
+         }
+         return;
+      case "nav-position":
+         if (
+            typeof value === "string" &&
+            value !== useUIStore.getState().navPosition
+         ) {
+            useUIStore.getState().setNavPosition(value as never);
+         }
+         return;
+      default:
+         localStorage.setItem(`rheoson-${key}`, JSON.stringify(value));
+   }
+}
+
+/** Collect locally-changed keys since `baseline` as a patch ({} if none). */
+export function diffAgainstBaseline(
+   baseline: PreferenceValues
+): PreferenceValues {
+   const patch: PreferenceValues = {};
+   for (const key of SYNC_KEYS) {
+      const v = readKeyValue(key);
+      if (v !== undefined && v !== baseline[key]) {
+         patch[key] = v;
+      }
+   }
+   return patch;
+}
+
+export function usePreferenceSync() {
+   const token = useAuthStore(s => s.token);
+   const ready = useAuthStore(s => s.ready);
+
+   const signedIn = Boolean(token && ready);
+   const baseline = useRef<PreferenceValues | null>(null);
+   const lastPush = useRef<number>(0);
+
+   useEffect(() => {
+      if (!signedIn) {
+         baseline.current = null;
+         return;
+      }
+
+      let cancelled = false;
+
+      const pull = async () => {
+         try {
+            const { preferences: server } = await preferencesApi.get();
+            if (cancelled) return false;
+            for (const [key, value] of Object.entries(server)) {
+               applyServerValue(key, value);
+            }
+            applyFromStorage();
+            baseline.current = { ...server };
+            return true;
+         } catch {
+            // Server unreachable — retry on the next tick. Pushing stays
+            // disabled until one pull succeeds, so a stale device can
+            // never overwrite newer account state.
+            return false;
+         }
       };
 
-      const timer = window.setInterval(() => {
-         if (document.hidden) return;
-         const patch: PreferenceValues = {};
+      // Initial pull immediately; the interval keeps it alive.
+      void pull();
 
-         for (const key of KEYS) {
-            const v = readKey(key);
-            if (
-               v !== undefined &&
-               v !== lastPushed.current[key]
-            ) {
-               patch[key] = v as string | number | boolean;
-               lastPushed.current[key] = v as string | number | boolean;
-            }
+      const timer = window.setInterval(async () => {
+         if (cancelled || document.hidden) return;
+         const now = Date.now();
+
+         if (baseline.current === null) {
+            // Not yet converged with the server — keep trying to pull.
+            await pull();
+            return;
          }
 
-         if (Object.keys(patch).length > 0) {
-            preferencesApi.put(patch).catch(() => {
-               /* offline or signed out mid-flight — retried next tick */
-            });
-         }
-      }, 4000);
+         if (now - lastPush.current < 4000) return;
+         const patch = diffAgainstBaseline(baseline.current);
+         if (Object.keys(patch).length === 0) return;
 
-      return () => window.clearInterval(timer);
+         // Optimistically advance the baseline to the pushed values; a
+         // failure is retried because the next diff will still see the
+         // local values differing from what the server acknowledged...
+         // except it won't — so on failure, roll the baseline back.
+         const rollback = { ...baseline.current };
+         for (const k of Object.keys(patch)) {
+            baseline.current[k] = patch[k];
+         }
+         lastPush.current = now;
+         try {
+            await preferencesApi.put(patch);
+         } catch {
+            if (!cancelled) baseline.current = rollback;
+         }
+      }, 1500);
+
+      return () => {
+         cancelled = true;
+         window.clearInterval(timer);
+      };
    }, [signedIn]);
 
    return null;
