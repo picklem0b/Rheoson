@@ -7,7 +7,8 @@ import {
    ListMusic,
    Mic2,
    Download,
-   WifiOff
+   WifiOff,
+   SlidersHorizontal
 } from "lucide-react";
 import { usePlayerStore } from "@/store/player.store";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
@@ -296,6 +297,16 @@ export default function PlayerBar() {
                                     action: () => {
                                        openLyrics();
                                        setMenuOpen(false);
+                                    }
+                                 },
+                                 {
+                                    label: "Playback settings",
+                                    icon: <SlidersHorizontal className='w-4 h-4' />,
+                                    action: () => {
+                                       setMenuOpen(false);
+                                       window.dispatchEvent(
+                                          new CustomEvent("rheoson:playback-settings")
+                                       );
                                     }
                                  },
                                  {

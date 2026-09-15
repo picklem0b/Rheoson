@@ -734,6 +734,94 @@
         ]
       }
     },
+    "/api/auth/me/preferences": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get Preferences Route",
+        "description": "The signed-in user's synced preferences, with defaults filled in.",
+        "operationId": "get_preferences_route_api_auth_me_preferences_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Preferences Route",
+        "description": "Merge a patch into the user's synced preferences and return the result.",
+        "operationId": "update_preferences_route_api_auth_me_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/auth/me/preferences/defaults": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get Preference Defaults",
+        "description": "The server's whitelist and default values.\n\nThe client imports this shape on boot instead of hardcoding its own\ncopy, so a new toggle added server-side is picked up by older clients\nwithout a redeploy.",
+        "operationId": "get_preference_defaults_api_auth_me_preferences_defaults_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -4953,6 +5041,19 @@
           "totalDuration",
           "tracks"
         ]
+      },
+      "PreferencesRequest": {
+        "properties": {
+          "preferences": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Preferences",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "title": "PreferencesRequest",
+        "description": "A partial patch of device-independent preferences.\n\nThe whitelist lives in services/preferences.py; unknown keys are dropped\nrather than rejected so a client that ships a newer toggle than this\nserver understands does not have its whole patch refused."
       },
       "RegisterRequest": {
         "properties": {

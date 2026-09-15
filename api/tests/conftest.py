@@ -155,10 +155,29 @@ class MockCollection:
         for doc in self._docs:
             if all(doc.get(k) == v for k, v in filter.items()):
                 if "$set" in update:
-                    doc.update(update["$set"])
+                    for k, v in update["$set"].items():
+                        # Dotted paths address nested documents
+                        # (e.g. preferences.autoplay) like real Mongo does.
+                        if "." in k:
+                            parent = doc
+                            parts = k.split(".")
+                            for part in parts[:-1]:
+                                parent = parent.setdefault(part, {})
+                            parent[parts[-1]] = v
+                        else:
+                            doc[k] = v
                 return MagicMock()
         if upsert and "$set" in update:
-            new_doc = {**filter, **update["$set"]}
+            new_doc: dict = {**filter}
+            for k, v in update["$set"].items():
+                if "." in k:
+                    parent = new_doc
+                    parts = k.split(".")
+                    for part in parts[:-1]:
+                        parent = parent.setdefault(part, {})
+                    parent[parts[-1]] = v
+                else:
+                    new_doc[k] = v
             self._docs.append(new_doc)
         return MagicMock()
 
@@ -318,6 +337,11 @@ def _clean_state():
         track_identity._invalidate_caches()
     except Exception:
         pass
+    # The shared mock DB is session-scoped: clear its collections too, so
+    # per-user DB state (users, signals, profiles) can't leak between tests
+    # any more than the file-backed stores above can.
+    for _coll in _shared_mock_db._collections.values():
+        _coll._docs.clear()
     yield
     # NOTE: .disliked-*.json and .following-*.json are also per-user state in
     # MUSIC_DIR. Leaving them out let hidden-track and followed-artist state
