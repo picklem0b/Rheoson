@@ -20,18 +20,24 @@ import {
    WifiOff,
    User,
    Users,
-   ExternalLink,
+   BadgeCheck,
    Link as LinkIcon
 } from "lucide-react";
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { useQueueStore } from "@/store/queue.store";
+import { useAuthStore } from "@/store/auth.store";
 import { useQueue } from "@/hooks/queue.hook";
 import { usePlayer } from "@/hooks/player.hook";
 import { useLyrics } from "@/hooks/lyrics.hook";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { tracksApi } from "@/api/tracks.api";
-import { getArtist } from "@/api/library.api";
+import {
+   getArtist,
+   getFollowStatus,
+   followArtist,
+   unfollowArtist
+} from "@/api/library.api";
 import PlayerControls from "@/components/player/PlayerControls";
 import ProgressBar from "@/components/player/ProgressBar";
 import { Spinner } from "@/components/ui/Spinner";
@@ -157,7 +163,7 @@ function LyricsTab({
    isPlaying,
    onSeek
 }: {
-   lines: { text: string; startTime?: number }[];
+   lines: { text: string; time?: number }[];
    activeLine: number;
    synced: boolean;
    isLoading: boolean;
@@ -220,7 +226,7 @@ function LyricsTab({
          <div className='space-y-4'>
             {lines.map((line, i) => {
                const active = i === activeLine;
-               const seekable = synced && typeof line.startTime === "number";
+               const seekable = synced && typeof line.time === "number";
                return (
                   <motion.p
                      key={i}
@@ -229,7 +235,7 @@ function LyricsTab({
                      }}
                      onClick={
                         seekable && onSeek
-                           ? () => onSeek((line.startTime as number) / 1000)
+                           ? () => onSeek((line.time as number) / 1000)
                            : undefined
                      }
                      animate={{
@@ -254,8 +260,13 @@ function LyricsTab({
 }
 
 // ── Creator tab ───────────────────────────────────────────────
-// Replaces the old "Related — coming soon" stub: shows the artist behind
-// the current track — profile, top songs and their reach ("their view").
+// The creator behind the current track, laid out the way a creator's own
+// profile is: who they are, how far their music reaches, and a follow —
+// then the lyrics, which is the only content this tab carries.
+//
+// Follow state is optimistic. The button flips on tap and reverts only if
+// the request actually fails, because a follow that silently does nothing
+// (guest session, no signal) is worse than one that visibly refuses.
 
 function compactCount(v: number | string | null | undefined): string {
    const n = typeof v === "string" ? parseInt(v.replace(/,/g, ""), 10) : (v ?? 0);
@@ -267,14 +278,22 @@ function compactCount(v: number | string | null | undefined): string {
 
 function CreatorTab({
    artistId,
-   artistName
+   artistName,
+   lyrics
 }: {
    artistId?: string;
    artistName?: string;
+   lyrics: {
+      lines: { text: string; time?: number }[];
+      activeLine: number;
+      synced: boolean;
+      isLoading: boolean;
+      isPlaying: boolean;
+      onSeek?: (seconds: number) => void;
+   };
 }) {
    const navigate = useNavigate();
-   const { playTrack } = useQueue();
-   const currentTrack = usePlayerStore(s => s.currentTrack);
+   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
 
    // Remote artists use their YouTube Music browse id; local/unknown ids
    // fall back to the slugged artist name (the backend matches either).
@@ -293,8 +312,45 @@ function CreatorTab({
       retry:     0
    });
 
+   // Follow status is per-user, so it is only asked for when signed in.
+   const { data: followStatus, refetch: refetchFollow } = useQuery({
+      queryKey: ["artist-follow", browseId || "none"],
+      queryFn:  () => getFollowStatus(browseId).catch(() => null),
+      enabled:  !!browseId && isAuthenticated,
+      staleTime: 60_000,
+      retry:     0
+   });
+
+   // Optimistic overlay: null means "show whatever the server last said".
+   const [pendingFollow, setPendingFollow] = useState<boolean | null>(null);
+   const [followBusy, setFollowBusy] = useState(false);
+   const isFollowing = pendingFollow ?? followStatus?.isFollowing ?? false;
+
+   const toggleFollow = async () => {
+      if (!browseId || !isAuthenticated || followBusy) return;
+      setFollowBusy(true);
+      const next = !isFollowing;
+      setPendingFollow(next);
+      try {
+         if (next) {
+            await followArtist(browseId, {
+               name: artist?.name ?? artistName,
+               imageUrl: artist?.imageUrl,
+               monthlyListeners: artist?.monthlyListeners
+            });
+         } else {
+            await unfollowArtist(browseId);
+         }
+         await refetchFollow();
+      } catch {
+         // Reverted below — the server stays the source of truth.
+      } finally {
+         setPendingFollow(null);
+         setFollowBusy(false);
+      }
+   };
+
    const artist = data ?? null;
-   const top = artist?.topTracks ?? [];
    const listeners =
       artist &&
       ((artist.monthlyListeners ?? 0) > 0
@@ -332,7 +388,16 @@ function CreatorTab({
                      </div>
                   )}
                   <div className='min-w-0 flex-1'>
-                     <p className='font-bold text-white truncate'>{artist.name}</p>
+                     <button
+                        onClick={() =>
+                           navigate(`/artist/${encodeURIComponent(browseId)}`)
+                        }
+                        className='flex items-center gap-1.5 min-w-0 max-w-full'>
+                        <span className='font-bold text-white truncate'>
+                           {artist.name}
+                        </span>
+                        <BadgeCheck className='w-4 h-4 text-[var(--accent)] flex-shrink-0' />
+                     </button>
                      <div className='flex items-center gap-2 mt-1 flex-wrap'>
                         {(artist.genres ?? []).slice(0, 3).map(g => (
                            <span
@@ -349,12 +414,20 @@ function CreatorTab({
                         )}
                      </div>
                   </div>
-                  <button
-                     onClick={() => navigate(`/artist/${encodeURIComponent(browseId)}`)}
-                     className='flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-bold flex-shrink-0'>
-                     <ExternalLink className='w-3.5 h-3.5' />
-                     Open
-                  </button>
+                  {isAuthenticated && (
+                     <motion.button
+                        whileTap={{ scale: 0.94 }}
+                        disabled={followBusy}
+                        onClick={toggleFollow}
+                        className={cn(
+                           "px-4 py-1.5 rounded-full text-xs font-bold flex-shrink-0 border transition-colors disabled:opacity-60",
+                           isFollowing
+                              ? "border-white/25 text-white/80"
+                              : "bg-white text-black border-white"
+                        )}>
+                        {isFollowing ? "Following" : "Follow"}
+                     </motion.button>
+                  )}
                </div>
 
                {artist.description && (
@@ -362,36 +435,42 @@ function CreatorTab({
                )}
             </>
          ) : (
-            <div className='flex flex-col items-center justify-center py-10 gap-3 text-center'>
-               <User className='w-10 h-10 text-white/20' />
-               <p className='text-white/60 font-semibold'>
-                  {artistName ?? "This artist"}
-               </p>
-               <p className='text-white/40 text-sm'>
-                  Top songs aren&apos;t available for this artist right now
-               </p>
-            </div>
-         )}
-
-         {/* Top songs */}
-         {top.length > 0 && (
-            <div>
-               <p className='text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 px-1'>
-                  Top songs
-               </p>
-               <div className='space-y-0.5'>
-                  {top.map((track: Track, i: number) => (
-                     <CreatorTopRow
-                        key={`${track.id}-${i}`}
-                        track={track}
-                        index={i}
-                        isCurrent={currentTrack?.id === track.id}
-                        onPlay={() => currentTrack?.id !== track.id && playTrack(track, top)}
-                     />
-                  ))}
+            <div className='flex items-center gap-3'>
+               <div className='w-14 h-14 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0'>
+                  <User className='w-6 h-6 text-white/50' />
+               </div>
+               <div className='min-w-0'>
+                  <p className='font-bold text-white truncate'>
+                     {artistName ?? "This artist"}
+                  </p>
+                  <p className='text-[11px] text-white/40'>
+                     Profile unavailable right now
+                  </p>
                </div>
             </div>
          )}
+
+         {/* Lyrics — the only content this tab carries */}
+         <div>
+            <div className='flex items-center justify-between px-1 mb-1'>
+               <p className='text-[10px] font-bold uppercase tracking-widest text-white/40'>
+                  Lyrics
+               </p>
+               {lyrics.synced && (
+                  <span className='text-[10px] font-bold uppercase tracking-widest text-[var(--accent)]'>
+                     Auto-synced
+                  </span>
+               )}
+            </div>
+            <LyricsTab
+               lines={lyrics.lines}
+               activeLine={lyrics.activeLine}
+               synced={lyrics.synced}
+               isLoading={lyrics.isLoading}
+               isPlaying={lyrics.isPlaying}
+               onSeek={lyrics.onSeek}
+            />
+         </div>
       </div>
    );
 }
@@ -511,63 +590,6 @@ function PlaylistTabRow({
                {formatDuration(track.duration)}
             </span>
          )}
-      </motion.button>
-   );
-}
-
-// ── Creator top-song row ──────────────────────────────────────
-
-function CreatorTopRow({
-   track,
-   index,
-   isCurrent,
-   onPlay
-}: {
-   track: Track;
-   index: number;
-   isCurrent: boolean;
-   onPlay: () => void;
-}) {
-   const contextMenu = useTrackContextMenu(track);
-   return (
-      <motion.button
-         whileTap={{ scale: 0.98 }}
-         onClick={onPlay}
-         {...contextMenu}
-         className={cn(
-            "w-full flex items-center gap-3 px-3 py-2 rounded-2xl transition-colors text-left",
-            isCurrent
-               ? "bg-[var(--accent-subtle)]"
-               : "hover:bg-white/5"
-         )}>
-         <span className='text-xs font-bold text-white/30 w-4 text-center tabular-nums flex-shrink-0'>
-            {index + 1}
-         </span>
-         <div className='relative flex-shrink-0'>
-            <img
-               src={track.artworkUrl || "/assets/logo.png"}
-               alt={track.title}
-               className='w-10 h-10 rounded-lg object-cover'
-               onError={e => {
-                  (e.target as HTMLImageElement).src =
-                     "/assets/logo.png";
-               }}
-            />
-         </div>
-         <div className='flex-1 min-w-0'>
-            <p
-               className={cn(
-                  "text-sm font-semibold truncate",
-                  isCurrent
-                     ? "text-[var(--accent)]"
-                     : "text-white"
-               )}>
-               {track.title}
-            </p>
-            <p className='text-xs text-white/40 truncate'>
-               {formatDuration(track.duration)}
-            </p>
-         </div>
       </motion.button>
    );
 }
@@ -863,6 +885,14 @@ export default function NowPlaying() {
                         <CreatorTab
                            artistId={currentTrack.artist?.id}
                            artistName={currentTrack.artist?.name}
+                           lyrics={{
+                              lines,
+                              activeLine,
+                              synced,
+                              isLoading: lyricsLoading,
+                              isPlaying,
+                              onSeek: seek
+                           }}
                         />
                      )}
                   </motion.div>
