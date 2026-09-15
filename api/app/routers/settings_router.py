@@ -8,6 +8,7 @@ been removed for security.
 from __future__ import annotations
 import asyncio
 import json
+import subprocess
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -187,3 +188,39 @@ async def rescan_library(body: RescanSchema | None = None, user: dict = Depends(
         settings.EXTRA_MUSIC_DIRS = original_extra
 
     return {"ok": True, "message": "Track index cleared — will rebuild on next request"}
+
+
+# ── Tool maintenance ──────────────────────────────────────────
+
+@router.post("/tools/update")
+async def update_tools(user: dict = Depends(get_current_user)):
+    """Update yt-dlp in place.
+
+    The most common cause of "this track refuses to play" is a yt-dlp that
+    has fallen behind YouTube's player changes, and the upstream fix is its
+    own `-U` self-update. That already runs on a daily cron, but a user
+    staring at a broken track should not have to wait for 03:00 UTC — the
+    diagnostics screen offers it as a one-tap repair instead.
+    """
+    _require_admin(user)
+    loop = asyncio.get_event_loop()
+
+    def _run() -> tuple[bool, str]:
+        try:
+            res = subprocess.run(
+                ["yt-dlp", "-U"],
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+        except FileNotFoundError:
+            return False, "yt-dlp is not installed on the server"
+        except subprocess.TimeoutExpired:
+            return False, "yt-dlp -U timed out"
+        except Exception as e:
+            return False, str(e)[:200]
+        output = ((res.stdout or "") + (res.stderr or "")).strip()
+        return res.returncode == 0, (output[-400:] or "no output")
+
+    ok, output = await loop.run_in_executor(None, _run)
+    return {"ok": ok, "output": output}
