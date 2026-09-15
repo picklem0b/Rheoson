@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette, Volume2, Download, Keyboard, Info,
   ChevronRight, ChevronLeft, User, Bell, Shield,
-  HardDrive, Layout, BarChart3,
+  HardDrive, Layout, BarChart3, Stethoscope,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { ProfileRow } from '@/components/ui/ProfileRow'
@@ -21,12 +21,13 @@ import NotificationsSection from './sections/NotificationsSection'
 import ShortcutsSection     from './sections/ShortcutsSection'
 import AboutSection         from './sections/AboutSection'
 import StatsSection         from './sections/StatsSection'
+import DiagnosticsSection   from './sections/DiagnosticsSection'
 
 type Section =
   | 'appearance' | 'layout'  | 'audio'
   | 'downloads'  | 'storage' | 'notifications'
   | 'account'    | 'privacy' | 'shortcuts' | 'about'
-  | 'stats'
+  | 'stats'      | 'diagnostics'
 
 interface SectionMeta {
   id:    Section
@@ -64,8 +65,9 @@ const GROUPS: { label: string; items: SectionMeta[] }[] = [
   {
     label: 'App',
     items: [
-      { id: 'shortcuts', label: 'Shortcuts', desc: 'Keyboard controls',           Icon: Keyboard, bg: '#64748B' },
-      { id: 'about',     label: 'About',     desc: `v${APP_VERSION} · Credits`,   Icon: Info,     bg: '#14B8A6' },
+      { id: 'diagnostics', label: 'Doctor',   desc: 'Health, problems, repairs',  Icon: Stethoscope, bg: '#EF4444' },
+      { id: 'shortcuts',   label: 'Shortcuts', desc: 'Keyboard controls',         Icon: Keyboard, bg: '#64748B' },
+      { id: 'about',       label: 'About',     desc: `v${APP_VERSION} · Credits`, Icon: Info,     bg: '#14B8A6' },
     ],
   },
 ]
@@ -83,6 +85,7 @@ function SectionContent({ id }: { id: Section }) {
     case 'shortcuts':     return <ShortcutsSection />
     case 'about':         return <AboutSection />
     case 'stats':         return <StatsSection />
+    case 'diagnostics':   return <DiagnosticsSection />
     default:              return null
   }
 }
@@ -92,6 +95,19 @@ const DETAIL_SPRING = { type: 'spring' as const, damping: 28, stiffness: 300 }
 export default function Settings() {
   const [active, setActive] = useState<Section | null>(null)
   const meta = GROUPS.flatMap((g) => g.items).find((s) => s.id === active) ?? null
+
+  // Lets a section send the user to another one — the Doctor's storage finding
+  // links straight to the storage controls it is complaining about.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail
+      if (id && GROUPS.some((g) => g.items.some((s) => s.id === id))) {
+        setActive(id as Section)
+      }
+    }
+    window.addEventListener('rheoson:settings-section', handler)
+    return () => window.removeEventListener('rheoson:settings-section', handler)
+  }, [])
 
   return (
     <div className="flex h-full overflow-hidden bg-[var(--bg-base)]">

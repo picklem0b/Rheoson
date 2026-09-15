@@ -2842,6 +2842,31 @@
         ]
       }
     },
+    "/api/settings/tools/update": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update Tools",
+        "description": "Update yt-dlp in place.\n\nThe most common cause of \"this track refuses to play\" is a yt-dlp that\nhas fallen behind YouTube's player changes, and the upstream fix is its\nown `-U` self-update. That already runs on a daily cron, but a user\nstaring at a broken track should not have to wait for 03:00 UTC \u2014 the\ndiagnostics screen offers it as a one-tap repair instead.",
+        "operationId": "update_tools_api_settings_tools_update_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/share/{track_id}/card": {
       "get": {
         "tags": [

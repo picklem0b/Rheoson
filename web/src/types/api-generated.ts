@@ -1153,6 +1153,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/tools/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Tools
+         * @description Update yt-dlp in place.
+         *
+         *     The most common cause of "this track refuses to play" is a yt-dlp that
+         *     has fallen behind YouTube's player changes, and the upstream fix is its
+         *     own `-U` self-update. That already runs on a daily cron, but a user
+         *     staring at a broken track should not have to wait for 03:00 UTC — the
+         *     diagnostics screen offers it as a one-tap repair instead.
+         */
+        post: operations["update_tools_api_settings_tools_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/share/{track_id}/card": {
         parameters: {
             query?: never;
@@ -4216,6 +4242,26 @@ export interface operations {
         };
     };
     spotify_status_api_settings_spotify_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_tools_api_settings_tools_update_post: {
         parameters: {
             query?: never;
             header?: never;
