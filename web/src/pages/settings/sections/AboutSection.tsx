@@ -137,7 +137,7 @@ export default function AboutSection() {
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 active:scale-95",
                         tag === `v${APP_VERSION}`
                            ? "bg-[var(--accent)] text-white border-[var(--accent)]"
-                           : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--accent)]/60"
+                           : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border)] hover:border-brand/60"
                      )}>
                      <Tag className='w-3 h-3' />
                      {tag}

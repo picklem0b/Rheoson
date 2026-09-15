@@ -218,7 +218,7 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
                       i === active ? 'bg-[var(--bg-elevated)]' : ''
                     )}
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent)]/40 to-transparent border border-[var(--border)] flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand/40 to-transparent border border-[var(--border)] flex items-center justify-center flex-shrink-0">
                       <span className="text-[10px] font-black text-[var(--accent)]">
                         {name.slice(0, 2).toUpperCase()}
                       </span>
@@ -237,7 +237,7 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
           {picked.map((name) => (
             <span
               key={name}
-              className="inline-flex items-center gap-1.5 pl-3 pr-1.5 h-8 rounded-full bg-[var(--accent-subtle)] border border-[var(--accent)]/30"
+              className="inline-flex items-center gap-1.5 pl-3 pr-1.5 h-8 rounded-full bg-[var(--accent-subtle)] border border-brand/30"
             >
               <span className="text-xs font-semibold text-[var(--text-primary)] max-w-[160px] truncate">{name}</span>
               <button
