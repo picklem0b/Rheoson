@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
    FolderOpen,
@@ -9,9 +9,15 @@ import {
    AlertCircle,
    Music2,
    ChevronDown,
-   ChevronRight
+   ChevronRight,
+   HardDrive
 } from "lucide-react";
 import { api } from "@/api/client.api";
+import {
+   getAudioCacheStats,
+   clearAudioCache,
+   pruneAudioCache
+} from "@/lib/audioCache";
 import { usePersisted } from "@/hooks/persisted.hook";
 import {
    SettingsGroup,
@@ -56,6 +62,47 @@ export default function StorageSection() {
    const [exportState, setExportState] = useState<ActionState>("idle");
    const [streamState, setStreamState] = useState<ActionState>("idle");
    const [artworkState, setArtworkState] = useState<ActionState>("idle");
+   const [audioState, setAudioState] = useState<ActionState>("idle");
+
+   // Client-side offline audio cache (see lib/audioCache)
+   const [audioStats, setAudioStats] = useState<{
+      count: number;
+      bytes: number;
+      limitBytes: number;
+   } | null>(null);
+   const [cacheLimitMb, setCacheLimitMb] = useState(300);
+
+   const refreshAudioStats = useCallback(() => {
+      getAudioCacheStats()
+         .then(setAudioStats)
+         .catch(() => setAudioStats(null))
+   }, []);
+
+   useEffect(() => {
+      try {
+         const raw = localStorage.getItem('rheoson-audio-cache-limit-mb')
+         if (raw !== null) setCacheLimitMb(Number(JSON.parse(raw)))
+      } catch {
+         /* keep the default */
+      }
+   }, [])
+
+   // Stats are read on entry and after any clear, so the numbers reflect the
+   // real store rather than a cached guess.
+   useEffect(() => {
+      let alive = true
+      getAudioCacheStats()
+         .then(s => { if (alive) setAudioStats(s) })
+         .catch(() => {})
+      return () => { alive = false }
+   }, [audioState])
+
+   const clearAudio = async () => {
+      await actionRunner(setAudioState, async () => {
+         await clearAudioCache()
+         refreshAudioStats()
+      })
+   }
 
    // Load server-side dirs on mount and merge with persisted state
    useEffect(() => {
@@ -348,6 +395,59 @@ export default function StorageSection() {
                okLabel='Artwork cache cleared'
                errLabel='Failed to clear'
                onClick={artworkState === "idle" ? clearArtwork : undefined}
+               idleIcon={<Trash2 className='w-4 h-4 text-red-400' />}
+               danger
+            />
+         </SettingsGroup>
+
+         {/* Offline audio cache */}
+         <SettingsGroup
+            title='Offline audio cache'
+            footer='Tracks you have played are kept in the browser so replaying and skipping start instantly — and keep working with no connection. Downloaded music lives in your library and is never cleared here.'>
+            <SettingsRow
+               label='Cached for offline playback'
+               description={
+                  audioStats
+                     ? `${audioStats.count} track${audioStats.count === 1 ? '' : 's'} · ${fmt(audioStats.bytes)} of ${fmt(audioStats.limitBytes)}`
+                     : 'Measuring…'
+               }
+               icon={<Download className='w-[14px] h-[14px]' />}
+               iconBg='#0EA5E9'
+            />
+
+            <SettingsRow
+               label='Cache size limit'
+               description='How much audio to keep on this device (0 disables the cache)'
+               icon={<HardDrive className='w-[14px] h-[14px]' />}
+               iconBg='#8B5CF6'>
+               <select
+                  value={cacheLimitMb}
+                  onChange={e => {
+                     const mb = Number(e.target.value)
+                     setCacheLimitMb(mb)
+                     localStorage.setItem(
+                        'rheoson-audio-cache-limit-mb',
+                        JSON.stringify(mb)
+                     )
+                     pruneAudioCache().then(refreshAudioStats).catch(() => {})
+                  }}
+                  className='h-9 px-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]'
+               >
+                  {[0, 100, 300, 500, 1000].map(mb => (
+                     <option key={mb} value={mb}>
+                        {mb === 0 ? 'Off' : `${mb} MB`}
+                     </option>
+                  ))}
+               </select>
+            </SettingsRow>
+
+            <StateRow
+               state={audioState}
+               idleLabel='Clear offline audio'
+               idleDesc='Free the space used by cached tracks'
+               okLabel='Offline audio cleared'
+               errLabel='Failed to clear'
+               onClick={audioState === "idle" ? clearAudio : undefined}
                idleIcon={<Trash2 className='w-4 h-4 text-red-400' />}
                danger
             />
