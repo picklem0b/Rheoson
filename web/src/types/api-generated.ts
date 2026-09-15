@@ -2059,6 +2059,10 @@ export interface components {
             speedBps?: number | null;
             /** Etaseconds */
             etaSeconds?: number | null;
+            /** Resumable */
+            resumable?: boolean | null;
+            /** Stagedbytes */
+            stagedBytes?: number | null;
             /**
              * Embedmetadata
              * @default true
@@ -2371,6 +2375,18 @@ export interface components {
              * @default true
              */
             merge: boolean;
+        };
+        /**
+         * RetryRequest
+         * @description Optional body for retry: resume controls partial-data continuation.
+         *
+         *     None/omitted = auto (resume when staged bytes exist). False = fresh
+         *     download. True = require staged data (silently degrades to fresh when
+         *     none exists — a resume flag with nothing to resume is meaningless).
+         */
+        RetryRequest: {
+            /** Resume */
+            resume?: boolean | null;
         };
         /** SearchResultsSchema */
         SearchResultsSchema: {
@@ -3313,7 +3329,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RetryRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
