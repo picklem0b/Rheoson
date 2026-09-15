@@ -297,6 +297,54 @@ export interface paths {
         patch: operations["update_profile_api_auth_me_patch"];
         trace?: never;
     };
+    "/api/auth/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Preferences Route
+         * @description The signed-in user's synced preferences, with defaults filled in.
+         */
+        get: operations["get_preferences_route_api_auth_me_preferences_get"];
+        /**
+         * Update Preferences Route
+         * @description Merge a patch into the user's synced preferences and return the result.
+         */
+        put: operations["update_preferences_route_api_auth_me_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me/preferences/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Preference Defaults
+         * @description The server's whitelist and default values.
+         *
+         *     The client imports this shape on boot instead of hardcoding its own
+         *     copy, so a new toggle added server-side is picked up by older clients
+         *     without a redeploy.
+         */
+        get: operations["get_preference_defaults_api_auth_me_preferences_defaults_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/register": {
         parameters: {
             query?: never;
@@ -2231,6 +2279,23 @@ export interface components {
              */
             updatedAt: string;
         };
+        /**
+         * PreferencesRequest
+         * @description A partial patch of device-independent preferences.
+         *
+         *     The whitelist lives in services/preferences.py; unknown keys are dropped
+         *     rather than rejected so a client that ships a newer toggle than this
+         *     server understands does not have its whole patch refused.
+         */
+        PreferencesRequest: {
+            /**
+             * Preferences
+             * @default {}
+             */
+            preferences: {
+                [key: string]: unknown;
+            };
+        };
         /** RegisterRequest */
         RegisterRequest: {
             /**
@@ -2930,6 +2995,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_preferences_route_api_auth_me_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_preferences_route_api_auth_me_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_preference_defaults_api_auth_me_preferences_defaults_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

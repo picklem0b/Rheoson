@@ -3,7 +3,6 @@ import {
    SettingsGroup,
    SettingsRow,
    Toggle,
-   RadioGroup,
    Slider
 } from "../components/SettingsPrimitives";
 import {
@@ -12,16 +11,15 @@ import {
    applyFromStorage
 } from "@/lib/audioEffects";
 
+/**
+ * Audio settings — every control here is read live by the audio engine
+ * (lib/audioEffects.ts) or the queue controller. Controls whose only
+ * effect was writing an unread localStorage key were removed: a toggle
+ * that does nothing is worse than no toggle.
+ */
 export default function AudioSection() {
-   const [crossfade, setCrossfade] = usePersisted("crossfade", false);
-   const [crossfadeSecs, setCrossfadeSecs] = usePersisted("crossfade-secs", 5);
-   const [normalize, setNormalize] = usePersisted("normalize", true);
-   const [gapless, setGapless] = usePersisted("gapless", true);
    const [autoplay, setAutoplay] = usePersisted("autoplay", true);
-   const [quality, setQuality] = usePersisted<string>(
-      "stream-quality",
-      "very_high"
-   );
+   const [normalize, setNormalize] = usePersisted("normalize", true);
    const [eqPreset, setEqPreset] = usePersisted<string>("eq-preset", "Flat");
    const [bassBoost, setBassBoost] = usePersisted("bass-boost", false);
    const [mono, setMono] = usePersisted("mono", false);
@@ -32,67 +30,16 @@ export default function AudioSection() {
          {/* Playback */}
          <SettingsGroup title='Playback'>
             <SettingsRow
-               label='Crossfade'
-               description='Smoothly blend between tracks as they transition'>
-               <Toggle value={crossfade} onChange={setCrossfade} />
-            </SettingsRow>
-            {crossfade && (
-               <Slider
-                  value={crossfadeSecs}
-                  onChange={setCrossfadeSecs}
-                  min={1}
-                  max={12}
-                  step={1}
-                  label='Crossfade duration'
-                  formatValue={v => `${v}s`}
-               />
-            )}
-            <SettingsRow
-               label='Gapless playback'
-               description='Remove silence between consecutive tracks'>
-               <Toggle value={gapless} onChange={setGapless} />
-            </SettingsRow>
-            <SettingsRow
                label='Autoplay'
                description='When your queue ends, keep playing similar music'>
                <Toggle value={autoplay} onChange={setAutoplay} />
             </SettingsRow>
          </SettingsGroup>
 
-         {/* Streaming quality */}
+         {/* Volume — all four wired through applyFromStorage() */}
          <SettingsGroup
-            title='Streaming quality'
-            footer='Higher quality uses more data and takes longer to start. Very High is recommended on Wi-Fi.'>
-            <RadioGroup
-               value={quality as "low" | "normal" | "high" | "very_high"}
-               onChange={setQuality}
-               options={[
-                  {
-                     value: "low",
-                     label: "Low",
-                     sub: "~128 kbps · saves mobile data"
-                  },
-                  {
-                     value: "normal",
-                     label: "Normal",
-                     sub: "~192 kbps · balanced"
-                  },
-                  {
-                     value: "high",
-                     label: "High",
-                     sub: "~256 kbps · great quality"
-                  },
-                  {
-                     value: "very_high",
-                     label: "Very High",
-                     sub: "~320 kbps · best streaming quality"
-                  }
-               ]}
-            />
-         </SettingsGroup>
-
-         {/* Volume */}
-         <SettingsGroup title='Volume'>
+            title='Volume'
+            footer='Normalisation and EQ apply to playback instantly.'>
             <SettingsRow
                label='Volume normalisation'
                description='Compress peaks so volume stays consistent across tracks'>

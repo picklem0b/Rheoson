@@ -2,20 +2,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, Sun, Moon } from "lucide-react";
 import { useThemeStore } from "@/store/theme.store";
 import { ACCENT_THEMES } from "@/themes";
-import { usePersisted } from "@/hooks/persisted.hook";
 import {
    SettingsGroup,
    SettingsRow,
-   Toggle,
    Slider
 } from "../components/SettingsPrimitives";
 
 export default function AppearanceSection() {
    const { theme, glassOpacity, setAccent, setSurface, setGlassOpacity } =
       useThemeStore();
-   const [compact, setCompact] = usePersisted("compact-mode", false);
-   const [showArt, setShowArt] = usePersisted("show-artwork", true);
-   const [animations, setAnimations] = usePersisted("animations", true);
 
    return (
       <div className='pb-4'>
@@ -144,42 +139,10 @@ export default function AppearanceSection() {
             />
          </SettingsGroup>
 
-         {/* Display */}
-         <SettingsGroup title='Display'>
-            <SettingsRow
-               label='Compact mode'
-               description='Smaller track rows and reduced spacing throughout'>
-               <Toggle
-                  value={compact}
-                  onChange={v => {
-                     setCompact(v);
-                     document.documentElement.setAttribute(
-                        "data-compact",
-                        v ? "true" : "false"
-                     );
-                  }}
-               />
-            </SettingsRow>
-            <SettingsRow
-               label='Show album artwork'
-               description='Display cover art in track lists and the player bar'>
-               <Toggle value={showArt} onChange={setShowArt} />
-            </SettingsRow>
-            <SettingsRow
-               label='Animations'
-               description='Spring transitions and motion effects throughout the app'>
-               <Toggle
-                  value={animations}
-                  onChange={v => {
-                     setAnimations(v);
-                     document.documentElement.setAttribute(
-                        "data-reduce-motion",
-                        v ? "false" : "true"
-                     );
-                  }}
-               />
-            </SettingsRow>
-         </SettingsGroup>
+         {/* Fonts and navigation live in Layout — they are the only display
+             controls with live consumers, so the old Display group (compact
+             rows, artwork visibility, animation switch) was removed: none of
+             those keys were read anywhere. */}
       </div>
    );
 }
