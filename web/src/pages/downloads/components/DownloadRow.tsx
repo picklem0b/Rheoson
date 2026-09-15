@@ -2,7 +2,12 @@ import { motion } from 'framer-motion'
 import { CheckCircle2, XCircle, Loader2, Download, Trash2, RefreshCw, Music2 } from 'lucide-react'
 import { IconButton } from '@/components/ui/IconButton'
 import { Badge } from '@/components/ui/Badge'
-import { truncate } from '@/lib/formatters'
+import {
+  formatEta,
+  formatFileSize,
+  formatSpeed,
+  truncate,
+} from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { DownloadJob, DownloadStatus } from '@/types/download.types'
 
@@ -24,10 +29,29 @@ interface DownloadRowProps {
   onRetry:  () => void
 }
 
+/**
+ * Live transfer line for a running download: rate, size and time left.
+ *
+ * The backend parses these out of yt-dlp's progress output, and they are
+ * absent whenever yt-dlp cannot report them (HLS streams, unknown sizes), so
+ * every part is optional rather than rendered as a zero.
+ */
+function transferDetail(job: DownloadJob): string {
+  if (job.status !== 'downloading') return ''
+  return [
+    formatSpeed(job.speedBps),
+    job.totalBytes ? formatFileSize(job.totalBytes) : '',
+    formatEta(job.etaSeconds),
+  ]
+    .filter(Boolean)
+    .join('  ·  ')
+}
+
 export default function DownloadRow({ job, index, onCancel, onRetry }: DownloadRowProps) {
   const cfg     = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.queued
   const active  = !['done', 'error', 'cancelled'].includes(job.status)
   const isError = job.status === 'error'
+  const detail  = transferDetail(job)
 
   return (
     <motion.div
@@ -75,6 +99,11 @@ export default function DownloadRow({ job, index, onCancel, onRetry }: DownloadR
             {truncate(job.title, 30)}
           </p>
           <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">{job.artist}</p>
+          {detail && (
+            <p className="text-[11px] text-[var(--accent)] mt-0.5 tabular-nums truncate">
+              {detail}
+            </p>
+          )}
           {isError && job.error && (
             <p className="text-xs text-red-400 mt-0.5 truncate">{job.error}</p>
           )}

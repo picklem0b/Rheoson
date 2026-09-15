@@ -4546,6 +4546,39 @@
             "title": "Createdat",
             "default": ""
           },
+          "totalBytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalbytes"
+          },
+          "speedBps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speedbps"
+          },
+          "etaSeconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etaseconds"
+          },
           "embedMetadata": {
             "type": "boolean",
             "title": "Embedmetadata",
