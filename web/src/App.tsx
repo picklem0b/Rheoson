@@ -15,6 +15,7 @@ import { NetworkErrorBanner } from '@/components/ui/NetworkErrorBanner'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { initNetwork } from '@/lib/network'
 import { initAutoSync } from '@/lib/offlineQueue'
+import { migrateOfflineAudioMime } from '@/lib/audioCacheMigration'
 import { initErrorHandler } from '@/lib/errorHandler'
 import { unlockAudioContext } from '@/lib/audioEffects'
 import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
@@ -78,6 +79,9 @@ export default function App() {
       return import.meta.env.DEV ? '/api/health' : `${PROD_API}/api/health`
     })
     initAutoSync()
+    // One-time repair of offline blobs stored with the old wrong mime labels
+    // (m4a bytes labeled mp3) so previously-cached tracks play again.
+    migrateOfflineAudioMime().catch(() => {})
   }, [])
 
   // Check for app updates periodically
