@@ -19,7 +19,7 @@ import LibraryTrackRow from './components/LibraryTrackRow'
  *    filterable by search.
  */
 export default function Downloads() {
-  const { jobs, activeJobs, completedJobs, cancel, retry, clearDone } = useDownloads()
+  const { jobs, activeJobs, completedJobs, cancel, retry, resume, clearDone } = useDownloads()
   const [query, setQuery] = useState('')
 
   const { data: localTracks, isLoading: loadingLocal } = useQuery({
@@ -129,6 +129,7 @@ export default function Downloads() {
                     index={i}
                     onCancel={() => cancel(job.id)}
                     onRetry={() => retry(job.id)}
+                    onResume={() => resume(job.id)}
                   />
                 ))}
                 {/* Recently completed, newest first */}
@@ -139,6 +140,7 @@ export default function Downloads() {
                     index={activeJobs.length + i}
                     onCancel={() => cancel(job.id)}
                     onRetry={() => retry(job.id)}
+                    onResume={() => resume(job.id)}
                   />
                 ))}
               </div>

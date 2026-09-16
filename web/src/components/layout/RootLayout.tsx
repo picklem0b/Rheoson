@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/Toaster";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import PlayerBar from "@/components/player/PlayerBar";
+import PlaybackSettings from "@/components/player/PlaybackSettings";
 import QueuePanel from "@/components/player/QueuePanel";
 import { DownloadModal } from "@/components/ui/DownloadModal";
 import { AddToPlaylistSheet } from "@/components/playlist/AddToPlaylistSheet";
@@ -127,6 +128,10 @@ export default function RootLayout() {
                   style={{ height: "var(--nav-height)" }}>
                   <BottomNav />
                </motion.nav>
+
+               {/* Playback settings drawer — mounted once at shell level; opens
+                   from the PlayerBar overflow menu via rheoson:playback-settings */}
+               <PlaybackSettings trigger={false} />
             </div>
 
             {/* ── Queue Panel (slide-in drawer) ─────────────── */}

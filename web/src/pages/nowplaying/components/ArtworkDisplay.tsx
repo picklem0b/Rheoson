@@ -33,7 +33,7 @@ export default function ArtworkDisplay({ trackId, artworkUrl, title, isPlaying }
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="absolute inset-0 rounded-3xl border-2 border-[var(--accent)]/20"
+              className="absolute inset-0 rounded-3xl border-2 border-brand/20"
             />
           )}
         </div>

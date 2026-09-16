@@ -10,6 +10,8 @@ import { getLocalFileUrl } from '@/lib/localFs';
 import { isNativePlatform } from '@/lib/capacitor';
 import { ensureEffectsChain } from '@/lib/audioEffects';
 import { prefetchQueue } from '@/lib/prefetch';
+import { getCachedObjectUrl, mimeToExt, warmAudioCache } from '@/lib/audioCache';
+import { API_BASE } from '@/lib/constants';
 import { recommendationsApi } from '@/api/recommendations.api';
 import { signalPlayComplete, signalRepeat, signalSkip } from '@/lib/signals';
 import type { Track } from '@/types/track.types';
@@ -22,6 +24,10 @@ import type { Track } from '@/types/track.types';
 let _howl: Howl | null = null;
 let _loadedId: string | null = null;
 let _timer: number | null = null;
+// Object URL backing the current Howl when it plays from the local audio
+// cache. Owned here so it can be revoked the moment the track is replaced —
+// leaking one blob per track would pin hundreds of megabytes.
+let _objectUrl: string | null = null;
 // BUG #25: Generation counter — incremented each time a new track is loaded.
 // Howl callbacks from a previous generation are silently ignored, preventing
 // race conditions where a stale onload/onplay clobbers the current track state.
@@ -29,6 +35,11 @@ let _generation = 0;
 
 // Track which IDs have had recordPlay called this session
 const _playedThisSession = new Set<string>();
+// Extension hint for the currently loaded source. YouTube streams arrive as
+// native m4a (the backend fast path serves the CDN's own container); telling
+// Howler "mp3" for an m4a stream makes Android WebView fail to decode and
+// the track silently never starts.
+let _loadedFormat: string[] | undefined = undefined;
 
 // Guard so a single queue-exhaustion only triggers one autoplay fetch
 let _autoplayInFlight = false;
@@ -131,28 +142,59 @@ function _destroy() {
         _howl.unload();
         _howl = null;
     }
+    if (_objectUrl) {
+        try { URL.revokeObjectURL(_objectUrl); } catch { /* already gone */ }
+        _objectUrl = null;
+    }
     _loadedId = null;
+    _loadedFormat = undefined;
 }
 
 // ── Resolve stream URL ────────────────────────────────────────
-// Three-tier URL resolution for maximum offline support:
+// Four-tier URL resolution, cheapest first:
+//   0. Bytes already in the local audio cache → blob URL, zero network, works
+//      offline, and starts playing immediately.
 //   1. If track has a filePath and we're on native → use file:// URI (zero network)
-//   2. If track is downloaded → use backend /api/stream (works offline via service worker)
-//   3. Otherwise → use backend /api/stream (yt-dlp pipe)
+//   2-3. Backend /api/stream — local file serve, or the yt-dlp pipe for
+//      anything not downloaded.
 
 async function _resolveUrl(track: {
     id: string;
     filePath?: string;
     isDownloaded?: boolean;
-}): Promise<string> {
+}): Promise<{ url: string; fromCache: boolean; mime?: string }> {
+    // Tier 0: cached audio bytes
+    const cached = await getCachedObjectUrl(track.id);
+    if (cached) {
+        _objectUrl = cached.url;
+        return { url: cached.url, fromCache: true, mime: cached.mime };
+    }
+
     // Tier 1: Direct file access on native platform — zero network required
     if (isNativePlatform() && track.filePath) {
         const fileUrl = await getLocalFileUrl(track.filePath);
-        if (fileUrl) return fileUrl;
+        if (fileUrl) return { url: fileUrl, fromCache: false, mime: undefined };
     }
 
-    // Tiers 2 & 3: Go through the backend stream endpoint
-    return tracksApi.getStreamUrl(track.id);
+    // Tiers 2 & 3: Go through the backend stream endpoint. The HEAD probe
+    // learns the real container so Howler gets a truthful format hint.
+    const url = tracksApi.getStreamUrl(track.id);
+    let mime: string | undefined;
+    try {
+        const res = await fetch(url, { method: 'HEAD' });
+        mime = res.headers.get('content-type') ?? undefined;
+    } catch { /* hint stays undefined — not fatal */ }
+    return { url, fromCache: false, mime };
+}
+
+/**
+ * Fill the client audio cache from the streaming URL, after playback has
+ * already started. This is what turns the *second* play of a track — and any
+ * skip back to it — into an instant, offline-capable start.
+ */
+function _fillCacheInBackground(trackId: string): void {
+    const url = `${API_BASE}/stream/${trackId}/audio`;
+    warmAudioCache(trackId, url).catch(() => { /* warming is best-effort */ });
 }
 
 // ── Hook ──────────────────────────────────────────────────────
@@ -271,18 +313,28 @@ export function usePlayer() {
 
             // Resolve the URL asynchronously — may need to check local filesystem
             const track = usePlayerStore.getState().currentTrack;
-            const urlPromise = track
+            const urlPromise: Promise<{ url: string; fromCache: boolean; mime?: string }> = track
                 ? _resolveUrl(track)
-                : Promise.resolve(tracksApi.getStreamUrl(trackId));
+                : Promise.resolve({
+                      url: tracksApi.getStreamUrl(trackId),
+                      fromCache: false,
+                  });
 
-            urlPromise.then((url) => {
+            urlPromise.then((resolved) => {
                 // Generation may have moved on while resolving
                 if (gen !== _generation) return;
 
+            const url = resolved.url;
+            _loadedFormat =
+                resolved.mime != null
+                    ? mimeToExt(resolved.mime)
+                    : /^[\w-]{11}$/.test(trackId)
+                      ? ['m4a'] // YouTube fast path serves native m4a
+                      : undefined;
             _howl = new Howl({
                 src: [url],
                 html5: true,
-                format: ['mp3'],
+                format: _loadedFormat,
                 volume: volRef.current,
                 preload: true,
                 autoplay: false, // we control play after seeking so there's no audible jump
@@ -293,8 +345,9 @@ export function usePlayer() {
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
-                    // Route audio through the DSP graph (EQ/bass/mono/pre-amp/normalise)
-                    ensureEffectsChain();
+                    // Route audio through the DSP graph (EQ/bass/mono/pre-amp/normalise).
+                    // Wrapped so a graph problem can never skip the play() below.
+                    try { ensureEffectsChain(); } catch { /* direct output */ }
                     if (seekTo > 0) {
                         _howl?.seek(seekTo);
                         setProgress(seekTo);
@@ -306,7 +359,7 @@ export function usePlayer() {
                     // BUG #25: Ignore if generation has moved on
                     if (gen !== _generation) return;
                     // Ensure the DSP graph is attached (a rebuilt Howl has a new element)
-                    ensureEffectsChain();
+                    try { ensureEffectsChain(); } catch { /* direct output */ }
                     setPlaying(true);
                     setLoading(false);
                     const dur = _howl?.duration() ?? 0;
@@ -317,12 +370,22 @@ export function usePlayer() {
                     );
 
                     // Warm the next few queue tracks so skipping ahead or
-                    // auto-advance starts from an already-buffered file
+                    // auto-advance starts from an already-buffered file.
+                    // Five deep, because the cost of a wrong guess (one idle
+                    // yt-dlp fill) is far lower than the cost of a right one
+                    // (a visible seven-second wait on skip).
                     const upcoming = useQueueStore
                         .getState()
-                        .queue.slice(0, 3);
+                        .queue.slice(0, 5);
                     if (upcoming.length > 0) {
-                        prefetchQueue(upcoming.map(t => t.id), 3);
+                        prefetchQueue(upcoming.map(t => t.id), 5);
+                    }
+
+                    // Cache the track that is playing now. Doing it here (rather
+                    // than on the click) means the download overlaps with the
+                    // first listen instead of delaying it.
+                    if (!resolved.fromCache && /^[\w-]{11}$/.test(trackId)) {
+                        _fillCacheInBackground(trackId);
                     }
 
                     // Record play history (once per session per track)
@@ -368,8 +431,11 @@ export function usePlayer() {
                     console.error('[Rheoson] load error', { trackId, url, err });
                     setLoading(false);
                     setPlaying(false);
-                    _loadedId = null;
-                    // Dispatch event so UI can show retry toast
+                    // Keep _loadedId set on purpose: nulling it makes the next
+                    // play tap do a full loadAndPlay rebuild, which fails the
+                    // same way — the "every tap reloads the track and never
+                    // plays" loop. togglePlay's rebuild path handles the
+                    // actual retry when the user asks for it.
                     let message = 'Could not load this track';
                     const errStr = String(err);
                     if (errStr.includes('404') || errStr.includes('Not Found')) {
@@ -450,17 +516,28 @@ export function usePlayer() {
         [] // eslint-disable-line react-hooks/exhaustive-deps -- stable: all state accessed via refs or store.getState()
     );
 
-    // ── Resume after page reload ───────────────────────────────
-    // If currentTrack is rehydrated from localStorage but no Howl exists yet,
-    // reconstruct it silently at the saved position so the player is instantly
-    // ready when the user taps play — no starting from 0:00.
+    // ── React to the store's current track ─────────────────────
+    // Two distinct cases share this effect:
+    //
+    //   1. The user picked a track (or the queue advanced to one). The store
+    //      marks `autoPlayPending`, so we start playback immediately.
+    //   2. The app just booted with a rehydrated track. `autoPlayPending` is
+    //      false, so we rebuild the Howl silently at the saved position and
+    //      wait for the user to tap play — browsers (and especially Android)
+    //      block unprompted audio, so auto-playing here would just fail.
+    //
+    // Missing case 1 was why tapping a song loaded it but never produced
+    // sound until the play button was pressed.
 
     useEffect(() => {
         if (!currentTrack?.id) return;
         if (_loadedId === currentTrack.id) return;
 
-        const { savedProgress } = usePlayerStore.getState();
-        loadAndPlay(currentTrack.id, false, false, savedProgress);
+        const store = usePlayerStore.getState();
+        const shouldAutoPlay = store.consumeAutoPlay();
+        const seekTo = shouldAutoPlay ? 0 : store.savedProgress;
+
+        loadAndPlay(currentTrack.id, false, shouldAutoPlay, seekTo);
 
         return () => _stopTimer();
         // eslint-disable-next-line react-hooks/exhaustive-deps

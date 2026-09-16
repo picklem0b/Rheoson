@@ -86,6 +86,8 @@ function _extractMetadataFromPath(filePath: string): { title: string; artist: Ar
       subscribers: '',
       topTracks: [],
       albums: [],
+      singles: [],
+      related: [],
    };
 
    const album: Album = {
@@ -154,6 +156,7 @@ export async function scanLocalMusic(): Promise<Track[]> {
             addedAt: '',
             trackNumber: 0,
             playCount: 0,
+            rank: 0,
          } satisfies Track;
       });
    } catch (err) {

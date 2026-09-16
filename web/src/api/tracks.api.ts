@@ -226,6 +226,30 @@ export const tracksApi = {
       }
    },
 
+   /**
+    * This week's charts, cached server-side per ISO week.
+    *
+    * Cheaper than `getTrending` (one upstream fetch per week) and carries
+    * `rank` + `playCount`, which the Home top-3 podium uses for detail.
+    */
+   getWeeklyTrending: async (limit = 10): Promise<Track[]> => {
+      if (!isOnline()) return [];
+
+      try {
+         const raw = await api.get<{ week?: string; tracks?: unknown[] }>(
+            '/tracks/trending/weekly',
+            { params: { limit } }
+         );
+         const tracks = normalizeTracks(raw?.tracks ?? []);
+         if (tracks.length > 0) {
+            await tracksStore.putAll(tracks);
+         }
+         return tracks;
+      } catch {
+         return [];
+      }
+   },
+
    // ── Write operations (queued if offline) ──────────────────
 
    recordPlay: async (id: string) => {

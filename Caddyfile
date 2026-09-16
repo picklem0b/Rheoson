@@ -1,0 +1,54 @@
+# ── Rheoson reverse proxy ────────────────────────────────────────────
+# Caddy terminates TLS (automatic Let's Encrypt + renewals) and serves
+# both the SPA and the API from ONE origin — the SPA is built with
+# VITE_API_URL="" (same-origin mode), so /api and /socket.io below are
+# the exact paths the bundle calls. No CORS anywhere.
+#
+# Replace the address with your domain (an A/AAAA record pointing at
+# this server). Caddy obtains certificates on first start; ports 80 and
+# 443 must be reachable from the internet for the ACME HTTP-01 challenge.
+
+rheoson.example.com {
+	# ── API ─────────────────────────────────────────────────────
+	# flush_interval -1: stream audio/download responses to the client
+	# immediately instead of buffering (same role as nginx's
+	# proxy_buffering off). h2c keeps the single-binary upstream simple.
+	handle /api/* {
+		reverse_proxy h2c://api:8000 {
+			flush_interval -1
+			transport http {
+				response_header_timeout 600s
+			}
+		}
+	}
+
+	# ── Socket.IO ───────────────────────────────────────────────
+	# WebSocket upgrade is automatic in Caddy; the long read timeout
+	# keeps download-progress connections alive.
+	handle /socket.io/* {
+		reverse_proxy h2c://api:8000 {
+			flush_interval -1
+			transport http {
+				read_timeout 3600s
+				write_timeout 3600s
+			}
+		}
+	}
+
+	# ── SPA ─────────────────────────────────────────────────────
+	# Everything else goes to the web image (nginx serves dist/ with
+	# try_files fallback for react-router deep links).
+	handle {
+		reverse_proxy web:80
+	}
+
+	# Sensible defaults for an internet-facing host.
+	encode gzip zstd
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

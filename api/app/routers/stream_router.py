@@ -3,6 +3,7 @@ import asyncio
 import time
 import os
 import structlog
+import shutil
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
@@ -142,10 +143,14 @@ def invalidate_stream_cache() -> None:
 #   - TTL: 30 minutes per entry (stale entries are evicted on access)
 #   - Temp files live in system temp dir and are cleaned on eviction
 
-_REMOTE_CACHE_MAX = 30
-_REMOTE_CACHE_TTL = 30 * 60  # 30 minutes in seconds
+# Cache sizing is a latency setting, not just a memory one: a cache miss on
+# a remote track costs a full yt-dlp spawn (several seconds on Termux). A
+# 30-minute / 30-entry window meant going back to a song you played half an
+# hour ago paid that cost again.
+_REMOTE_CACHE_MAX = 60
+_REMOTE_CACHE_TTL = 6 * 60 * 60  # 6 hours in seconds
 
-_remote_cache: dict[str, dict] = {}  # track_id → {"path": Path, "ts": float}
+_remote_cache: dict[str, dict] = {}  # track_id → {"path": Path, "ts": float, "mime": str}
 
 
 def _remote_cache_get(track_id: str) -> Optional[Path]:
@@ -163,7 +168,13 @@ def _remote_cache_get(track_id: str) -> Optional[Path]:
     return entry["path"]
 
 
-def _remote_cache_set(track_id: str, path: Path) -> None:
+def _remote_cache_mime(track_id: str) -> Optional[str]:
+    """Content type the cached bytes should be served as, if known."""
+    entry = _remote_cache.get(track_id)
+    return entry.get("mime") if entry else None
+
+
+def _remote_cache_set(track_id: str, path: Path, mime: Optional[str] = None) -> None:
     """Add or update a cached entry. Evict oldest if over capacity."""
     # Evict expired entries first
     _remote_cache_prune()
@@ -171,7 +182,11 @@ def _remote_cache_set(track_id: str, path: Path) -> None:
     while len(_remote_cache) >= _REMOTE_CACHE_MAX:
         oldest_id = min(_remote_cache, key=lambda k: _remote_cache[k]["ts"])
         _remote_cache_evict(oldest_id)
-    _remote_cache[track_id] = {"path": path, "ts": time.time()}
+    _remote_cache[track_id] = {
+        "path": path,
+        "ts": time.time(),
+        "mime": mime or "audio/mpeg",
+    }
     log.debug("stream.remote_cache.set", track_id=track_id, cache_size=len(_remote_cache))
 
 
@@ -197,6 +212,286 @@ def _remote_cache_clear() -> None:
     for track_id in list(_remote_cache):
         _remote_cache_evict(track_id)
     log.info("stream.remote_cache.cleared")
+
+
+# ── Durable warm cache ────────────────────────────────────────
+# The in-memory remote cache dies with the process; a restart throws away
+# every warmed track. When STREAM_CACHE_DIR is set, completed buffers are
+# also hard-linked/copied into that directory and reused across restarts —
+# a track played once this week starts instantly next week.
+
+
+def _warm_dir() -> Optional[Path]:
+    d = settings.STREAM_CACHE_DIR
+    if not d:
+        return None
+    p = Path(d)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    except OSError:
+        return None
+
+
+def _warm_enforce_limit() -> None:
+    """LRU-evict warm files beyond the byte budget."""
+    d = _warm_dir()
+    if d is None:
+        return
+    max_bytes = max(0, settings.STREAM_CACHE_MAX_MB) * 1024 * 1024
+    try:
+        files = sorted(
+            (f for f in d.iterdir() if f.is_file()),
+            key=lambda f: f.stat().st_mtime,
+        )
+        total = sum(f.stat().st_size for f in files)
+        for f in files:
+            if total <= max_bytes:
+                break
+            try:
+                size = f.stat().st_size
+                f.unlink()
+                total -= size
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def _warm_promote(track_id: str, src: Path, mime: Optional[str]) -> None:
+    """Copy a completed buffer into the durable cache (best-effort)."""
+    d = _warm_dir()
+    if d is None:
+        return
+    dest = d / f"{track_id}.audio"
+    try:
+        if os.name == "posix":
+            try:
+                os.link(src, dest)  # instant, no bytes copied
+            except OSError:
+                shutil.copyfile(src, dest)
+        else:
+            shutil.copyfile(src, dest)
+        if mime:
+            (d / f"{track_id}.mime").write_text(mime)
+        _warm_enforce_limit()
+        log.info("stream.warm.promoted", track_id=track_id)
+    except OSError:
+        pass
+
+
+def _warm_lookup(track_id: str) -> Optional[Path]:
+    """Return the durable cached file for a track, refreshing its LRU stamp."""
+    d = _warm_dir()
+    if d is None:
+        return None
+    f = d / f"{track_id}.audio"
+    if not f.exists() or f.stat().st_size < 1024:
+        return None
+    try:
+        os.utime(f)  # touch → LRU recency
+    except OSError:
+        pass
+    return f
+
+
+def _warm_mime(track_id: str) -> Optional[str]:
+    d = _warm_dir()
+    if d is None:
+        return None
+    try:
+        return (d / f"{track_id}.mime").read_text().strip() or None
+    except OSError:
+        return None
+
+
+# ── Fast path: stream the resolved CDN URL ────────────────────
+# The slow part of streaming a remote track was never the network — it was
+# asking yt-dlp to download the whole audio and re-encode it to MP3 before a
+# single byte reached the client. `-x --audio-format mp3` buffers an entire
+# track through ffmpeg, which on Termux is the difference between "instant"
+# and "seven to thirty seconds".
+#
+# Asking yt-dlp only for the resolved CDN URL (`-g`) costs one metadata
+# extraction and no bytes, and YouTube's CDN is a byte-range capable origin,
+# so audio starts flowing in a few hundred milliseconds. Bytes are teed into
+# the buffer file that the session machinery already tails, so every
+# concurrent listener shares one upstream fetch and the durable cache still
+# fills for the next play.
+
+_direct_url_cache: dict[str, tuple[str, float]] = {}
+# CDN URLs are signed for roughly six hours; refresh well inside that window.
+_DIRECT_URL_TTL = 4 * 60 * 60
+
+# Prefer containers every WebView can decode natively (AAC in an MP4
+# container, which Android and desktop Chrome both play). Matching on `ext`
+# stops YouTube handing back an audio-only WebM when an M4A exists.
+_PREFERRED_FORMAT = os.environ.get(
+    "STREAM_YTDLP_FORMAT",
+    "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio",
+)
+
+_UA_ANDROID = (
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+)
+_UA_DESKTOP = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
+_MIME_BY_CONTENT_TYPE = {
+    "audio/mp4":  "audio/mp4",
+    "video/mp4":  "audio/mp4",
+    "audio/aac":  "audio/mp4",
+    "audio/webm": "audio/webm",
+    "video/webm": "audio/webm",
+    "audio/mpeg": "audio/mpeg",
+    "audio/mp3":  "audio/mpeg",
+    "audio/ogg":  "audio/ogg; codecs=opus",
+}
+
+
+def _direct_url_cached(track_id: str) -> Optional[str]:
+    entry = _direct_url_cache.get(track_id)
+    if entry is None:
+        return None
+    url, ts = entry
+    if time.time() - ts > _DIRECT_URL_TTL:
+        _direct_url_cache.pop(track_id, None)
+        return None
+    return url
+
+
+async def _resolve_direct_url(track_id: str) -> Optional[str]:
+    """Resolve a track's CDN URL with `yt-dlp -g`, downloading no bytes.
+
+    Costs one metadata extraction. Returns None when every player-client
+    variant fails, in which case the caller falls back to transcoding.
+    """
+    cached = _direct_url_cached(track_id)
+    if cached:
+        return cached
+
+    yt_url = f"https://www.youtube.com/watch?v={track_id}"
+    variants = [
+        ("youtube:player_client=mweb,android,web", _UA_ANDROID),
+        ("youtube:player_client=web", _UA_DESKTOP),
+        ("youtube:player_client=android", _UA_ANDROID),
+    ]
+
+    for extractor_args, ua in variants:
+        cmd = [
+            "yt-dlp", "--quiet", "--no-warnings", "--no-playlist",
+            "-f", _PREFERRED_FORMAT, "-g",
+            "--extractor-args", extractor_args,
+            "--add-header", f"User-Agent:{ua}",
+            yt_url,
+        ]
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+        except Exception as e:
+            log.warning("stream.resolve_direct.spawn_failed", track_id=track_id, error=str(e))
+            continue
+
+        try:
+            out, _ = await asyncio.wait_for(proc.communicate(), timeout=25.0)
+        except asyncio.TimeoutError:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            continue
+
+        for line in (out or b"").decode("utf-8", "replace").splitlines():
+            line = line.strip()
+            if line.startswith("http"):
+                _direct_url_cache[track_id] = (line, time.time())
+                return line
+
+    return None
+
+
+def _mime_from_response(url: str, content_type: str) -> str:
+    """Best-guess audio mime from the CDN URL, then the response header."""
+    try:
+        from urllib.parse import urlparse, parse_qs, unquote
+        qs = parse_qs(urlparse(url).query)
+        declared = unquote((qs.get("mime") or [""])[0]).lower()
+        if "mp4" in declared:
+            return "audio/mp4"
+        if "webm" in declared:
+            return "audio/webm"
+        if "mpeg" in declared:
+            return "audio/mpeg"
+    except Exception:
+        pass
+    return _MIME_BY_CONTENT_TYPE.get(content_type, "audio/mpeg")
+
+
+async def _download_direct(url: str, dest: Path) -> str:
+    """Stream a resolved CDN URL into `dest`. Returns the audio mime type."""
+    import httpx
+
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(30.0, read=60.0),
+        follow_redirects=True,
+    ) as client:
+        async with client.stream(
+            "GET",
+            url,
+            headers={"User-Agent": _UA_DESKTOP, "Accept": "*/*"},
+        ) as res:
+            res.raise_for_status()
+            content_type = (res.headers.get("content-type") or "").split(";")[0].strip().lower()
+            written = 0
+            with open(dest, "wb") as f:
+                async for chunk in res.aiter_bytes(CHUNK):
+                    if not chunk:
+                        continue
+                    f.write(chunk)
+                    written += len(chunk)
+
+    if written < 1024:
+        raise RuntimeError("direct stream produced no audio")
+    return _mime_from_response(url, content_type)
+
+
+async def _fill_buffer(track_id: str, dest: Path) -> str:
+    """Fill the buffer file, preferring the untranscoded direct stream.
+
+    Returns the mime type of the bytes written. Falls back to the transcoding
+    yt-dlp path when no direct URL can be resolved, so a track the CDN refuses
+    still plays — just more slowly.
+    """
+    direct = await _resolve_direct_url(track_id)
+    if direct:
+        try:
+            mime = await _download_direct(direct, dest)
+            log.info(
+                "stream.buffer.direct_filled",
+                track_id=track_id,
+                mime=mime,
+                size=dest.stat().st_size,
+            )
+            return mime
+        except Exception as e:
+            log.warning("stream.buffer.direct_failed", track_id=track_id, error=str(e))
+            # A stale signed URL is the most likely cause — drop it so the next
+            # attempt re-resolves instead of reusing a dead link.
+            _direct_url_cache.pop(track_id, None)
+            try:
+                if dest.exists():
+                    dest.unlink()
+            except OSError:
+                pass
+
+    await _fill_buffer_transcode(track_id, dest)
+    return "audio/mpeg"
 
 
 # ── Artwork cache ─────────────────────────────────────────────
@@ -236,7 +531,9 @@ def _artwork_cache_set(key: str, data: bytes) -> None:
 #     (or a burst of distinct remote tracks) cannot spawn unbounded
 #     subprocesses
 
-_REMOTE_FILL_LIMIT = 6
+# Raised from 6 so intent-prefetching from the UI (hover / press) doesn't
+# queue behind background fills and leave the first play waiting.
+_REMOTE_FILL_LIMIT = 8
 _SESSION_IDLE_TTL  = 600.0   # finished sessions are swept after 10 min idle
 _buffer_dir = Path("/tmp/Rheoson_stream_buffer")
 _buffer_dir.mkdir(parents=True, exist_ok=True)
@@ -252,9 +549,9 @@ def _session_file(track_id: str) -> Path:
 async def _fill_session(track_id: str, session: dict) -> None:
     """Background task: fill the buffer file, then flag the session done."""
     try:
-        await _fill_buffer(track_id, session["path"])
+        session["mime"] = await _fill_buffer(track_id, session["path"])
         session["ok"] = True
-        log.info("stream.session.filled", track_id=track_id)
+        log.info("stream.session.filled", track_id=track_id, mime=session["mime"])
     except asyncio.CancelledError:
         pass
     except Exception:
@@ -274,8 +571,10 @@ def _drop_session_locked(track_id: str) -> None:
         return
     if session["ok"] and session["path"].exists():
         # Completed audio is worth keeping — move it into the durable cache
-        # (TTL-managed) instead of deleting it.
-        _remote_cache_set(track_id, session["path"])
+        # (TTL-managed) instead of deleting it, and promote it into the
+        # on-disk warm cache so it also survives restarts.
+        _remote_cache_set(track_id, session["path"], session.get("mime"))
+        _warm_promote(track_id, session["path"], session.get("mime"))
     else:
         try:
             if session["path"].exists():
@@ -323,6 +622,10 @@ async def _ensure_remote_session(track_id: str) -> dict | None:
                     "ok":       False,
                     "accessed": now,
                     "path":     _session_file(track_id),
+                    # YouTube's direct CDN streams are m4a (itag 140). The
+                    # real type is confirmed as soon as _fill_buffer resolves
+                    # the URL; the transcode fallback overwrites it to mp3.
+                    "mime":     "audio/mp4",
                 }
                 session["task"] = asyncio.create_task(_fill_session(track_id, session))
                 _remote_sessions[track_id] = session
@@ -346,6 +649,8 @@ async def warm_stream(track_id: str, _user: dict = Depends(get_current_user)):
         return {"ok": True, "state": "local"}
     if _remote_cache_get(track_id):
         return {"ok": True, "state": "cached"}
+    if _warm_lookup(track_id):
+        return {"ok": True, "state": "warmed"}
 
     try:
         session = await _ensure_remote_session(track_id)
@@ -373,12 +678,22 @@ async def stream_audio(track_id: str, request: Request):
         log.debug("stream.local", track_id=track_id, path=str(local))
         return _serve_local(local, request)
 
+    # Durable warm cache: survived a restart, serve like a local file.
+    warmed = _warm_lookup(track_id)
+    if warmed is not None:
+        log.debug("stream.warm_hit", track_id=track_id)
+        return _serve_local(warmed, request, mime=_warm_mime(track_id))
+
     if request.method == "HEAD":
         if len(track_id) != 11:
             raise HTTPException(status_code=404, detail="Invalid track ID")
         return Response(headers={
             "Accept-Ranges": "bytes",
-            "Content-Type":  "audio/mpeg",
+            # Must match what GET actually serves: remote tracks arrive as
+            # native m4a from the CDN, not transcoded mp3. A HEAD that
+            # promises audio/mpeg while GET delivers audio/mp4 makes Howler
+            # mis-decode (html5 audio sniffs the HEAD content-type first).
+            "Content-Type":  "audio/mp4",
         })
 
     # NOTE: no forced full-library rescan here. Previously every remote
@@ -394,7 +709,7 @@ async def stream_audio(track_id: str, request: Request):
     cached = _remote_cache_get(track_id)
     if cached:
         log.debug("stream.remote_cache.hit", track_id=track_id)
-        return _serve_local(cached, request)
+        return _serve_local(cached, request, _remote_cache_mime(track_id))
 
     # Not a local file and not cached — this would spawn yt-dlp against a
     # YouTube URL. Fail fast on malformed remote ids instead of burning a
@@ -552,8 +867,8 @@ def _parse_range(rng: str, file_size: int) -> tuple[int, int]:
     return (start, end)
 
 
-def _serve_local(path: Path, request: Request) -> Response:
-    mime      = MIME_MAP.get(path.suffix.lower(), "audio/mpeg")
+def _serve_local(path: Path, request: Request, mime: Optional[str] = None) -> Response:
+    mime      = mime or MIME_MAP.get(path.suffix.lower(), "audio/mpeg")
     file_size = path.stat().st_size
     rng       = request.headers.get("range")
 
@@ -602,8 +917,8 @@ def _serve_local(path: Path, request: Request) -> Response:
 # of a background session task (see _ensure_remote_session) so it is
 # decoupled from any single HTTP response.
 
-async def _fill_buffer(track_id: str, dest: Path) -> None:
-    """Spawn yt-dlp and write the full audio stream to dest."""
+async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
+    """Spawn yt-dlp and write the re-encoded audio stream to dest."""
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
 
     extractor_args_variants = [
@@ -714,10 +1029,10 @@ async def _complete_session(track_id: str, session: dict) -> None:
     async with _session_lock:
         if _remote_sessions.get(track_id) is session:
             _remote_sessions.pop(track_id, None)
-    _remote_cache_set(track_id, session["path"])
+    _remote_cache_set(track_id, session["path"], session.get("mime"))
 
 
-async def _serve_session_stream(track_id: str, session: dict) -> Response:
+async def _serve_session_stream(track_id: str, session: dict) -> Response:  # noqa: C901
     """Stream the growing buffer file until the fill task completes.
 
     Multiple concurrent readers can tail the same file; disconnecting one
@@ -777,7 +1092,7 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:
 
     return StreamingResponse(
         _gen(),
-        media_type="audio/mpeg",
+        media_type=session.get("mime") or "audio/mpeg",
         headers={
             "Accept-Ranges":          "bytes",
             "Cache-Control":          "no-cache",
@@ -812,14 +1127,14 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
     cached = _remote_cache_get(track_id)
     if cached is not None and cached.exists():
         log.debug("stream.remote_cache.hit", track_id=track_id)
-        return _serve_local(cached, request)
+        return _serve_local(cached, request, _remote_cache_mime(track_id))
 
     # ── Case 2: get-or-create the fill session ────────────────
     session = await _ensure_remote_session(track_id)
     if session is None:
         cached = _remote_cache_get(track_id)
         if cached is not None and cached.exists():
-            return _serve_local(cached, request)
+            return _serve_local(cached, request, _remote_cache_mime(track_id))
         raise HTTPException(status_code=502, detail="Track not available")
 
     if session["done"].is_set():
@@ -830,7 +1145,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
             and session["path"].stat().st_size > 0
         ):
             await _complete_session(track_id, session)
-            return _serve_local(session["path"], request)
+            return _serve_local(session["path"], request, session.get("mime"))
         # The fill failed — fail fast and remember the failure so a retry
         # storm is not spawned. Requests after the TTL may try again.
         async with _session_lock:
@@ -855,7 +1170,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
             and session["path"].stat().st_size > 0
         ):
             await _complete_session(track_id, session)
-            return _serve_local(session["path"], request)
+            return _serve_local(session["path"], request, session.get("mime"))
         async with _session_lock:
             _remote_sessions.pop(track_id, None)
         _failure_cache[track_id] = time.monotonic() + _FAILURE_TTL

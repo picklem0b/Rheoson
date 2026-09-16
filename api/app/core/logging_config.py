@@ -8,7 +8,20 @@ def configure_logging() -> None:
 
     logging.basicConfig(format="%(message)s", level=level)
 
-    for noisy in ("httpx", "httpcore", "urllib3", "asyncio"):
+    # Only useful logs: the Mongo driver emits a JSON event per connection
+    # pool change and heartbeat — pure noise for a single-user app.
+    for noisy in (
+        "httpx",
+        "httpcore",
+        "urllib3",
+        "asyncio",
+        "pymongo",
+        "pymongo.connection",
+        "pymongo.topology",
+        "pymongo.pool",
+        "motor",
+        "motor.core",
+    ):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
     shared_processors: list = [

@@ -11,6 +11,8 @@ interface RequestOptions extends RequestInit {
    params?: Record<string, string | number | boolean | undefined>;
    signal?: AbortSignal;
    _retryCount?: number;
+   /** Retry with a freshly minted Clerk token instead of the cached one. */
+   _skipTokenCache?: boolean;
    /** If true, this request will be queued locally when offline instead of throwing. */
    _offlineQueue?: boolean;
 }
@@ -37,6 +39,20 @@ function makeError(status: number, detail: string): ApiError {
 
 let _clerkToken: string | null = null;
 
+/**
+ * Clerk hands out short-lived session JWTs (60s by default). Caching one at
+ * sign-in and reusing it forever was the cause of the persistent
+ * "Invalid or expired token" errors: every request after the first minute
+ * carried a dead token.
+ *
+ * ClerkUserSync registers a provider here instead, so every request pulls a
+ * token through Clerk's own cache — which refreshes transparently when the
+ * cached one is near expiry. The last known token is still kept in
+ * `_clerkToken` for synchronous callers (the 401 retry path, socket auth).
+ */
+type TokenProvider = (opts?: { skipCache?: boolean }) => Promise<string | null>;
+let _clerkTokenProvider: TokenProvider | null = null;
+
 /** True when the frontend is built with Clerk authentication enabled. */
 const clerkEnabled = !!CLERK_PUBLISHABLE_KEY;
 
@@ -45,13 +61,34 @@ export function setClerkToken(token: string | null) {
    _clerkToken = token;
 }
 
-export function getAuthToken(): string | null {
-   // Clerk mode: Clerk owns the session. A persisted store token from an old
-   // session is stale (JWTs here live ~60s) and would cause a 401 storm on
-   // every reload/restart before ClerkUserSync injects a fresh one — so never
-   // fall back to it. Until the fresh token arrives we send no token at all
-   // and the request layer retries briefly.
-   if (clerkEnabled) return _clerkToken;
+/** Called by ClerkUserSync to install Clerk's refreshing token getter. */
+export function setClerkTokenProvider(provider: TokenProvider | null) {
+   _clerkTokenProvider = provider;
+}
+
+/**
+ * Resolve the token to send with the next request.
+ *
+ * Clerk mode: ask the registered provider (Clerk refreshes when needed), and
+ * fall back to the last known token if the lookup fails. Never fall back to
+ * the persisted store token — that one is always stale in Clerk mode and
+ * would recreate the 401 storm on every reload.
+ */
+async function resolveAuthToken(skipCache = false): Promise<string | null> {
+   if (clerkEnabled) {
+      if (_clerkTokenProvider) {
+         try {
+            const fresh = await _clerkTokenProvider({ skipCache });
+            if (fresh) {
+               _clerkToken = fresh;
+               return fresh;
+            }
+         } catch {
+            /* fall through to the cached token */
+         }
+      }
+      return _clerkToken;
+   }
 
    // Local / no-Clerk mode: read from the auth store's persisted state.
    if (_clerkToken) return _clerkToken;
@@ -65,11 +102,28 @@ export function getAuthToken(): string | null {
    return null;
 }
 
+/** Synchronous best-effort read — used by socket auth and retry decisions. */
+export function getAuthToken(): string | null {
+   return _clerkToken;
+}
+
+/**
+ * Authorization header for fetches that bypass the `api` client (media
+ * prefetchers, service-worker probes). Resolves Clerk tokens through the
+ * same refreshing provider so long-lived prefetch loops never carry a
+ * stale token — without this, warm-up calls 401 silently and every first
+ * play pays the full yt-dlp cost again.
+ */
+export async function getAuthHeader(): Promise<Record<string, string>> {
+   const token = await resolveAuthToken();
+   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(
    endpoint: string,
    options: RequestOptions = {}
 ): Promise<T> {
-   const { params, signal, _retryCount = 0, _offlineQueue = false, ...init } = options;
+   const { params, signal, _retryCount = 0, _offlineQueue = false, _skipTokenCache = false, ...init } = options;
    const method = (init.method ?? "GET").toUpperCase();
 
    const headers: Record<string, string> = {
@@ -79,8 +133,8 @@ async function request<T>(
       headers["Content-Type"] = "application/json";
    }
 
-   // Inject auth token if present
-   const token = getAuthToken();
+   // Inject a fresh auth token if present
+   const token = await resolveAuthToken(_skipTokenCache);
    if (token) {
       headers["Authorization"] = `Bearer ${token}`;
    }
@@ -147,8 +201,17 @@ async function request<T>(
       //   - If we believed we had a session, clear it and go to login.
       if (res.status === 401 && !endpoint.includes("/api/auth/")) {
          if (clerkEnabled) {
-            const sentToken = getAuthToken();
-            if (!sentToken && _retryCount < 2) {
+            if (token && !_skipTokenCache && _retryCount < 2) {
+               // The token we sent was rejected (clock skew, revoked session,
+               // or Clerk rotated the signing key). Force a non-cached token
+               // once before surfacing the failure.
+               return request<T>(endpoint, {
+                  ...options,
+                  _retryCount: _retryCount + 1,
+                  _skipTokenCache: true,
+               });
+            }
+            if (!token && _retryCount < 2) {
                // Clerk session restore + token refresh races the first wave of
                // requests on boot/restart — give it a moment before failing.
                await new Promise((r) => setTimeout(r, 600 * (_retryCount + 1)));

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
    Search as SearchIcon,
@@ -427,7 +427,9 @@ export default function Search() {
             <SearchBar
                query={query}
                onChange={setQuery}
-               onClear={clear}
+               onClear={() => {
+                  clear();
+               }}
                onSubmit={handleSubmit}
                isLoading={isLoading}
                suggestions={suggestions}
@@ -515,7 +517,13 @@ export default function Search() {
                            Browse categories
                         </p>
                      </div>
-                     <CategoryGrid onSelect={cat => setQuery(cat)} />
+                     {/* "See everything in X" — drops the label into the
+                         normal search box, which the debounced hook picks up. */}
+                     <CategoryGrid
+                        onSelect={cat => {
+                           setQuery(cat);
+                        }}
+                     />
                   </motion.div>
                )}
 

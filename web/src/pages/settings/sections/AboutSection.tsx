@@ -11,6 +11,7 @@ import {
 import { APP_VERSION } from "@/lib/constants";
 import { SettingsGroup, SettingsRow } from "../components/SettingsPrimitives";
 import { cn } from "@/lib/utils";
+import { GitHubStarButton } from "@/components/New-Components/cards/github-star";
 
 const GITHUB = "https://github.com/picklem0b/Rheoson";
 
@@ -110,6 +111,19 @@ export default function AboutSection() {
             )}
          </div>
 
+         {/* Community — shared star button from the UI kit */}
+         <SettingsGroup
+            title='Community'
+            footer='Rheoson is open source. A star helps other people find it.'>
+            <div className='px-4 py-4 flex items-center justify-center'>
+               <GitHubStarButton
+                  owner='picklem0b'
+                  repo='Rheoson'
+                  className='rounded-2xl'
+               />
+            </div>
+         </SettingsGroup>
+
          {/* Release history */}
          <SettingsGroup title='Release history'>
             <div className='px-4 py-4 flex flex-wrap gap-2'>
@@ -123,7 +137,7 @@ export default function AboutSection() {
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 active:scale-95",
                         tag === `v${APP_VERSION}`
                            ? "bg-[var(--accent)] text-white border-[var(--accent)]"
-                           : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--accent)]/60"
+                           : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border)] hover:border-brand/60"
                      )}>
                      <Tag className='w-3 h-3' />
                      {tag}

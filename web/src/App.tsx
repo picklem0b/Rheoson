@@ -15,10 +15,13 @@ import { NetworkErrorBanner } from '@/components/ui/NetworkErrorBanner'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { initNetwork } from '@/lib/network'
 import { initAutoSync } from '@/lib/offlineQueue'
+import { migrateOfflineAudioMime } from '@/lib/audioCacheMigration'
 import { initErrorHandler } from '@/lib/errorHandler'
+import { unlockAudioContext } from '@/lib/audioEffects'
 import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
 import ClerkUserSync from '@/components/auth/ClerkUserSync'
 import { useAuthStore } from '@/store/auth.store'
+import { usePreferenceSync } from '@/hooks/preferenceSync.hook'
 
 // ── Player error toast ────────────────────────────────────────
 function usePlayerErrorToast() {
@@ -40,6 +43,7 @@ function AppInner() {
   useKeyboardShortcuts()
   useMediaSession()
   usePlayerErrorToast()
+  usePreferenceSync()
   return (
     <ErrorBoundary>
       <NetworkErrorBanner />
@@ -75,6 +79,9 @@ export default function App() {
       return import.meta.env.DEV ? '/api/health' : `${PROD_API}/api/health`
     })
     initAutoSync()
+    // One-time repair of offline blobs stored with the old wrong mime labels
+    // (m4a bytes labeled mp3) so previously-cached tracks play again.
+    migrateOfflineAudioMime().catch(() => {})
   }, [])
 
   // Check for app updates periodically
@@ -84,16 +91,24 @@ export default function App() {
     });
   }, [toast])
 
-  // Unlock Web Audio context on first user gesture
+  // Unlock the Web Audio graphs on the first user gesture.
+  // Both Howler's context and the DSP chain's context have to be resumed
+  // inside a gesture on Android — a media element routed through a suspended
+  // graph is completely silent.
   useEffect(() => {
-    const unlock = () => {
-      if (Howler.ctx && Howler.ctx.state === 'suspended') {
-        Howler.ctx.resume().catch(() => {})
-      }
+    const detach = () => {
       document.removeEventListener('touchstart', unlock)
       document.removeEventListener('touchend',   unlock)
       document.removeEventListener('click',      unlock)
       document.removeEventListener('keydown',    unlock)
+    }
+
+    const unlock = () => {
+      if (Howler.ctx && Howler.ctx.state === 'suspended') {
+        Howler.ctx.resume().catch(() => {})
+      }
+      unlockAudioContext()
+      detach()
     }
 
     document.addEventListener('touchstart', unlock, { passive: true })
@@ -101,12 +116,7 @@ export default function App() {
     document.addEventListener('click',      unlock)
     document.addEventListener('keydown',    unlock)
 
-    return () => {
-      document.removeEventListener('touchstart', unlock)
-      document.removeEventListener('touchend',   unlock)
-      document.removeEventListener('click',      unlock)
-      document.removeEventListener('keydown',    unlock)
-    }
+    return detach
   }, [])
 
   const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
