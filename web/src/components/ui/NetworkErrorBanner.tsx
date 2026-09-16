@@ -1,96 +1,42 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Server, WifiOff, RefreshCw, X } from 'lucide-react';
-import { isOnline } from '@/lib/network';
+import { isOnline, checkNow, onStatusChange } from '@/lib/network';
 import { cn } from '@/lib/utils';
 
 interface NetworkErrorBannerProps {
   onDismiss?: () => void;
-  pollInterval?: number;
-  healthEndpoint?: string;
 }
 
+/**
+ * Backend-down banner. Pure display — all detection lives in the single
+ * health poller in lib/network.ts (14-min cadence, fast recovery backoff).
+ * This component just mirrors that state and offers a Retry button.
+ */
 export function NetworkErrorBanner({
   onDismiss,
-  pollInterval = 10_000,
-  healthEndpoint,
 }: NetworkErrorBannerProps) {
   const [isBackendDown, setIsBackendDown] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [wasOnline, setWasOnline] = useState(isOnline());
-  // Re-entrancy guard kept in a ref so checkHealth stays stable (no interval
-  // churn from the isChecking state flipping on every poll).
-  const checkingRef = useRef(false);
+
+  // Mirror the shared poller's status instead of running a private one.
+  useEffect(
+    () =>
+      onStatusChange((online) => {
+        setIsBackendDown(!online);
+        setWasOnline(online);
+      }),
+    []
+  );
 
   const checkHealth = useCallback(async () => {
-    if (checkingRef.current) return;
-    checkingRef.current = true;
+    if (isChecking) return;
     setIsChecking(true);
-
-    try {
-      const baseUrl = import.meta.env.DEV ? '' : import.meta.env.VITE_API_URL ?? '';
-      const url = healthEndpoint ?? `${baseUrl}/api/health`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5_000);
-
-      const res = await fetch(url, {
-        signal: controller.signal,
-        cache: 'no-cache',
-      });
-
-      clearTimeout(timeoutId);
-      const wasDown = isBackendDown;
-      setIsBackendDown(!res.ok);
-      if (wasDown && res.ok) {
-        // Backend recovered
-        setIsBackendDown(false);
-      }
-    } catch {
-      setIsBackendDown(true);
-    } finally {
-      checkingRef.current = false;
-      setIsChecking(false);
-    }
-  }, [healthEndpoint, isBackendDown]);
-
-  useEffect(() => {
-    // Initial check
-    checkHealth();
-
-    // Poll for backend health
-    const interval = setInterval(checkHealth, pollInterval);
-
-    // Also check when network comes back online
-    const handleOnline = () => {
-      setWasOnline(true);
-      checkHealth();
-    };
-    const handleOffline = () => {
-      setWasOnline(false);
-      setIsBackendDown(true);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [checkHealth, pollInterval]);
-
-  // Track online status
-  useEffect(() => {
-    const handleOnline = () => setWasOnline(true);
-    const handleOffline = () => setWasOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+    checkNow(); // pings immediately; onStatusChange above updates state
+    // Hold the spinner briefly so the tap always gives visible feedback.
+    setTimeout(() => setIsChecking(false), 800);
+  }, [isChecking]);
 
   if (!isBackendDown) return null;
 
@@ -127,7 +73,7 @@ export function NetworkErrorBanner({
       <div className="flex items-center gap-2 flex-shrink-0">
         <motion.button
           whileTap={{ scale: 0.9 }}
-          onClick={checkHealth}
+          onClick={() => void checkHealth()}
           disabled={isChecking}
           className="px-3 py-1.5 rounded-full text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center gap-1.5 disabled:opacity-50"
         >
