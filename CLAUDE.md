@@ -74,4 +74,5 @@ Current baseline: 67 frontend + 155 backend tests, lint/tsc clean. Backend tests
 - yt-dlp breaks regularly; keep the daily update cron and the Doctor's "update yt-dlp" repair.
 - A downloaded track keeps its videoId identity after download (track_identity resolves it) — don't reintroduce MD5-vs-videoId dual lists on the frontend; key on `normalize.ts` output.
 - `.gitignore` anchors: `downloads/` (unanchored) once shadowed `web/src/pages/downloads/` — keep path-specific patterns anchored.
+- Termux: after `npm ci`/git operations, Vite may fail with `Cannot find module @rollup/rollup-android-arm64` (npm/cli#4828 drops platform-optional deps). Fix: `npm install` once (never delete package-lock.json — the lockfile is correct and contains all platform binaries), then re-verify with `npm ci`-compatible state. Also: `npm run dev -- host 0.0.0.0` is wrong — `--host` takes no value (vite.config.ts already sets `host: true`); passing `host` as a value causes `ENOTFOUND host`.
 - `reference/` (design screenshots) and `notes.txt` are local-only, never commit them.
