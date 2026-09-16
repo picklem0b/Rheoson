@@ -40,14 +40,45 @@ function getInitials(name: string): string {
 function ProfileButton() {
   const navigate = useNavigate()
   const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
+  if (!clerkEnabled) return <LocalProfileButton navigate={navigate} />
+  return <ClerkProfileButton navigate={navigate} />
+}
+
+/**
+ * Split by build-time Clerk configuration — useUser() throws
+ * "can only be used within <ClerkProvider />" when the bundle was built
+ * without VITE_CLERK_PUBLISHABLE_KEY, and this component renders inside
+ * the shared layout, which is NOT wrapped by the provider in that build.
+ */
+function ClerkProfileButton({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
   const { user: clerkUser } = useUser()
   const localUser = useAuthStore((s) => s.user)
 
-  // Prefer Clerk user data when available
-  const name = clerkEnabled
-    ? (clerkUser?.fullName ?? clerkUser?.username ?? 'Your account')
-    : (localUser?.name ?? 'Your account')
-  const imageUrl = clerkEnabled ? clerkUser?.imageUrl : localUser?.image_url
+  const name = clerkUser?.fullName ?? clerkUser?.username ?? localUser?.name ?? 'Your account'
+  const imageUrl = clerkUser?.imageUrl ?? localUser?.image_url
+  return <ProfileButtonBody navigate={navigate} name={name} imageUrl={imageUrl} />
+}
+
+function LocalProfileButton({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+  const localUser = useAuthStore((s) => s.user)
+  return (
+    <ProfileButtonBody
+      navigate={navigate}
+      name={localUser?.name ?? 'Your account'}
+      imageUrl={localUser?.image_url}
+    />
+  )
+}
+
+function ProfileButtonBody({
+  navigate,
+  name,
+  imageUrl,
+}: {
+  navigate: ReturnType<typeof useNavigate>
+  name: string
+  imageUrl?: string
+}) {
   const initials = getInitials(name)
   const gradient = getGradient(name)
 
