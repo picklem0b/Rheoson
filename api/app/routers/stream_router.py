@@ -528,7 +528,10 @@ async def _ensure_remote_session(track_id: str) -> dict | None:
                     "ok":       False,
                     "accessed": now,
                     "path":     _session_file(track_id),
-                    "mime":     "audio/mpeg",
+                    # YouTube's direct CDN streams are m4a (itag 140). The
+                    # real type is confirmed as soon as _fill_buffer resolves
+                    # the URL; the transcode fallback overwrites it to mp3.
+                    "mime":     "audio/mp4",
                 }
                 session["task"] = asyncio.create_task(_fill_session(track_id, session))
                 _remote_sessions[track_id] = session
@@ -584,7 +587,11 @@ async def stream_audio(track_id: str, request: Request):
             raise HTTPException(status_code=404, detail="Invalid track ID")
         return Response(headers={
             "Accept-Ranges": "bytes",
-            "Content-Type":  "audio/mpeg",
+            # Must match what GET actually serves: remote tracks arrive as
+            # native m4a from the CDN, not transcoded mp3. A HEAD that
+            # promises audio/mpeg while GET delivers audio/mp4 makes Howler
+            # mis-decode (html5 audio sniffs the HEAD content-type first).
+            "Content-Type":  "audio/mp4",
         })
 
     # NOTE: no forced full-library rescan here. Previously every remote
