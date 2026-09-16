@@ -21,7 +21,8 @@
 import { openDB, type IDBPDatabase } from 'idb'
 
 const DB_NAME = 'rheoson-audio'
-const DB_VERSION = 1
+/** v2: mime labels are trustworthy (see audioCacheMigration.ts). */
+const DB_VERSION = 2
 const STORE = 'audio'
 
 /** Default ceiling for cached audio bytes (300 MB ≈ 60-80 MP3 tracks). */
