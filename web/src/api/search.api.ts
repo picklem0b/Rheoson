@@ -22,27 +22,6 @@ export interface CategoryMeta {
    gradient: string;
 }
 
-// ── Smart (natural-language) search ───────────────────────────
-
-export interface SmartSearchContext {
-   track_id?: string;
-   title?: string;
-   artist?: string;
-   /** Current route, e.g. "/library" — reserved for future intents. */
-   page?: string;
-}
-
-export interface SmartSearchResult {
-   intent: string;
-   label: string;
-   message: string;
-   tracks: Track[];
-   albums?: unknown[];
-   artists?: unknown[];
-   playlists?: unknown[];
-   category?: CategoryMeta | null;
-   week?: string | null;
-}
 
 // ── API ───────────────────────────────────────────────────────
 
@@ -95,31 +74,6 @@ export const searchApi = {
          week: raw?.week ?? "",
          category: raw?.category ?? null,
          tracks: normalizeTracks(raw?.tracks ?? []),
-      };
-   },
-
-   /**
-    * Natural-language search with context about what the app is playing.
-    * Powers "more like this", "top 5 hip-hop this week", "songs by X"…
-    */
-   smartSearch: async (
-      query: string,
-      context: SmartSearchContext = {},
-      signal?: AbortSignal
-   ): Promise<SmartSearchResult> => {
-      const raw = await api.post<
-         Omit<SmartSearchResult, "tracks"> & { tracks?: unknown[] }
-      >("/search/smart", { query, context }, { signal });
-      return {
-         intent: raw?.intent ?? "search",
-         label: raw?.label ?? "Results",
-         message: raw?.message ?? "",
-         tracks: normalizeTracks(raw?.tracks ?? []),
-         albums: raw?.albums ?? [],
-         artists: raw?.artists ?? [],
-         playlists: raw?.playlists ?? [],
-         category: raw?.category ?? null,
-         week: raw?.week ?? null,
       };
    },
 };

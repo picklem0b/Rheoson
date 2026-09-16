@@ -318,32 +318,6 @@ async def search(query: str, filter: str | None = None, limit: int = 20) -> dict
         raise SearchError(f"YouTube Music search failed: {e}")
 
 
-# ── Suggestions cache ────────────────────────────────────────
-_suggestions_cache: dict[str, tuple[float, list[str]]] = {}
-_SUGGESTIONS_TTL = 300.0  # 5 minutes
-
-
-async def get_suggestions(query: str) -> list[str]:
-    now = time.monotonic()
-
-    # Check cache
-    cached = _suggestions_cache.get(query.lower())
-    if cached and (now - cached[0]) < _SUGGESTIONS_TTL:
-        return cached[1]
-
-    await _get_ytm_async()
-    loop = asyncio.get_event_loop()
-    try:
-        results = await loop.run_in_executor(None, lambda: _get_ytm().get_search_suggestions(query))
-        suggestions = [r for r in results if isinstance(r, str)][:8]
-        _suggestions_cache[query.lower()] = (now, suggestions)
-        return suggestions
-    except Exception as e:
-        _record_ytm_failure()
-        log.warning("ytmusic.suggestions.failed", query=query, error=str(e))
-        return []
-
-
 async def get_track(video_id: str) -> dict:
     await _get_ytm_async()
     loop = asyncio.get_event_loop()

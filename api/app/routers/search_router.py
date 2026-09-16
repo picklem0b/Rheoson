@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from app.core.deps import get_current_user
 from app.services.search_service import search, resolve_url
-from app.services.ytmusic_service import get_suggestions, CATEGORIES, category_meta
-from app.services import smart_search, weekly_cache
+from app.services.ytmusic_service import CATEGORIES, category_meta
+from app.services import weekly_cache
 from app.schemas.search_schema import SearchResultsSchema, ResolveResponseSchema
 
 router = APIRouter()
@@ -35,21 +35,6 @@ async def search_endpoint(
     if not q:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
     return await search(q, filter=filter)
-
-
-@router.get("/suggest")
-async def suggest_endpoint(
-    q: str = Query(..., min_length=1),
-    _user: dict = Depends(get_current_user),
-) -> list[str]:
-    """
-    Instant autocomplete — returns in ~80ms.
-    No debounce needed — call on every keystroke.
-    """
-    q = _sanitize_query(q)
-    if len(q) < 2:
-        return []
-    return await get_suggestions(q)
 
 
 @router.get("/categories")
@@ -88,30 +73,6 @@ async def category_top(
     if not data:
         return {"week": weekly_cache.current_bucket(), "category": meta, "tracks": []}
     return {**data, "category": meta}
-
-
-class SmartSearchRequest(BaseModel):
-    query: str
-    # Free-form context about what the app is currently doing. Only the
-    # current track matters today, but the shape is open so more context
-    # (page, queue, last action) can be added without a breaking change.
-    context: dict | None = None
-
-
-@router.post("/smart")
-async def smart_search_endpoint(
-    body: SmartSearchRequest,
-    user: dict = Depends(get_current_user),
-) -> dict:
-    """Natural-language search that understands what's playing.
-
-    Turns "more like this", "top 5 hip-hop this week" or "download that song
-    by X" into a labelled answer plus real, playable tracks.
-    """
-    query = _sanitize_query(body.query)
-    if not query:
-        raise HTTPException(status_code=400, detail="Query cannot be empty")
-    return await smart_search.resolve(query, user["sub"], body.context or {})
 
 
 class ResolveRequest(BaseModel):
