@@ -25,6 +25,7 @@ import {
    type Fix,
    type Severity
 } from '@/lib/diagnostics'
+import LibraryDoctor from '../components/LibraryDoctor'
 import {
    SettingsGroup,
    SettingsRow,
@@ -380,6 +381,9 @@ export default function DiagnosticsSection() {
                </span>
             </SettingsRow>
          </SettingsGroup>
+
+         {/* ── Library doctor ─────────────────────────────── */}
+         <LibraryDoctor />
 
          {/* ── This device ────────────────────────────────── */}
          <SettingsGroup
