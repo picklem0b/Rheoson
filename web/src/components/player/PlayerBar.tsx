@@ -287,7 +287,7 @@ export default function PlayerBar() {
                                     label: "Download",
                                     icon: <Download className='w-4 h-4' />,
                                     action: () => {
-                                       openDownloadModal(currentTrack.id);
+                                       openDownloadModal(currentTrack.id, currentTrack);
                                        setMenuOpen(false);
                                     }
                                  },
