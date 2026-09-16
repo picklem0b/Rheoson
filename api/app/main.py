@@ -542,7 +542,7 @@ async def health_ready(request: Request):
     return await healthmod.ready(request.headers.get("x-request-id", ""))
 
 
-@app.get("/api/health", tags=["health"])
+@app.api_route("/api/health", methods=["GET", "HEAD"], tags=["health"])
 async def health(request: Request):
     """Full cheap health snapshot with per-subsystem checks.
 

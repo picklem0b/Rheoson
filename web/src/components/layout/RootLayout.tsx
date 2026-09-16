@@ -8,6 +8,7 @@ import PlayerBar from "@/components/player/PlayerBar";
 import PlaybackSettings from "@/components/player/PlaybackSettings";
 import QueuePanel from "@/components/player/QueuePanel";
 import { DownloadModal } from "@/components/ui/DownloadModal";
+import DownloadProgressBar from "@/components/downloads/DownloadProgressBar";
 import { AddToPlaylistSheet } from "@/components/playlist/AddToPlaylistSheet";
 import { TrackContextMenu } from "@/components/track/TrackContextMenu";
 import { usePlayerStore } from "@/store/player.store";
@@ -133,6 +134,9 @@ export default function RootLayout() {
                    from the PlayerBar overflow menu via rheoson:playback-settings */}
                <PlaybackSettings trigger={false} />
             </div>
+
+            {/* ── Global download progress pill ─────────────── */}
+            <DownloadProgressBar />
 
             {/* ── Queue Panel (slide-in drawer) ─────────────── */}
             <QueuePanel />
