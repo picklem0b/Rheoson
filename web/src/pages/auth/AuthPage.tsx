@@ -33,11 +33,30 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
     // Clerk's `path` must match the URL the component is mounted at.
     const path = location.pathname
 
-    // Constrain Clerk's card so it never stretches past the viewport.
+    // Compact Clerk card: tighter type scale, smaller padding and a narrower
+    // max width, so the whole form fits on a phone screen without scrolling.
     const clerkAppearance = {
+      variables: {
+        fontSize: '13px',
+        spacingUnit: '0.8rem',
+        borderRadius: '0.7rem',
+      },
+      layout: {
+        logoPlacement: 'none' as const,
+        socialButtonsVariant: 'blockButton' as const,
+      },
       elements: {
-        rootBox: 'width: 100%; max-width: 420px; margin: 0 auto;',
-        card: 'width: 100%;',
+        rootBox: 'width: 100%; max-width: 340px; margin: 0 auto;',
+        card: 'width: 100%; box-shadow: none;',
+        cardBox: 'width: 100%;',
+        headerTitle: 'font-size: 1.05rem;',
+        headerSubtitle: 'font-size: 0.8rem;',
+        formFieldLabel: 'font-size: 0.75rem;',
+        formFieldInput: 'height: 2.6rem;',
+        formButtonPrimary: 'height: 2.6rem; font-size: 0.8rem;',
+        socialButtonsBlockButton: 'height: 2.6rem;',
+        footerActionText: 'font-size: 0.75rem;',
+        footerActionLink: 'font-size: 0.75rem;',
       },
     }
 
@@ -50,9 +69,9 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
           className="auth-form"
         >
           {/* Logo */}
-          <div className="flex flex-col items-center gap-3 mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
-              <Music className="w-7 h-7 text-white" />
+          <div className="flex flex-col items-center gap-3 mb-4">
+            <div className="w-11 h-11 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
+              <Music className="w-5 h-5 text-white" />
             </div>
           </div>
 

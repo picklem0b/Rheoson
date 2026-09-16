@@ -6,6 +6,34 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.17.8
+
+Playback-reliability release: fixes offline tracks that stopped playing after the format-hint change, makes first-play fast, and hardens the streaming path end to end.
+
+- fix(cache): add a one-time migration that re-fetches or re-labels offline audio blobs stored with the old wrong mime, so previously-cached tracks decode again instead of hanging on load; blobs that can be identified are fixed in place, the rest are replaced from the stream, and only truly dead entries are dropped back to streaming.
+- fix(player): the Howler format hint now follows the real container (cached-blob mime → HEAD content-type → m4a for YouTube ids), and a load error no longer nulls the loaded state, which caused the endless tap-to-reload loop.
+- fix(downloads): starting a download from a catalog (not-yet-library) track no longer fails with "Track {id} not found" — the modal uses the track object the caller already holds and surfaces the server's real error text.
+- perf(stream): durable warm cache on disk plus authenticated prefetch — repeat streams are served from the server cache and first play no longer pays the full yt-dlp cost.
+- feat(search): category tiles wear iconic artist portraits instead of emoji badges, and the weekly genre tops are Sunday-anchored with a server-side pre-warm so lists are cached before users open them.
+- feat(doctor): the interactive Library Doctor scans for corrupt files, duplicate tracks and empty folders with per-item or confirmed group repair.
+- fix(net): a single 14-minute health poller replaces four overlapping ones, with backoff-while-down recovery and Socket.IO auto-revival; pymongo/motor driver chatter is silenced so server logs stay useful.
+- feat(search): autocomplete is now purely local (history + seeded artists, zero network calls) and the AI/Ask mode is removed from the product entirely.
+
+## v2.17.7
+
+Account-sync release: settings follow the user across sign-ins, and controls that could not do what they claimed were removed or made honest.
+
+- feat(settings): per-account preference sync — appearance, playback and download preferences persist to the account and apply on any device; one user's changes never affect another's.
+- feat(settings): export and restore everything the user owns as a single backup bundle.
+- feat(settings): a Doctor screen that turns health probes into one-tap repairs.
+- feat(downloads): running jobs show transfer speed and time remaining.
+- feat(player): audio bytes are cached locally so replay is instant and works offline; remote playback starts from the CDN stream instead of waiting for a full transcode.
+- feat(nowplaying): the Creator tab is rebuilt around the artist and their synced lyrics.
+- feat(home,artist,search): weekly charts, artist follows and per-category top tracks.
+- fix(auth): the Clerk session token is refreshed on every request, ending the intermittent "Invalid or expired token" failures.
+- fix(player): a selected track actually starts playing.
+- fix(ui): accent-tinted surfaces render reliably; shared component kit adopted.
+
 ## v2.17.6
 
 Wrapped release polish, recommendations closure, and production-readiness pass.

@@ -29,6 +29,27 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
+// Format a remaining-time estimate for a transfer (e.g. "2 min left")
+//
+// Deliberately coarse: a download that reports "1.4 seconds" is noise, not
+// information, and second-by-second jitter reads as instability. Under a
+// minute we say "<1 min" for the same reason.
+export function formatEta(seconds: number | null | undefined): string {
+  if (seconds == null || isNaN(seconds) || seconds < 0) return ''
+  if (seconds < 60) return '<1 min left'
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} min left`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest > 0 ? `${hours} hr ${rest} min left` : `${hours} hr left`
+}
+
+// Format a transfer rate (bytes/second) to human readable
+export function formatSpeed(bytesPerSecond: number | null | undefined): string {
+  if (bytesPerSecond == null || isNaN(bytesPerSecond) || bytesPerSecond <= 0) return ''
+  return `${formatFileSize(bytesPerSecond)}/s`
+}
+
 // Format a date to relative time (e.g. "2 days ago")
 export function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr)

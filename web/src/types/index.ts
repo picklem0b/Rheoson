@@ -13,9 +13,14 @@ import type { components } from './api-generated'
 // used across the frontend codebase.
 
 /** A music artist. */
-export type Artist = Omit<components['schemas']['ArtistSchema'], 'topTracks' | 'albums'> & {
+export type Artist = Omit<
+   components['schemas']['ArtistSchema'],
+   'topTracks' | 'albums' | 'singles' | 'related'
+> & {
    topTracks: Track[]
    albums: Album[]
+   singles: Album[]
+   related: Artist[]
 }
 
 /** A music album. */

@@ -15,6 +15,8 @@ import {
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
+import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
+import { WeeklyHero, WeeklyTopThree } from './components/WeeklyTop'
 import { tracksApi } from '@/api/tracks.api'
 import { libraryApi } from '@/api/library.api'
 import { recommendationsApi, type RecommendationSection, type DailyMix } from '@/api/recommendations.api'
@@ -89,6 +91,7 @@ function QuickPickTile({
   onPlay: () => void
 }) {
   const contextMenu = useTrackContextMenu(track)
+  const intent = usePrefetchOnIntent(track.id)
   return (
     <motion.button
       initial={{ opacity: 0, y: 8 }}
@@ -97,6 +100,7 @@ function QuickPickTile({
       whileTap={{ scale: 0.97 }}
       onClick={onPlay}
       {...contextMenu}
+      {...intent}
       className={cn(
         'group flex items-center gap-0 rounded-2xl overflow-hidden text-left transition-colors',
         active
@@ -223,6 +227,7 @@ function TrendingTrackRow({
   onPlay: () => void
 }) {
   const contextMenu = useTrackContextMenu(track)
+  const intent = usePrefetchOnIntent(track.id)
   return (
     <motion.button
       initial={{ opacity: 0, x: -8 }}
@@ -231,6 +236,7 @@ function TrendingTrackRow({
       whileTap={{ scale: 0.98 }}
       onClick={onPlay}
       {...contextMenu}
+      {...intent}
       className={cn(
         'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
         active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',
@@ -437,10 +443,13 @@ export default function Home() {
     retry:     1,
   })
 
+  // Weekly charts (cached server-side per ISO week). Used for the hero, the
+  // top-3 podium and the trending rail, so Home makes one chart request
+  // instead of hitting the live endpoint on every visit.
   const { data: trendingRaw, isLoading: loadingTrending } = useQuery({
-    queryKey:  ['trending'],
-    queryFn:   () => tracksApi.getTrending(20),
-    staleTime: 5 * 60_000,
+    queryKey:  ['trending', 'weekly'],
+    queryFn:   () => tracksApi.getWeeklyTrending(20),
+    staleTime: 30 * 60_000,
     retry:     1,
   })
 
@@ -501,6 +510,9 @@ export default function Home() {
 
         {allDone && !hasAnything && recSections.length === 0 && <EmptyHome />}
 
+        {/* This week's number one, rendered full-bleed with a play action */}
+        {trendingTracks.length > 0 && <WeeklyHero track={trendingTracks[0]} />}
+
         {(loadingRecent || hasRecent) && (
           <section>
             <SectionHeader
@@ -554,12 +566,15 @@ export default function Home() {
           </div>
         )}
 
+        {/* Runners-up for the hero's #1, with position and plays */}
+        <WeeklyTopThree tracks={trendingTracks} context={trendingTracks} />
+
         {showTrending && (
           <section>
             <SectionHeader
               icon={TrendingUp}
-              title="Trending"
-              subtitle="Popular right now"
+              title="Trending this week"
+              subtitle="The full weekly chart"
               onSeeAll={
                 trendingTracks.length > 0 ? () => navigate('/trending') : undefined
               }
@@ -640,6 +655,7 @@ function RailTrackRow({
   onPlay: () => void
 }) {
   const contextMenu = useTrackContextMenu(track)
+  const intent = usePrefetchOnIntent(track.id)
   return (
     <motion.button
       initial={{ opacity: 0, x: -8 }}
@@ -648,6 +664,7 @@ function RailTrackRow({
       whileTap={{ scale: 0.98 }}
       onClick={onPlay}
       {...contextMenu}
+      {...intent}
       className={cn(
         'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors text-left',
         active ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-elevated)]',

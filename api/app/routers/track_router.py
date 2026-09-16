@@ -34,10 +34,10 @@ from app.services.signal_service import record_signal
 from app.models.recommendation import SignalType
 from app.schemas.track_schema import TrackSchema
 
-log    = structlog.get_logger()
+log = structlog.get_logger()
 router = APIRouter()
 
-AUDIO_EXTS = {'mp3', 'flac', 'm4a', 'ogg', 'opus', 'wav'}
+AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
 
 # ── Track index cache ─────────────────────────────────────────
 # Built lazily on first request and invalidated after a download completes.
@@ -59,7 +59,7 @@ def invalidate_track_index() -> None:
     """
     global _track_index
     _track_index = None
-    log.debug('tracks.index.invalidated')
+    log.debug("tracks.index.invalidated")
 
 
 async def _build_index() -> dict[str, dict]:
@@ -80,23 +80,24 @@ async def _build_index() -> dict[str, dict]:
             music_dir = Path(d)
             if not music_dir.exists():
                 continue
-            for path in music_dir.rglob('*'):
-                if path.suffix.lstrip('.') in AUDIO_EXTS:
+            for path in music_dir.rglob("*"):
+                if path.suffix.lstrip(".") in AUDIO_EXTS:
                     try:
                         t = read_track_metadata(path)
-                        result[t['id']] = t
+                        result[t["id"]] = t
                     except Exception:
                         continue
         return result
 
     loop = asyncio.get_event_loop()
-    idx  = await loop.run_in_executor(None, _scan)
+    idx = await loop.run_in_executor(None, _scan)
     _track_index = idx
-    log.debug('tracks.index.built', count=len(idx), dirs=len(all_dirs))
+    log.debug("tracks.index.built", count=len(idx), dirs=len(all_dirs))
     return idx
 
 
 # ── Track hydration ───────────────────────────────────────────
+
 
 async def _hydrate_track(track_id: str) -> dict | None:
     """Return track metadata, preferring local files over YouTube API.
@@ -110,26 +111,27 @@ async def _hydrate_track(track_id: str) -> dict | None:
     if track_id in idx:
         return idx[track_id]
     from app.services import track_identity
+
     if re.match(r"^[A-Za-z0-9_-]{11}$", track_id):
         mapped = track_identity.lookup_by_video(track_id)
-        if mapped and mapped.get('file_id'):
-            local = idx.get(mapped['file_id'])
+        if mapped and mapped.get("file_id"):
+            local = idx.get(mapped["file_id"])
             if local:
                 t = dict(local)
-                t['id']           = track_id          # keep the requested identity
-                t['youtubeId']    = track_id
-                t['isDownloaded'] = True
-                t['filePath']     = mapped.get('file_path', t.get('filePath', ''))
+                t["id"] = track_id  # keep the requested identity
+                t["youtubeId"] = track_id
+                t["isDownloaded"] = True
+                t["filePath"] = mapped.get("file_path", t.get("filePath", ""))
                 return t
     try:
         return await yt_get_track(track_id)
     except Exception:
-        log.warning('tracks.hydrate.failed', track_id=track_id)
+        log.warning("tracks.hydrate.failed", track_id=track_id)
         return None
 
 
 async def _hydrate_many(track_ids: list[str], limit: int = 50) -> list[dict]:
-    """Hydrate track ids to full metadata (best-effort, bounded concurrency)."""
+    """Hydrate track ids while preserving stored activity when metadata is unavailable."""
     ids = [t for t in track_ids[:limit] if t]
     if not ids:
         return []
@@ -137,7 +139,16 @@ async def _hydrate_many(track_ids: list[str], limit: int = 50) -> list[dict]:
 
     async def _safe(tid: str):
         async with sem:
-            return await _hydrate_track(tid)
+            track = await _hydrate_track(tid)
+            return (
+                track
+                if track is not None
+                else {
+                    "id": tid,
+                    "title": "Unavailable Track",
+                    "youTubeId": tid,
+                }
+            )
 
     results = await asyncio.gather(*[_safe(tid) for tid in ids])
     return [r for r in results if r is not None]
@@ -145,43 +156,45 @@ async def _hydrate_many(track_ids: list[str], limit: int = 50) -> list[dict]:
 
 # ── MongoDB helpers for liked / history (user-isolated) ────────
 
+
 async def _liked_ids_mongo(db: AsyncIOMotorDatabase, user_id: str) -> list[str]:
-    doc = await db.liked_tracks.find_one({'user_id': user_id})
-    return list(doc.get('track_ids', [])) if doc else []
+    doc = await db.liked_tracks.find_one({"user_id": user_id})
+    return list(doc.get("track_ids", [])) if doc else []
 
 
 async def _history_ids_mongo(db: AsyncIOMotorDatabase, user_id: str) -> list[str]:
-    doc = await db.listening_history.find_one({'user_id': user_id})
-    history = doc.get('entries', []) if doc else []
-    return [h['id'] for h in history if isinstance(h, dict) and h.get('id')]
+    doc = await db.listening_history.find_one({"user_id": user_id})
+    history = doc.get("entries", []) if doc else []
+    return [h["id"] for h in history if isinstance(h, dict) and h.get("id")]
 
 
 # ── STATIC ROUTES FIRST ───────────────────────────────────────
 # FastAPI matches routes in registration order. If /{track_id} were
 # registered first, GET /liked would resolve as track_id="liked" → 404.
 
-@router.get('/', response_model=list[TrackSchema])
+
+@router.get("/", response_model=list[TrackSchema])
 async def list_tracks(_user: dict = Depends(get_current_user)):
     """All files currently on disk — shared instance library."""
     idx = await _build_index()
-    return sorted(idx.values(), key=lambda t: t.get('title', '').lower())
+    return sorted(idx.values(), key=lambda t: t.get("title", "").lower())
 
 
-@router.get('/liked/count')
+@router.get("/liked/count")
 async def get_liked_count(user: dict = Depends(get_current_user)):
     """Cheap count for the Library pinned card — no track hydration."""
-    user_id = user['sub']
+    user_id = user["sub"]
     try:
         if db_available():
-            return {'count': len(await _liked_ids_mongo(get_db(), user_id))}
+            return {"count": len(await _liked_ids_mongo(get_db(), user_id))}
     except Exception:
         pass
-    return {'count': len(await read_liked_local(user_id))}
+    return {"count": len(await read_liked_local(user_id))}
 
 
-@router.get('/liked', response_model=list[TrackSchema])
+@router.get("/liked", response_model=list[TrackSchema])
 async def get_liked(user: dict = Depends(get_current_user)):
-    user_id = user['sub']
+    user_id = user["sub"]
     ids: list[str] = []
     try:
         if db_available():
@@ -193,9 +206,9 @@ async def get_liked(user: dict = Depends(get_current_user)):
     return await _hydrate_many(ids)
 
 
-@router.get('/recently-played', response_model=list[TrackSchema])
+@router.get("/recently-played", response_model=list[TrackSchema])
 async def get_recently_played(user: dict = Depends(get_current_user)):
-    user_id = user['sub']
+    user_id = user["sub"]
     ids: list[str] = []
     try:
         if db_available():
@@ -204,35 +217,75 @@ async def get_recently_played(user: dict = Depends(get_current_user)):
         ids = []
     if not ids:
         history = await read_history_local(user_id)
-        ids = [h.get('id', '') for h in history]
+        ids = [h.get("id", "") for h in history]
     return await _hydrate_many(ids)
 
 
-@router.get('/trending', response_model=list[TrackSchema])
-async def get_trending(_user: dict = Depends(get_current_user)):
+@router.get("/trending", response_model=list[TrackSchema])
+async def get_trending(
+    limit: int = 20,
+    _user: dict = Depends(get_current_user),
+):
+    """Charts snapshot (fresh on every call, used by the live Trending rail)."""
     try:
         from app.services.ytmusic_service import get_trending as yt_trending
-        return await yt_trending()
+
+        return await yt_trending(limit=max(1, min(limit, 50)))
     except Exception as e:
-        log.warning('tracks.trending.failed', error=str(e))
+        log.warning("tracks.trending.failed", error=str(e))
         return []
 
 
-@router.delete('/history')
+# ── Weekly trending ────────────────────────────────────────────
+# Charts move slowly but the upstream browse call is expensive and rate
+# limited. This variant is cached per ISO week (see services/weekly_cache),
+# so the Home page's "top 3 this week" costs one upstream fetch per week and
+# is instant on every other request. `rank` and `playCount` are carried
+# through so the UI can show position and popularity without extra calls.
+
+
+@router.get("/trending/weekly")
+async def get_weekly_trending(
+    limit: int = 10,
+    _user: dict = Depends(get_current_user),
+):
+    from app.services import weekly_cache
+    from app.services.ytmusic_service import get_trending as yt_trending
+
+    limit = max(1, min(limit, 50))
+
+    async def produce():
+        tracks = await yt_trending(limit=limit)
+        if not tracks:
+            return None
+        return {
+            "week": weekly_cache.current_bucket(),
+            "tracks": tracks,
+        }
+
+    data = await weekly_cache.get_or_set(f"trending:{limit}", produce)
+    if not data:
+        # Upstream failed and nothing was cached — return an empty, valid shape.
+        return {"week": weekly_cache.current_bucket(), "tracks": []}
+    return data
+
+
+@router.delete("/history")
 async def clear_history(user: dict = Depends(get_current_user)):
-    user_id = user['sub']
+    user_id = user["sub"]
     await clear_history_local(user_id)
     try:
         if db_available():
-            await get_db().listening_history.delete_one({'user_id': user_id})
+            await get_db().listening_history.delete_one({"user_id": user_id})
     except Exception:
         pass
-    return {'ok': True}
+    return {"ok": True}
 
 
 # ── Signal reporting ─────────────────────────────────────────
 
-@router.post('/signals')
+
+@router.post("/signals")
 async def report_signal(
     body: dict,
     user: dict = Depends(get_current_user),
@@ -243,78 +296,82 @@ async def report_signal(
     Accepts: { signal, track_id?, artist?, progress?, context? }
     Requires the database (signals drive the Mongo recommendation profiler).
     """
-    signal_str = body.get('signal')
+    signal_str = body.get("signal")
     try:
         signal_type = SignalType(signal_str)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f'Unknown signal: {signal_str}')
+        raise HTTPException(status_code=400, detail=f"Unknown signal: {signal_str}")
 
-    artist = body.get('artist')
-    if not artist and body.get('track_id'):
-        t = await _hydrate_track(body['track_id'])
+    artist = body.get("artist")
+    if not artist and body.get("track_id"):
+        t = await _hydrate_track(body["track_id"])
         if t:
-            artist = t.get('artist', {}).get('name')
+            artist = t.get("artist", {}).get("name")
 
     await record_signal(
         db,
-        user_id=user['sub'],
+        user_id=user["sub"],
         signal=signal_type,
-        track_id=body.get('track_id'),
+        track_id=body.get("track_id"),
         artist=artist,
-        progress=body.get('progress'),
-        session_id=body.get('session_id'),
-        context=body.get('context', {}),
+        progress=body.get("progress"),
+        session_id=body.get("session_id"),
+        context=body.get("context", {}),
     )
-    return {'ok': True}
+    return {"ok": True}
 
 
 # ── Track statistics ─────────────────────────────────────────
 
-@router.get('/stats/{track_id}')
+
+@router.get("/stats/{track_id}")
 async def get_track_stats(
     track_id: str,
     user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Return play count, like count, and last played for a track (per user)."""
-    user_id = user['sub']
-    doc = await db.liked_tracks.find_one({'user_id': user_id})
-    liked_ids = doc.get('track_ids', []) if doc else []
+    user_id = user["sub"]
+    doc = await db.liked_tracks.find_one({"user_id": user_id})
+    liked_ids = doc.get("track_ids", []) if doc else []
     is_liked = track_id in liked_ids
 
-    play_count = await db.user_signals.count_documents({
-        'user_id': user_id,
-        'signal': 'play_start',
-        'track_id': track_id,
-    })
+    play_count = await db.user_signals.count_documents(
+        {
+            "user_id": user_id,
+            "signal": "play_start",
+            "track_id": track_id,
+        }
+    )
 
     last_signal = await db.user_signals.find_one(
-        {'user_id': user_id, 'signal': 'play_start', 'track_id': track_id},
-        sort=[('timestamp', -1)],
+        {"user_id": user_id, "signal": "play_start", "track_id": track_id},
+        sort=[("timestamp", -1)],
     )
-    last_played = last_signal['timestamp'].isoformat() if last_signal else None
+    last_played = last_signal["timestamp"].isoformat() if last_signal else None
 
     return {
-        'track_id':    track_id,
-        'play_count':  play_count,
-        'is_liked':    is_liked,
-        'last_played': last_played,
+        "track_id": track_id,
+        "play_count": play_count,
+        "is_liked": is_liked,
+        "last_played": last_played,
     }
 
 
 # ── VARIABLE ROUTES LAST ──────────────────────────────────────
 
-@router.get('/{track_id}', response_model=TrackSchema)
+
+@router.get("/{track_id}", response_model=TrackSchema)
 async def get_track(track_id: str, _user: dict = Depends(get_current_user)):
     t = await _hydrate_track(track_id)
     if not t:
-        raise HTTPException(status_code=404, detail=f'Track not found: {track_id}')
+        raise HTTPException(status_code=404, detail=f"Track not found: {track_id}")
     return t
 
 
-@router.post('/{track_id}/like')
+@router.post("/{track_id}/like")
 async def like_track(track_id: str, user: dict = Depends(get_current_user)):
-    user_id = user['sub']
+    user_id = user["sub"]
     liked = await like_local(user_id, track_id)
     try:
         if db_available():
@@ -323,23 +380,26 @@ async def like_track(track_id: str, user: dict = Depends(get_current_user)):
             if track_id not in liked:
                 liked.append(track_id)
             await db.liked_tracks.update_one(
-                {'user_id': user_id},
-                {'$set': {'track_ids': liked}},
+                {"user_id": user_id},
+                {"$set": {"track_ids": liked}},
                 upsert=True,
             )
             t = await _hydrate_track(track_id)
             await record_signal(
-                db, user_id=user_id, signal=SignalType.LIKE, track_id=track_id,
-                artist=t.get('artist', {}).get('name') if t else None,
+                db,
+                user_id=user_id,
+                signal=SignalType.LIKE,
+                track_id=track_id,
+                artist=t.get("artist", {}).get("name") if t else None,
             )
     except Exception:
         pass
-    return {'liked': True, 'count': len(liked)}
+    return {"liked": True, "count": len(liked)}
 
 
-@router.delete('/{track_id}/like')
+@router.delete("/{track_id}/like")
 async def unlike_track(track_id: str, user: dict = Depends(get_current_user)):
-    user_id = user['sub']
+    user_id = user["sub"]
     liked = await unlike_local(user_id, track_id)
     try:
         if db_available():
@@ -347,8 +407,8 @@ async def unlike_track(track_id: str, user: dict = Depends(get_current_user)):
             liked = await _liked_ids_mongo(db, user_id)
             liked = [i for i in liked if i != track_id]
             await db.liked_tracks.update_one(
-                {'user_id': user_id},
-                {'$set': {'track_ids': liked}},
+                {"user_id": user_id},
+                {"$set": {"track_ids": liked}},
                 upsert=True,
             )
             await record_signal(
@@ -356,51 +416,54 @@ async def unlike_track(track_id: str, user: dict = Depends(get_current_user)):
             )
     except Exception:
         pass
-    return {'liked': False, 'count': len(liked)}
+    return {"liked": False, "count": len(liked)}
 
 
-@router.post('/{track_id}/dislike')
+@router.post("/{track_id}/dislike")
 async def dislike_track(track_id: str, user: dict = Depends(get_current_user)):
     """Hide a track: stops it appearing in recommendations/autoplay and
     removes it from Liked songs. Explicit dislikes are stored per-user in
     MongoDB (disliked_tracks) with a local mirror, and recorded as a
     strong-negative DISLIKE signal for the taste profiler."""
-    user_id = user['sub']
+    user_id = user["sub"]
     disliked = await dislike_local(user_id, track_id)
     try:
         if db_available():
             db = get_db()
-            doc = await db.disliked_tracks.find_one({'user_id': user_id})
-            ids = list(doc.get('track_ids', [])) if doc else []
+            doc = await db.disliked_tracks.find_one({"user_id": user_id})
+            ids = list(doc.get("track_ids", [])) if doc else []
             if track_id not in ids:
                 ids.append(track_id)
             await db.disliked_tracks.update_one(
-                {'user_id': user_id},
-                {'$set': {'track_ids': ids}},
+                {"user_id": user_id},
+                {"$set": {"track_ids": ids}},
                 upsert=True,
             )
             # A hidden track leaves Liked songs too
             liked = await _liked_ids_mongo(db, user_id)
             liked = [i for i in liked if i != track_id]
             await db.liked_tracks.update_one(
-                {'user_id': user_id},
-                {'$set': {'track_ids': liked}},
+                {"user_id": user_id},
+                {"$set": {"track_ids": liked}},
                 upsert=True,
             )
             t = await _hydrate_track(track_id)
             await record_signal(
-                db, user_id=user_id, signal=SignalType.DISLIKE, track_id=track_id,
-                artist=t.get('artist', {}).get('name') if t else None,
-                context={'reason': 'hide'},
+                db,
+                user_id=user_id,
+                signal=SignalType.DISLIKE,
+                track_id=track_id,
+                artist=t.get("artist", {}).get("name") if t else None,
+                context={"reason": "hide"},
             )
     except Exception:
         pass
-    return {'disliked': True, 'count': len(disliked)}
+    return {"disliked": True, "count": len(disliked)}
 
 
-@router.delete('/{track_id}/dislike')
+@router.delete("/{track_id}/dislike")
 async def undislike_track(track_id: str, user: dict = Depends(get_current_user)):
-    user_id = user['sub']
+    user_id = user["sub"]
     disliked = await undislike_local(user_id, track_id)
     try:
         if db_available():
@@ -408,50 +471,56 @@ async def undislike_track(track_id: str, user: dict = Depends(get_current_user))
             disliked = await _disliked_ids_mongo(db, user_id)
             disliked = [i for i in disliked if i != track_id]
             await db.disliked_tracks.update_one(
-                {'user_id': user_id},
-                {'$set': {'track_ids': disliked}},
+                {"user_id": user_id},
+                {"$set": {"track_ids": disliked}},
                 upsert=True,
             )
             await record_signal(
-                db, user_id=user_id, signal=SignalType.DISLIKE, track_id=track_id,
-                context={'reason': 'undo'},
+                db,
+                user_id=user_id,
+                signal=SignalType.DISLIKE,
+                track_id=track_id,
+                context={"reason": "undo"},
             )
     except Exception:
         pass
-    return {'disliked': False, 'count': len(disliked)}
+    return {"disliked": False, "count": len(disliked)}
 
 
 async def _disliked_ids_mongo(db: AsyncIOMotorDatabase, user_id: str) -> list[str]:
-    doc = await db.disliked_tracks.find_one({'user_id': user_id})
-    return list(doc.get('track_ids', [])) if doc else []
+    doc = await db.disliked_tracks.find_one({"user_id": user_id})
+    return list(doc.get("track_ids", [])) if doc else []
 
 
-@router.post('/{track_id}/play')
+@router.post("/{track_id}/play")
 async def record_play(track_id: str, user: dict = Depends(get_current_user)):
-    user_id = user['sub']
+    user_id = user["sub"]
     # Local mirror first — the no-Mongo source of truth for recently-played
     # and the local recommendation engine.
     await record_play_local(user_id, track_id)
     try:
         if db_available():
             db = get_db()
-            doc = await db.listening_history.find_one({'user_id': user_id})
-            entries: list[dict] = doc.get('entries', []) if doc else []
-            entries = [e for e in entries if e.get('id') != track_id]
+            doc = await db.listening_history.find_one({"user_id": user_id})
+            entries: list[dict] = doc.get("entries", []) if doc else []
+            entries = [e for e in entries if e.get("id") != track_id]
             entries.insert(
                 0,
-                {'id': track_id, 'playedAt': datetime.now(timezone.utc).isoformat()},
+                {"id": track_id, "playedAt": datetime.now(timezone.utc).isoformat()},
             )
             await db.listening_history.update_one(
-                {'user_id': user_id},
-                {'$set': {'entries': entries[:200]}},
+                {"user_id": user_id},
+                {"$set": {"entries": entries[:200]}},
                 upsert=True,
             )
             t = await _hydrate_track(track_id)
             await record_signal(
-                db, user_id=user_id, signal=SignalType.PLAY_START, track_id=track_id,
-                artist=t.get('artist', {}).get('name') if t else None,
+                db,
+                user_id=user_id,
+                signal=SignalType.PLAY_START,
+                track_id=track_id,
+                artist=t.get("artist", {}).get("name") if t else None,
             )
     except Exception:
         pass
-    return {'ok': True}
+    return {"ok": True}

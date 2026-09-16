@@ -8,6 +8,7 @@ been removed for security.
 from __future__ import annotations
 import asyncio
 import json
+import subprocess
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -16,6 +17,11 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 
 router = APIRouter()
+
+
+class DoctorFixSchema(BaseModel):
+    kind: str  # "corrupt" | "duplicate" | "empty-dir" | "empty-dirs"
+    path: str | None = None
 
 
 def _is_under(path: Path, base: Path) -> bool:
@@ -187,3 +193,125 @@ async def rescan_library(body: RescanSchema | None = None, user: dict = Depends(
         settings.EXTRA_MUSIC_DIRS = original_extra
 
     return {"ok": True, "message": "Track index cleared — will rebuild on next request"}
+
+
+# ── Tool maintenance ──────────────────────────────────────────
+
+@router.post("/tools/update")
+async def update_tools(user: dict = Depends(get_current_user)):
+    """Update yt-dlp in place.
+
+    The most common cause of "this track refuses to play" is a yt-dlp that
+    has fallen behind YouTube's player changes, and the upstream fix is its
+    own `-U` self-update. That already runs on a daily cron, but a user
+    staring at a broken track should not have to wait for 03:00 UTC — the
+    diagnostics screen offers it as a one-tap repair instead.
+    """
+    _require_admin(user)
+    loop = asyncio.get_event_loop()
+
+    def _run() -> tuple[bool, str]:
+        try:
+            res = subprocess.run(
+                ["yt-dlp", "-U"],
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+        except FileNotFoundError:
+            return False, "yt-dlp is not installed on the server"
+        except subprocess.TimeoutExpired:
+            return False, "yt-dlp -U timed out"
+        except Exception as e:
+            return False, str(e)[:200]
+        output = ((res.stdout or "") + (res.stderr or "")).strip()
+        return res.returncode == 0, (output[-400:] or "no output")
+
+    ok, output = await loop.run_in_executor(None, _run)
+    return {"ok": ok, "output": output}
+
+
+# ── Backup & restore ──────────────────────────────────────────
+
+@router.get("/backup")
+async def export_backup(user: dict = Depends(get_current_user)):
+    """Everything the signed-in user owns, as one JSON document.
+
+    Likes, hidden tracks, play history, playlists and artist follows. The
+    music files are not included — they are already on disk and can be
+    re-scanned; what cannot be recreated is the state that took months to
+    accumulate.
+    """
+    from app.services.backup_service import export_state
+
+    return await export_state(user["sub"])
+
+
+class RestoreSchema(BaseModel):
+    format: str | None = None
+    version: int | None = None
+    liked: list[str] | None = None
+    disliked: list[str] | None = None
+    history: list[dict] | None = None
+    playlists: dict[str, dict] | None = None
+    follows: list[dict] | None = None
+    # True unions with existing state (safe default); False replaces it, which
+    # is what restoring onto a fresh install wants.
+    merge: bool = True
+
+
+@router.post("/restore")
+async def restore_backup(body: RestoreSchema, user: dict = Depends(get_current_user)):
+    """Apply a backup bundle produced by GET /settings/backup."""
+    from app.services.backup_service import restore_state
+
+    try:
+        return await restore_state(user["sub"], body.model_dump(), merge=body.merge)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Library doctor ────────────────────────────────────────────
+# Scans are pure filesystem walks; repairs delete only what a scan
+# reported and re-validate each path before removing it.
+
+
+async def _run_doctor(fn, *args):
+    """Run blocking doctor work off the event loop, mapping ValueError to 400."""
+    from app.services import library_doctor
+
+    try:
+        return await asyncio.to_thread(fn, *args)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/doctor/scan")
+async def doctor_scan(_user: dict = Depends(get_current_user)):
+    """Scan the library for corrupt files, duplicates and empty folders."""
+    from app.services import library_doctor
+
+    return await asyncio.to_thread(library_doctor.scan_library)
+
+
+@router.post("/doctor/fix")
+async def doctor_fix(body: DoctorFixSchema, _user: dict = Depends(get_current_user)):
+    """Repair one reported item, or sweep all of one kind when no path given."""
+    from app.services import library_doctor
+
+    kind = body.kind
+    if kind == "corrupt":
+        if body.path:
+            return await _run_doctor(library_doctor.delete_corrupt_file, body.path)
+        return await _run_doctor(library_doctor.delete_all_corrupt)
+    if kind == "duplicate":
+        if body.path:
+            return await _run_doctor(library_doctor.delete_duplicate_file, body.path)
+        return await _run_doctor(library_doctor.delete_all_duplicates)
+    if kind == "empty-dir":
+        if not body.path:
+            raise HTTPException(status_code=400, detail="empty-dir fix requires a path")
+        return await _run_doctor(library_doctor.delete_empty_dir, body.path)
+    if kind == "empty-dirs":
+        return await _run_doctor(library_doctor.prune_empty_dirs)
+    raise HTTPException(status_code=400, detail=f"unknown fix kind: {kind}")

@@ -13,6 +13,20 @@ export type ResolveResult =
    | { type: "playlist"; tracks: Track[]; title: string }
    | { type: "tracks"; tracks: Track[] };
 
+// ── Categories ────────────────────────────────────────────────
+
+export interface CategoryMeta {
+   slug: string;
+   label: string;
+   emoji: string;
+   gradient: string;
+   /** Iconic artist of the genre — shown as the tile background. */
+   hero?: string;
+   /** Portrait URL (Deezer CDN, ~1000px square). */
+   heroUrl?: string;
+}
+
+
 // ── API ───────────────────────────────────────────────────────
 
 export const searchApi = {
@@ -35,7 +49,37 @@ export const searchApi = {
       }),
 
    resolve: (url: string, signal?: AbortSignal) =>
-      api.post<ResolveResult>("/search/resolve", { url }, { signal })
+      api.post<ResolveResult>("/search/resolve", { url }, { signal }),
+
+   /** Category tiles (backend-owned so they can't drift from the API). */
+   getCategories: async (): Promise<{ week: string; categories: CategoryMeta[] }> => {
+      const raw = await api.get<{ week?: string; categories?: CategoryMeta[] }>(
+         "/search/categories"
+      );
+      return {
+         week: raw?.week ?? "",
+         categories: Array.isArray(raw?.categories) ? raw.categories : [],
+      };
+   },
+
+   /** Top tracks for one category, refreshed weekly and cached server-side. */
+   getCategoryTop: async (
+      slug: string,
+      limit = 5
+   ): Promise<{ week: string; category: CategoryMeta | null; tracks: Track[] }> => {
+      const raw = await api.get<{
+         week?: string;
+         category?: CategoryMeta;
+         tracks?: unknown[];
+      }>(`/search/categories/${encodeURIComponent(slug)}/top`, {
+         params: { limit },
+      });
+      return {
+         week: raw?.week ?? "",
+         category: raw?.category ?? null,
+         tracks: normalizeTracks(raw?.tracks ?? []),
+      };
+   },
 };
 
 // ── Normalise resolve result → Track[] ────────────────────────
