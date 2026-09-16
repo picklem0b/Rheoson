@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import structlog
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +47,23 @@ def current_bucket() -> str:
     now = datetime.now(timezone.utc)
     year, week, _ = now.isocalendar()
     return f"{year}-W{week:02d}"
+
+
+def bucket_at(dt: datetime) -> str:
+    """The bucket ``dt`` falls into (UTC-normalized)."""
+    dt = dt.astimezone(timezone.utc)
+    year, week, _ = dt.isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def next_bucket() -> str:
+    """The bucket that will be current 24 hours from now.
+
+    The weekly prewarm runs Sunday 23:30 UTC — still inside the old ISO week
+    (which flips Monday 00:00) — so it must write into the *upcoming* bucket
+    explicitly. ``now + 24h`` lands Monday 23:30, inside the new week.
+    """
+    return bucket_at(datetime.now(timezone.utc) + timedelta(hours=24))
 
 
 def _cache_file() -> Path:
@@ -124,3 +141,45 @@ async def clear() -> None:
     """Drop the whole cache (used by the storage settings panel)."""
     async with _lock:
         _write_all({})
+
+
+async def prewarm_categories(track_limit: int = 5) -> dict[str, int]:
+    """Fetch every category's top tracks for the UPCOMING week, ahead of time.
+
+    Called by the Sunday-evening cron so users never see a spinner on a
+    category tile — the list for the new week was already fetched and cached
+    before the week rolled over. Writes into ``next_bucket()`` explicitly
+    because the run happens while the old bucket is still current.
+
+    A per-category failure is logged and skipped: one dead genre must not
+    block the rest. Returns {"filled": n, "skipped": m, "already": k}.
+    """
+    from app.services.ytmusic_service import CATEGORIES, get_category_top
+
+    bucket = next_bucket()
+    filled = skipped = already = 0
+    for meta in CATEGORIES:
+        slug = meta["slug"]
+        key = f"category:{slug}:{track_limit}"
+        if await get(key, bucket) is not None:
+            already += 1
+            continue
+        try:
+            tracks = await get_category_top(slug, limit=track_limit)
+            if tracks:
+                await set(key, {"week": bucket, "tracks": tracks}, bucket)
+                filled += 1
+            else:
+                skipped += 1
+                log.warning("weekly_cache.prewarm.empty", category=slug)
+        except Exception as e:
+            skipped += 1
+            log.warning("weekly_cache.prewarm.failed", category=slug, error=str(e))
+    log.info(
+        "weekly_cache.prewarm.done",
+        bucket=bucket,
+        filled=filled,
+        skipped=skipped,
+        already=already,
+    )
+    return {"filled": filled, "skipped": skipped, "already": already}
