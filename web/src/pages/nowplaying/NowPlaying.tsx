@@ -650,7 +650,7 @@ export default function NowPlaying() {
             handleLike();
             break;
          case "download":
-            openDownloadModal(currentTrack.id);
+            openDownloadModal(currentTrack.id, currentTrack);
             break;
          case "lyrics":
             setTab("lyric");
@@ -814,7 +814,7 @@ export default function NowPlaying() {
 
                <motion.button
                   whileTap={{ scale: 0.85 }}
-                  onClick={() => openDownloadModal(currentTrack.id)}>
+                  onClick={() => openDownloadModal(currentTrack.id, currentTrack)}>
                   <Download
                      className={cn(
                         "w-5 h-5 transition-colors",

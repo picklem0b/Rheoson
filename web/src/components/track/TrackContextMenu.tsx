@@ -106,7 +106,7 @@ function useMenuActions(track: Track, onClose: () => void) {
       label: 'Download',
       icon: <Download className="w-4 h-4" />,
       run: () => {
-        openDownloadModal(track.id)
+        openDownloadModal(track.id, track)
         toast(`"${truncate(track.title, 24)}" added to downloads`, 'info', 2500)
         onClose()
       },
