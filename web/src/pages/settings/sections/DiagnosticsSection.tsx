@@ -16,7 +16,6 @@ import { api } from '@/api/client.api'
 import { useAuthStore } from '@/store/auth.store'
 import { isOnline, onStatusChange } from '@/lib/network'
 import { isNativePlatform, isAndroid } from '@/lib/capacitor'
-import { getAudioCacheStats, clearAudioCache } from '@/lib/audioCache'
 import {
    buildFindings,
    describeOverall,
@@ -79,18 +78,6 @@ const SEVERITY: Record<
       bg: 'bg-[var(--bg-overlay)]',
       ring: 'border-[var(--border)]'
    }
-}
-
-function fmtBytes(n: number): string {
-   if (!n || n <= 0) return '0 MB'
-   const units = ['B', 'KB', 'MB', 'GB']
-   let value = n
-   let i = 0
-   while (value >= 1024 && i < units.length - 1) {
-      value /= 1024
-      i += 1
-   }
-   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`
 }
 
 // ── Finding row ───────────────────────────────────────────────
@@ -184,11 +171,6 @@ export default function DiagnosticsSection() {
    const [fixState, setFixState] = useState<Record<string, ActionState>>({})
    const [toolOutput, setToolOutput] = useState<string | null>(null)
    const [online, setOnline] = useState(isOnline())
-   const [cache, setCache] = useState<{
-      count: number
-      bytes: number
-      limitBytes: number
-   } | null>(null)
 
    const { data, isLoading, isFetching, refetch, error } = useQuery({
       queryKey: ['health-snapshot'],
@@ -200,18 +182,6 @@ export default function DiagnosticsSection() {
    })
 
    useEffect(() => onStatusChange(setOnline), [])
-
-   useEffect(() => {
-      let alive = true
-      getAudioCacheStats()
-         .then(s => {
-            if (alive) setCache(s)
-         })
-         .catch(() => {})
-      return () => {
-         alive = false
-      }
-   }, [fixState])
 
    const payload = deep ?? data
    const findings = buildFindings(payload)
@@ -272,18 +242,6 @@ export default function DiagnosticsSection() {
       },
       [refetch, setFix]
    )
-
-   /** Clearing the local audio cache is client-only, so it is not a FixKind. */
-   const clearLocalAudio = useCallback(async () => {
-      setFix('__cache', 'loading')
-      try {
-         await clearAudioCache()
-         setCache(await getAudioCacheStats())
-         setFix('__cache', 'ok')
-      } catch {
-         setFix('__cache', 'err')
-      }
-   }, [setFix])
 
    const overallStyle = SEVERITY[overall]
 
@@ -426,7 +384,7 @@ export default function DiagnosticsSection() {
          {/* ── This device ────────────────────────────────── */}
          <SettingsGroup
             title='This device'
-            footer='Local state that affects playback and offline behaviour.'>
+            footer='Local device state. Cache management lives in Storage.'>
             <SettingsRow
                label='Connection'
                description={
@@ -444,16 +402,6 @@ export default function DiagnosticsSection() {
                iconBg={online ? '#22C55E' : '#EF4444'}
             />
             <SettingsRow
-               label='Offline audio'
-               description={
-                  cache
-                     ? `${cache.count} track${cache.count === 1 ? '' : 's'} cached · ${fmtBytes(cache.bytes)} of ${fmtBytes(cache.limitBytes)}`
-                     : 'Measuring…'
-               }
-               icon={<CheckCircle2 className='w-[14px] h-[14px]' />}
-               iconBg='#8B5CF6'
-            />
-            <SettingsRow
                label='Platform'
                description={
                   isNativePlatform()
@@ -464,15 +412,6 @@ export default function DiagnosticsSection() {
                }
                icon={<CheckCircle2 className='w-[14px] h-[14px]' />}
                iconBg='#14B8A6'
-            />
-            <SettingsRow
-               label='Clear offline audio'
-               description='Free the space used by cached tracks'
-               onClick={fixState['__cache'] === 'idle' || !fixState['__cache'] ? clearLocalAudio : undefined}
-               danger
-               icon={<AlertTriangle className='w-[14px] h-[14px]' />}
-               iconBg='#F97316'
-               loading={fixState['__cache'] === 'loading'}
             />
          </SettingsGroup>
       </div>
