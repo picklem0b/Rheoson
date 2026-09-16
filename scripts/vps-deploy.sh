@@ -27,6 +27,11 @@ if grep -q "^CLERK_SECRET_KEY=$" api/.env || grep -q "^SECRET_KEY=$" api/.env; t
   echo "✗ api/.env still has empty REQUIRED values (CLERK_SECRET_KEY / SECRET_KEY)."
   exit 1
 fi
+if grep -q "^CLERK_PUBLISHABLE_KEY=.\+" api/.env && [ -z "$VITE_CLERK_PUBLISHABLE_KEY" ]; then
+  echo "⚠ VITE_CLERK_PUBLISHABLE_KEY is not set in the shell. The SPA will be"
+  echo "  built WITHOUT Clerk sign-in. Export it before deploying:"
+  echo "    export VITE_CLERK_PUBLISHABLE_KEY=pk_live_…"
+fi
 
 if grep -q "rheoson.example.com" Caddyfile; then
   echo "⚠ Caddyfile still contains the placeholder domain — edit it to your real domain."

@@ -19,6 +19,11 @@ from app.core.deps import get_current_user
 router = APIRouter()
 
 
+class DoctorFixSchema(BaseModel):
+    kind: str  # "corrupt" | "duplicate" | "empty-dir" | "empty-dirs"
+    path: str | None = None
+
+
 def _is_under(path: Path, base: Path) -> bool:
     """True if `path` is `base` itself or nested below it."""
     try:
@@ -264,3 +269,49 @@ async def restore_backup(body: RestoreSchema, user: dict = Depends(get_current_u
         return await restore_state(user["sub"], body.model_dump(), merge=body.merge)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Library doctor ────────────────────────────────────────────
+# Scans are pure filesystem walks; repairs delete only what a scan
+# reported and re-validate each path before removing it.
+
+
+async def _run_doctor(fn, *args):
+    """Run blocking doctor work off the event loop, mapping ValueError to 400."""
+    from app.services import library_doctor
+
+    try:
+        return await asyncio.to_thread(fn, *args)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/doctor/scan")
+async def doctor_scan(_user: dict = Depends(get_current_user)):
+    """Scan the library for corrupt files, duplicates and empty folders."""
+    from app.services import library_doctor
+
+    return await asyncio.to_thread(library_doctor.scan_library)
+
+
+@router.post("/doctor/fix")
+async def doctor_fix(body: DoctorFixSchema, _user: dict = Depends(get_current_user)):
+    """Repair one reported item, or sweep all of one kind when no path given."""
+    from app.services import library_doctor
+
+    kind = body.kind
+    if kind == "corrupt":
+        if body.path:
+            return await _run_doctor(library_doctor.delete_corrupt_file, body.path)
+        return await _run_doctor(library_doctor.delete_all_corrupt)
+    if kind == "duplicate":
+        if body.path:
+            return await _run_doctor(library_doctor.delete_duplicate_file, body.path)
+        return await _run_doctor(library_doctor.delete_all_duplicates)
+    if kind == "empty-dir":
+        if not body.path:
+            raise HTTPException(status_code=400, detail="empty-dir fix requires a path")
+        return await _run_doctor(library_doctor.delete_empty_dir, body.path)
+    if kind == "empty-dirs":
+        return await _run_doctor(library_doctor.prune_empty_dirs)
+    raise HTTPException(status_code=400, detail=f"unknown fix kind: {kind}")

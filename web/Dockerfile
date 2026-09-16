@@ -14,6 +14,12 @@ RUN npm ci --prefer-offline
 COPY . .
 ARG VITE_API_URL=http://localhost:8000
 ENV VITE_API_URL=$VITE_API_URL
+# The Clerk publishable key is also baked in at build time. Omitting it
+# produces a local-mode bundle (no ClerkProvider) — the UI handles that,
+# but an empty key in a deployment that HAS Clerk users means nobody can
+# sign in. Always pass it through for a Clerk-enabled VPS deployment.
+ARG VITE_CLERK_PUBLISHABLE_KEY=
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 RUN npm run build
 
 

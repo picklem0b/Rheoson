@@ -2656,108 +2656,6 @@
         ]
       }
     },
-    "/api/search/smart": {
-      "post": {
-        "tags": [
-          "search"
-        ],
-        "summary": "Smart Search Endpoint",
-        "description": "Natural-language search that understands what's playing.\n\nTurns \"more like this\", \"top 5 hip-hop this week\" or \"download that song\nby X\" into a labelled answer plus real, playable tracks.",
-        "operationId": "smart_search_endpoint_api_search_smart_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SmartSearchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Smart Search Endpoint Api Search Smart Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/search/suggest": {
-      "get": {
-        "tags": [
-          "search"
-        ],
-        "summary": "Suggest Endpoint",
-        "description": "Instant autocomplete \u2014 returns in ~80ms.\nNo debounce needed \u2014 call on every keystroke.",
-        "operationId": "suggest_endpoint_api_search_suggest_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "q",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "title": "Q"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "title": "Response Suggest Endpoint Api Search Suggest Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/settings/backup": {
       "get": {
         "tags": [
@@ -2894,6 +2792,76 @@
             }
           }
         }
+      }
+    },
+    "/api/settings/doctor/fix": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Doctor Fix",
+        "description": "Repair one reported item, or sweep all of one kind when no path given.",
+        "operationId": "doctor_fix_api_settings_doctor_fix_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DoctorFixSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/settings/doctor/scan": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Doctor Scan",
+        "description": "Scan the library for corrupt files, duplicates and empty folders.",
+        "operationId": "doctor_scan_api_settings_doctor_scan_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/settings/rescan": {
@@ -4554,6 +4522,30 @@
         ],
         "title": "DirectoriesSchema"
       },
+      "DoctorFixSchema": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "DoctorFixSchema"
+      },
       "DownloadJobSchema": {
         "properties": {
           "id": {
@@ -5377,31 +5369,6 @@
           "playlists",
           "tracks"
         ]
-      },
-      "SmartSearchRequest": {
-        "properties": {
-          "query": {
-            "type": "string",
-            "title": "Query"
-          },
-          "context": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Context"
-          }
-        },
-        "type": "object",
-        "required": [
-          "query"
-        ],
-        "title": "SmartSearchRequest"
       },
       "TokenResponse": {
         "properties": {

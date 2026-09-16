@@ -205,6 +205,21 @@ async def _cron_job_cleanup() -> None:
         log.error("cron.job_cleanup.failed", error=str(e))
 
 
+async def _cron_weekly_categories() -> None:
+    """Pre-fetch every category's top-5 for the upcoming week (Sunday 23:30 UTC).
+
+    Users must never wait on a category tile: the new week's lists are cached
+    before the ISO week flips, so opening a tile is instant all week long.
+    Also runs at boot for the CURRENT bucket (below), covering a server that
+    was off all Sunday.
+    """
+    try:
+        from app.services import weekly_cache
+        await weekly_cache.prewarm_categories()
+    except Exception as e:
+        log.error("cron.weekly_categories.failed", error=str(e))
+
+
 # ── App + Socket.IO ───────────────────────────────────────────
 
 sio = socketio.AsyncServer(
@@ -254,8 +269,21 @@ async def lifespan(_app: FastAPI):
     scheduler.add_job(_cron_library_scan,  "interval", minutes=30, id="library_scan", replace_existing=True)
     scheduler.add_job(_cron_ytdlp_update,  "cron", hour=3,         id="ytdlp_update", replace_existing=True)
     scheduler.add_job(_cron_job_cleanup,   "interval", hours=6,    id="job_cleanup",  replace_existing=True)
+    # Sunday 23:30 UTC: still the old ISO week, so prewarm writes into the
+    # upcoming bucket explicitly (see weekly_cache.next_bucket). A server that
+    # boots mid-week still fills the current bucket lazily on first request.
+    scheduler.add_job(_cron_weekly_categories, "cron", day_of_week="sun", hour=23, minute=30,
+                      id="weekly_categories", replace_existing=True)
     await connect_db()
     scheduler.start()
+
+    # Fill the CURRENT week's category cache at boot if empty — covers a
+    # server that was off during the Sunday prewarm window.
+    try:
+        from app.services import weekly_cache
+        asyncio.get_event_loop().create_task(weekly_cache.prewarm_categories())
+    except Exception as e:
+        log.warning("startup.weekly_prewarm.failed", error=str(e))
 
     # Health subsystem: mark boot time and start the background probe loop so
     # the public /api/health snapshot is cheap and always fresh.

@@ -6,6 +6,8 @@ import { Modal } from './Modal'
 import { Button } from './Button'
 import { Skeleton } from './Skeleton'
 import { ArtworkImage } from './ArtworkImage'
+import { normalizeTrack } from '@/lib/normalize'
+import type { Track } from '@/types'
 import { useToast } from './Toaster'
 import { useDownloads } from '@/hooks/downloads.hook'
 import { tracksApi } from '@/api/tracks.api'
@@ -76,6 +78,7 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
  */
 export function DownloadModal() {
   const trackId = useUIStore((s) => s.downloadModalTrackId)
+  const knownTrack = useUIStore((s) => s.downloadModalTrack)
   const closeDownloadModal = useUIStore((s) => s.closeDownloadModal)
   const { download } = useDownloads()
   const { toast } = useToast()
@@ -97,23 +100,43 @@ export function DownloadModal() {
   const lossless = selected?.lossless ?? false
   const effectiveQuality: AudioQuality = lossless ? 'best' : quality
 
-  const { data: track, isLoading, isError, refetch } = useQuery({
+  // When the caller passed the track object (PlayerBar, context menu,
+  // Now Playing) we already have everything — no refetch. This matters
+  // because GET /tracks/{id} 404s for YouTube-only tracks that were
+  // never hydrated locally, which surfaced to the user as a bogus
+  // "Track not found" download error.
+  const shouldFetch = !!trackId && !knownTrack
+  const { data: fetched, isLoading, isError, refetch } = useQuery({
     queryKey: ['track', 'download', trackId],
     queryFn: () => tracksApi.getTrack(trackId!),
-    enabled: !!trackId,
+    enabled: shouldFetch,
     retry: 1,
   })
+  const track = knownTrack ?? fetched
+
+  // Catalog-only download: if the modal would otherwise be stuck on a
+  // 404 for a YouTube-shaped id, build a minimal track and let the
+  // server resolve it — downloads never need library metadata.
+  const usableTrack: Track | null =
+    track ??
+    (trackId && /^[\w-]{11}$/.test(trackId)
+      ? normalizeTrack({
+          id: trackId,
+          title: 'YouTube track',
+          youtubeId: trackId,
+        })
+      : null)
 
   const handleDownload = async () => {
-    if (!track) return
+    if (!usableTrack) return
     try {
-      await download(track, {
+      await download(usableTrack, {
         format,
         quality: effectiveQuality,
         embedArtwork,
         embedLyrics,
       })
-      toast(`"${track.title}" queued for download`, 'success')
+      toast(`"${usableTrack.title}" queued for download`, 'success')
       closeDownloadModal()
     } catch (e) {
       // e.g. Wi-Fi-only mode on mobile data

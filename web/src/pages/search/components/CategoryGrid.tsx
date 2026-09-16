@@ -16,16 +16,16 @@ import type { Track } from '@/types'
 // grid is never an empty screen. The backend list is authoritative.
 
 const FALLBACK: CategoryMeta[] = [
-   { slug: 'hip-hop',    label: 'Hip-Hop',    emoji: '🎤', gradient: 'from-yellow-900/90 to-orange-800/90' },
-   { slug: 'electronic', label: 'Electronic', emoji: '🎛️', gradient: 'from-cyan-900/90 to-blue-800/90' },
-   { slug: 'r-and-b',    label: 'R&B',        emoji: '🎶', gradient: 'from-rose-900/90 to-pink-800/90' },
-   { slug: 'rock',       label: 'Rock',       emoji: '🎸', gradient: 'from-zinc-900/90 to-zinc-700/90' },
-   { slug: 'afrobeats',  label: 'Afrobeats',  emoji: '🪘', gradient: 'from-green-900/90 to-emerald-700/90' },
-   { slug: 'jazz',       label: 'Jazz',       emoji: '🎷', gradient: 'from-amber-900/90 to-yellow-700/90' },
-   { slug: 'pop',        label: 'Pop',        emoji: '✨', gradient: 'from-violet-900/90 to-purple-700/90' },
-   { slug: 'classical',  label: 'Classical',  emoji: '🎻', gradient: 'from-slate-900/90 to-slate-700/90' },
-   { slug: 'soul',       label: 'Soul',       emoji: '🎙️', gradient: 'from-red-900/90 to-rose-800/90' },
-   { slug: 'drill',      label: 'Drill',      emoji: '🥁', gradient: 'from-neutral-900/90 to-stone-700/90' },
+   { slug: 'hip-hop',    label: 'Hip-Hop',    emoji: '🎤', gradient: 'from-yellow-900/90 to-orange-800/90',   hero: '2Pac',            heroUrl: 'https://cdn-images.dzcdn.net/images/artist/dc2743d871b5935004292eed2cd55f68/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'electronic', label: 'Electronic', emoji: '🎛️', gradient: 'from-cyan-900/90 to-blue-800/90',       hero: 'Daft Punk',       heroUrl: 'https://cdn-images.dzcdn.net/images/artist/638e69b9caaf9f9f3f8826febea7b543/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'r-and-b',    label: 'R&B',        emoji: '🎶', gradient: 'from-rose-900/90 to-pink-800/90',       hero: 'Frank Ocean',     heroUrl: 'https://cdn-images.dzcdn.net/images/artist/882155c08dc31d6464d6d580083c968c/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'rock',       label: 'Rock',       emoji: '🎸', gradient: 'from-zinc-900/90 to-zinc-700/90',       hero: 'Queen',           heroUrl: 'https://cdn-images.dzcdn.net/images/artist/71eeb9e2eeb375df35a3c0654a5a01ab/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'afrobeats',  label: 'Afrobeats',  emoji: '🪘', gradient: 'from-green-900/90 to-emerald-700/90',   hero: 'Burna Boy',       heroUrl: 'https://cdn-images.dzcdn.net/images/artist/ad15b7f03325752d60db9e4d39c079ae/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'jazz',       label: 'Jazz',       emoji: '🎷', gradient: 'from-amber-900/90 to-yellow-700/90',    hero: 'Miles Davis',     heroUrl: 'https://cdn-images.dzcdn.net/images/artist/8d13c0527064ba50cf0d0873f4f574dc/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'pop',        label: 'Pop',        emoji: '✨', gradient: 'from-violet-900/90 to-purple-700/90',   hero: 'Michael Jackson', heroUrl: 'https://cdn-images.dzcdn.net/images/artist/97fae13b2b30e4aec2e8c9e0c7839d92/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'classical',  label: 'Classical',  emoji: '🎻', gradient: 'from-slate-900/90 to-slate-700/90',     hero: 'Beethoven',       heroUrl: 'https://cdn-images.dzcdn.net/images/artist/f16a31a3fe85c5a14debb1f811be1325/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'soul',       label: 'Soul',       emoji: '🎙️', gradient: 'from-red-900/90 to-rose-800/90',        hero: 'Aretha Franklin', heroUrl: 'https://cdn-images.dzcdn.net/images/artist/4453648f7e780028c2be766b21474223/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'drill',      label: 'Drill',      emoji: '🥁', gradient: 'from-neutral-900/90 to-stone-700/90',   hero: 'Central Cee',     heroUrl: 'https://cdn-images.dzcdn.net/images/artist/25fe719f51af3ee2de27aa267e2a6ac9/1000x1000-000000-80-0-0.jpg' },
 ]
 
 interface CategoryGridProps {
@@ -77,7 +77,7 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                      }
                      aria-expanded={isOpen}
                      className={cn(
-                        'relative h-[72px] overflow-hidden rounded-2xl bg-gradient-to-br',
+                        'relative h-[92px] overflow-hidden rounded-2xl bg-gradient-to-br',
                         cat.gradient,
                         'border shadow-md transition-all active:brightness-110',
                         isOpen
@@ -85,10 +85,28 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                            : 'border-white/5'
                      )}
                   >
-                     <span className="absolute top-2.5 right-3 text-lg select-none opacity-60">
-                        {cat.emoji}
+                     {/* Hero portrait — an iconic artist of this genre. The
+                         gradient scrim keeps the label readable over any
+                         photo; if the image is missing or slow, the genre
+                         gradient alone still carries the tile. */}
+                     {cat.heroUrl && (
+                        <img
+                           src={cat.heroUrl}
+                           alt=""
+                           aria-hidden
+                           loading="lazy"
+                           decoding="async"
+                           className="absolute inset-0 h-full w-full object-cover object-[center_20%] transition-transform duration-500 group-hover:scale-105"
+                        />
+                     )}
+                     <span
+                        className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"
+                        aria-hidden
+                     />
+                     <span className="absolute top-2 left-3 text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow">
+                        {cat.hero}
                      </span>
-                     <span className="absolute bottom-2.5 left-3 text-sm font-bold text-white drop-shadow-sm">
+                     <span className="absolute bottom-2.5 left-3 text-sm font-bold text-white drop-shadow">
                         {cat.label}
                      </span>
                      <ChevronRight

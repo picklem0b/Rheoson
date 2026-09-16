@@ -33,6 +33,8 @@ interface UIStore {
 
   // Modals
   downloadModalTrackId: string | null
+  /** Track object when the caller already has one — lets the download modal skip a refetch that can 404 for non-library tracks. */
+  downloadModalTrack: import('@/types/track.types').Track | null
 
   // Layout preferences (settings-driven)
   navStyle:    NavStyle
@@ -47,7 +49,7 @@ interface UIStore {
   toggleDownloads:    () => void
   toggleEqualizer:    () => void
   toggleSidebar:      () => void
-  openDownloadModal:  (trackId: string) => void
+  openDownloadModal:  (trackId: string, track?: import('@/types/track.types').Track) => void
   closeDownloadModal: () => void
   closeAll:           () => void
 
@@ -75,6 +77,7 @@ export const useUIStore = create<UIStore>()(
       showEqualizer:        false,
       sidebarCollapsed:     false,
       downloadModalTrackId: null,
+      downloadModalTrack: null,
 
       navStyle:    'pill',
       navPosition: 'bottom',
@@ -88,8 +91,10 @@ export const useUIStore = create<UIStore>()(
       toggleDownloads:  () => set((s) => ({ showDownloads:  !s.showDownloads  })),
       toggleSidebar:    () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
-      openDownloadModal:  (trackId) => set({ downloadModalTrackId: trackId }),
-      closeDownloadModal: ()         => set({ downloadModalTrackId: null }),
+      openDownloadModal:  (trackId, track?) =>
+         set({ downloadModalTrackId: trackId, downloadModalTrack: track ?? null }),
+      closeDownloadModal: () =>
+         set({ downloadModalTrackId: null, downloadModalTrack: null }),
 
       closeAll: () => set({
         showQueue:            false,
@@ -98,6 +103,7 @@ export const useUIStore = create<UIStore>()(
         showDownloads:        false,
         showEqualizer:        false,
         downloadModalTrackId: null,
+        downloadModalTrack: null,
       }),
 
       setNavStyle:    (v) => set({ navStyle: v }),
