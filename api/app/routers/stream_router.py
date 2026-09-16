@@ -1051,6 +1051,33 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
         pos   = 0
         total = 0
         try:
+            # ── Head start: tiny first chunks so sound starts sooner ──
+            # The browser's audio element begins decoding as soon as its
+            # buffer holds the first frames — which live in the first few
+            # kilobytes. Flooding it with full 64 KB chunks buys nothing
+            # for startup; a growing ladder (2 KB → CHUNK) gets audio out
+            # of the speaker measurably faster on slow links and still
+            # saturates the connection for the rest of the track.
+            head_sizes = (2048, 4096, 8192, 16384, 32768)
+            for want in head_sizes:
+                if done.is_set():
+                    break
+                waited = 0.0
+                while _size() < want and not done.is_set() and waited < 5.0:
+                    await asyncio.sleep(0.02)
+                    waited += 0.02
+                size = _size()
+                if size <= pos:
+                    break  # fill is slow — the main loop takes over
+                with open(path, "rb") as f:
+                    f.seek(pos)
+                    chunk = f.read(min(want, size - pos))
+                if not chunk:
+                    break
+                pos += len(chunk)
+                total += len(chunk)
+                yield chunk
+
             # Follow the file while the background fill is writing it
             while not done.is_set():
                 size = _size()
