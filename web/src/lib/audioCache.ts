@@ -112,15 +112,41 @@ export async function getAudio(trackId: string): Promise<Blob | null> {
  * The caller owns the URL and MUST revoke it when done — the player revokes
  * the previous track's URL on every track change.
  */
-export async function getCachedObjectUrl(trackId: string): Promise<string | null> {
+/**
+ * Map a stored mime type to the file extension hint Howler needs.
+ * Howler's html5 mode uses this to decide decode strategy — a wrong or
+ * missing hint makes Android WebView fail to start native audio.
+ */
+function mimeToExt(mime: string | null | undefined): string[] | undefined {
+  if (!mime) return undefined
+  if (mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac')) return ['m4a']
+  if (mime.includes('mpeg') || mime.includes('mp3')) return ['mp3']
+  if (mime.includes('ogg') || mime.includes('opus')) return ['ogg']
+  if (mime.includes('wav')) return ['wav']
+  if (mime.includes('flac')) return ['flac']
+  return undefined
+}
+
+export async function getCachedObjectUrl(trackId: string): Promise<{
+  url: string
+  mime: string
+} | null> {
   const blob = await getAudio(trackId)
   if (!blob) return null
   try {
-    return URL.createObjectURL(blob)
+    return { url: URL.createObjectURL(blob), mime: blob.type || 'audio/mpeg' }
   } catch {
     return null
   }
 }
+
+/** Extension hint for a cached track, if one exists. */
+export async function getCachedMime(trackId: string): Promise<string | null> {
+  const blob = await getAudio(trackId)
+  return blob?.type || null
+}
+
+export { mimeToExt }
 
 // ── Writes ────────────────────────────────────────────────────
 
