@@ -10,7 +10,7 @@ import { getLocalFileUrl } from '@/lib/localFs';
 import { isNativePlatform } from '@/lib/capacitor';
 import { ensureEffectsChain } from '@/lib/audioEffects';
 import { prefetchQueue } from '@/lib/prefetch';
-import { getCachedObjectUrl, warmAudioCache } from '@/lib/audioCache';
+import { getCachedObjectUrl, mimeToExt, warmAudioCache } from '@/lib/audioCache';
 import { API_BASE } from '@/lib/constants';
 import { recommendationsApi } from '@/api/recommendations.api';
 import { signalPlayComplete, signalRepeat, signalSkip } from '@/lib/signals';
@@ -35,6 +35,11 @@ let _generation = 0;
 
 // Track which IDs have had recordPlay called this session
 const _playedThisSession = new Set<string>();
+// Extension hint for the currently loaded source. YouTube streams arrive as
+// native m4a (the backend fast path serves the CDN's own container); telling
+// Howler "mp3" for an m4a stream makes Android WebView fail to decode and
+// the track silently never starts.
+let _loadedFormat: string[] | undefined = undefined;
 
 // Guard so a single queue-exhaustion only triggers one autoplay fetch
 let _autoplayInFlight = false;
@@ -142,6 +147,7 @@ function _destroy() {
         _objectUrl = null;
     }
     _loadedId = null;
+    _loadedFormat = undefined;
 }
 
 // ── Resolve stream URL ────────────────────────────────────────
@@ -156,22 +162,29 @@ async function _resolveUrl(track: {
     id: string;
     filePath?: string;
     isDownloaded?: boolean;
-}): Promise<{ url: string; fromCache: boolean }> {
+}): Promise<{ url: string; fromCache: boolean; mime?: string }> {
     // Tier 0: cached audio bytes
-    const cachedUrl = await getCachedObjectUrl(track.id);
-    if (cachedUrl) {
-        _objectUrl = cachedUrl;
-        return { url: cachedUrl, fromCache: true };
+    const cached = await getCachedObjectUrl(track.id);
+    if (cached) {
+        _objectUrl = cached.url;
+        return { url: cached.url, fromCache: true, mime: cached.mime };
     }
 
     // Tier 1: Direct file access on native platform — zero network required
     if (isNativePlatform() && track.filePath) {
         const fileUrl = await getLocalFileUrl(track.filePath);
-        if (fileUrl) return { url: fileUrl, fromCache: false };
+        if (fileUrl) return { url: fileUrl, fromCache: false, mime: undefined };
     }
 
-    // Tiers 2 & 3: Go through the backend stream endpoint
-    return { url: tracksApi.getStreamUrl(track.id), fromCache: false };
+    // Tiers 2 & 3: Go through the backend stream endpoint. The HEAD probe
+    // learns the real container so Howler gets a truthful format hint.
+    const url = tracksApi.getStreamUrl(track.id);
+    let mime: string | undefined;
+    try {
+        const res = await fetch(url, { method: 'HEAD' });
+        mime = res.headers.get('content-type') ?? undefined;
+    } catch { /* hint stays undefined — not fatal */ }
+    return { url, fromCache: false, mime };
 }
 
 /**
@@ -300,7 +313,7 @@ export function usePlayer() {
 
             // Resolve the URL asynchronously — may need to check local filesystem
             const track = usePlayerStore.getState().currentTrack;
-            const urlPromise: Promise<{ url: string; fromCache: boolean }> = track
+            const urlPromise: Promise<{ url: string; fromCache: boolean; mime?: string }> = track
                 ? _resolveUrl(track)
                 : Promise.resolve({
                       url: tracksApi.getStreamUrl(trackId),
@@ -312,10 +325,16 @@ export function usePlayer() {
                 if (gen !== _generation) return;
 
             const url = resolved.url;
+            _loadedFormat =
+                resolved.mime != null
+                    ? mimeToExt(resolved.mime)
+                    : /^[\w-]{11}$/.test(trackId)
+                      ? ['m4a'] // YouTube fast path serves native m4a
+                      : undefined;
             _howl = new Howl({
                 src: [url],
                 html5: true,
-                format: ['mp3'],
+                format: _loadedFormat,
                 volume: volRef.current,
                 preload: true,
                 autoplay: false, // we control play after seeking so there's no audible jump
@@ -412,8 +431,11 @@ export function usePlayer() {
                     console.error('[Rheoson] load error', { trackId, url, err });
                     setLoading(false);
                     setPlaying(false);
-                    _loadedId = null;
-                    // Dispatch event so UI can show retry toast
+                    // Keep _loadedId set on purpose: nulling it makes the next
+                    // play tap do a full loadAndPlay rebuild, which fails the
+                    // same way — the "every tap reloads the track and never
+                    // plays" loop. togglePlay's rebuild path handles the
+                    // actual retry when the user asks for it.
                     let message = 'Could not load this track';
                     const errStr = String(err);
                     if (errStr.includes('404') || errStr.includes('Not Found')) {

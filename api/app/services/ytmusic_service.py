@@ -547,22 +547,33 @@ async def resolve_youtube_url(url: str) -> dict | None:
         m = re.search(pat, url)
         if m:
             return await get_track(m.group(1))
-    return None
-
-
-# Canonical category list. Kept server-side so the grid and the per-category
+    return None# Canonical category list. Kept server-side so the grid and the per-category
 # refresher can never drift apart.
+#
+# Each tile carries a "hero" — an iconic artist of that genre whose portrait
+# becomes the tile background. Images are direct Deezer CDN URLs (stable,
+# keyless, ~1000px square) resolved once by artist ID; no runtime API calls.
 CATEGORIES: list[dict] = [
-    {"slug": "hip-hop",     "label": "Hip-Hop",     "emoji": "🎤", "gradient": "from-yellow-900/90 to-orange-800/90"},
-    {"slug": "electronic",  "label": "Electronic",  "emoji": "🎛️", "gradient": "from-cyan-900/90 to-blue-800/90"},
-    {"slug": "r-and-b",     "label": "R&B",         "emoji": "🎶", "gradient": "from-rose-900/90 to-pink-800/90"},
-    {"slug": "rock",        "label": "Rock",        "emoji": "🎸", "gradient": "from-zinc-900/90 to-zinc-700/90"},
-    {"slug": "afrobeats",   "label": "Afrobeats",   "emoji": "🪘", "gradient": "from-green-900/90 to-emerald-700/90"},
-    {"slug": "jazz",        "label": "Jazz",        "emoji": "🎷", "gradient": "from-amber-900/90 to-yellow-700/90"},
-    {"slug": "pop",         "label": "Pop",         "emoji": "✨", "gradient": "from-violet-900/90 to-purple-700/90"},
-    {"slug": "classical",   "label": "Classical",   "emoji": "🎻", "gradient": "from-slate-900/90 to-slate-700/90"},
-    {"slug": "soul",        "label": "Soul",        "emoji": "🎙️", "gradient": "from-red-900/90 to-rose-800/90"},
-    {"slug": "drill",       "label": "Drill",       "emoji": "🥁", "gradient": "from-neutral-900/90 to-stone-700/90"},
+    {"slug": "hip-hop",    "label": "Hip-Hop",    "emoji": "🎤", "gradient": "from-yellow-900/90 to-orange-800/90",
+     "hero": "2Pac",            "heroUrl": "https://cdn-images.dzcdn.net/images/artist/dc2743d871b5935004292eed2cd55f68/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "electronic", "label": "Electronic", "emoji": "🎛️", "gradient": "from-cyan-900/90 to-blue-800/90",
+     "hero": "Daft Punk",       "heroUrl": "https://cdn-images.dzcdn.net/images/artist/638e69b9caaf9f9f3f8826febea7b543/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "r-and-b",    "label": "R&B",        "emoji": "🎶", "gradient": "from-rose-900/90 to-pink-800/90",
+     "hero": "Frank Ocean",     "heroUrl": "https://cdn-images.dzcdn.net/images/artist/882155c08dc31d6464d6d580083c968c/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "rock",       "label": "Rock",       "emoji": "🎸", "gradient": "from-zinc-900/90 to-zinc-700/90",
+     "hero": "Queen",           "heroUrl": "https://cdn-images.dzcdn.net/images/artist/71eeb9e2eeb375df35a3c0654a5a01ab/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "afrobeats",  "label": "Afrobeats",  "emoji": "🪘", "gradient": "from-green-900/90 to-emerald-700/90",
+     "hero": "Burna Boy",       "heroUrl": "https://cdn-images.dzcdn.net/images/artist/ad15b7f03325752d60db9e4d39c079ae/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "jazz",       "label": "Jazz",       "emoji": "🎷", "gradient": "from-amber-900/90 to-yellow-700/90",
+     "hero": "Miles Davis",     "heroUrl": "https://cdn-images.dzcdn.net/images/artist/8d13c0527064ba50cf0d0873f4f574dc/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "pop",        "label": "Pop",        "emoji": "✨", "gradient": "from-violet-900/90 to-purple-700/90",
+     "hero": "Michael Jackson", "heroUrl": "https://cdn-images.dzcdn.net/images/artist/97fae13b2b30e4aec2e8c9e0c7839d92/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "classical",  "label": "Classical",  "emoji": "🎻", "gradient": "from-slate-900/90 to-slate-700/90",
+     "hero": "Beethoven",       "heroUrl": "https://cdn-images.dzcdn.net/images/artist/f16a31a3fe85c5a14debb1f811be1325/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "soul",       "label": "Soul",       "emoji": "🎙️", "gradient": "from-red-900/90 to-rose-800/90",
+     "hero": "Aretha Franklin", "heroUrl": "https://cdn-images.dzcdn.net/images/artist/4453648f7e780028c2be766b21474223/1000x1000-000000-80-0-0.jpg"},
+    {"slug": "drill",      "label": "Drill",      "emoji": "🥁", "gradient": "from-neutral-900/90 to-stone-700/90",
+     "hero": "Central Cee",     "heroUrl": "https://cdn-images.dzcdn.net/images/artist/25fe719f51af3ee2de27aa267e2a6ac9/1000x1000-000000-80-0-0.jpg"},
 ]
 
 _CATEGORY_BY_SLUG = {c["slug"]: c for c in CATEGORIES}
