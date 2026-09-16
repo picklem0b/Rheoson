@@ -3,6 +3,7 @@ import asyncio
 import time
 import os
 import structlog
+import shutil
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
@@ -211,6 +212,97 @@ def _remote_cache_clear() -> None:
     for track_id in list(_remote_cache):
         _remote_cache_evict(track_id)
     log.info("stream.remote_cache.cleared")
+
+
+# ── Durable warm cache ────────────────────────────────────────
+# The in-memory remote cache dies with the process; a restart throws away
+# every warmed track. When STREAM_CACHE_DIR is set, completed buffers are
+# also hard-linked/copied into that directory and reused across restarts —
+# a track played once this week starts instantly next week.
+
+
+def _warm_dir() -> Optional[Path]:
+    d = settings.STREAM_CACHE_DIR
+    if not d:
+        return None
+    p = Path(d)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    except OSError:
+        return None
+
+
+def _warm_enforce_limit() -> None:
+    """LRU-evict warm files beyond the byte budget."""
+    d = _warm_dir()
+    if d is None:
+        return
+    max_bytes = max(0, settings.STREAM_CACHE_MAX_MB) * 1024 * 1024
+    try:
+        files = sorted(
+            (f for f in d.iterdir() if f.is_file()),
+            key=lambda f: f.stat().st_mtime,
+        )
+        total = sum(f.stat().st_size for f in files)
+        for f in files:
+            if total <= max_bytes:
+                break
+            try:
+                size = f.stat().st_size
+                f.unlink()
+                total -= size
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def _warm_promote(track_id: str, src: Path, mime: Optional[str]) -> None:
+    """Copy a completed buffer into the durable cache (best-effort)."""
+    d = _warm_dir()
+    if d is None:
+        return
+    dest = d / f"{track_id}.audio"
+    try:
+        if os.name == "posix":
+            try:
+                os.link(src, dest)  # instant, no bytes copied
+            except OSError:
+                shutil.copyfile(src, dest)
+        else:
+            shutil.copyfile(src, dest)
+        if mime:
+            (d / f"{track_id}.mime").write_text(mime)
+        _warm_enforce_limit()
+        log.info("stream.warm.promoted", track_id=track_id)
+    except OSError:
+        pass
+
+
+def _warm_lookup(track_id: str) -> Optional[Path]:
+    """Return the durable cached file for a track, refreshing its LRU stamp."""
+    d = _warm_dir()
+    if d is None:
+        return None
+    f = d / f"{track_id}.audio"
+    if not f.exists() or f.stat().st_size < 1024:
+        return None
+    try:
+        os.utime(f)  # touch → LRU recency
+    except OSError:
+        pass
+    return f
+
+
+def _warm_mime(track_id: str) -> Optional[str]:
+    d = _warm_dir()
+    if d is None:
+        return None
+    try:
+        return (d / f"{track_id}.mime").read_text().strip() or None
+    except OSError:
+        return None
 
 
 # ── Fast path: stream the resolved CDN URL ────────────────────
@@ -479,8 +571,10 @@ def _drop_session_locked(track_id: str) -> None:
         return
     if session["ok"] and session["path"].exists():
         # Completed audio is worth keeping — move it into the durable cache
-        # (TTL-managed) instead of deleting it.
+        # (TTL-managed) instead of deleting it, and promote it into the
+        # on-disk warm cache so it also survives restarts.
         _remote_cache_set(track_id, session["path"], session.get("mime"))
+        _warm_promote(track_id, session["path"], session.get("mime"))
     else:
         try:
             if session["path"].exists():
@@ -528,7 +622,10 @@ async def _ensure_remote_session(track_id: str) -> dict | None:
                     "ok":       False,
                     "accessed": now,
                     "path":     _session_file(track_id),
-                    "mime":     "audio/mpeg",
+                    # YouTube's direct CDN streams are m4a (itag 140). The
+                    # real type is confirmed as soon as _fill_buffer resolves
+                    # the URL; the transcode fallback overwrites it to mp3.
+                    "mime":     "audio/mp4",
                 }
                 session["task"] = asyncio.create_task(_fill_session(track_id, session))
                 _remote_sessions[track_id] = session
@@ -552,6 +649,8 @@ async def warm_stream(track_id: str, _user: dict = Depends(get_current_user)):
         return {"ok": True, "state": "local"}
     if _remote_cache_get(track_id):
         return {"ok": True, "state": "cached"}
+    if _warm_lookup(track_id):
+        return {"ok": True, "state": "warmed"}
 
     try:
         session = await _ensure_remote_session(track_id)
@@ -579,12 +678,22 @@ async def stream_audio(track_id: str, request: Request):
         log.debug("stream.local", track_id=track_id, path=str(local))
         return _serve_local(local, request)
 
+    # Durable warm cache: survived a restart, serve like a local file.
+    warmed = _warm_lookup(track_id)
+    if warmed is not None:
+        log.debug("stream.warm_hit", track_id=track_id)
+        return _serve_local(warmed, request, mime=_warm_mime(track_id))
+
     if request.method == "HEAD":
         if len(track_id) != 11:
             raise HTTPException(status_code=404, detail="Invalid track ID")
         return Response(headers={
             "Accept-Ranges": "bytes",
-            "Content-Type":  "audio/mpeg",
+            # Must match what GET actually serves: remote tracks arrive as
+            # native m4a from the CDN, not transcoded mp3. A HEAD that
+            # promises audio/mpeg while GET delivers audio/mp4 makes Howler
+            # mis-decode (html5 audio sniffs the HEAD content-type first).
+            "Content-Type":  "audio/mp4",
         })
 
     # NOTE: no forced full-library rescan here. Previously every remote

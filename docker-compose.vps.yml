@@ -26,11 +26,16 @@ services:
       - MUSIC_DIR=/data/music
       - DOWNLOADS_DIR=/data/downloads
       - EXTRA_MUSIC_DIRS=[]
+      # Durable warm-stream cache — replayed tracks serve from disk
+      # instantly, even after a rebuild or restart.
+      - STREAM_CACHE_DIR=/data/stream-cache
+      - STREAM_CACHE_MAX_MB=1024
     volumes:
       # The whole payload on the host: music, per-user JSON sidecars,
       # .track_map.sqlite, .download_jobs.json, weekly cache.
       - ./data/music:/data/music
       - ./data/downloads:/data/downloads
+      - ./data/stream-cache:/data/stream-cache
       # Prefer host networking for WebSocket latency? No — the bridge is
       # fine and keeps Caddy's upstreams simple. Nothing here needs NAT
       # traversal: Caddy terminates TLS and proxies both /api and the SPA.
@@ -51,6 +56,12 @@ services:
         # /api + same-origin WebSocket (see web/src/lib/constants.ts).
         # One domain, no CORS, no second DNS record.
         VITE_API_URL: ""
+        # Baked into the bundle at build time. Interpolated from the host
+        # shell (export it, or put it in a .env next to this compose file).
+        # Omitting it builds a local-mode SPA — the UI stays usable, but
+        # Clerk sign-in is unavailable and the API rejects every request
+        # (auth is mandatory server-side).
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
     restart: unless-stopped
     expose:
       - "80"

@@ -1079,50 +1079,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/search/smart": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Smart Search Endpoint
-         * @description Natural-language search that understands what's playing.
-         *
-         *     Turns "more like this", "top 5 hip-hop this week" or "download that song
-         *     by X" into a labelled answer plus real, playable tracks.
-         */
-        post: operations["smart_search_endpoint_api_search_smart_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/search/suggest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Suggest Endpoint
-         * @description Instant autocomplete — returns in ~80ms.
-         *     No debounce needed — call on every keystroke.
-         */
-        get: operations["suggest_endpoint_api_search_suggest_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/settings/backup": {
         parameters: {
             query?: never;
@@ -1181,6 +1137,46 @@ export interface paths {
          * @description List audio files in a given directory path.
          */
         get: operations["browse_directory_api_settings_directories_browse_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/doctor/fix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Doctor Fix
+         * @description Repair one reported item, or sweep all of one kind when no path given.
+         */
+        post: operations["doctor_fix_api_settings_doctor_fix_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/doctor/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Doctor Scan
+         * @description Scan the library for corrupt files, duplicates and empty folders.
+         */
+        get: operations["doctor_scan_api_settings_doctor_scan_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1997,6 +1993,13 @@ export interface components {
             /** Dirs */
             dirs: string[];
         };
+        /** DoctorFixSchema */
+        DoctorFixSchema: {
+            /** Kind */
+            kind: string;
+            /** Path */
+            path?: string | null;
+        };
         /** DownloadJobSchema */
         DownloadJobSchema: {
             /** Id */
@@ -2403,15 +2406,6 @@ export interface components {
             artists: components["schemas"]["ArtistSchema"][];
             /** Playlists */
             playlists: components["schemas"]["PlaylistResultSchema"][];
-        };
-        /** SmartSearchRequest */
-        SmartSearchRequest: {
-            /** Query */
-            query: string;
-            /** Context */
-            context?: {
-                [key: string]: unknown;
-            } | null;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -4297,72 +4291,6 @@ export interface operations {
             };
         };
     };
-    smart_search_endpoint_api_search_smart_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SmartSearchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    suggest_endpoint_api_search_suggest_get: {
-        parameters: {
-            query: {
-                q: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string[];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     export_backup_api_settings_backup_get: {
         parameters: {
             query?: never;
@@ -4463,6 +4391,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    doctor_fix_api_settings_doctor_fix_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DoctorFixSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    doctor_scan_api_settings_doctor_scan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

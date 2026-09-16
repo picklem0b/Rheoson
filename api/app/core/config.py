@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     AUDIO_FORMAT:             str = "mp3"
     AUDIO_QUALITY:            str = "0"
     MAX_CONCURRENT_DOWNLOADS: int = 4
+    # Durable warm-stream cache (survives restarts, unlike the in-memory
+    # remote cache). 0 disables. Entries are exact copies of what was
+    # streamed — repeat plays of the same track serve from disk instantly.
+    STREAM_CACHE_DIR:         str = ""
+    STREAM_CACHE_MAX_MB:      int = 1024
 
     SPOTIFY_CLIENT_ID:     str = ""
     SPOTIFY_CLIENT_SECRET: str = ""

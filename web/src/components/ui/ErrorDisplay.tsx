@@ -84,29 +84,6 @@ export function ErrorDisplay({
   );
 }
 
-export function NetworkErrorBanner({
-  onRetry,
-  onDismiss,
-  isOnline = true,
-}: {
-  onRetry?: () => void;
-  onDismiss?: () => void;
-  isOnline?: boolean;
-}) {
-  return (
-    <ErrorDisplay
-      message={isOnline ? "Can't reach the server — it may be waking up" : "You're offline"}
-      severity="warning"
-      icon={isOnline ? <Server className="w-5 h-5 text-yellow-400" /> : <WifiOff className="w-5 h-5 text-yellow-400" />}
-      onRetry={onRetry}
-      retryLabel="Retry"
-      dismissible={!!onDismiss}
-      onDismiss={onDismiss}
-      className="fixed bottom-[calc(var(--player-height,72px)+var(--nav-height,64px)+12px)] inset-x-4 z-[150] mx-4 mb-2 max-w-xl sm:bottom-5 sm:right-5 sm:left-auto sm:mx-0 sm:mb-0"
-    />
-  );
-}
-
 export function InlineError({
   error,
   onRetry,

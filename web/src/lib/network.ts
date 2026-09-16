@@ -5,18 +5,119 @@
  * The Capacitor Network plugin provides more reliable status on Android,
  * while the browser uses navigator.onLine + online/offline events.
  *
+ * Health polling policy (single source of truth — every other poller in the
+ * app was removed; subscribe with onStatusChange or use checkNow() instead):
+ *
+ *   - healthy:  probe every 14 minutes (cheap HEAD, tiny battery cost)
+ *   - failing:  recovery probes back off 15s → 30s → 1m → 2m → 4m → 8m
+ *               so the app heals itself within seconds of the backend
+ *               coming back, without hammering a sleeping server
+ *   - hidden:   tab in background skips probes; visible + status change
+ *               probes immediately
+ *   - on recovery: the Socket.IO singleton is revived so download
+ *               progress events resume without a page refresh
+ *
  * Usage:
- *   import { isOnline, onStatusChange } from '@/lib/network'
+ *   import { isOnline, onStatusChange, checkNow } from '@/lib/network'
  *
  *   if (isOnline()) { ... }
  *   const unsub = onStatusChange((online) => { ... })
  */
+
+import { ws } from '@/lib/websocket.lib';
 
 // ── State ──────────────────────────────────────────────────────
 
 let _online = typeof navigator !== 'undefined' ? navigator.onLine : true;
 const _listeners: Set<(online: boolean) => void> = new Set();
 let _capacitorAvailable = false;
+
+// ── Timing constants ───────────────────────────────────────────
+
+/** Healthy cadence — the backend gets pinged every 14 minutes, nothing more. */
+const HEALTHY_INTERVAL_MS = 14 * 60 * 1000;
+/** First recovery probe comes fast, then backs off (values in ms). */
+const RECOVERY_BACKOFF_MS = [15_000, 30_000, 60_000, 120_000, 240_000, 480_000] as const;
+const PROBE_TIMEOUT_MS = 5_000;
+
+// ── Probe machinery ────────────────────────────────────────────
+
+let _timer: ReturnType<typeof setTimeout> | null = null;
+let _probing = false;
+let _failStreak = 0;
+let _getHealthUrl: (() => string) | null = null;
+let _documentListenerBound = false;
+
+function _clearTimer() {
+   if (_timer !== null) {
+      clearTimeout(_timer);
+      _timer = null;
+   }
+}
+
+function _scheduleNext(delayMs: number) {
+   _clearTimer();
+   _timer = setTimeout(() => {
+      _timer = null;
+      void _probe();
+   }, delayMs);
+}
+
+async function _probe() {
+   if (_probing || !_getHealthUrl) return;
+   if (typeof document !== 'undefined' && document.hidden) {
+      // Background tab — skip the probe; visibilitychange will re-probe.
+      return;
+   }
+
+   _probing = true;
+   let ok = false;
+   try {
+      const res = await fetch(_getHealthUrl(), {
+         method: 'HEAD',
+         cache: 'no-store',
+         signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      });
+      ok = res.ok;
+   } catch {
+      ok = false;
+   } finally {
+      _probing = false;
+   }
+
+   const wasOnline = _online;
+   _online = ok;
+
+   if (ok) {
+      _failStreak = 0;
+      _scheduleNext(HEALTHY_INTERVAL_MS);
+   } else {
+      const backoff = RECOVERY_BACKOFF_MS[Math.min(_failStreak, RECOVERY_BACKOFF_MS.length - 1)];
+      _failStreak += 1;
+      _scheduleNext(backoff);
+   }
+
+   if (wasOnline !== _online) {
+      _notify(_online);
+   }
+}
+
+function _notify(online: boolean) {
+   _listeners.forEach((l) => l(online));
+   window.dispatchEvent(
+      new CustomEvent('rheoson:network-change', { detail: { online } })
+   );
+
+   if (online) {
+      // The socket gives up after 10 reconnect attempts — revive it so
+      // download progress / live events resume without a page refresh.
+      try {
+         ws.connect();
+      } catch {
+         // Socket layer not initialized yet — nothing to revive.
+      }
+   }
+}
 
 // ── Capacitor detection ────────────────────────────────────────
 
@@ -30,11 +131,11 @@ async function _initCapacitor() {
          const wasOnline = _online;
          _online = status.connected;
          if (wasOnline !== _online) {
-            _listeners.forEach((l) => l(_online));
-            window.dispatchEvent(
-               new CustomEvent('rheoson:network-change', { detail: { online: _online } })
-            );
+            _notify(_online);
          }
+         // Connectivity changed — verify the backend right away rather
+         // than waiting out the current timer.
+         if (_getHealthUrl) void _probe();
       });
 
       _capacitorAvailable = true;
@@ -50,54 +151,23 @@ function _initBrowser() {
 
    window.addEventListener('online', () => {
       _online = true;
-      _listeners.forEach((l) => l(true));
-      window.dispatchEvent(
-         new CustomEvent('rheoson:network-change', { detail: { online: true } })
-      );
+      _notify(true);
+      void _probe();
    });
 
    window.addEventListener('offline', () => {
       _online = false;
-      _listeners.forEach((l) => l(false));
-      window.dispatchEvent(
-         new CustomEvent('rheoson:network-change', { detail: { online: false } })
-      );
+      _notify(false);
    });
 }
 
-// ── Health check ───────────────────────────────────────────────
-// Periodically ping the backend to verify actual connectivity.
-// navigator.onLine can be unreliable (e.g. on Android with no captive portal).
-
-let _healthTimer: ReturnType<typeof setInterval> | null = null;
-
-function _startHealthCheck(getHealthUrl: () => string) {
-   if (_healthTimer) return;
-   _healthTimer = setInterval(async () => {
-      try {
-         const res = await fetch(getHealthUrl(), {
-            method: 'HEAD',
-            cache: 'no-store',
-            signal: AbortSignal.timeout(5000),
-         });
-         const wasOnline = _online;
-         _online = res.ok;
-         if (wasOnline !== _online) {
-            _listeners.forEach((l) => l(_online));
-            window.dispatchEvent(
-               new CustomEvent('rheoson:network-change', { detail: { online: _online } })
-            );
-         }
-      } catch {
-         if (_online) {
-            _online = false;
-            _listeners.forEach((l) => l(false));
-            window.dispatchEvent(
-               new CustomEvent('rheoson:network-change', { detail: { online: false } })
-            );
-         }
-      }
-   }, 30_000); // every 30 seconds
+/** Re-probe promptly when the tab becomes visible again. */
+function _initVisibility() {
+   if (_documentListenerBound || typeof document === 'undefined') return;
+   _documentListenerBound = true;
+   document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) void _probe();
+   });
 }
 
 // ── Init (call once at app startup) ────────────────────────────
@@ -107,8 +177,12 @@ let _initialized = false;
 export function initNetwork(getHealthUrl: () => string) {
    if (_initialized) return;
    _initialized = true;
-   _initCapacitor().then(() => _initBrowser());
-   _startHealthCheck(getHealthUrl);
+   _getHealthUrl = getHealthUrl;
+   _initCapacitor().then(() => {
+      _initBrowser();
+      _initVisibility();
+   });
+   void _probe();
 }
 
 // ── Public API ─────────────────────────────────────────────────
@@ -125,6 +199,15 @@ export function isOnline(): boolean {
 export function onStatusChange(callback: (online: boolean) => void): () => void {
    _listeners.add(callback);
    return () => _listeners.delete(callback);
+}
+
+/**
+ * Force an immediate health probe (Retry buttons, foregrounded screens).
+ * Safe to call concurrently — re-entrant calls are folded into the
+ * in-flight probe.
+ */
+export function checkNow(): void {
+   void _probe();
 }
 
 /**

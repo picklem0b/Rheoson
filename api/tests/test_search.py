@@ -20,21 +20,6 @@ async def test_search_empty_query_rejected(client):
 
 
 @pytest.mark.asyncio
-async def test_search_suggest_requires_query(client):
-    """Suggest without q parameter should return 422."""
-    resp = await client.get("/api/search/suggest")
-    assert resp.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_search_suggest_short_query_returns_empty(client):
-    """Single character queries should return empty suggestions."""
-    resp = await client.get("/api/search/suggest?q=a")
-    assert resp.status_code == 200
-    assert resp.json() == []
-
-
-@pytest.mark.asyncio
 async def test_resolve_requires_body(client):
     """Resolve without body should return 422."""
     resp = await client.post("/api/search/resolve")

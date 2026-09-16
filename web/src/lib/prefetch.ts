@@ -18,6 +18,7 @@
 import { API_BASE } from './constants';
 import { isOnline } from './network';
 import { warmAudioCache, cacheLimitBytes } from './audioCache';
+import { getAuthHeader } from '@/api/client.api';
 
 const _inflight = new Map<string, AbortController>();
 
@@ -49,17 +50,24 @@ export function prefetchStream(trackId: string): void {
   const controller = new AbortController();
   _inflight.set(trackId, controller);
 
-  fetch(`${API_BASE}/stream/${trackId}/warm`, {
-    method: 'POST',
-    signal: controller.signal,
-    // Include credentials so the backend can attribute the request
-    credentials: 'include',
-  }).catch(() => {
-    // Warming is best-effort — a failure just means the first play
-    // falls back to the normal live-stream path.
-  }).finally(() => {
-    _inflight.delete(trackId);
-  });
+  // The warm endpoint requires a session — without the Bearer header
+  // every warm-up 401s and the server-side head start never happens,
+  // so first plays fall back to the full multi-second yt-dlp path.
+  getAuthHeader()
+    .then((headers) =>
+      fetch(`${API_BASE}/stream/${trackId}/warm`, {
+        method: 'POST',
+        headers,
+        signal: controller.signal,
+      })
+    )
+    .catch(() => {
+      // Warming is best-effort — a failure just means the first play
+      // falls back to the normal live-stream path.
+    })
+    .finally(() => {
+      _inflight.delete(trackId);
+    });
 }
 
 /**

@@ -107,6 +107,18 @@ export function getAuthToken(): string | null {
    return _clerkToken;
 }
 
+/**
+ * Authorization header for fetches that bypass the `api` client (media
+ * prefetchers, service-worker probes). Resolves Clerk tokens through the
+ * same refreshing provider so long-lived prefetch loops never carry a
+ * stale token — without this, warm-up calls 401 silently and every first
+ * play pays the full yt-dlp cost again.
+ */
+export async function getAuthHeader(): Promise<Record<string, string>> {
+   const token = await resolveAuthToken();
+   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(
    endpoint: string,
    options: RequestOptions = {}
