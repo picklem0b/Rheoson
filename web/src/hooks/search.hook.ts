@@ -5,18 +5,15 @@ import { prefetchSearchResults } from "@/lib/prefetch";
 import type { SearchResults, SearchFilter } from "@/types/search.types";
 import type { Track } from "@/types/track.types";
 import { detectInputType } from "@/lib/utils";
+import { localSuggest } from "@/lib/suggest";
 
 // ── Debounce timings ──────────────────────────────────────────
 // SEARCH_MS: how long to wait after the user stops typing before
 // firing the full search. 350 ms is the sweet spot — fast enough to
 // feel instant, slow enough that mid-word characters (e.g. "kend" in
 // "kendrick") don't each fire a separate request.
-//
-// SUGGEST_MS: autocomplete runs faster because it only calls /suggest
-// which is a cheap lookup, not a full ytmusicapi query.
 
 const SEARCH_MS = 350;
-const SUGGEST_MS = 100;
 
 // ── Session persistence ───────────────────────────────────────
 
@@ -91,17 +88,13 @@ export function useSearch() {
    const [error, setError] = useState<string | null>(null);
 
    const searchAbort = useRef<AbortController | null>(null);
-   const suggestAbort = useRef<AbortController | null>(null);
    const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-   const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
    // Cleanup on unmount — cancel any in-flight requests and clear timers
    useEffect(
       () => () => {
          searchAbort.current?.abort();
-         suggestAbort.current?.abort();
          if (searchTimer.current) clearTimeout(searchTimer.current);
-         if (suggestTimer.current) clearTimeout(suggestTimer.current);
       },
       []
    );
@@ -117,14 +110,12 @@ export function useSearch() {
    }, []);
 
    // ── Autocomplete suggestions ───────────────────────────────
+   // Pure-local (history + curated seeds): synchronous, zero network.
    // Only fires for plain text queries (not Spotify/YouTube URLs) and
    // only when there are no results yet (prevents ghost suggestions
    // appearing over an already-rendered results list).
 
    useEffect(() => {
-      if (suggestTimer.current) clearTimeout(suggestTimer.current);
-      suggestAbort.current?.abort();
-
       const q = query.trim();
 
       if (
@@ -137,16 +128,7 @@ export function useSearch() {
          return;
       }
 
-      suggestTimer.current = setTimeout(async () => {
-         const ctrl = new AbortController();
-         suggestAbort.current = ctrl;
-         try {
-            const data = await searchApi.getSuggestions(q, ctrl.signal);
-            if (!ctrl.signal.aborted) setSuggestions(data.slice(0, 6));
-         } catch (e) {
-            if (!isAbortError(e)) setSuggestions([]);
-         }
-      }, SUGGEST_MS);
+      setSuggestions(localSuggest(q));
    }, [query, results]);
 
    // ── Full search ────────────────────────────────────────────
@@ -219,9 +201,7 @@ export function useSearch() {
 
    const clear = useCallback(() => {
       searchAbort.current?.abort();
-      suggestAbort.current?.abort();
       if (searchTimer.current) clearTimeout(searchTimer.current);
-      if (suggestTimer.current) clearTimeout(suggestTimer.current);
       setQueryState("");
       setResults(null);
       setSuggestions([]);

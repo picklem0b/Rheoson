@@ -36,7 +36,7 @@ function isEntry(v: unknown): v is SearchHistoryEntry {
    )
 }
 
-function readHistory(): SearchHistoryEntry[] {
+export function readHistory(): SearchHistoryEntry[] {
    try {
       const raw = localStorage.getItem(HISTORY_KEY)
       if (!raw) return []
