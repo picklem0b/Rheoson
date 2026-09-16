@@ -20,6 +20,10 @@ export interface CategoryMeta {
    label: string;
    emoji: string;
    gradient: string;
+   /** Iconic artist of the genre — shown as the tile background. */
+   hero?: string;
+   /** Portrait URL (Deezer CDN, ~1000px square). */
+   heroUrl?: string;
 }
 
 
