@@ -45,6 +45,11 @@ jobs:
                   # Fix: was "${{ secrets.VITE_API_URL }} }}" — double closing brace
                   # caused the env block to be silently ignored in GitHub Actions.
                   VITE_API_URL: ${{ secrets.VITE_API_URL }}
+                  # Baked into the bundle at build time. Without it the APK ships
+                  # a local-mode bundle: no ClerkProvider mounts, and every
+                  # useUser()/useAuth() call crashes with "can only be used
+                  # within <ClerkProvider />" (the web/app.err crash).
+                  VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
                   # NODE_ENV=production is required so import.meta.env.PROD === true
                   # inside the Vite build. Without it, API_BASE resolves to '/api'
                   # (the dev proxy path) which is meaningless inside the APK WebView

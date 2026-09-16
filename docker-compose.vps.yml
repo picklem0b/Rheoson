@@ -51,6 +51,12 @@ services:
         # /api + same-origin WebSocket (see web/src/lib/constants.ts).
         # One domain, no CORS, no second DNS record.
         VITE_API_URL: ""
+        # Baked into the bundle at build time. Interpolated from the host
+        # shell (export it, or put it in a .env next to this compose file).
+        # Omitting it builds a local-mode SPA — the UI stays usable, but
+        # Clerk sign-in is unavailable and the API rejects every request
+        # (auth is mandatory server-side).
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
     restart: unless-stopped
     expose:
       - "80"

@@ -8,7 +8,7 @@ import {
   Pencil, Check, X, Shield, BarChart3, Flame, Award,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
-import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-react'
+import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import { analyticsApi } from '@/api/analytics.api'
 import { tracksApi } from '@/api/tracks.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
@@ -94,11 +94,20 @@ function QuickLink({ icon: Icon, label, description, to, color }: {
 // ── Main page ──────────────────────────────────────────────────
 
 export default function Profile() {
+  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
+  if (!clerkEnabled) return <LocalProfile />
+  return <ClerkProfile />
+}
+
+/**
+ * Split by build-time Clerk configuration. useUser()/useAuth() throw
+ * "can only be used within <ClerkProvider />" when the bundle was built
+ * without VITE_CLERK_PUBLISHABLE_KEY — the provider isn't mounted in
+ * that build, so the Clerk-hook variants must never render there.
+ */
+function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
-  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
-  const { signOut: clerkSignOut } = useClerkAuth()
-  const { user: clerkUser } = useUser()
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -176,8 +185,10 @@ export default function Profile() {
   }
 
   const handleLogout = async () => {
-    if (clerkEnabled && clerkUser) {
-      await clerkSignOut()
+    // `user` is the Clerk-synced mirror in the auth store, so a Clerk
+    // session is exactly a non-null user here.
+    if (signOut && user) {
+      await signOut()
     }
     logout()
     navigate('/')
@@ -391,4 +402,15 @@ export default function Profile() {
       </div>
     </ScrollArea>
   )
+}
+
+/** Clerk-mode wrapper: the only place the Clerk hooks are called. */
+function ClerkProfile() {
+  const { signOut } = useClerkAuth()
+  return <ProfileBody signOut={signOut} />
+}
+
+/** Local-mode wrapper (bundle built without VITE_CLERK_PUBLISHABLE_KEY). */
+function LocalProfile() {
+  return <ProfileBody />
 }

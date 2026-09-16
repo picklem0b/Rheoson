@@ -26,6 +26,11 @@ git clone <your-repo-url> Rheoson && cd Rheoson
 # 3. Configure
 cp api/.env.vps.example api/.env
 $EDITOR api/.env        # Clerk keys, SECRET_KEY, MONGODB_URL (Atlas M0 is fine)
+
+# The SPA's Clerk publishable key is baked in at BUILD time (compose
+# interpolates it from the shell). Export it before deploying, or the web
+# image builds in local mode and sign-in is unavailable:
+export VITE_CLERK_PUBLISHABLE_KEY=pk_live_…   # from dashboard.clerk.com
 $EDITOR Caddyfile       # replace rheoson.example.com with your domain
 
 # 4. Deploy (builds, starts, health-checks)
