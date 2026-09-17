@@ -41,17 +41,36 @@ public class DownloadForegroundService extends Service {
 
     /** entry point used by the Capacitor plugin */
     public static void start(Context context, String title, int count) {
-        Intent intent = new Intent(context, DownloadForegroundService.class);
-        intent.setAction(ACTION_START);
-        intent.putExtra(EXTRA_TITLE, title == null ? "" : title);
-        intent.putExtra(EXTRA_COUNT, Math.max(1, count));
-        context.startForegroundService(intent);
+        // Swallow, never propagate: a background start restriction (Android
+        // 12+) or a missing permission must degrade to "no notification",
+        // not a crashed app. Callers cannot recover either way.
+        try {
+            Intent intent = new Intent(context, DownloadForegroundService.class);
+            intent.setAction(ACTION_START);
+            intent.putExtra(EXTRA_TITLE, title == null ? "" : title);
+            intent.putExtra(EXTRA_COUNT, Math.max(1, count));
+            context.startForegroundService(intent);
+        } catch (SecurityException | IllegalStateException ignored) {
+            // Background start rejected — the OS decided this app may not
+            // hold a foreground slot right now. Downloads continue; only
+            // the keep-alive is lost.
+        }
     }
 
     public static void stop(Context context) {
+        // stopService(), never startService(): starting a service is
+        // forbidden while the app is backgrounded on Android 12+ and throws
+        // IllegalStateException — which, escaping a Capacitor plugin call,
+        // crashes the app. That is precisely the moment stop() fires (last
+        // download finishes with the screen off), so stopping must use the
+        // API that works from anywhere. Stopping an already-stopped service
+        // is a no-op, so no running-check is needed.
         Intent intent = new Intent(context, DownloadForegroundService.class);
-        intent.setAction(ACTION_STOP);
-        context.startService(intent);
+        try {
+            context.stopService(intent);
+        } catch (SecurityException ignored) {
+            // No permission to stop — nothing further to do.
+        }
     }
 
     @Override
@@ -64,6 +83,14 @@ public class DownloadForegroundService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent != null ? intent.getAction() : ACTION_STOP;
         if (ACTION_STOP.equals(action)) {
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        // START_STICKY restart with a null intent lands here too — treat a
+        // restart with no arguments as a stop rather than showing a bogus
+        // "Downloading…" notification with nothing running.
+        if (intent == null) {
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
             return START_NOT_STICKY;

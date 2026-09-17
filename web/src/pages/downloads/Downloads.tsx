@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import DownloadRow from './components/DownloadRow'
 import LibraryTrackRow from './components/LibraryTrackRow'
+import ErrorBoundary from '@/components/ui/ErrorBoundary'
 
 /**
  * My Music — one unified page for everything on this device.
@@ -206,11 +207,21 @@ export default function Downloads() {
                   {downloadedCount > 0 && ` · ${downloadedCount} available offline`}
                 </span>
               </div>
-              <div className="space-y-1">
-                {filteredTracks.map((track, i) => (
-                  <LibraryTrackRow key={track.id} track={track} index={i} />
-                ))}
-              </div>
+              {/* Boundary around rows only: one malformed track object must
+                  cost one row, never the whole page. */}
+              <ErrorBoundary
+                fallback={
+                  <p className="text-xs text-[var(--text-muted)] px-3 py-2">
+                    Some library entries could not be displayed.
+                  </p>
+                }
+              >
+                <div className="space-y-1">
+                  {filteredTracks.map((track, i) => (
+                    <LibraryTrackRow key={track.id} track={track} index={i} />
+                  ))}
+                </div>
+              </ErrorBoundary>
             </>
           )}
         </section>
