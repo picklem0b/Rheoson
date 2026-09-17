@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { SignIn, SignUp } from '@clerk/clerk-react'
 import { motion } from 'framer-motion'
-import { Music } from 'lucide-react'
-import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
+import { isClerkEnabled } from '@/lib/constants'
+import AppLogo from '@/components/ui/AppLogo'
 import './auth.css'
 
 interface AuthPageProps {
@@ -26,7 +26,7 @@ interface AuthPageProps {
 export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
+  const clerkEnabled = isClerkEnabled()
 
   if (clerkEnabled) {
     const isSignUp = mode === 'sign-up'
@@ -70,9 +70,7 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
         >
           {/* Logo */}
           <div className="flex flex-col items-center gap-3 mb-4">
-            <div className="w-11 h-11 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
-              <Music className="w-5 h-5 text-white" />
-            </div>
+            <AppLogo size="lg" />
           </div>
 
           {/* Clerk prebuilt component */}
@@ -112,9 +110,7 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
         className="auth-form"
       >
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
-            <Music className="w-7 h-7 text-white" />
-          </div>
+          <AppLogo size="xl" glow />
           <div className="text-center">
             <h1 className="text-2xl font-black text-[var(--text-primary)]">
               {mode === 'sign-up' ? 'Create account' : 'Welcome back'}
