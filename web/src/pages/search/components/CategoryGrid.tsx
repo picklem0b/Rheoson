@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Fragment, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, ListMusic, Play, RefreshCw, Trophy, X } from 'lucide-react'
 import { searchApi, type CategoryMeta } from '@/api/search.api'
@@ -61,8 +61,8 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
             {categories.map((cat, i) => {
                const isOpen = expanded === cat.slug
                return (
+                  <Fragment key={cat.slug}>
                   <motion.button
-                     key={cat.slug}
                      initial={{ opacity: 0, scale: 0.88 }}
                      animate={{ opacity: 1, scale: 1 }}
                      transition={{
@@ -116,21 +116,24 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                         )}
                      />
                   </motion.button>
+
+                  {/* Expanded panel renders as a full-width grid item directly
+                      after the tapped tile — the “dropdown” sits exactly under
+                      its category instead of below the whole grid. */}
+                  {isOpen && (
+                     <div className="col-span-full">
+                        <CategoryTopSongs
+                           slug={cat.slug}
+                           week={week}
+                           onSearchAll={onSelect}
+                           onClose={() => setExpanded(null)}
+                        />
+                     </div>
+                  )}
+                  </Fragment>
                )
             })}
          </div>
-
-         <AnimatePresence>
-            {expanded && (
-               <CategoryTopSongs
-                  key={expanded}
-                  slug={expanded}
-                  week={week}
-                  onSearchAll={onSelect}
-                  onClose={() => setExpanded(null)}
-               />
-            )}
-         </AnimatePresence>
       </div>
    )
 }
