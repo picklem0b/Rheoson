@@ -16,6 +16,7 @@
  */
 
 import type { HealthCheck, HealthPayload, HealthStatus } from '@/api/health.api'
+import { describeApiTarget, type ApiTargetSource } from '@/lib/constants'
 
 export type Severity = 'ok' | 'warn' | 'bad' | 'unknown'
 
@@ -313,15 +314,33 @@ export interface RuntimeFacts {
    requests?: number
    errors?: number
    checkedAt?: string
+   /** REST base this build is actually using. */
+   apiBase: string
+   /** How that base was decided — see lib/apiTarget.ts. */
+   apiSource: ApiTargetSource
 }
 
+/**
+ * Facts shown on the Doctor screen.
+ *
+ * `apiBase`/`apiSource` are derived from the build, not from the response, so
+ * they are reported even when the backend is unreachable — which is precisely
+ * when "what is this build even talking to?" is the only useful answer. A
+ * misconfigured origin is invisible in a health payload; it *is* the bug.
+ */
 export function runtimeFacts(payload: HealthPayload | undefined): RuntimeFacts {
-   if (!payload) return {}
+   const target = describeApiTarget()
    return {
-      uptime: humanUptime(payload.uptimeS) || undefined,
-      p95: payload.latency?.window60s?.latencyMs?.p95,
-      requests: payload.latency?.window60s?.requests,
-      errors: payload.latency?.recentErrors?.length,
-      checkedAt: payload.generatedAt,
+      apiBase: target.apiBase,
+      apiSource: target.source,
+      ...(payload
+         ? {
+              uptime: humanUptime(payload.uptimeS) || undefined,
+              p95: payload.latency?.window60s?.latencyMs?.p95,
+              requests: payload.latency?.window60s?.requests,
+              errors: payload.latency?.recentErrors?.length,
+              checkedAt: payload.generatedAt,
+           }
+         : {}),
    }
 }

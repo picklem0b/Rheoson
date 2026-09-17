@@ -23,32 +23,34 @@ public class DownloadForegroundPlugin extends Plugin {
 
     @PluginMethod
     public void start(PluginCall call) {
-        String title = call.getString("title", "");
-        int count = call.getInt("count", 1);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (!hasNotificationPermission()) {
-                // Still start the service — Android 13+ simply hides the
-                // notification while the foreground slot remains held.
-                // But tell the caller so the UI can explain missing UI.
-                DownloadForegroundService.start(getContext(), title, count);
-                JSObject ret = new JSObject();
-                ret.put("started", true);
-                ret.put("notificationVisible", false);
-                call.resolve(ret);
-                return;
-            }
+        // Every method resolves — an exception escaping a plugin method
+        // takes the whole app down, and a notification can never be worth
+        // a crash. start/stop/update degrade to "no notification shown".
+        try {
+            String title = call.getString("title", "");
+            int count = call.getInt("count", 1);
+            boolean visible = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                || hasNotificationPermission();
+            DownloadForegroundService.start(getContext(), title, count);
+            JSObject ret = new JSObject();
+            ret.put("started", true);
+            ret.put("notificationVisible", visible);
+            call.resolve(ret);
+        } catch (Exception e) {
+            JSObject ret = new JSObject();
+            ret.put("started", false);
+            ret.put("notificationVisible", false);
+            call.resolve(ret);
         }
-        DownloadForegroundService.start(getContext(), title, count);
-        JSObject ret = new JSObject();
-        ret.put("started", true);
-        ret.put("notificationVisible", true);
-        call.resolve(ret);
     }
 
     @PluginMethod
     public void stop(PluginCall call) {
-        DownloadForegroundService.stop(getContext());
+        try {
+            DownloadForegroundService.stop(getContext());
+        } catch (Exception ignored) {
+            // Already stopped or the OS refused — either way we're done.
+        }
         JSObject ret = new JSObject();
         ret.put("started", false);
         call.resolve(ret);
@@ -56,9 +58,13 @@ public class DownloadForegroundPlugin extends Plugin {
 
     @PluginMethod
     public void update(PluginCall call) {
-        String title = call.getString("title", "");
-        int count = call.getInt("count", 1);
-        DownloadForegroundService.start(getContext(), title, count);
+        try {
+            String title = call.getString("title", "");
+            int count = call.getInt("count", 1);
+            DownloadForegroundService.start(getContext(), title, count);
+        } catch (Exception ignored) {
+            // Notification text stays stale; downloads are unaffected.
+        }
         call.resolve();
     }
 
