@@ -23,6 +23,8 @@ import {
 } from "./apiTarget";
 
 export { CANONICAL_API_ORIGIN };
+// Re-exported so diagnostics code only needs one import for "where is the API".
+export type { ApiTargetSource } from "./apiTarget";
 
 const RAW_API_URL: string | undefined = import.meta.env.VITE_API_URL;
 
