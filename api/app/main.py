@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_user
 from app.core import health as healthmod
 
 from app.core.config import settings, validate_startup
@@ -51,7 +51,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.17.10"
+VERSION = "2.17.11"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -600,10 +600,12 @@ async def version_info():
 @app.get("/api/library/featured", tags=["library"])
 async def library_featured(
     limit: int = Query(10, ge=1, le=50),
-    user: dict = Depends(get_current_user),
+    user: dict | None = Depends(get_optional_user),
 ):
     from app.routers.playlist_router import _load
-    data = list(_load(user["sub"]).values())[:limit]
+    # Guest-first: an anonymous visitor has no playlists yet — an empty hero
+    # beats a 401 wall in front of the whole home page.
+    data = list(_load(user["sub"]).values())[:limit] if user else []
     return [
         {
             "id":         pl["id"],
@@ -617,7 +619,7 @@ async def library_featured(
 
 
 @app.get("/api/library/albums", tags=["library"])
-async def library_albums(_user: dict = Depends(get_current_user)):
+async def library_albums(_user: dict | None = Depends(get_optional_user)):
     from app.routers.track_router import _build_index
     idx  = await _build_index()
     seen: dict[str, dict] = {}
@@ -640,7 +642,7 @@ async def library_albums(_user: dict = Depends(get_current_user)):
 
 
 @app.get("/api/library/artists", tags=["library"])
-async def library_artists(_user: dict = Depends(get_current_user)):
+async def library_artists(_user: dict | None = Depends(get_optional_user)):
     from app.routers.track_router import _build_index
     idx  = await _build_index()
     seen: dict[str, dict] = {}
@@ -665,7 +667,7 @@ async def library_artists(_user: dict = Depends(get_current_user)):
 async def library_album_detail(
     album_id: str,
     name: str = Query("", description="Fallback match by album title"),
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ):
     """Album detail page: cover + full track list.
 
@@ -739,7 +741,7 @@ def _artist_slug(name: str) -> str:
 async def artist_detail(
     artist_id: str,
     name: str = Query("", description="Fallback match by artist name"),
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ):
     from fastapi import HTTPException as _HTTP
 

@@ -374,7 +374,7 @@ export interface paths {
         };
         /**
          * Visitor Count
-         * @description Get the registered-account total. Session required (no guest counting).
+         * @description Visitor totals. Public: the landing-page counter renders for guests.
          */
         get: operations["visitor_count_api_auth_visitor_count_get"];
         put?: never;
@@ -528,7 +528,7 @@ export interface paths {
          *
          *     Backed by the background probe cache — no expensive work per request.
          */
-        get: operations["health_api_health_head"];
+        get: operations["health_api_health_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -539,7 +539,7 @@ export interface paths {
          *
          *     Backed by the background probe cache — no expensive work per request.
          */
-        head: operations["health_api_health_head_1"];
+        head: operations["health_api_health_get_1"];
         patch?: never;
         trace?: never;
     };
@@ -3406,7 +3406,7 @@ export interface operations {
             };
         };
     };
-    health_api_health_head: {
+    health_api_health_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3426,7 +3426,7 @@ export interface operations {
             };
         };
     };
-    health_api_health_head_1: {
+    health_api_health_get_1: {
         parameters: {
             query?: never;
             header?: never;
