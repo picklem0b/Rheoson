@@ -870,7 +870,7 @@
           "auth"
         ],
         "summary": "Visitor Count",
-        "description": "Get the registered-account total. Session required (no guest counting).",
+        "description": "Visitor totals. Public: the landing-page counter renders for guests.",
         "operationId": "visitor_count_api_auth_visitor_count_get",
         "responses": {
           "200": {
@@ -1291,7 +1291,7 @@
         ],
         "summary": "Health",
         "description": "Full cheap health snapshot with per-subsystem checks.\n\nBacked by the background probe cache \u2014 no expensive work per request.",
-        "operationId": "health_api_health_head",
+        "operationId": "health_api_health_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1309,7 +1309,7 @@
         ],
         "summary": "Health",
         "description": "Full cheap health snapshot with per-subsystem checks.\n\nBacked by the background probe cache \u2014 no expensive work per request.",
-        "operationId": "health_api_health_head_1",
+        "operationId": "health_api_health_get_1",
         "responses": {
           "200": {
             "description": "Successful Response",

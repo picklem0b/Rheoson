@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.config import settings
 from app.core.database import db_available, get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_user
 from app.services.local_history import (
     clear_history_local,
     dislike_local,
@@ -174,7 +174,7 @@ async def _history_ids_mongo(db: AsyncIOMotorDatabase, user_id: str) -> list[str
 
 
 @router.get("/", response_model=list[TrackSchema])
-async def list_tracks(_user: dict = Depends(get_current_user)):
+async def list_tracks(_user: dict | None = Depends(get_optional_user)):
     """All files currently on disk — shared instance library."""
     idx = await _build_index()
     return sorted(idx.values(), key=lambda t: t.get("title", "").lower())
@@ -207,8 +207,10 @@ async def get_liked(user: dict = Depends(get_current_user)):
 
 
 @router.get("/recently-played", response_model=list[TrackSchema])
-async def get_recently_played(user: dict = Depends(get_current_user)):
-    user_id = user["sub"]
+async def get_recently_played(user: dict | None = Depends(get_optional_user)):
+    # Guest-first: the device-local history key works without an account;
+    # signed-in users get their Mongo history with the local file as fallback.
+    user_id = user["sub"] if user else "guest"
     ids: list[str] = []
     try:
         if db_available():
@@ -224,7 +226,7 @@ async def get_recently_played(user: dict = Depends(get_current_user)):
 @router.get("/trending", response_model=list[TrackSchema])
 async def get_trending(
     limit: int = 20,
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ):
     """Charts snapshot (fresh on every call, used by the live Trending rail)."""
     try:
@@ -247,7 +249,7 @@ async def get_trending(
 @router.get("/trending/weekly")
 async def get_weekly_trending(
     limit: int = 10,
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ):
     from app.services import weekly_cache
     from app.services.ytmusic_service import get_trending as yt_trending

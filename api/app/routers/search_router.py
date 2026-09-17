@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
-from app.core.deps import get_current_user
+from app.core.deps import get_optional_user
 from app.services.search_service import search, resolve_url
 from app.services.ytmusic_service import CATEGORIES, category_meta
 from app.services import weekly_cache
@@ -29,7 +29,7 @@ async def search_endpoint(
     # 'songs' is accepted as an alias for 'tracks' — the service layer
     # already branches on it, so the router must not reject it.
     filter: str | None = Query(None, pattern="^(tracks|songs|albums|artists|playlists)$"),
-    _user:  dict       = Depends(get_current_user),
+    _user:  dict | None = Depends(get_optional_user),
 ):
     q = _sanitize_query(q)
     if not q:
@@ -38,7 +38,7 @@ async def search_endpoint(
 
 
 @router.get("/categories")
-async def list_categories(_user: dict = Depends(get_current_user)) -> dict:
+async def list_categories(_user: dict | None = Depends(get_optional_user)) -> dict:
     """Category tiles for the browse grid, with the current cache week.
 
     Served from the backend so the grid, the weekly refresher and the smart
@@ -54,7 +54,7 @@ async def list_categories(_user: dict = Depends(get_current_user)) -> dict:
 async def category_top(
     slug: str,
     limit: int = Query(5, ge=1, le=20),
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ) -> dict:
     """The best songs in one category, refreshed weekly and cached on disk."""
     meta = category_meta(slug)
@@ -82,7 +82,7 @@ class ResolveRequest(BaseModel):
 @router.post("/resolve", response_model=ResolveResponseSchema)
 async def resolve_endpoint(
     body: ResolveRequest,
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ):
     url = body.url.strip()
     if not url:
