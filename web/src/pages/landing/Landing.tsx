@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, Music } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { useAuth } from '@clerk/clerk-react'
 import { useAuthStore } from '@/store/auth.store'
 import { APP_NAME, isClerkEnabled } from '@/lib/constants'
+import AppLogo from '@/components/ui/AppLogo'
 
 /**
  * Entry screen for signed-out users.
@@ -68,9 +69,9 @@ function GateBody({ clerkEnabled, authed = false }: GateBodyProps) {
           initial={{ scale: 0.85, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.08, type: 'spring', damping: 20 }}
-          className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--accent)] shadow-lg shadow-brand/25"
+          className="mb-6"
         >
-          <Music className="h-8 w-8 text-white" />
+          <AppLogo size="2xl" glow />
         </motion.div>
 
         <h1 className="text-3xl font-black tracking-tight text-[var(--text-primary)]">

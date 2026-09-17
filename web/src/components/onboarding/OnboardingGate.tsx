@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Search, X, Music2 } from 'lucide-react'
+import { Check, Search, X } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
+import AppLogo from '@/components/ui/AppLogo'
 import { recommendationsApi } from '@/api/recommendations.api'
 import { searchApi } from '@/api/search.api'
 import { useAuthStore } from '@/store/auth.store'
@@ -158,8 +159,8 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
     <Modal open={open} onClose={seeding ? () => {} : onCancel} title={undefined}>
       {/* Gradient hero */}
       <div className="rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-600 to-rose-500 px-5 pt-6 pb-5 text-white relative overflow-hidden mb-4">
-        <div className="absolute right-4 top-4 opacity-30">
-          <Music2 className="w-10 h-10 text-white" />
+        <div className="absolute right-4 top-4 opacity-25">
+          <AppLogo size="md" className="rounded-xl" />
         </div>
         <h2 className="text-xl font-black leading-tight relative">Make it yours</h2>
         <p className="text-sm text-white/80 mt-1.5 leading-relaxed relative">
