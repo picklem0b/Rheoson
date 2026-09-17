@@ -169,3 +169,16 @@ async def test_mongodb_check_pings_db_not_db_admin(monkeypatch):
     assert entry["status"] == "passing", entry
     assert fake_db.pinged is True
     assert "latencyMs" in entry
+
+
+@pytest.mark.asyncio
+async def test_health_accepts_head_requests(client):
+    """HEAD /api/health must return 200, not 405.
+
+    Android's CapacitorHttp and some proxies probe with HEAD; a 405 made the
+    client-side health poller report the API as unreachable while every GET
+    (search, streaming) worked fine — the "You're offline" banner with a
+    working app. GET routes that front-ends probe must accept HEAD.
+    """
+    resp = await client.head("/api/health")
+    assert resp.status_code == 200

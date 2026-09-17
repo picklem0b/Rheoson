@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Component, useEffect, type ErrorInfo, type ReactNode } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useAuthStore } from '@/store/auth.store';
 import { setClerkToken, setClerkTokenProvider } from '@/api/client.api';
@@ -15,6 +15,47 @@ import { setClerkToken, setClerkTokenProvider } from '@/api/client.api';
  * request layer's token provider, so every API call receives a valid token —
  * Clerk refreshes transparently once the cached one is near expiry.
  */
+/**
+ * Keeps a Clerk render failure from becoming a dead app.
+ *
+ * Clerk's React hooks throw when the provider has no context — which happens
+ * for a malformed key, when its remote script cannot load, or when the
+ * session instance is revoked mid-flight. Because the throw happens during
+ * render of a routed component, react-router escalates it to its default
+ * "Unexpected Application Error!" page, i.e. the whole app dies and no music
+ * plays. Catching it here lets the root swap to local mode instead: the
+ * account features go away, playback, downloads and the library do not.
+ */
+interface CrashGuardProps {
+  children: ReactNode;
+  /** Called once when a descendant throws; the root then unmounts Clerk. */
+  onFail: () => void;
+}
+
+interface CrashGuardState {
+  failed: boolean;
+}
+
+export class ClerkCrashGuard extends Component<CrashGuardProps, CrashGuardState> {
+  state: CrashGuardState = { failed: false };
+
+  static getDerivedStateFromError(): CrashGuardState {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('[rheoson] Clerk failed at runtime — falling back to local mode', error, info);
+    this.props.onFail();
+  }
+
+  render(): ReactNode {
+    // Rendering null (not children) is deliberate: children would throw again
+    // on the very next render, before the root has had a chance to unmount
+    // the provider.
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 export default function ClerkUserSync() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { user } = useUser();

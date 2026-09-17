@@ -73,12 +73,19 @@ async function _probe() {
    _probing = true;
    let ok = false;
    try {
+      // GET with a 1-byte range, not HEAD: FastAPI GET routes answer HEAD
+      // with 405, and CapacitorHttp on Android mangles HEAD semantics —
+      // the probe always "failed" while real (GET) traffic worked fine,
+      // which lied to the user with an offline banner and disabled every
+      // prefetch/cache path in the app. Any status below 500 proves the
+      // API is alive; the range header keeps the body to a single byte.
       const res = await fetch(_getHealthUrl(), {
-         method: 'HEAD',
+         method: 'GET',
          cache: 'no-store',
+         headers: { Range: 'bytes=0-0' },
          signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
       });
-      ok = res.ok;
+      ok = res.status < 500;
    } catch {
       ok = false;
    } finally {
