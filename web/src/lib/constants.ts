@@ -23,6 +23,8 @@ import {
 } from "./apiTarget";
 
 export { CANONICAL_API_ORIGIN };
+// Re-exported so diagnostics code only needs one import for "where is the API".
+export type { ApiTargetSource } from "./apiTarget";
 
 const RAW_API_URL: string | undefined = import.meta.env.VITE_API_URL;
 
@@ -130,7 +132,7 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const APP_NAME = "Rheoson";
-export const APP_VERSION = "2.17.9";
+export const APP_VERSION = "2.17.10";
 
 // ── Clerk ────────────────────────────────────────────────────
 // Publishable key for Clerk auth. Must be set in .env (VITE_CLERK_PUBLISHABLE_KEY).

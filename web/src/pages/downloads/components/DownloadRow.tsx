@@ -41,7 +41,7 @@ interface DownloadRowProps {
 function transferDetail(job: DownloadJob): string {
   if (job.status !== 'downloading') return ''
   return [
-    formatSpeed(job.speedBps),
+    formatSpeed(job.speedBps ?? 0),
     job.totalBytes ? formatFileSize(job.totalBytes) : '',
     formatEta(job.etaSeconds),
   ]
@@ -49,7 +49,19 @@ function transferDetail(job: DownloadJob): string {
     .join('  ·  ')
 }
 
-export default function DownloadRow({ job, index, onCancel, onRetry, onResume }: DownloadRowProps) {
+export default function DownloadRow({ job: jobProp, index, onCancel, onRetry, onResume }: DownloadRowProps) {
+  // Schema-drift guards: persisted jobs survive reloads in localStorage, so
+  // a job written by an older build can lack fields this row assumes.
+  // `job` below is the defaulted object — the whole component reads it.
+  const job = {
+    ...jobProp,
+    title: jobProp.title ?? 'Untitled',
+    artist: jobProp.artist ?? 'Unknown Artist',
+    status: jobProp.status ?? 'queued',
+    progress: typeof jobProp.progress === 'number' ? jobProp.progress : 0,
+    format: jobProp.format ?? 'mp3',
+    quality: jobProp.quality ?? 0,
+  }
   const cfg     = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.queued
   const active  = !['done', 'error', 'cancelled'].includes(job.status)
   const isError = job.status === 'error'

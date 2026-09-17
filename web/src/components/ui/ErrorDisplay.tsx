@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, RefreshCw, WifiOff, Server, AlertCircle } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Server, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type ErrorSeverity = 'error' | 'warning' | 'info';
