@@ -21,6 +21,7 @@ import {
    User,
    Users,
    BadgeCheck,
+   Info,
    Link as LinkIcon
 } from "lucide-react";
 import { usePlayerStore } from "@/store/player.store";
@@ -278,20 +279,14 @@ function compactCount(v: number | string | null | undefined): string {
 
 function CreatorTab({
    artistId,
-   artistName,
-   lyrics
+   artistName
 }: {
    artistId?: string;
    artistName?: string;
-   lyrics: {
-      lines: { text: string; time?: number }[];
-      activeLine: number;
-      synced: boolean;
-      isLoading: boolean;
-      isPlaying: boolean;
-      onSeek?: (seconds: number) => void;
-   };
 }) {
+   // Bio is tucked behind an (i) icon — the tab leads with the artist,
+   // not a wall of text.
+   const [showBio, setShowBio] = useState(false);
    const navigate = useNavigate();
    const isAuthenticated = useAuthStore(s => s.isAuthenticated);
 
@@ -431,7 +426,20 @@ function CreatorTab({
                </div>
 
                {artist.description && (
-                  <p className='text-xs text-white/40 leading-relaxed'>{artist.description}</p>
+                  <div className='px-1'>
+                     <button
+                        onClick={() => setShowBio(v => !v)}
+                        aria-label={showBio ? 'Hide artist info' : 'About this artist'}
+                        className='flex items-center gap-1.5 text-[11px] font-semibold text-white/40 transition-colors hover:text-white/70'>
+                        <Info className='w-3.5 h-3.5' />
+                        About
+                     </button>
+                     {showBio && (
+                        <p className='mt-1.5 text-xs text-white/40 leading-relaxed'>
+                           {artist.description}
+                        </p>
+                     )}
+                  </div>
                )}
             </>
          ) : (
@@ -450,27 +458,6 @@ function CreatorTab({
             </div>
          )}
 
-         {/* Lyrics — the only content this tab carries */}
-         <div>
-            <div className='flex items-center justify-between px-1 mb-1'>
-               <p className='text-[10px] font-bold uppercase tracking-widest text-white/40'>
-                  Lyrics
-               </p>
-               {lyrics.synced && (
-                  <span className='text-[10px] font-bold uppercase tracking-widest text-[var(--accent)]'>
-                     Auto-synced
-                  </span>
-               )}
-            </div>
-            <LyricsTab
-               lines={lyrics.lines}
-               activeLine={lyrics.activeLine}
-               synced={lyrics.synced}
-               isLoading={lyrics.isLoading}
-               isPlaying={lyrics.isPlaying}
-               onSeek={lyrics.onSeek}
-            />
-         </div>
       </div>
    );
 }
@@ -836,18 +823,18 @@ export default function NowPlaying() {
                <PlayerControls large />
             </div>
 
-            {/* Tabs */}
-            <div className='flex-shrink-0 px-6 mt-4 border-b border-white/10'>
-               <div className='flex gap-6'>
+            {/* Tabs — segmented pill control, active tab filled */}
+            <div className='flex-shrink-0 px-6 mt-4'>
+               <div className='inline-flex gap-1 rounded-full bg-white/5 p-1'>
                   {(["queue", "lyric", "creator"] as Tab[]).map(t => (
                      <button
                         key={t}
                         onClick={() => setTab(t)}
                         className={cn(
-                           "pb-3 text-sm font-bold capitalize transition-colors border-b-2 -mb-px",
+                           "px-4 py-1.5 rounded-full text-xs font-bold transition-colors",
                            tab === t
-                              ? "text-white border-white"
-                              : "text-white/40 border-transparent"
+                              ? "bg-white text-black"
+                              : "text-white/50 hover:text-white/80"
                         )}>
                         {t === "queue"
                            ? "Queue"
@@ -885,14 +872,6 @@ export default function NowPlaying() {
                         <CreatorTab
                            artistId={currentTrack.artist?.id}
                            artistName={currentTrack.artist?.name}
-                           lyrics={{
-                              lines,
-                              activeLine,
-                              synced,
-                              isLoading: lyricsLoading,
-                              isPlaying,
-                              onSeek: seek
-                           }}
                         />
                      )}
                   </motion.div>

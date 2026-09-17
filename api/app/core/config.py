@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import sys
+import tempfile
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -25,9 +26,17 @@ class Settings(BaseSettings):
     AUDIO_QUALITY:            str = "0"
     MAX_CONCURRENT_DOWNLOADS: int = 4
     # Durable warm-stream cache (survives restarts, unlike the in-memory
-    # remote cache). 0 disables. Entries are exact copies of what was
-    # streamed — repeat plays of the same track serve from disk instantly.
-    STREAM_CACHE_DIR:         str = ""
+    # remote cache). Entries are exact copies of what was streamed — repeat
+    # plays of the same track serve from disk instantly, which is the whole
+    # difference between "streams again" and "starts instantly".
+    #
+    # This used to default to "" (disabled), so the cache was silently off on
+    # every deployment that did not set it — Termux included, where a restart
+    # threw away everything that had been warmed. A temp path is the honest
+    # default: enabled everywhere, persistent where the filesystem persists
+    # (Termux) and as ephemeral as the in-memory cache on Render.
+    # Set to "" to disable, or point it at real storage to keep it forever.
+    STREAM_CACHE_DIR:         str = str(Path(tempfile.gettempdir()) / "Rheoson_stream_cache")
     STREAM_CACHE_MAX_MB:      int = 1024
 
     SPOTIFY_CLIENT_ID:     str = ""
