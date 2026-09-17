@@ -44,7 +44,10 @@ const config: CapacitorConfig = {
       },
 
       LocalNotifications: {
-         smallIcon: "ic_stat_icon_config_sample",
+         // Generated from the app logo by scripts/generate-android-icons.sh.
+         // The previous value named an icon the project never contained, so
+         // the download-foreground notification had nothing to draw.
+         smallIcon: "ic_stat_rheoson",
          iconColor: "#E5193A",
          sound: "rhea.mp3"
       },
