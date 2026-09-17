@@ -12,7 +12,12 @@ graphify-out/
 # Environment
 .env
 .env.local
-.env.production
+/.env.production
+# web/.env.production is tracked on purpose: it carries only non-secret
+# build defaults (public API origin + publishable key) so native/CI builds
+# can never ship a relative /api again. Real secrets stay in untracked
+# .env / .env.local files.
+!web/.env.production
 # VPS bind-mount payload — the whole library + user state lives here
 data/
 
@@ -33,6 +38,11 @@ music/*.json
 # Local design references — screenshots kept on disk for reference only,
 # never shipped and never committed.
 reference/
+
+# Local scratch — personal notes, captured error output, ad-hoc logs.
+notes.txt
+*.err
+api.logs
 
 # OS
 .DS_Store
