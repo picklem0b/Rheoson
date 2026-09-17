@@ -84,21 +84,26 @@ git push origin main
 
 ## Tagging releases
 
-Rheoson uses semantic versioning: `vMAJOR.MINOR.PATCH[-rc]`
-  - `rc` = release candidate (still being tested)
-  - no suffix = stable release
+Rheoson versions as `v2.MILESTONE.PHASE[-rc]` — not generic semver:
 
-Tags are **always annotated** (`git tag -a`), never lightweight — the tag message is the release summary that feeds `docs/CHANGELOG.md`. Push tags with `git push --follow-tags` (never a bare `git push --tags`).
+  - **MILESTONE** — the product era currently in development (e.g. `2.17`). It changes only when the project enters a new arc, never per-feature, and a new milestone restarts phases at `.0`.
+  - **PHASE** — one completed phase of work inside the milestone. Every finished, tested phase ships as its own annotated tag (`v2.17.0`, `v2.17.1`, … `v2.17.9`, `v2.17.10`, …). Do not batch multiple phases into one tag and do not sit on untagged work — a phase that is done gets tagged.
+  - `rc` = release candidate (still being tested); no suffix = stable release.
 
-### Current tag: v2.16.5 (stable)
+Tags are **always annotated** (`git tag -a`), never lightweight. The subject is `v2.M.PHASE — <phase theme>`; the body lists what the phase delivered as bullets, and feeds `docs/CHANGELOG.md`. Push tags with `git push --follow-tags` (never a bare `git push --tags`).
 
-**Cut a release (after the version files are bumped):**
+### Current milestone: 2.17 — latest phase: v2.17.9 (stable)
+
+**Tag a phase (after the version files are bumped and gates pass):**
 ```bash
 git checkout main
 git merge --no-ff dev
-git tag -a v2.17.0 -m "v2.17.0 — auth sub-route fix, hermetic test suite, docs system, Apache-2.0"
+git tag -a v2.17.10 -m "v2.17.10 — <phase theme>" -m "- bullet one
+- bullet two
+- bullet three"
 git push origin main --follow-tags
 ```
+The next phase continues at `.11` — always the highest existing phase + 1 within the milestone (`git tag -l --sort=-v:refname | head -1`).
 
 **Tag a new release candidate:**
 ```bash
