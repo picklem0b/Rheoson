@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.services.artwork_service import extract_artwork, fetch_remote_artwork
 from app.services.metadata_service import _file_id
+from app.services import stream_service
 
 # NOTE on auth for byte routes: the four content routes below (audio,
 # artwork, artwork-proxy) must stay reachable by <audio>/<img> elements,
@@ -265,12 +266,20 @@ def _warm_promote(track_id: str, src: Path, mime: Optional[str]) -> None:
         return
     dest = d / f"{track_id}.audio"
     try:
-        if os.name == "posix":
+        # A hard link is instant and copies nothing, but `os.link` is not
+        # available on every POSIX platform this runs on (Termux/Android, for
+        # one), so probe for it instead of trusting the os.name check — the
+        # AttributeError that produced is swallowed below and silently left the
+        # durable cache empty.
+        _link = getattr(os, "link", None)
+        linked = False
+        if _link is not None:
             try:
-                os.link(src, dest)  # instant, no bytes copied
+                _link(src, dest)
+                linked = True
             except OSError:
-                shutil.copyfile(src, dest)
-        else:
+                linked = False
+        if not linked:
             shutil.copyfile(src, dest)
         if mime:
             (d / f"{track_id}.mime").write_text(mime)
@@ -319,118 +328,23 @@ def _warm_mime(track_id: str) -> Optional[str]:
 # concurrent listener shares one upstream fetch and the durable cache still
 # fills for the next play.
 
-_direct_url_cache: dict[str, tuple[str, float]] = {}
-# CDN URLs are signed for roughly six hours; refresh well inside that window.
-_DIRECT_URL_TTL = 4 * 60 * 60
-
-# Prefer containers every WebView can decode natively (AAC in an MP4
-# container, which Android and desktop Chrome both play). Matching on `ext`
-# stops YouTube handing back an audio-only WebM when an M4A exists.
-_PREFERRED_FORMAT = os.environ.get(
-    "STREAM_YTDLP_FORMAT",
-    "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio",
-)
-
-_UA_ANDROID = (
-    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-)
-_UA_DESKTOP = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
-
-_MIME_BY_CONTENT_TYPE = {
-    "audio/mp4":  "audio/mp4",
-    "video/mp4":  "audio/mp4",
-    "audio/aac":  "audio/mp4",
-    "audio/webm": "audio/webm",
-    "video/webm": "audio/webm",
-    "audio/mpeg": "audio/mpeg",
-    "audio/mp3":  "audio/mpeg",
-    "audio/ogg":  "audio/ogg; codecs=opus",
-}
-
-
-def _direct_url_cached(track_id: str) -> Optional[str]:
-    entry = _direct_url_cache.get(track_id)
-    if entry is None:
-        return None
-    url, ts = entry
-    if time.time() - ts > _DIRECT_URL_TTL:
-        _direct_url_cache.pop(track_id, None)
-        return None
-    return url
+# Resolution and mime inference live in the streaming service so the same
+# logic is shared by this route, the warm endpoint and the doctor. The aliases
+# below keep the call sites reading naturally.
+_UPLOAD_UA = stream_service.UA_DESKTOP
 
 
 async def _resolve_direct_url(track_id: str) -> Optional[str]:
-    """Resolve a track's CDN URL with `yt-dlp -g`, downloading no bytes.
-
-    Costs one metadata extraction. Returns None when every player-client
-    variant fails, in which case the caller falls back to transcoding.
-    """
-    cached = _direct_url_cached(track_id)
-    if cached:
-        return cached
-
-    yt_url = f"https://www.youtube.com/watch?v={track_id}"
-    variants = [
-        ("youtube:player_client=mweb,android,web", _UA_ANDROID),
-        ("youtube:player_client=web", _UA_DESKTOP),
-        ("youtube:player_client=android", _UA_ANDROID),
-    ]
-
-    for extractor_args, ua in variants:
-        cmd = [
-            "yt-dlp", "--quiet", "--no-warnings", "--no-playlist",
-            "-f", _PREFERRED_FORMAT, "-g",
-            "--extractor-args", extractor_args,
-            "--add-header", f"User-Agent:{ua}",
-            yt_url,
-        ]
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
-            )
-        except Exception as e:
-            log.warning("stream.resolve_direct.spawn_failed", track_id=track_id, error=str(e))
-            continue
-
-        try:
-            out, _ = await asyncio.wait_for(proc.communicate(), timeout=25.0)
-        except asyncio.TimeoutError:
-            try:
-                proc.kill()
-            except Exception:
-                pass
-            continue
-
-        for line in (out or b"").decode("utf-8", "replace").splitlines():
-            line = line.strip()
-            if line.startswith("http"):
-                _direct_url_cache[track_id] = (line, time.time())
-                return line
-
-    return None
+    """Resolve a track's CDN URL (cached). See stream_service for details."""
+    try:
+        return await stream_service.resolve_direct_url(track_id)
+    except Exception as e:  # noqa: BLE001 — resolution failure means "no fast path"
+        log.warning("stream.resolve_direct.failed", track_id=track_id, error=str(e))
+        return None
 
 
 def _mime_from_response(url: str, content_type: str) -> str:
-    """Best-guess audio mime from the CDN URL, then the response header."""
-    try:
-        from urllib.parse import urlparse, parse_qs, unquote
-        qs = parse_qs(urlparse(url).query)
-        declared = unquote((qs.get("mime") or [""])[0]).lower()
-        if "mp4" in declared:
-            return "audio/mp4"
-        if "webm" in declared:
-            return "audio/webm"
-        if "mpeg" in declared:
-            return "audio/mpeg"
-    except Exception:
-        pass
-    return _MIME_BY_CONTENT_TYPE.get(content_type, "audio/mpeg")
+    return stream_service.mime_from_response(url, content_type)
 
 
 async def _download_direct(url: str, dest: Path) -> str:
@@ -444,7 +358,7 @@ async def _download_direct(url: str, dest: Path) -> str:
         async with client.stream(
             "GET",
             url,
-            headers={"User-Agent": _UA_DESKTOP, "Accept": "*/*"},
+            headers={"User-Agent": _UPLOAD_UA, "Accept": "*/*"},
         ) as res:
             res.raise_for_status()
             content_type = (res.headers.get("content-type") or "").split(";")[0].strip().lower()
@@ -483,7 +397,7 @@ async def _fill_buffer(track_id: str, dest: Path) -> str:
             log.warning("stream.buffer.direct_failed", track_id=track_id, error=str(e))
             # A stale signed URL is the most likely cause — drop it so the next
             # attempt re-resolves instead of reusing a dead link.
-            _direct_url_cache.pop(track_id, None)
+            stream_service.forget_direct_url(track_id)
             try:
                 if dest.exists():
                     dest.unlink()
@@ -687,14 +601,23 @@ async def stream_audio(track_id: str, request: Request):
     if request.method == "HEAD":
         if len(track_id) != 11:
             raise HTTPException(status_code=404, detail="Invalid track ID")
-        return Response(headers={
-            "Accept-Ranges": "bytes",
-            # Must match what GET actually serves: remote tracks arrive as
-            # native m4a from the CDN, not transcoded mp3. A HEAD that
-            # promises audio/mpeg while GET delivers audio/mp4 makes Howler
-            # mis-decode (html5 audio sniffs the HEAD content-type first).
-            "Content-Type":  "audio/mp4",
-        })
+        headers = {"Accept-Ranges": "bytes", "Content-Type": "audio/mp4"}
+        # When the CDN URL is already resolved, ask it what a GET would really
+        # deliver so the answer carries a truthful content type and total
+        # size. Skipped entirely on a cold cache: paying a yt-dlp extraction
+        # for a HEAD would make discovery probes slower than the playback they
+        # are meant to prepare for, and the optimistic m4a guess below is what
+        # GET serves anyway on the fast path.
+        if stream_service.cached_direct_url(track_id):
+            try:
+                probe = await stream_service.probe_direct(track_id)
+            except Exception:  # noqa: BLE001 — a probe must never fail a HEAD
+                probe = None
+            if probe:
+                headers["Content-Type"] = probe["mime"]
+                if probe.get("bytes"):
+                    headers["Content-Length"] = str(probe["bytes"])
+        return Response(headers=headers)
 
     # NOTE: no forced full-library rescan here. Previously every remote
     # GET set _cache_built=False and re-walked ALL music directories
@@ -1051,6 +974,40 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
         pos   = 0
         total = 0
         try:
+            # ── Head start: tiny first chunks so sound starts sooner ──
+            # The audio element begins decoding as soon as its buffer holds
+            # the opening frames, which live in the first few kilobytes.
+            # Flooding it with a full 64 KB chunk buys nothing for startup,
+            # so the first reads are small and grow — audio leaves the speaker
+            # measurably sooner on a slow link while the rest of the track
+            # still saturates the connection.
+            #
+            # The ladder never *waits* for a bigger step. If the fill is slow
+            # we emit whatever is already on disk and hand over to the
+            # steady-state loop below; blocking here for a larger chunk would
+            # reintroduce exactly the silence this path exists to remove.
+            for want in (2048, 4096, 8192, 16384, CHUNK):
+                if done.is_set():
+                    break
+                size = _size()
+                if size <= pos:
+                    # Nothing yet — yield a couple of scheduler turns, no more.
+                    for _ in range(3):
+                        await asyncio.sleep(0.02)
+                        size = _size()
+                        if size > pos or done.is_set():
+                            break
+                if size <= pos:
+                    break  # fill is slow — the main loop takes over
+                with open(path, "rb") as f:
+                    f.seek(pos)
+                    chunk = f.read(min(want, size - pos))
+                if not chunk:
+                    break
+                pos += len(chunk)
+                total += len(chunk)
+                yield chunk
+
             # Follow the file while the background fill is writing it
             while not done.is_set():
                 size = _size()
@@ -1101,18 +1058,171 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
     )
 
 
+# ── Direct CDN relay ──────────────────────────────────────────
+# The fastest possible path for a remote track: proxy YouTube's own bytes.
+#
+# Streaming the resolved CDN URL rather than a locally produced file is what
+# removes the wait entirely — nothing has to be downloaded, transcoded or
+# buffered before the first byte is relayed. Two properties make it the right
+# design rather than a shortcut:
+#
+#   Startup  the player hears audio as soon as the CDN responds; with a warm
+#            URL cache that is a couple of hundred milliseconds, independent
+#            of track length.
+#   Seeking  the client's Range header is forwarded verbatim and the CDN's own
+#            206 / Content-Range / Content-Length come back untouched, so the
+#            browser knows the duration and can jump anywhere at once. An
+#            open-ended buffer stream can offer neither, and it is why the
+#            old path made the player sit silently until the whole track had
+#            been fetched.
+#
+# Bytes are teed into the durable cache as they pass, so only the first
+# listener of a track pays for the network and every later play (including
+# offline) comes straight off local disk.
+
+
+class _CacheTee:
+    """Accumulates relayed bytes into the durable cache, or throws them away.
+
+    Writes to a unique temp file so two concurrent listeners of the same track
+    can never interleave into one file, and only publishes the result once the
+    full body has actually arrived — a partially-relayed file promoted to the
+    cache would serve a truncated track forever after.
+    """
+
+    def __init__(self, track_id: str, mime: Optional[str]) -> None:
+        self.track_id = track_id
+        self.mime = mime or "audio/mpeg"
+        self.path = _buffer_dir / f"{track_id}.{os.urandom(6).hex()}.relay"
+        self._bytes = 0
+        self._fh = None
+        try:
+            self._fh = open(self.path, "wb")
+        except OSError:
+            self._fh = None
+
+    def feed(self, chunk: bytes) -> None:
+        if self._fh is None:
+            return
+        try:
+            self._fh.write(chunk)
+            self._bytes += len(chunk)
+        except OSError:
+            pass
+
+    async def finish(self) -> None:
+        """Publish the relayed file once the CDN body ended cleanly."""
+        self._close()
+        # Under 1 KB means the relay produced no usable audio.
+        if self._bytes < 1024 or not self.path.exists():
+            await self.abort()
+            return
+        _remote_cache_set(self.track_id, self.path, self.mime)
+        _warm_promote(self.track_id, self.path, self.mime)
+        log.info("stream.relay.cached", track_id=self.track_id, size=self._bytes)
+
+    async def abort(self) -> None:
+        """Discard everything — the client left, or the body was truncated."""
+        self._close()
+        try:
+            self.path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    def _close(self) -> None:
+        if self._fh is not None:
+            try:
+                self._fh.close()
+            except OSError:
+                pass
+            self._fh = None
+
+
+async def _serve_direct_relay(track_id: str, request: Request) -> Optional[Response]:
+    """Relay the CDN's bytes for a track, or None when the fast path is out.
+
+    Returning None (rather than raising) keeps the caller in charge of the
+    fallback: no direct URL, an expired signature or a CDN refusal just means
+    this track has to go through the transcoding buffer path instead.
+    """
+    direct = await _resolve_direct_url(track_id)
+    if not direct:
+        return None
+
+    rng = request.headers.get("range")
+    try:
+        upstream = await stream_service.open_upstream(direct, rng)
+    except stream_service.UpstreamError as e:
+        log.warning("stream.relay.unavailable", track_id=track_id, error=str(e))
+        # A signed URL that the CDN rejected is almost always expired — drop it
+        # so the next attempt re-resolves instead of retrying a dead link.
+        stream_service.forget_direct_url(track_id)
+        return None
+
+    headers = {
+        "Accept-Ranges":          "bytes",
+        "Cache-Control":          "no-cache",
+        "X-Content-Type-Options": "nosniff",
+    }
+    # Mirror the CDN's own framing so the browser gets a real duration and
+    # working seeks instead of an open-ended stream.
+    for name in ("content-length", "content-range"):
+        value = upstream.headers.get(name)
+        if value:
+            headers["Content-Length" if name == "content-length" else "Content-Range"] = value
+
+    already_cached = _remote_cache_get(track_id) is not None or _warm_lookup(track_id) is not None
+    tee = None if already_cached else _CacheTee(track_id, upstream.mime)
+
+    async def _relay():
+        try:
+            async for chunk in upstream.iter_bytes():
+                if tee is not None:
+                    tee.feed(chunk)
+                yield chunk
+            if tee is not None:
+                await tee.finish()
+        except (GeneratorExit, ConnectionResetError, BrokenPipeError):
+            # The listener went away mid-track — keep the cache clean and let
+            # the next request start a fresh relay.
+            if tee is not None:
+                await tee.abort()
+            return
+        except Exception:
+            if tee is not None:
+                await tee.abort()
+            raise
+        finally:
+            await upstream.aclose()
+
+    log.info(
+        "stream.relay",
+        track_id=track_id,
+        status=upstream.status_code,
+        mime=upstream.mime,
+        range=rng,
+    )
+    return StreamingResponse(
+        _relay(),
+        status_code=upstream.status_code,
+        media_type=upstream.mime,
+        headers=headers,
+    )
+
+
 async def _serve_ytdlp(track_id: str, request: Request) -> Response:
-    """Serve a remote track: from the durable cache, or live from its session.
+    """Serve a remote track: live from the CDN, or from the buffer machinery.
 
     Strategy:
-      1. Durable cache hit (a previous fill completed) → serve from disk.
-      2. Otherwise get-or-create the per-track fill session (single yt-dlp
-         shared by every concurrent listener) and stream the buffer file as
-         it grows. First bytes typically arrive within a second or two of
-         yt-dlp starting to produce output.
-      3. Byte-range (seek) requests during an in-progress fill wait for the
-         fill to complete (up to 120 s), then serve the exact range — instead
-         of the old behaviour of spawning a second, conflicting download.
+      1. Relay the CDN directly — instant start and real range support. This
+         is the path virtually every play takes.
+      2. Durable cache hit (a previous fill or relay completed) → serve from
+         disk with full range support.
+      3. Otherwise get-or-create the per-track fill session (one yt-dlp shared
+         by every concurrent listener) and stream the buffer file as it grows.
+      4. A genuine seek while a fill is in progress waits for the fill to
+         complete, then serves the exact range — instead of spawning a second,
+         conflicting download.
     """
     now = time.monotonic()
     if track_id in _failure_cache:
@@ -1129,7 +1239,12 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
         log.debug("stream.remote_cache.hit", track_id=track_id)
         return _serve_local(cached, request, _remote_cache_mime(track_id))
 
-    # ── Case 2: get-or-create the fill session ────────────────
+    # ── Case 2: relay the CDN ─────────────────────────────────
+    relayed = await _serve_direct_relay(track_id, request)
+    if relayed is not None:
+        return relayed
+
+    # ── Case 3: get-or-create the fill session ────────────────
     session = await _ensure_remote_session(track_id)
     if session is None:
         cached = _remote_cache_get(track_id)
@@ -1156,9 +1271,19 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
             detail="Could not stream this track. YouTube may be rate-limiting.",
         )
 
-    # ── Case 3: fill in progress ──────────────────────────────
-    # Byte-range requests need the complete file → wait for the fill.
-    if request.headers.get("range"):
+    # ── Case 4: fill in progress ──────────────────────────────
+    # A `bytes=0-` range is not a seek — it is what every media element sends
+    # as its opening request. Waiting for the entire fill to finish before
+    # answering it (the old behaviour) meant the first audio byte reached the
+    # player only after the whole track had been downloaded: the multi-second
+    # silence. Answering with the growing buffer lets playback start from the
+    # first frames; the element re-requests with a real offset when the user
+    # actually seeks, and that one does need the finished file.
+    rng = request.headers.get("range")
+    if rng:
+        if stream_service.is_whole_file_range(rng):
+            log.info("stream.ytdlp.live_stream", track_id=track_id, range=rng)
+            return await _serve_session_stream(track_id, session)
         try:
             await asyncio.wait_for(asyncio.shield(session["task"]), timeout=120.0)
         except (asyncio.TimeoutError, asyncio.CancelledError):

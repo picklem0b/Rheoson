@@ -1,13 +1,6 @@
 import { useState, useEffect } from "react";
-import {
-   Music2,
-   ExternalLink,
-   Github,
-   Star,
-   GitFork,
-   Eye,
-   Tag
-} from "lucide-react";
+import { ExternalLink, Github, Star, GitFork, Eye, Tag } from "lucide-react";
+import AppLogo from "@/components/ui/AppLogo";
 import { APP_VERSION } from "@/lib/constants";
 import { SettingsGroup, SettingsRow } from "../components/SettingsPrimitives";
 import { cn } from "@/lib/utils";
@@ -67,14 +60,7 @@ export default function AboutSection() {
          {/* App card */}
          <div className='mb-7 rounded-[20px] overflow-hidden border border-[var(--border)]/30 bg-[var(--bg-surface)]'>
             <div className='px-5 py-5 flex items-center gap-4'>
-               <div
-                  className='w-[60px] h-[60px] rounded-[16px] flex items-center justify-center shadow-lg flex-shrink-0'
-                  style={{
-                     background:
-                        "linear-gradient(135deg, var(--accent), var(--accent-bright, var(--accent)))"
-                  }}>
-                  <Music2 className='w-[28px] h-[28px] text-white' />
-               </div>
+               <AppLogo size='3xl' glow />
                <div>
                   <p className='text-[22px] font-bold text-[var(--text-primary)] leading-tight'>
                      Rheoson
