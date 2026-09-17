@@ -11,6 +11,29 @@ import { isNativePlatform } from '@/lib/capacitor';
 import { ensureEffectsChain } from '@/lib/audioEffects';
 import { prefetchQueue } from '@/lib/prefetch';
 import { getCachedObjectUrl, mimeToExt, warmAudioCache } from '@/lib/audioCache';
+
+/**
+ * Howler refuses a source whose format it cannot match to a codec it believes
+ * the browser supports, and our stream URLs carry no file extension
+ * (`/api/stream/<id>/audio`) — so a format hint is mandatory, not optional.
+ *
+ * The hint only gates that codec check: with `html5: true` Howler hands the
+ * raw URL to the <audio> element, which sniffs the real container from the
+ * response. But a hint naming a codec the browser does not claim (flac on
+ * Android, for instance) fails the gate outright and the track never plays,
+ * so the real format is used when known and a universally supported one
+ * otherwise.
+ */
+function _safeFormat(candidate?: string): string[] {
+    const ext = (candidate ?? '').toLowerCase().replace(/^\./, '');
+    return ext && Howler.codecs(ext) ? [ext] : ['mp3'];
+}
+
+/** Extension of a file path, or undefined when there is not one. */
+function _extOf(path?: string): string | undefined {
+    const m = /([^./\\]+)$/.exec((path ?? '').split('?')[0]);
+    return m?.[1];
+}
 import { API_BASE } from '@/lib/constants';
 import { recommendationsApi } from '@/api/recommendations.api';
 import { signalPlayComplete, signalRepeat, signalSkip } from '@/lib/signals';
@@ -167,29 +190,34 @@ async function _resolveUrl(track: {
     id: string;
     filePath?: string;
     isDownloaded?: boolean;
-}): Promise<{ url: string; fromCache: boolean; mime?: string }> {
+}): Promise<{ url: string; fromCache: boolean; format: string[] }> {
     // Tier 0: cached audio bytes
     const cached = await getCachedObjectUrl(track.id);
     if (cached) {
         _objectUrl = cached.url;
-        return { url: cached.url, fromCache: true, mime: cached.mime };
+        return { url: cached.url, fromCache: true, format: _safeFormat(mimeToExt(cached.mime)?.[0]) };
     }
 
     // Tier 1: Direct file access on native platform — zero network required
     if (isNativePlatform() && track.filePath) {
         const fileUrl = await getLocalFileUrl(track.filePath);
-        if (fileUrl) return { url: fileUrl, fromCache: false, mime: undefined };
+        if (fileUrl) return { url: fileUrl, fromCache: false, format: _safeFormat(_extOf(track.filePath)) };
     }
 
-    // Tiers 2 & 3: Go through the backend stream endpoint. The HEAD probe
-    // learns the real container so Howler gets a truthful format hint.
+    // Tiers 2 & 3: the backend stream endpoint.
+    //
+    // No HEAD probe here on purpose. It used to learn the real container for
+    // the format hint, but it cost a full extra round trip *before* the Howl
+    // was even constructed, and the hint only needs to pass Howler's codec
+    // gate — the <audio> element reads the true Content-Type from the GET
+    // response regardless. A local file knows its own extension; a remote
+    // track is served as native m4a when the CDN supplies it and as mp3 after
+    // a transcode, and both codecs are present in every target browser, so
+    // requesting one and letting the decoder sniff the other is safe and
+    // removes a network hop from the critical path.
     const url = tracksApi.getStreamUrl(track.id);
-    let mime: string | undefined;
-    try {
-        const res = await fetch(url, { method: 'HEAD' });
-        mime = res.headers.get('content-type') ?? undefined;
-    } catch { /* hint stays undefined — not fatal */ }
-    return { url, fromCache: false, mime };
+    const known = _extOf(track.filePath) ?? (/^[\w-]{11}$/.test(track.id) ? 'm4a' : undefined);
+    return { url, fromCache: false, format: _safeFormat(known) };
 }
 
 /**
@@ -318,11 +346,12 @@ export function usePlayer() {
 
             // Resolve the URL asynchronously — may need to check local filesystem
             const track = usePlayerStore.getState().currentTrack;
-            const urlPromise: Promise<{ url: string; fromCache: boolean; mime?: string }> = track
+            const urlPromise: Promise<{ url: string; fromCache: boolean; format: string[] }> = track
                 ? _resolveUrl(track)
                 : Promise.resolve({
                       url: tracksApi.getStreamUrl(trackId),
                       fromCache: false,
+                      format: _safeFormat(/^[\w-]{11}$/.test(trackId) ? 'm4a' : undefined),
                   });
 
             urlPromise.then((resolved) => {
@@ -331,12 +360,7 @@ export function usePlayer() {
 
             const url = resolved.url;
             _howlFailed = false; // fresh build — optimism until proven otherwise
-            _loadedFormat =
-                resolved.mime != null
-                    ? mimeToExt(resolved.mime)
-                    : /^[\w-]{11}$/.test(trackId)
-                      ? ['m4a'] // YouTube fast path serves native m4a
-                      : undefined;
+            _loadedFormat = resolved.format;
             _howl = new Howl({
                 src: [url],
                 html5: true,

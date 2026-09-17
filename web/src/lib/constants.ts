@@ -2,47 +2,114 @@
 //
 // Three runtime environments:
 //   1. Dev (npm run dev)      — Vite proxy forwards /api → localhost:8000
-//   2. Prod web (Render)      — VITE_API_URL must be set in Render env vars
-//   3. APK (Capacitor build)  — VITE_API_URL baked in at build time,
-//                               Capacitor CapacitorHttp handles CORS natively
+//   2. Prod web (Render/VPS)  — VITE_API_URL, or same-origin behind nginx
+//   3. APK (Capacitor build)  — an ABSOLUTE VITE_API_URL is mandatory:
+//                               there is no proxy inside the WebView, so a
+//                               relative /api would resolve against the
+//                               bundled assets and return index.html.
 //
 // VITE_API_URL must be the bare origin with no trailing slash:
-//   https://rheoson-api-vnny.onrender.com
+//   https://rheoson-api-9e4c.onrender.com
 // Special value "" (explicitly empty) = same-origin deployment: nginx
 // reverse-proxies /api and /socket.io on the same domain that serves the
-// SPA (see docker-compose.vps.yml). Unset keeps the legacy Render default
-// so APK builds without an env file keep working.
-// For the APK build, set it in web/.env.production before running:
-//   npm run build && npx cap sync
+// SPA (see docker-compose.vps.yml). That only makes sense in a browser —
+// see the native guard below.
 
 const RAW_API_URL: string | undefined = import.meta.env.VITE_API_URL;
-const SAME_ORIGIN = RAW_API_URL === "";
-const PROD_API_ORIGIN =
-   RAW_API_URL === undefined ? "https://rheoson-9e4c.onrender.com" : RAW_API_URL;
+
+/**
+ * The one true production backend origin.
+ *
+ * This is used only when the build supplied no usable VITE_API_URL (an
+ * empty value counts as unusable on native, where there is nothing to be
+ * same-origin *with*). Getting this wrong is not a cosmetic bug: it was
+ * the reason every request in the APK failed with "Backend returned HTML
+ * instead of JSON". The previous fallback pointed at the SPA host, whose
+ * catch-all route answers /api/* with index.html and HTTP 200.
+ */
+export const CANONICAL_API_ORIGIN = "https://rheoson-api-9e4c.onrender.com";
+
+/** True inside the Capacitor native shell (Android/iOS). */
+const IS_NATIVE =
+   typeof window !== "undefined" &&
+   !!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+
+const PAGE_ORIGIN = typeof window !== "undefined" ? window.location.origin : "";
+/** A same-origin request can only be proxied when the page is served over HTTP(S). */
+const PAGE_IS_HTTP =
+   PAGE_ORIGIN.startsWith("http://") || PAGE_ORIGIN.startsWith("https://");
+
+const BUILD_DEV = import.meta.env.DEV;
+const EXPLICIT = (RAW_API_URL ?? "").trim().replace(/\/+$/, "");
+const ABSOLUTE = /^https?:\/\//i.test(EXPLICIT);
+
+/**
+ * Same-origin mode: the build explicitly asked for it ("") and a relative
+ * request can actually reach the reverse proxy that serves the API.
+ * On native the page origin is capacitor://localhost or https://localhost,
+ * where /api is answered by the bundled asset handler — never by the API.
+ */
+const SAME_ORIGIN = EXPLICIT === "" && !ABSOLUTE && !IS_NATIVE && PAGE_IS_HTTP;
+
+// ── API_ORIGIN ────────────────────────────────────────────────
+// Empty string means "same origin as the page" (dev proxy or nginx).
+const API_ORIGIN = BUILD_DEV
+   ? ""
+   : SAME_ORIGIN
+     ? PAGE_ORIGIN
+     : ABSOLUTE
+       ? EXPLICIT
+       : CANONICAL_API_ORIGIN;
+
+/**
+ * Where this build thinks the API lives — surfaced in Settings → Doctor so
+ * a misconfigured build is diagnosable in the app instead of via DevTools.
+ */
+export type ApiTargetSource = "dev-proxy" | "env" | "same-origin" | "canonical-fallback";
+
+const API_TARGET_SOURCE: ApiTargetSource = BUILD_DEV
+   ? "dev-proxy"
+   : ABSOLUTE
+     ? "env"
+     : SAME_ORIGIN
+       ? "same-origin"
+       : "canonical-fallback";
+
+export function describeApiTarget() {
+   return {
+      source: API_TARGET_SOURCE,
+      origin: API_ORIGIN || PAGE_ORIGIN,
+      apiBase: API_BASE,
+      native: IS_NATIVE,
+   };
+}
+
+if (
+   !BUILD_DEV &&
+   API_TARGET_SOURCE === "canonical-fallback" &&
+   typeof console !== "undefined"
+) {
+   console.warn(
+      `[rheoson] No absolute VITE_API_URL was baked into this build; ` +
+         `falling back to ${CANONICAL_API_ORIGIN}. ` +
+         `Native builds must set VITE_API_URL in web/.env.production.`,
+   );
+}
 
 // ── API_BASE ──────────────────────────────────────────────────
 // Used by the api client (client.api.ts) for all REST requests.
 //
 // Dev:      /api          → Vite proxy → http://127.0.0.1:8000/api
-// Prod/APK: https://rheoson-api-vnny.onrender.com/api
-//
-// FIX: Use import.meta.env.DEV (set by Vite) for accurate detection.
-// Previously used import.meta.env.PROD which could be stale.
-export const API_BASE = (import.meta.env.DEV || SAME_ORIGIN) ? "/api" : `${PROD_API_ORIGIN}/api`;
+// Prod/APK: https://rheoson-api-9e4c.onrender.com/api
+export const API_BASE = API_ORIGIN ? `${API_ORIGIN}/api` : "/api";
 
 // ── WS_URL ────────────────────────────────────────────────────
 // Used by websocket.lib.ts for the Socket.IO connection.
 // Socket.IO io() takes the ORIGIN, not the /api path — this was
 // the root cause of the APK WebSocket connection failure.
-//
-// Dev:      http://127.0.0.1:8000   (direct — no Vite proxy for WS in all cases)
-// Prod/APK: https://rheoson-api-vnny.onrender.com
-//
-export const WS_URL = (import.meta.env.DEV)
-   ? (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000")
-   : SAME_ORIGIN
-     ? typeof window !== "undefined" ? window.location.origin : ""
-     : PROD_API_ORIGIN;
+// An empty string tells Socket.IO to use the page origin (proxied in dev).
+export const WS_URL =
+   API_ORIGIN || (ABSOLUTE && BUILD_DEV ? EXPLICIT : PAGE_ORIGIN);
 
 // ── Endpoints ─────────────────────────────────────────────────
 
@@ -104,7 +171,49 @@ export const APP_VERSION = "2.17.8";
 // ── Clerk ────────────────────────────────────────────────────
 // Publishable key for Clerk auth. Must be set in .env (VITE_CLERK_PUBLISHABLE_KEY).
 // When empty, auth features are disabled — the app works in local-only mode.
-export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? "";
+export const CLERK_PUBLISHABLE_KEY = (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? "").trim();
+
+/**
+ * A publishable key always looks like `pk_test_…` / `pk_live_…`.
+ *
+ * This is not cosmetic validation. `CLERK_PUBLISHABLE_KEY` is the app's
+ * "is auth configured?" switch: when it is truthy we mount <ClerkProvider>
+ * and render every component that calls useUser()/useAuth(). A *truthy but
+ * invalid* value — a pasted secret key, a stray quote, a placeholder — makes
+ * Clerk's provider refuse to establish its context while those components
+ * still render, and each one throws "useUser can only be used within the
+ * <ClerkProvider /> component", which react-router escalates to a full-page
+ * error. That is the crash captured in web/app.err.
+ *
+ * Validating the shape means a bad value degrades to local mode instead of
+ * taking a route (or the whole shell) down.
+ */
+const CLERK_KEY_PATTERN = /^pk_(test|live)_[A-Za-z0-9_$+/=-]{8,}$/;
+
+/**
+ * Mutable on purpose: if Clerk is configured correctly but fails at runtime
+ * (script blocked, network dropped, revoked instance), the crash guard flips
+ * this off and the app keeps working in local mode instead of white-screening.
+ * Read it through `isClerkEnabled()` so a flip is honoured on the next render.
+ */
+export const clerkRuntime = { enabled: CLERK_KEY_PATTERN.test(CLERK_PUBLISHABLE_KEY) };
+
+/** True when Clerk auth should be mounted for this render. */
+export function isClerkEnabled(): boolean {
+   return clerkRuntime.enabled;
+}
+
+/** Degrade to local mode after a runtime Clerk failure. */
+export function disableClerkRuntime(): void {
+   clerkRuntime.enabled = false;
+}
+
+if (CLERK_PUBLISHABLE_KEY && !clerkRuntime.enabled && typeof console !== "undefined") {
+   console.warn(
+      "[rheoson] VITE_CLERK_PUBLISHABLE_KEY is set but is not a valid publishable key " +
+         "(pk_test_… / pk_live_…). Continuing in local mode.",
+   );
+}
 
 // ── Artwork proxy ────────────────────────────────────────────
 // Routes YouTube/Spotify CDN artwork through the API server to avoid
