@@ -20,6 +20,11 @@ export default function LibraryTrackRow({
     track,
     index
 }: LibraryTrackRowProps) {
+    // Schema-drift guards: a track object from any cache or source with a
+    // missing artist/album used to throw during render and take the whole
+    // My Music page down with it. Render defensively instead.
+    const artistName = track.artist?.name ?? 'Unknown Artist';
+    const title = track.title ?? 'Untitled';
     const { playTrack } = useQueue();
     const { togglePlay } = usePlayer();
     const currentTrack = usePlayerStore(s => s.currentTrack);
@@ -107,11 +112,11 @@ export default function LibraryTrackRow({
                             : 'text-[var(--text-primary)]'
                     )}
                 >
-                    {track.title}
+                    {title}
                 </p>
 
                 <p className='text-xs text-[var(--text-secondary)] truncate'>
-                    {track.artist.name}
+                    {artistName}
                 </p>
             </div>
 
