@@ -9,8 +9,10 @@ inside the first HTTP response:
   2. A client disconnecting mid-stream must NOT kill the shared fill and
      must NOT leave a truncated buffer promoted to the cache as "valid".
   3. A failed fill must not spawn a retry storm on subsequent requests.
-  4. A byte-range (seek) request during an in-progress fill waits for the
-     complete file instead of spawning a second conflicting download.
+  4. A bounded byte-range (seek) request during an in-progress fill waits for
+     the complete file instead of spawning a second conflicting download,
+     while an open-ended ``bytes=0-`` request — what a media element sends
+     before it plays — is answered from the growing buffer straight away.
 
 yt-dlp itself is never invoked: ``_fill_buffer`` is monkeypatched with a
 deterministic fake writer.
@@ -168,7 +170,30 @@ async def test_failed_fill_does_not_retry_storm(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_range_request_during_fill_waits_for_complete_file(client, monkeypatch):
+async def test_open_ended_range_from_zero_streams_without_waiting(client, monkeypatch):
+    """`bytes=0-` must start flowing immediately, not after the whole fill.
+
+    This is the regression test for the multi-second silence before playback:
+    the opening request from a media element used to be treated as a seek, so
+    the server waited for the entire yt-dlp download (up to 120 s) before
+    answering — the user heard nothing until the track had been fetched.
+    """
+    monkeypatch.setattr(
+        sr, "_fill_buffer", _fake_fill(PAYLOAD, delay=0.4)
+    )
+
+    resp = await client.get(
+        f"/api/stream/{ID_A}/audio",
+        headers={"Range": "bytes=0-"},
+    )
+    # 200 (not 206) on purpose: the size of a still-growing buffer cannot be
+    # promised up front, and an honest 200 keeps the element playing
+    # progressively instead of rejecting a Content-Range it cannot verify.
+    assert resp.status_code == 200, resp.text
+    assert resp.content == PAYLOAD
+
+
+async def test_bounded_range_during_fill_waits_for_complete_file(client, monkeypatch):
     monkeypatch.setattr(
         sr, "_fill_buffer", _fake_fill(PAYLOAD, delay=0.3)
     )
