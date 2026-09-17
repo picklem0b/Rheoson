@@ -6,11 +6,13 @@ import {
    CheckCircle2,
    CircleDashed,
    RefreshCw,
+   Server,
    ShieldCheck,
    Stethoscope,
    Wifi,
    WifiOff
 } from 'lucide-react'
+import type { ApiTargetSource } from '@/lib/constants'
 import { healthApi, type HealthPayload } from '@/api/health.api'
 import { api } from '@/api/client.api'
 import { useAuthStore } from '@/store/auth.store'
@@ -46,6 +48,22 @@ import { cn } from '@/lib/utils'
  * The deep probe runs real work, so it is an explicit action and requires a
  * session.
  */
+
+/**
+ * Plain-language explanation of how the API address was chosen.
+ *
+ * A wrong address is indistinguishable from an outage once requests start
+ * failing, and the fix is completely different in each case — so the Doctor
+ * says which of the three legitimate configurations this build is in, and
+ * flags the one that means "nobody configured it".
+ */
+const API_SOURCE_LABELS: Record<ApiTargetSource, string> = {
+   'dev-proxy': 'Vite dev proxy — requests go to your local backend',
+   env: 'Configured by VITE_API_URL at build time',
+   'same-origin': 'Same origin as this page — reverse proxy in front',
+   'canonical-fallback':
+      'Not configured — using the built-in API host (set VITE_API_URL for a custom deployment)'
+}
 
 const SEVERITY: Record<
    Severity,
@@ -353,6 +371,17 @@ export default function DiagnosticsSection() {
          <SettingsGroup
             title='Server'
             footer='Request metrics for the last 60 seconds, as the server sees them.'>
+            <SettingsRow
+               label='API address'
+               description={API_SOURCE_LABELS[facts.apiSource]}
+               icon={<Server className='w-[14px] h-[14px]' />}
+               iconBg='#8B5CF6'>
+               <span
+                  className='max-w-[190px] truncate text-[13px] font-mono text-[var(--text-muted)]'
+                  title={facts.apiBase}>
+                  {facts.apiBase}
+               </span>
+            </SettingsRow>
             <SettingsRow
                label='Uptime'
                description='Since the API process last started'
