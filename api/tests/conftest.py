@@ -14,6 +14,12 @@ _test_base = tempfile.mkdtemp(prefix="rheoson-api-test-")
 os.environ["MUSIC_DIR"] = os.path.join(_test_base, "music")
 os.environ["DOWNLOADS_DIR"] = os.path.join(_test_base, "downloads")
 os.environ["EXTRA_MUSIC_DIRS"] = "[]"
+# The durable stream cache defaults to a real directory now, and it is
+# deliberately persistent — so without this it would carry warmed tracks from
+# one test run into the next, and a stream test would serve yesterday's bytes
+# instead of exercising the path it is named after. Pin it inside the run's
+# own temp base so every test is hermetic.
+os.environ["STREAM_CACHE_DIR"] = os.path.join(_test_base, "stream-cache")
 os.environ.setdefault(
     "MONGODB_URL", "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=300"
 )
@@ -342,6 +348,21 @@ def _clean_state():
     # any more than the file-backed stores above can.
     for _coll in _shared_mock_db._collections.values():
         _coll._docs.clear()
+    # The durable stream cache is meant to persist across restarts, which
+    # means it happily persists across *tests* as well: a track warmed by one
+    # test would be served from disk by the next, which then silently stops
+    # exercising the path it is named after.
+    import shutil as _shutil
+    _shutil.rmtree(os.environ["STREAM_CACHE_DIR"], ignore_errors=True)
+    # The in-memory remote cache has to go with it — it holds paths into the
+    # directory that was just deleted, and a stale hit would serve a file that
+    # no longer exists.
+    try:
+        import app.routers.stream_router as _sr
+        _sr._remote_cache.clear()
+        _sr._remote_sessions.clear()
+    except Exception:
+        pass
     yield
     # NOTE: .disliked-*.json and .following-*.json are also per-user state in
     # MUSIC_DIR. Leaving them out let hidden-track and followed-artist state
