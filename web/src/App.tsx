@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { Howler } from 'howler'
@@ -19,8 +19,12 @@ import { initAutoSync } from '@/lib/offlineQueue'
 import { migrateOfflineAudioMime } from '@/lib/audioCacheMigration'
 import { initErrorHandler } from '@/lib/errorHandler'
 import { unlockAudioContext } from '@/lib/audioEffects'
-import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
-import ClerkUserSync from '@/components/auth/ClerkUserSync'
+import {
+  CLERK_PUBLISHABLE_KEY,
+  isClerkEnabled,
+  disableClerkRuntime,
+} from '@/lib/constants'
+import ClerkUserSync, { ClerkCrashGuard } from '@/components/auth/ClerkUserSync'
 import { useAuthStore } from '@/store/auth.store'
 import { usePreferenceSync } from '@/hooks/preferenceSync.hook'
 
@@ -59,6 +63,9 @@ export default function App() {
   const initLayout      = useUIStore((s) => s.initLayout)
   const { show, dismiss } = useSplash()
   const { toast } = useToast()
+  // Flipped when Clerk throws during render — the app then re-renders in
+  // local mode instead of showing react-router's error page.
+  const [clerkFailed, setClerkFailed] = useState(false)
 
   // Apply saved theme + layout (font/size) prefs on mount
   useEffect(() => {
@@ -122,8 +129,6 @@ export default function App() {
     return detach
   }, [])
 
-  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
-
   const inner = (
     <ErrorBoundary>
       <AnimatePresence>
@@ -133,11 +138,18 @@ export default function App() {
     </ErrorBoundary>
   )
 
-  if (clerkEnabled) {
+  if (isClerkEnabled() && !clerkFailed) {
     return (
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-        <ClerkUserSync />
-        {inner}
+        <ClerkCrashGuard
+          onFail={() => {
+            disableClerkRuntime();
+            setClerkFailed(true);
+          }}
+        >
+          <ClerkUserSync />
+          {inner}
+        </ClerkCrashGuard>
       </ClerkProvider>
     )
   }

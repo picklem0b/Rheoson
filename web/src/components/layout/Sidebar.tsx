@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
-import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
+import { isClerkEnabled } from '@/lib/constants'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
 
 const NAV_ITEMS = [
@@ -39,16 +39,16 @@ function getInitials(name: string): string {
 
 function ProfileButton() {
   const navigate = useNavigate()
-  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
-  if (!clerkEnabled) return <LocalProfileButton navigate={navigate} />
+  if (!isClerkEnabled()) return <LocalProfileButton navigate={navigate} />
   return <ClerkProfileButton navigate={navigate} />
 }
 
 /**
- * Split by build-time Clerk configuration — useUser() throws
- * "can only be used within <ClerkProvider />" when the bundle was built
- * without VITE_CLERK_PUBLISHABLE_KEY, and this component renders inside
- * the shared layout, which is NOT wrapped by the provider in that build.
+ * Split by Clerk configuration — useUser() throws "can only be used within
+ * <ClerkProvider />" whenever auth is not mounted for this render (keyless
+ * build, or the runtime guard having degraded the app to local mode), and
+ * this component renders inside the shared layout, which is not wrapped by
+ * the provider in that case.
  */
 function ClerkProfileButton({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
   const { user: clerkUser } = useUser()

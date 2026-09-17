@@ -1,6 +1,6 @@
 import Landing from '@/pages/landing/Landing'
 import { useAuth } from '@clerk/clerk-react'
-import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
+import { isClerkEnabled } from '@/lib/constants'
 
 /**
  * Route guard.
@@ -17,11 +17,12 @@ import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
  *   - No gate at all — the app is usable without an account.
  */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  // VITE_CLERK_PUBLISHABLE_KEY is baked at build time, so this branch is
-  // constant for the lifetime of the bundle. Splitting into two components
-  // keeps the useAuth() hook unconditional inside the Clerk-mounting subtree.
-  if (!CLERK_PUBLISHABLE_KEY) {
-    // Local / offline mode (no Clerk key configured) — no auth gate.
+  // Splitting into two components keeps the useAuth() hook unconditional
+  // inside the Clerk-mounting subtree — the hook must never be reached when
+  // the provider is absent, or it throws and takes the whole shell down.
+  if (!isClerkEnabled()) {
+    // Local / offline mode (no Clerk key configured, or degraded at runtime)
+    // — no auth gate.
     return <>{children}</>
   }
   return <ClerkAuthGuard>{children}</ClerkAuthGuard>
