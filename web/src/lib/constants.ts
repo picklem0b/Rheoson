@@ -15,19 +15,16 @@
 // SPA (see docker-compose.vps.yml). That only makes sense in a browser —
 // see the native guard below.
 
-const RAW_API_URL: string | undefined = import.meta.env.VITE_API_URL;
+import {
+   CANONICAL_API_ORIGIN,
+   resolveApiTarget,
+   apiBaseFor,
+   wsUrlFor,
+} from "./apiTarget";
 
-/**
- * The one true production backend origin.
- *
- * This is used only when the build supplied no usable VITE_API_URL (an
- * empty value counts as unusable on native, where there is nothing to be
- * same-origin *with*). Getting this wrong is not a cosmetic bug: it was
- * the reason every request in the APK failed with "Backend returned HTML
- * instead of JSON". The previous fallback pointed at the SPA host, whose
- * catch-all route answers /api/* with index.html and HTTP 200.
- */
-export const CANONICAL_API_ORIGIN = "https://rheoson-api-9e4c.onrender.com";
+export { CANONICAL_API_ORIGIN };
+
+const RAW_API_URL: string | undefined = import.meta.env.VITE_API_URL;
 
 /** True inside the Capacitor native shell (Android/iOS). */
 const IS_NATIVE =
@@ -35,60 +32,28 @@ const IS_NATIVE =
    !!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
 
 const PAGE_ORIGIN = typeof window !== "undefined" ? window.location.origin : "";
-/** A same-origin request can only be proxied when the page is served over HTTP(S). */
-const PAGE_IS_HTTP =
-   PAGE_ORIGIN.startsWith("http://") || PAGE_ORIGIN.startsWith("https://");
-
 const BUILD_DEV = import.meta.env.DEV;
-const EXPLICIT = (RAW_API_URL ?? "").trim().replace(/\/+$/, "");
-const ABSOLUTE = /^https?:\/\//i.test(EXPLICIT);
 
-/**
- * Same-origin mode: the build explicitly asked for it ("") and a relative
- * request can actually reach the reverse proxy that serves the API.
- * On native the page origin is capacitor://localhost or https://localhost,
- * where /api is answered by the bundled asset handler — never by the API.
- */
-const SAME_ORIGIN = EXPLICIT === "" && !ABSOLUTE && !IS_NATIVE && PAGE_IS_HTTP;
+// The decision itself lives in a pure, unit-tested function — see apiTarget.ts
+// for why this must never silently become a relative path.
+const TARGET = resolveApiTarget({
+   rawApiUrl: RAW_API_URL,
+   isDev: BUILD_DEV,
+   isNative: IS_NATIVE,
+   pageOrigin: PAGE_ORIGIN,
+});
 
-// ── API_ORIGIN ────────────────────────────────────────────────
-// Empty string means "same origin as the page" (dev proxy or nginx).
-const API_ORIGIN = BUILD_DEV
-   ? ""
-   : SAME_ORIGIN
-     ? PAGE_ORIGIN
-     : ABSOLUTE
-       ? EXPLICIT
-       : CANONICAL_API_ORIGIN;
-
-/**
- * Where this build thinks the API lives — surfaced in Settings → Doctor so
- * a misconfigured build is diagnosable in the app instead of via DevTools.
- */
-export type ApiTargetSource = "dev-proxy" | "env" | "same-origin" | "canonical-fallback";
-
-const API_TARGET_SOURCE: ApiTargetSource = BUILD_DEV
-   ? "dev-proxy"
-   : ABSOLUTE
-     ? "env"
-     : SAME_ORIGIN
-       ? "same-origin"
-       : "canonical-fallback";
-
+/** Where this build thinks the API lives — surfaced in Settings → Doctor. */
 export function describeApiTarget() {
    return {
-      source: API_TARGET_SOURCE,
-      origin: API_ORIGIN || PAGE_ORIGIN,
+      source: TARGET.source,
+      origin: TARGET.origin || PAGE_ORIGIN,
       apiBase: API_BASE,
       native: IS_NATIVE,
    };
 }
 
-if (
-   !BUILD_DEV &&
-   API_TARGET_SOURCE === "canonical-fallback" &&
-   typeof console !== "undefined"
-) {
+if (TARGET.source === "canonical-fallback" && typeof console !== "undefined") {
    console.warn(
       `[rheoson] No absolute VITE_API_URL was baked into this build; ` +
          `falling back to ${CANONICAL_API_ORIGIN}. ` +
@@ -101,15 +66,14 @@ if (
 //
 // Dev:      /api          → Vite proxy → http://127.0.0.1:8000/api
 // Prod/APK: https://rheoson-api-9e4c.onrender.com/api
-export const API_BASE = API_ORIGIN ? `${API_ORIGIN}/api` : "/api";
+export const API_BASE = apiBaseFor(TARGET);
 
 // ── WS_URL ────────────────────────────────────────────────────
 // Used by websocket.lib.ts for the Socket.IO connection.
-// Socket.IO io() takes the ORIGIN, not the /api path — this was
-// the root cause of the APK WebSocket connection failure.
-// An empty string tells Socket.IO to use the page origin (proxied in dev).
-export const WS_URL =
-   API_ORIGIN || (ABSOLUTE && BUILD_DEV ? EXPLICIT : PAGE_ORIGIN);
+// Socket.IO io() takes the ORIGIN, not the /api path — passing the path was
+// the root cause of the APK's socket connection failure. An empty string
+// tells Socket.IO to use the page origin (the proxied dev case).
+export const WS_URL = wsUrlFor(TARGET, PAGE_ORIGIN);
 
 // ── Endpoints ─────────────────────────────────────────────────
 
