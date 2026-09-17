@@ -1,15 +1,15 @@
 # CLAUDE.md — Rheoson Codebase Context
 
-> Version: 2.17.8 · Long-form docs: [docs/README.md](docs/README.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
+> Version: 2.17.9 · Long-form docs: [docs/README.md](docs/README.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
 
 Rheoson is a self-hosted music streaming + download app (Termux/Android APK first, Render cloud second). FastAPI + Socket.IO backend, React 18 + Vite + Capacitor frontend, MongoDB (Motor) for accounts/recommendations/analytics, JSON/SQLite sidecars for library state.
 
 ## Version sync (all 5, always together)
 
-- `api/pyproject.toml` → `version = "2.17.8"` (then run `uv lock` — `uv.lock` carries it too)
-- `web/package.json` → `"version": "2.17.8"`
-- `web/src/lib/constants.ts` → `APP_VERSION = "2.17.8"`
-- `api/app/main.py` → `VERSION = "2.17.8"`
+- `api/pyproject.toml` → `version = "2.17.9"` (then run `uv lock` — `uv.lock` carries it too)
+- `web/package.json` → `"version": "2.17.9"`
+- `web/src/lib/constants.ts` → `APP_VERSION = "2.17.9"`
+- `api/app/main.py` → `VERSION = "2.17.9"`
 
 ## Non-negotiables
 
