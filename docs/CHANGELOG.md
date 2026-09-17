@@ -6,6 +6,8 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+<<<<<<< HEAD
+=======
 ## v2.17.10
 
 Hygiene-and-environment release: repairs the corrupted environment files behind the intermittent `Invalid or expired token`, cleans the repository tree of accidental duplicate directories, and crash-proofs the My Music page.
@@ -19,6 +21,7 @@ Hygiene-and-environment release: repairs the corrupted environment files behind 
 
 ---
 
+>>>>>>> dev
 ## v2.17.9
 
 Playback- and connectivity-reliability release: fixes the misconfigured API origin that broke every request in the APK, relays the CDN so audio starts on the first frames, and keeps yt-dlp working when a player client refuses a track.
