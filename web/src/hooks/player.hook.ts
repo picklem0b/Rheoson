@@ -24,6 +24,10 @@ import type { Track } from '@/types/track.types';
 let _howl: Howl | null = null;
 let _loadedId: string | null = null;
 let _timer: number | null = null;
+// Set when the current Howl failed to load/decode. A failed Howl still
+// exists, so "if (_howl) _howl.play()" silently no-ops and taps appear
+// dead — play paths must rebuild instead of poking a broken instance.
+let _howlFailed = false;
 // Object URL backing the current Howl when it plays from the local audio
 // cache. Owned here so it can be revoked the moment the track is replaced —
 // leaking one blob per track would pin hundreds of megabytes.
@@ -148,6 +152,7 @@ function _destroy() {
     }
     _loadedId = null;
     _loadedFormat = undefined;
+    _howlFailed = false;
 }
 
 // ── Resolve stream URL ────────────────────────────────────────
@@ -325,6 +330,7 @@ export function usePlayer() {
                 if (gen !== _generation) return;
 
             const url = resolved.url;
+            _howlFailed = false; // fresh build — optimism until proven otherwise
             _loadedFormat =
                 resolved.mime != null
                     ? mimeToExt(resolved.mime)
@@ -342,6 +348,7 @@ export function usePlayer() {
                 onload() {
                     // BUG #25: Ignore if a newer track was loaded while this one was loading
                     if (gen !== _generation) return;
+                    _howlFailed = false;
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
@@ -429,6 +436,7 @@ export function usePlayer() {
 
                 onloaderror(_id, err) {
                     console.error('[Rheoson] load error', { trackId, url, err });
+                    _howlFailed = true;
                     setLoading(false);
                     setPlaying(false);
                     // Keep _loadedId set on purpose: nulling it makes the next
@@ -567,11 +575,14 @@ export function usePlayer() {
     // ── Public API ─────────────────────────────────────────────
 
     const play = useCallback(() => {
-        if (_howl && _loadedId != null) {
+        if (_howl && _loadedId != null && !_howlFailed) {
             _howl.play();
         } else if (currentTrack) {
+            // No Howl, or a Howl in a failed state — rebuild once and start.
+            // Poking a failed Howl with play() does nothing, which read to
+            // the user as "the player doesn't play at all".
             const { savedProgress } = usePlayerStore.getState();
-            loadAndPlay(currentTrack.id, false, true, savedProgress);
+            loadAndPlay(currentTrack.id, true, true, savedProgress);
         }
     }, [currentTrack, loadAndPlay]);
 
@@ -582,7 +593,7 @@ export function usePlayer() {
     const togglePlay = useCallback(() => {
         if (_howl?.playing()) {
             _howl.pause();
-        } else if (_howl && _loadedId != null) {
+        } else if (_howl && _loadedId != null && !_howlFailed) {
             _howl.play();
         } else if (currentTrack) {
             // No usable Howl (never loaded, or destroyed after an error) —
@@ -604,7 +615,7 @@ export function usePlayer() {
     const resume = useCallback(() => {
         if (!currentTrack) return;
         const { savedProgress } = usePlayerStore.getState();
-        if (_howl && _loadedId === currentTrack.id) {
+        if (_howl && _loadedId === currentTrack.id && !_howlFailed) {
             if (savedProgress > 0) {
                 _howl.seek(savedProgress);
                 setProgress(savedProgress);

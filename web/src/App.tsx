@@ -14,6 +14,7 @@ import { startVersionCheck } from '@/lib/versionCheck'
 import { NetworkErrorBanner } from '@/components/ui/NetworkErrorBanner'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { initNetwork } from '@/lib/network'
+import { ENDPOINTS } from '@/lib/constants'
 import { initAutoSync } from '@/lib/offlineQueue'
 import { migrateOfflineAudioMime } from '@/lib/audioCacheMigration'
 import { initErrorHandler } from '@/lib/errorHandler'
@@ -75,8 +76,10 @@ export default function App() {
   useEffect(() => {
     initErrorHandler()
     initNetwork(() => {
-      const PROD_API = import.meta.env.VITE_API_URL ?? 'https://rheoson-api-9e4c.onrender.com'
-      return import.meta.env.DEV ? '/api/health' : `${PROD_API}/api/health`
+      // Canonical URL from constants.ts — deriving the origin here again is
+      // what made the poller probe a different (dead) host than the API
+      // client uses, showing "offline" while search worked fine.
+      return ENDPOINTS.health
     })
     initAutoSync()
     // One-time repair of offline blobs stored with the old wrong mime labels
