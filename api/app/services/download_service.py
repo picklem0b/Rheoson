@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.core.config import settings
+from app.services import stream_service
 from app.websocket.ws_manager import ws_manager
 
 log = structlog.get_logger()
@@ -334,70 +335,21 @@ def _parse_eta(text: str | None) -> int | None:
     return seconds
 
 
-async def _run_download(
-    job_id:        str,
-    yt_url:        str,
-    artist:        str,
-    playlist_name: Optional[str] = None,
-    resume:        bool = False,
-) -> Optional[Path]:
-    """Download + convert one job, honoring its recorded options.
+async def _run_ytdlp_attempt(
+    job_id:      str,
+    job:         dict,
+    cmd:         list[str],
+    concurrency: int,
+) -> tuple[int, str]:
+    """Run one yt-dlp invocation, streaming progress. Returns (rc, error tail).
 
-    The file is first written to a per-job staging directory inside
-    DOWNLOADS_DIR, then moved to its final location. This makes custom
-    paths and naming rules exact — the server composes the final file
-    from the resolved title/artist instead of trusting yt-dlp's template.
-
-    With resume=True the staging dir is kept instead of wiped, and
-    yt-dlp's --continue flag picks up its .part files from where the
-    previous attempt died — a restarted server or a resumed cancel costs
-    the remaining bytes, not the whole transfer.
+    Each attempt is its own cancellable subprocess in its own session.
+    Downloads previously ran in a threadpool executor, which cannot be
+    interrupted: cancel_job() marked the job "cancelled" while yt-dlp/ffmpeg
+    kept running in the background (a zombie process writing into a deleted
+    staging dir). A subprocess group can be SIGKILLed wholesale, and the
+    caller can decide whether a failed attempt is worth retrying.
     """
-    job = _jobs.get(job_id, {})
-    fmt            = job.get('format', 'mp3')
-    quality        = job.get('quality', '320')
-    embed_artwork  = job.get('embedArtwork', True)
-    embed_metadata = job.get('embedMetadata', True)
-    retries        = max(0, int(job.get('retries', 3)))
-    speed_limit    = max(0, int(job.get('speedLimit', 0)))
-    file_naming    = job.get('fileNaming', 'artist-title')
-    custom_path    = (job.get('customPath') or '').strip() or None
-    concurrency    = max(1, int(job.get('concurrency', settings.MAX_CONCURRENT_DOWNLOADS)))
-
-    quality_q = '0' if quality == 'best' else quality
-
-    staging = _staging_dir(job_id)
-    if not resume:
-        shutil.rmtree(staging, ignore_errors=True)
-    staging.mkdir(parents=True, exist_ok=True)
-    out_tmpl = str(staging / '%(title)s.%(ext)s')
-
-    # Maps 1:1 to the postprocessors the library path used before the
-    # cancellable-subprocess rewrite: extract audio, embed tags, embed art.
-    cmd = [
-        'yt-dlp', '--no-playlist', '--quiet', '--no-warnings', '--newline',
-        '--retries', str(retries), '--fragment-retries', str(retries),
-        '--format', 'bestaudio/best',
-        '-x', '--audio-format', fmt, '--audio-quality', quality_q,
-        '-o', out_tmpl,
-    ]
-    if resume:
-        # Resume partially downloaded .part files left by an earlier
-        # attempt (crash, cancel, network loss). No-op when starting fresh.
-        cmd.append('--continue')
-    if embed_metadata:
-        cmd += ['--add-metadata']
-    if embed_artwork:
-        cmd += ['--write-thumbnail', '--embed-thumbnail']
-    if speed_limit > 0:
-        cmd += ['--limit-rate', f'{speed_limit}K']
-    cmd.append(yt_url)
-
-    # Run yt-dlp as a cancellable subprocess in its own session. Downloads
-    # previously ran in a threadpool executor, which cannot be interrupted:
-    # cancel_job() marked the job "cancelled" while yt-dlp/ffmpeg kept
-    # running in the background (a zombie process writing into a deleted
-    # staging dir). A subprocess group can be SIGKILLed wholesale.
     await _acquire_slot(concurrency)
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -408,11 +360,9 @@ async def _run_download(
         )
     except Exception as e:
         await _release_slot()
-        shutil.rmtree(staging, ignore_errors=True)
         raise RuntimeError(f'Could not start yt-dlp: {e}') from e
 
     _procs[job_id] = proc
-    rc = 1
     try:
         # Stream stderr: keep a bounded error tail and emit live progress.
         stderr_tail: list[str] = []
@@ -463,14 +413,118 @@ async def _run_download(
         _procs.pop(job_id, None)
         await _release_slot()
 
+    return rc, ' | '.join(stderr_tail[-6:])
+
+
+async def _run_download(
+    job_id:        str,
+    yt_url:        str,
+    artist:        str,
+    playlist_name: Optional[str] = None,
+    resume:        bool = False,
+) -> Optional[Path]:
+    """Download + convert one job, honoring its recorded options.
+
+    The file is first written to a per-job staging directory inside
+    DOWNLOADS_DIR, then moved to its final location. This makes custom
+    paths and naming rules exact — the server composes the final file
+    from the resolved title/artist instead of trusting yt-dlp's template.
+
+    With resume=True the staging dir is kept instead of wiped, and
+    yt-dlp's --continue flag picks up its .part files from where the
+    previous attempt died — a restarted server or a resumed cancel costs
+    the remaining bytes, not the whole transfer.
+    """
+    job = _jobs.get(job_id, {})
+    fmt            = job.get('format', 'mp3')
+    quality        = job.get('quality', '320')
+    embed_artwork  = job.get('embedArtwork', True)
+    embed_metadata = job.get('embedMetadata', True)
+    retries        = max(0, int(job.get('retries', 3)))
+    speed_limit    = max(0, int(job.get('speedLimit', 0)))
+    file_naming    = job.get('fileNaming', 'artist-title')
+    custom_path    = (job.get('customPath') or '').strip() or None
+    concurrency    = max(1, int(job.get('concurrency', settings.MAX_CONCURRENT_DOWNLOADS)))
+
+    quality_q = '0' if quality == 'best' else quality
+
+    staging = _staging_dir(job_id)
+    if not resume:
+        shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True, exist_ok=True)
+    out_tmpl = str(staging / '%(title)s.%(ext)s')
+
+    # ── Attempt ladder ────────────────────────────────────────
+    #
+    # YouTube serves a different format set to each player client, and any of
+    # them can start refusing a given video, so a single invocation is a
+    # single point of failure: one "Requested format is not available" or
+    # "Sign in to confirm you're not a bot" and the track never downloads.
+    # Walking the client ladder turns that into a slower success instead of a
+    # permanent failure.
+    attempts = stream_service.client_attempts()
+    rc, tail, used_client = 1, '', ''
+
+    for index, extractor_args in enumerate(attempts):
+        if index > 0:
+            # A different client can hand back a different container, so two
+            # attempts must never share a staging directory — the "newest
+            # audio file" heuristic below would pick the wrong one.
+            shutil.rmtree(staging, ignore_errors=True)
+            staging.mkdir(parents=True, exist_ok=True)
+
+        # Maps 1:1 to the postprocessors the library path used before the
+        # cancellable-subprocess rewrite: extract audio, embed tags, embed art.
+        cmd = [
+            'yt-dlp', '--no-playlist', '--quiet', '--no-warnings', '--newline',
+            '--retries', str(retries), '--fragment-retries', str(retries),
+            '--format', stream_service.FORMAT_SELECTOR,
+            '-x', '--audio-format', fmt, '--audio-quality', quality_q,
+            '-o', out_tmpl,
+        ]
+        for arg in extractor_args:
+            cmd += ['--extractor-args', arg]
+        if resume:
+            # Resume partially downloaded .part files left by an earlier
+            # attempt (crash, cancel, network loss). No-op when starting fresh.
+            cmd.append('--continue')
+        if embed_metadata:
+            cmd += ['--add-metadata']
+        if embed_artwork:
+            cmd += ['--write-thumbnail', '--embed-thumbnail']
+        if speed_limit > 0:
+            cmd += ['--limit-rate', f'{speed_limit}K']
+        cmd.append(yt_url)
+
+        used_client = extractor_args[0] if extractor_args else 'default'
+        rc, tail = await _run_ytdlp_attempt(job_id, job, cmd, concurrency)
+        if rc == 0:
+            break
+
+        if index < len(attempts) - 1 and stream_service.is_extractor_failure(tail):
+            log.warning(
+                'download.client_retry',
+                job_id=job_id,
+                failed_client=used_client,
+                next_client=attempts[index + 1][0] if attempts[index + 1] else 'default',
+            )
+            await ws_manager.emit_download_progress(
+                job_id, 0.0, 'searching', title=job.get('title')
+            )
+            continue
+        # Either it worked, or the failure is not something another client
+        # would fix (network, disk, a genuinely unavailable video).
+        break
+
     if rc != 0:
-        tail = ' | '.join(stderr_tail[-6:])
         # Keep the staging dir when it holds partial data — that is exactly
         # what a later resume continues from. Only truly empty attempts
         # (instant failures) are cleaned up.
         if _staged_bytes(job_id) == 0:
             shutil.rmtree(staging, ignore_errors=True)
-        raise RuntimeError(f'yt-dlp exited with code {rc}: {tail[:300]}')
+        raise RuntimeError(
+            f'yt-dlp exited with code {rc} ({used_client} client): {tail[:300]}'
+        )
 
     files = [
         p for p in staging.iterdir()
