@@ -1,4 +1,4 @@
-import { API_BASE, CLERK_PUBLISHABLE_KEY } from "@/lib/constants";
+import { API_BASE, isClerkEnabled } from "@/lib/constants";
 import { isOnline } from "@/lib/network";
 import { queueMutation, initAutoSync } from "@/lib/offlineQueue";
 
@@ -53,8 +53,12 @@ let _clerkToken: string | null = null;
 type TokenProvider = (opts?: { skipCache?: boolean }) => Promise<string | null>;
 let _clerkTokenProvider: TokenProvider | null = null;
 
-/** True when the frontend is built with Clerk authentication enabled. */
-const clerkEnabled = !!CLERK_PUBLISHABLE_KEY;
+/**
+ * True when this bundle should talk to Clerk.
+ *
+ * Read through the accessor (not captured once) because the crash guard can
+ * disable Clerk at runtime and degrade the session to local mode.
+ */
 
 /** Called by ClerkUserSync to inject the Clerk session token for API requests. */
 export function setClerkToken(token: string | null) {
@@ -75,7 +79,7 @@ export function setClerkTokenProvider(provider: TokenProvider | null) {
  * would recreate the 401 storm on every reload.
  */
 async function resolveAuthToken(skipCache = false): Promise<string | null> {
-   if (clerkEnabled) {
+   if (isClerkEnabled()) {
       if (_clerkTokenProvider) {
          try {
             const fresh = await _clerkTokenProvider({ skipCache });
@@ -177,11 +181,17 @@ async function request<T>(
 
    const contentType = res.headers.get("content-type") ?? "";
    if (contentType.includes("text/html")) {
+      // A web page where JSON was expected means the request reached
+      // something that serves the SPA, not the API. Two ways that happens:
+      // a relative /api inside a native build (there is no proxy in the
+      // WebView), or a host whose catch-all route answers every path with
+      // index.html. Both are configuration, not outages, so the message
+      // names the base that was actually used instead of blaming the server.
       throw makeError(
          res.status,
          res.ok
-            ? "Backend returned HTML instead of JSON — is the API running?"
-            : `Backend offline (${res.status})`
+            ? `The API base is misconfigured — ${API_BASE} served a web page, not JSON. Check Settings → Doctor → Diagnosis.`
+            : `Backend offline (${res.status}) — nothing reachable at ${API_BASE}`
       );
    }
 
@@ -200,7 +210,7 @@ async function request<T>(
       // Local mode:
       //   - If we believed we had a session, clear it and go to login.
       if (res.status === 401 && !endpoint.includes("/api/auth/")) {
-         if (clerkEnabled) {
+         if (isClerkEnabled()) {
             if (token && !_skipTokenCache && _retryCount < 2) {
                // The token we sent was rejected (clock skew, revoked session,
                // or Clerk rotated the signing key). Force a non-cached token

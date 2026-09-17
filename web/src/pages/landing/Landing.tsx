@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Music } from 'lucide-react'
 import { useAuth } from '@clerk/clerk-react'
 import { useAuthStore } from '@/store/auth.store'
-import { CLERK_PUBLISHABLE_KEY, APP_NAME } from '@/lib/constants'
+import { APP_NAME, isClerkEnabled } from '@/lib/constants'
 
 /**
  * Entry screen for signed-out users.
@@ -16,7 +16,7 @@ import { CLERK_PUBLISHABLE_KEY, APP_NAME } from '@/lib/constants'
  * Flow: this screen → /auth (Clerk) → Home.
  */
 export default function Landing() {
-  return CLERK_PUBLISHABLE_KEY ? <ClerkGate /> : <GateBody clerkEnabled={false} />
+  return isClerkEnabled() ? <ClerkGate /> : <GateBody clerkEnabled={false} />
 }
 
 /** Renders inside ClerkProvider only — safe to call Clerk hooks here. */

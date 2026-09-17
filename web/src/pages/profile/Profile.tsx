@@ -14,7 +14,7 @@ import { tracksApi } from '@/api/tracks.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { formatCount } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import { CLERK_PUBLISHABLE_KEY } from '@/lib/constants'
+import { isClerkEnabled } from '@/lib/constants'
 
 // ── Avatar ─────────────────────────────────────────────────────
 
@@ -94,8 +94,7 @@ function QuickLink({ icon: Icon, label, description, to, color }: {
 // ── Main page ──────────────────────────────────────────────────
 
 export default function Profile() {
-  const clerkEnabled = !!CLERK_PUBLISHABLE_KEY
-  if (!clerkEnabled) return <LocalProfile />
+  if (!isClerkEnabled()) return <LocalProfile />
   return <ClerkProfile />
 }
 
