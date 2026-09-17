@@ -22,12 +22,19 @@ from fastapi.routing import APIRoute
 
 from app.main import app
 
-# Mutating routes that are intentionally public (they carry their own
-# protection: Svix signature / Clerk rate limits / credential checks).
+# Mutating routes that are intentionally public. Two kinds:
+#   - entry points with their own protection (Svix signature, Clerk rate
+#     limits, credential checks)
+#   - guest-first actions, pinned as guest-accessible in test_guest_policy.py
 PUBLIC_MUTATING = {
     ("POST", "/api/webhooks/clerk"),
     ("POST", "/api/auth/register"),
     ("POST", "/api/auth/login"),
+    ("POST", "/api/search/resolve"),
+    ("POST", "/api/downloads"),
+    ("POST", "/api/downloads/"),
+    ("POST", "/api/downloads/batch"),
+    ("POST", "/api/stream/{track_id}/warm"),
 }
 
 # GET routes whose handler performs real network/library work with dummy
@@ -43,7 +50,7 @@ def _get_current_user_deps(dep) -> list:
     found = []
     if getattr(dep, "call", None) is not None:
         call = getattr(dep.call, "__name__", "") or ""
-        if call == "get_current_user":
+        if call in ("get_current_user", "get_optional_user"):
             found.append(dep)
     for sub in getattr(dep, "dependencies", []) or []:
         found.extend(_get_current_user_deps(sub))

@@ -3,7 +3,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_user
 from app.schemas.download_schema import DownloadRequestSchema, DownloadJobSchema
 from app.services.download_service import (
     enqueue_download, get_all_jobs, get_job,
@@ -53,7 +53,7 @@ def _validate_custom_path(custom_path: Optional[str]) -> None:
 
 @router.post("", response_model=DownloadJobSchema, status_code=202)
 @router.post("/", response_model=DownloadJobSchema, status_code=202, include_in_schema=False)
-async def start_download(req: DownloadRequestSchema, _user: dict = Depends(get_current_user)):
+async def start_download(req: DownloadRequestSchema, _user: dict | None = Depends(get_optional_user)):
     if not req.trackId and not req.url:
         raise HTTPException(status_code=400, detail="trackId or url is required")
 
@@ -100,12 +100,12 @@ async def start_download(req: DownloadRequestSchema, _user: dict = Depends(get_c
 
 @router.get("", response_model=list[DownloadJobSchema])
 @router.get("/", response_model=list[DownloadJobSchema], include_in_schema=False)
-async def list_downloads(_user: dict = Depends(get_current_user)):
+async def list_downloads(_user: dict | None = Depends(get_optional_user)):
     return get_all_jobs()
 
 
 @router.get("/{job_id}", response_model=DownloadJobSchema)
-async def get_download(job_id: str, _user: dict = Depends(get_current_user)):
+async def get_download(job_id: str, _user: dict | None = Depends(get_optional_user)):
     job_id = _validate_job_id(job_id)
     job = get_job(job_id)
     if not job:
@@ -114,7 +114,7 @@ async def get_download(job_id: str, _user: dict = Depends(get_current_user)):
 
 
 @router.post("/{job_id}/cancel")
-async def cancel_download(job_id: str, _user: dict = Depends(get_current_user)):
+async def cancel_download(job_id: str, _user: dict | None = Depends(get_optional_user)):
     job_id = _validate_job_id(job_id)
     ok = await cancel_job(job_id)
     if not ok:
@@ -136,7 +136,7 @@ class RetryRequest(BaseModel):
 async def retry_download(
     job_id: str,
     body: RetryRequest | None = None,
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ):
     job_id = _validate_job_id(job_id)
     resume = body.resume if body is not None and body.resume is not None else None
@@ -144,13 +144,10 @@ async def retry_download(
     if not job:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
     return job
-    if not job:
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
-    return job
 
 
 @router.delete("/{job_id}")
-async def delete_download(job_id: str, _user: dict = Depends(get_current_user)):
+async def delete_download(job_id: str, _user: dict | None = Depends(get_optional_user)):
     job_id = _validate_job_id(job_id)
     from app.services.download_service import _jobs, _staging_dir
     if job_id not in _jobs:
@@ -183,7 +180,7 @@ class BatchDownloadRequest(BaseModel):
 
 
 @router.post("/batch", response_model=list[DownloadJobSchema], status_code=202)
-async def batch_download(req: BatchDownloadRequest, _user: dict = Depends(get_current_user)):
+async def batch_download(req: BatchDownloadRequest, _user: dict | None = Depends(get_optional_user)):
     """Start multiple downloads at once (max 20)."""
     if not req.track_ids:
         raise HTTPException(status_code=400, detail="track_ids cannot be empty")

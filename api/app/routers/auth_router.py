@@ -23,7 +23,7 @@ from app.core.auth import (
     clerk_revoke_session,
 )
 from app.core.database import get_db, db_available
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_user
 
 router = APIRouter()
 
@@ -291,9 +291,9 @@ async def _increment_visitor_counter(db: AsyncIOMotorDatabase, kind: str) -> Non
 @router.get("/visitor-count")
 async def visitor_count(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ):
-    """Get the registered-account total. Session required (no guest counting)."""
+    """Visitor totals. Public: the landing-page counter renders for guests."""
     doc = await db.visitors.find_one({"_id": "counter"})
     if not doc:
         return {"authed": 0, "total": 0}

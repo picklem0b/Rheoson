@@ -6,8 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
-<<<<<<< HEAD
-=======
+## v2.17.11
+
+Guest-first restore, update feature, and a complete onboarding course.
+
+- fix(auth): **restore the guest-first policy**. A previous pass had removed `get_optional_user` entirely, so the deployed API 401'd search, lyrics, trending, recently-played and the categories grid for anyone without an account — signed out, the app did nothing. Guests again get: search, resolve, categories, lyrics, presets, trending, tracks, library aggregates, downloads (start/list/cancel/retry), stream warm and share links. Account data (likes, playlists, recommendations, analytics, preferences) and instance administration remain strictly authed, and a presented-but-invalid token still 401s — expiry surfaces as a re-login, never as silent data loss. The full matrix is pinned by `test_guest_policy.py` (33 tests; 248 total pass).
+- feat(updates): **restore the update banner**. `UpdateNotification` had been orphaned in an App.tsx refactor — version checks fired 5-second toasts nobody could act on while the actionable banner rendered for no one. Remounted in RootLayout; Update unregisters stale service workers and reloads on web, and on native opens the release APK that nginx now serves from `/api/downloads/rheoson-latest.apk` — same applicationId + higher versionCode installs in place, no uninstall, no conflicting packages.
+- docs(beginner): **complete onboarding course** under `docs/beginner/` — 20 documents from "what is programming" to a graded 7-level code-review curriculum, every example drawn from this codebase (drift guards, the guest matrix, the apiTarget origin story, the invalidation chain), all internal links verified.
+
+---
+
 ## v2.17.10
 
 Hygiene-and-environment release: repairs the corrupted environment files behind the intermittent `Invalid or expired token`, cleans the repository tree of accidental duplicate directories, and crash-proofs the My Music page.
@@ -21,7 +29,6 @@ Hygiene-and-environment release: repairs the corrupted environment files behind 
 
 ---
 
->>>>>>> dev
 ## v2.17.9
 
 Playback- and connectivity-reliability release: fixes the misconfigured API origin that broke every request in the APK, relays the CDN so audio starts on the first frames, and keeps yt-dlp working when a player client refuses a track.
