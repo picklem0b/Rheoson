@@ -6,6 +6,21 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.17.9
+
+Playback- and connectivity-reliability release: fixes the misconfigured API origin that broke every request in the APK, relays the CDN so audio starts on the first frames, and keeps yt-dlp working when a player client refuses a track.
+
+- fix(client): the build no longer guesses its API origin. An empty `VITE_API_URL` was read as "same origin as the page", which inside the WebView resolved `/api` against the bundled assets and answered every request with `index.html` — the "Backend returned HTML instead of JSON" failure behind the dead player, the empty library and the doctor's "API unreachable". The decision is now a pure, unit-tested function that refuses same-origin mode on native, distinguishes an unset variable from an explicitly empty one, and falls back to the canonical API host with a warning. A CI guard fails any build whose bundle lacks an absolute origin.
+- fix(auth): the Clerk publishable key is validated by shape, and a runtime Clerk failure degrades the app to local mode instead of escalating `useUser can only be used within <ClerkProvider />` to react-router's full-page error.
+- perf(stream): remote playback now relays YouTube's CDN response instead of waiting on a buffered fill. The client's Range header is forwarded and the CDN's own `Content-Length`/`Content-Range` come back untouched, so audio starts as soon as a URL resolves — not after the whole track has been downloaded — and seeking and duration work. Relayed bytes are teed into the durable cache, so only the first listener pays for the network.
+- fix(stream): an opening `bytes=0-` request is no longer treated as a seek on the fallback path. It was waiting for the entire download before answering, which was the multi-second silence before playback began; bounded ranges are still served exactly.
+- feat(stream): `stream_service.py` — an empty placeholder until now — owns URL resolution, mime inference, range parsing and range-aware upstream access, shared by the stream route, the warm endpoint and downloads.
+- fix(downloads): a download walks a player-client ladder instead of failing on the first refusal. One "Requested format is not available" or "Sign in to confirm you're not a bot" used to end the job permanently; it now tries the default client, then the challenge-free mobile ones, against a selector permissive enough to accept a muxed stream. Transport failures still surface immediately, the error names the failing client, and partial bytes are kept so Resume works.
+- fix(brand): the APK ships the real logo. Capacitor's template artwork was still powering the launcher icon, the adaptive background and the splash, and the notification plugin named an icon the project never contained — leaving the download foreground service's notification with nothing to draw. All brand assets are now generated from the logo by a reproducible script.
+- feat(brand): one logo component for every brand surface, so the landing hero, auth header, About card and onboarding hero stop drawing their own mismatched music glyphs.
+
+---
+
 ## v2.17.8
 
 Playback-reliability release: fixes offline tracks that stopped playing after the format-hint change, makes first-play fast, and hardens the streaming path end to end.
