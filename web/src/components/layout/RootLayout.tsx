@@ -11,6 +11,7 @@ import { DownloadModal } from "@/components/ui/DownloadModal";
 import DownloadProgressBar from "@/components/downloads/DownloadProgressBar";
 import { AddToPlaylistSheet } from "@/components/playlist/AddToPlaylistSheet";
 import { TrackContextMenu } from "@/components/track/TrackContextMenu";
+import UpdateNotification from "@/components/ui/UpdateNotification";
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { usePlayerSync } from "@/hooks/playerSync.hook";
@@ -137,6 +138,7 @@ export default function RootLayout() {
 
             {/* ── Global download progress pill ─────────────── */}
             <DownloadProgressBar />
+            <UpdateNotification />
 
             {/* ── Queue Panel (slide-in drawer) ─────────────── */}
             <QueuePanel />
