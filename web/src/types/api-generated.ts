@@ -528,7 +528,7 @@ export interface paths {
          *
          *     Backed by the background probe cache — no expensive work per request.
          */
-        get: operations["health_api_health_get"];
+        get: operations["health_api_health_head"];
         put?: never;
         post?: never;
         delete?: never;
@@ -539,7 +539,7 @@ export interface paths {
          *
          *     Backed by the background probe cache — no expensive work per request.
          */
-        head: operations["health_api_health_get_1"];
+        head: operations["health_api_health_head_1"];
         patch?: never;
         trace?: never;
     };
@@ -3406,7 +3406,7 @@ export interface operations {
             };
         };
     };
-    health_api_health_get: {
+    health_api_health_head: {
         parameters: {
             query?: never;
             header?: never;
@@ -3426,7 +3426,7 @@ export interface operations {
             };
         };
     };
-    health_api_health_get_1: {
+    health_api_health_head_1: {
         parameters: {
             query?: never;
             header?: never;

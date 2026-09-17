@@ -6,6 +6,19 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.17.10
+
+Hygiene-and-environment release: repairs the corrupted environment files behind the intermittent `Invalid or expired token`, cleans the repository tree of accidental duplicate directories, and crash-proofs the My Music page.
+
+- fix(env): `api/.env` had keys run together (`…ZGV2JACLERK_SECRET_KEY=sk…`), the same key defined up to three times, backend keys in `web/.env` and frontend keys in `api/.env`. pydantic-settings silently reads the last duplicate, so the API has been starting on adjacent-garbage values — the likely source of the intermittent `Invalid or expired token`. Both env files are rewritten one-key-per-line, and every credential was live-verified (Clerk secret → 200, publishable key decodes to `glad-tuna-9004`, Atlas ping OK, API host healthy).
+- chore(env): typed env contract — `src/vite-env.d.ts` declares every `VITE_*` variable, so a typo fails the build instead of silently reading `undefined` in production. `web/.env.production` is tracked on purpose (public origin + publishable key only) so native/CI builds can never ship a relative `/api` again.
+- fix(downloads): crash on opening My Music — two independent causes. Native: the download foreground service's `stop()` used `startService()`, which throws while the app is backgrounded on Android 12+, and an exception escaping a Capacitor plugin method kills the app. Web: `LibraryTrackRow` read `track.artist.name` unguarded, so one malformed cached track took down the whole page.
+- feat(brand): every launcher, splash and notification asset regenerates from `public/assets/logo.png` via the tracked script; the user-supplied icon set is now the single brand master and the stray `android/assets` duplicate tree is gone.
+- chore(repo): remove accidental duplicate trees inside `web/` (`api/`, `docs/`, `nginx/`, `music/`, compose files, docs) that shadowed the real ones.
+- docs(workflow): versioning documented as `v2.MILESTONE.PHASE` — one annotated tag per finished phase.
+
+---
+
 ## v2.17.9
 
 Playback- and connectivity-reliability release: fixes the misconfigured API origin that broke every request in the APK, relays the CDN so audio starts on the first frames, and keeps yt-dlp working when a player client refuses a track.
