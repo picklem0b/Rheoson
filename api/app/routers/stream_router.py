@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse, Response
 from app.core.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_user
 from app.services.artwork_service import extract_artwork, fetch_remote_artwork
 from app.services.metadata_service import _file_id
 from app.services import stream_service
@@ -549,7 +549,7 @@ async def _ensure_remote_session(track_id: str) -> dict | None:
 
 
 @router.post("/{track_id}/warm")
-async def warm_stream(track_id: str, _user: dict = Depends(get_current_user)):
+async def warm_stream(track_id: str, _user: dict | None = Depends(get_optional_user)):
     """Start buffering a remote track in the background (idempotent).
 
     Uses the same single-fill-per-track session as the audio route, so a

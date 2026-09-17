@@ -1,8 +1,11 @@
-"""Auth enforcement + per-user isolation tests (guest-mode removal, v2.14.19).
+"""Auth enforcement + per-user isolation tests (guest-first policy).
 
-Guest mode no longer exists. Every route outside the deliberate public set
-(auth entry points, the share card, media byte routes, the Clerk webhook)
-must 401 without a verified session.
+The public set is deliberate and documented: search, lyrics, equalizer
+presets, trending/recently-played, library aggregates, downloads and the
+share link work without an account (see test_guest_policy.py for the full
+matrix). Everything account-scoped or instance-administrative must 401
+without a verified session — and a presented-but-invalid token must 401,
+never silently degrade to guest.
 """
 
 from __future__ import annotations
@@ -43,32 +46,25 @@ async def test_public_routes_are_reachable_without_auth(client_anon):
 # ── Everything else must 401 without a session ────────────────
 
 @pytest.mark.asyncio
-async def test_stateful_endpoints_require_auth(client_anon):
-    """Representative sweep across every router: all must 401 anonymously."""
+async def test_account_endpoints_require_auth(client_anon):
+    """Representative sweep: account-scoped + admin routes 401 anonymously.
+
+    Guest-policy routes are pinned in test_guest_policy.py — they must NOT
+    appear here.
+    """
     probes = [
-        ("GET", "/api/search?q=test"),
-        ("GET", "/api/tracks"),
         ("GET", "/api/tracks/liked"),
-        ("GET", "/api/tracks/recently-played"),
-        ("GET", "/api/tracks/trending"),
         ("POST", "/api/tracks/dQw4w9WgXcQ/like"),
         ("POST", "/api/tracks/dQw4w9WgXcQ/play"),
         ("GET", "/api/playlists"),
         ("POST", "/api/playlists"),
-        ("GET", "/api/downloads"),
-        ("POST", "/api/downloads"),
-        ("GET", "/api/lyrics/dQw4w9WgXcQ"),
-        ("GET", "/api/equalizer/presets"),
         ("GET", "/api/settings/spotify/status"),
         ("GET", "/api/recommendations/home"),
         ("GET", "/api/recommendations/taste"),
         ("GET", "/api/analytics/stats"),
         ("GET", "/api/smart-playlists/most-played"),
-        ("POST", "/api/stream/dQw4w9WgXcQ/warm"),
         ("POST", "/api/stream/cache/clear"),
-        ("GET", "/api/share/dQw4w9WgXcQ/link"),
         ("GET", "/api/auth/me"),
-        ("GET", "/api/auth/visitor-count"),
     ]
     for method, url in probes:
         resp = await client_anon.request(method, url)
@@ -76,12 +72,17 @@ async def test_stateful_endpoints_require_auth(client_anon):
 
 
 @pytest.mark.asyncio
-async def test_search_resolve_requires_auth(client_anon):
+async def test_search_resolve_serves_guests(client_anon):
+    """URL resolution is part of the guest search experience.
+
+    The SSRF netguard still applies (non-media hosts -> 400); the endpoint
+    simply no longer hides behind an auth wall.
+    """
     resp = await client_anon.post(
         "/api/search/resolve",
         json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
     )
-    assert resp.status_code == 401
+    assert resp.status_code != 401
 
 
 # ── Per-user isolation ────────────────────────────────────────

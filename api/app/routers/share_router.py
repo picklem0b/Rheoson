@@ -12,7 +12,7 @@ from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
-from app.core.deps import get_current_user
+from app.core.deps import get_optional_user
 
 router = APIRouter()
 
@@ -103,7 +103,7 @@ async def share_link(
     track_id: str,
     title: str = "",
     artist: str = "",
-    _user: dict = Depends(get_current_user),
+    _user: dict | None = Depends(get_optional_user),
 ):
     """Return a clean shareable URL for a track."""
     q = f"{title} {artist}".strip()
