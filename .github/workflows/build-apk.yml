@@ -50,12 +50,23 @@ jobs:
                   # useUser()/useAuth() call crashes with "can only be used
                   # within <ClerkProvider />" (the web/app.err crash).
                   VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
-                  # NODE_ENV=production is required so import.meta.env.PROD === true
-                  # inside the Vite build. Without it, API_BASE resolves to '/api'
-                  # (the dev proxy path) which is meaningless inside the APK WebView
-                  # and causes fetch() to resolve against file:// → HTML error page.
+                  # NODE_ENV=production keeps the bundle out of dev mode so the
+                  # API base is resolved from the origin instead of the Vite
+                  # proxy path.
                   NODE_ENV: production
               run: npm run build
+
+            # Fails the build if the bundle ended up with a relative /api.
+            # That is the failure mode that shipped once already: inside the
+            # WebView /api is answered by the asset handler with index.html,
+            # so every request dies as "Backend returned HTML instead of JSON".
+            # A missing VITE_API_URL secret now falls back to the canonical
+            # origin *and* is caught here before the APK is packaged.
+            - name: Verify API origin was baked in
+              working-directory: web
+              env:
+                  VITE_API_URL: ${{ secrets.VITE_API_URL }}
+              run: npm run verify:api-base
 
             - name: Sync Capacitor
               working-directory: web
