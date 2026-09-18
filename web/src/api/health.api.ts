@@ -72,12 +72,32 @@ export interface HealthPayload {
    diagnostics?: { forceRefreshedAt: string }
 }
 
+export interface SelftestCheck {
+   name: string
+   description: string
+   status: 'pass' | 'warn' | 'fail' | 'skipped'
+   latencyMs?: number
+   detail?: string
+}
+
+export interface SelftestPayload {
+   schemaVersion: number
+   status: SelftestCheck['status']
+   totalMs: number
+   checks: SelftestCheck[]
+   summary: { pass: number; warn: number; fail: number; skipped: number }
+}
+
 export const healthApi = {
    /** Cheap, unauthenticated snapshot. */
    snapshot: () => api.get<HealthPayload>('/health'),
 
    /** Fresh deep probe. Requires a session. */
    deep: () => api.get<HealthPayload>('/health/diag'),
+
+   /** Route-level self-test: drives real read-only requests through the
+    *  backend's own stack. Requires a session (runs live upstream calls). */
+   selftest: () => api.get<SelftestPayload>('/health/selftest'),
 }
 
 export const { snapshot: healthSnapshot, deep: healthDeep } = healthApi

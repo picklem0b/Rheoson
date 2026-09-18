@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
    Search as SearchIcon,
@@ -329,6 +330,7 @@ export default function Search() {
    } = useSearch();
 
    const { playTrack } = useQueue();
+   const navigate = useNavigate();
    const { openDownloadModal } = useUIStore();
    const openPlaylistMenu = usePlaylistMenuStore((s) => s.openForTrack);
    const { toast } = useToast();
@@ -622,6 +624,11 @@ export default function Search() {
                                     key={artist.id || i}
                                     artist={artist}
                                     index={i}
+                                    onClick={() =>
+                                       navigate(
+                                          `/artist/${encodeURIComponent(artist.id)}`
+                                       )
+                                    }
                                  />
                               ))}
                            </div>
@@ -640,6 +647,11 @@ export default function Search() {
                                     key={album.id || i}
                                     album={album}
                                     index={i}
+                                    onClick={() =>
+                                       navigate(
+                                          `/album/${encodeURIComponent(album.id)}`
+                                       )
+                                    }
                                  />
                               ))}
                            </div>

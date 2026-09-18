@@ -1,15 +1,20 @@
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Play, Shuffle, Heart, Download } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { getAlbum } from '@/api/library.api'
+import { tracksApi } from '@/api/tracks.api'
+import { useDownloads } from '@/hooks/downloads.hook'
+import { likedStore } from '@/lib/localDb'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { TrackRowSkeleton } from '@/components/ui/Skeleton'
+import { useToast } from '@/components/ui/Toaster'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { Track } from '@/types/track.types'
@@ -24,12 +29,52 @@ const GRADIENTS = [
 export default function Album() {
   const { id } = useParams<{ id: string }>()
   const { playAll, playTrack } = useQueue()
+  const { downloadMany } = useDownloads()
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [liked, setLiked] = useState(false)
 
   const { data: album, isLoading } = useQuery({
     queryKey: ['album', id],
     queryFn:  () => getAlbum(id!),
     enabled:  !!id,
   })
+
+  const albumTracks = album?.tracks ?? []
+
+  // Like state follows the first track of the album being liked
+  useEffect(() => {
+    let cancelled = false
+    const firstId = albumTracks[0]?.id
+    if (!firstId) {
+      setLiked(false)
+      return
+    }
+    likedStore.has(firstId).then(v => {
+      if (!cancelled) setLiked(v)
+    })
+    return () => { cancelled = true }
+  }, [albumTracks.length, albumTracks[0]?.id]) // eslint-disable-line react-hooks/exhaustive-deps -- first track id only
+
+  const toggleLike = async () => {
+    const firstId = albumTracks[0]?.id
+    if (!firstId) return
+    const next = !liked
+    setLiked(next)
+    try {
+      if (next) {
+        await tracksApi.likeTrack(firstId)
+        await likedStore.add(firstId)
+      } else {
+        await tracksApi.unlikeTrack(firstId)
+        await likedStore.remove(firstId)
+      }
+      queryClient.invalidateQueries({ queryKey: ['liked'] })
+    } catch {
+      setLiked(!next)
+      toast('Could not update liked tracks', 'error')
+    }
+  }
 
   const gradientIndex = parseInt(id ?? '0') % GRADIENTS.length
 
@@ -92,8 +137,22 @@ export default function Album() {
                 <Shuffle className="w-4 h-4" />
                 Shuffle
               </Button>
-              <IconButton size="md" variant="ghost"><Heart /></IconButton>
-              <IconButton size="md" variant="ghost"><Download /></IconButton>
+              <IconButton size="md" variant="ghost" onClick={toggleLike} title={liked ? 'Remove from liked' : 'Like album'}>
+                <Heart className={cn('w-5 h-5', liked && 'fill-current text-[var(--accent)]')} />
+              </IconButton>
+              <IconButton
+                size="md"
+                variant="ghost"
+                title="Download all tracks"
+                disabled={!albumTracks.length}
+                onClick={() => {
+                  if (!albumTracks.length) return
+                  downloadMany(albumTracks)
+                  toast(`Downloading ${albumTracks.length} track${albumTracks.length === 1 ? '' : 's'}…`, 'success', 2200)
+                }}
+              >
+                <Download />
+              </IconButton>
             </div>
           </div>
         </div>
@@ -108,7 +167,7 @@ export default function Album() {
               key={track.id}
               track={track}
               index={i}
-              onClick={() => album && playTrack(track, album.tracks ?? [])}
+              onClick={() => album && playTrack(track, albumTracks)}
             />
           ))}
         </div>

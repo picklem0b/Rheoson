@@ -81,6 +81,30 @@ function _autoplayEnabled(): boolean {
     }
 }
 
+// Settings → Audio → Seek step: how far the keyboard arrows and the
+// double-tap seek controls jump. 5–60 s, default 10.
+function _seekStep(): number {
+    try {
+        const raw = localStorage.getItem('rheoson-seek-step');
+        const n = raw !== null ? Number(JSON.parse(raw)) : NaN;
+        return Number.isFinite(n) ? Math.min(60, Math.max(5, n)) : 10;
+    } catch {
+        return 10;
+    }
+}
+
+// Settings → Audio → Gapless queue: when on, the next queue track's bytes
+// are warmed the moment the current one starts (in addition to the standard
+// ahead-warm), so auto-advance never waits on the network.
+function _gaplessQueue(): boolean {
+    try {
+        const raw = localStorage.getItem('rheoson-gapless');
+        return raw !== null ? (JSON.parse(raw) as boolean) : true;
+    } catch {
+        return true;
+    }
+}
+
 /**
  * Queue exhausted → fetch similar tracks for the ended track, hydrate
  * them into full Tracks, and keep playing from the first suggestion.
@@ -409,7 +433,7 @@ export function usePlayer() {
                         .getState()
                         .queue.slice(0, 5);
                     if (upcoming.length > 0) {
-                        prefetchQueue(upcoming.map(t => t.id), 5);
+                        prefetchQueue(upcoming.map(t => t.id), _gaplessQueue() ? 5 : 0);
                     }
 
                     // Cache the track that is playing now. Doing it here (rather

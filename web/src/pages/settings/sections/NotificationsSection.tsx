@@ -1,11 +1,14 @@
-import { Download, Zap } from "lucide-react";
+import { Download, Zap, RefreshCw } from "lucide-react";
 import { usePersisted } from "@/hooks/persisted.hook";
 import { playChime } from "@/lib/sounds";
 import {
    SettingsGroup,
    SettingsRow,
-   Toggle
+   Toggle,
+   RadioGroup
 } from "../components/SettingsPrimitives";
+import { useState } from "react";
+import { useToast } from "@/components/ui/Toaster";
 
 /**
  * Notification & sound settings.
@@ -20,6 +23,9 @@ import {
 export default function NotificationsSection() {
    const [dlDone, setDlDone] = usePersisted("notif-dl-done", true);
    const [sound, setSound] = usePersisted("notif-sound", true);
+   const [volume, setVolume] = usePersisted("chime-volume", 0.6);
+   const [testing, setTesting] = useState(false);
+   const { toast } = useToast();
 
    return (
       <div className='pb-4'>
@@ -33,12 +39,26 @@ export default function NotificationsSection() {
                iconBg='#EAB308'>
                <Toggle value={sound} onChange={setSound} />
             </SettingsRow>
+            <RadioGroup
+               value={String(volume) as "0.3" | "0.6" | "1"}
+               onChange={v => setVolume(Number(v))}
+               options={[
+                  { value: "0.3", label: "Quiet", sub: "A subtle tap — 30% volume" },
+                  { value: "0.6", label: "Medium", sub: "Default — 60% volume" },
+                  { value: "1", label: "Loud", sub: "Full volume — hard to miss" }
+               ]}
+            />
             <SettingsRow
-               label='Test sound effect'
-               description='Preview the chime at its current volume'
-               icon={<Zap className='w-[14px] h-[14px]' />}
+               label={testing ? 'Playing…' : 'Test sound effect'}
+               description='Preview the chime at the chosen volume'
+               icon={testing ? <RefreshCw className='w-[14px] h-[14px] animate-spin' /> : <Zap className='w-[14px] h-[14px]' />}
                iconBg='#A3A3A3'
-               onClick={() => playChime(0.6, true)}>
+               onClick={() => {
+                  setTesting(true);
+                  playChime(volume, true);
+                  toast(`Chime at ${Math.round(volume * 100)}%`, 'info', 1600);
+                  window.setTimeout(() => setTesting(false), 900);
+               }}>
             </SettingsRow>
          </SettingsGroup>
 

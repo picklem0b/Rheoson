@@ -2,6 +2,8 @@
 
 Rheoson is a personal project with professional standards. Contributions are welcome — the bar is production-grade: no placeholders, no half-finished work, no untested changes.
 
+> New to programming, or new to this codebase? Start with the [Developer Handbook](handbook/README.md) — 23 chapters covering the languages, architecture, tooling, and review practices used here, with graded exercises throughout.
+
 ## Ground rules
 
 1. **One PR, one concern.** Reviewable scope beats ambitious scope.

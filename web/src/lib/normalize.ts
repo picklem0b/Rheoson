@@ -309,7 +309,18 @@ export function normalizePlaylist(raw: unknown): Playlist {
 /** Normalize an array of tracks, filtering out invalid records. */
 export function normalizeTracks(raw: unknown[]): Track[] {
    if (!Array.isArray(raw)) return []
-   const tracks = raw.map(normalizeTrack).filter(t => t.id && !t.id.startsWith('unknown-') || t.title !== 'Unknown Track')
+   // A row is junk when it has no usable id (empty or the synthesized
+   // unknown-N marker) AND nothing to show for it. Title alone must never
+   // rescue a row without an id — an unplayable, unstreamable, un-dedupable
+   // entry only pollutes lists. Rows with a real id are always kept.
+   const tracks = raw
+      .map(normalizeTrack)
+      .filter(
+         (t) =>
+            !!t.id &&
+            !t.id.startsWith('unknown-') &&
+            (t.title !== 'Unknown Track' || !!t.artist?.name)
+      )
    return dedupeTracks(tracks)
 }
 

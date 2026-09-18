@@ -644,27 +644,69 @@ async def get_category_top(slug: str, limit: int = 5) -> list[dict]:
         return []
 
 
+def _rows_to_chart_tracks(rows: list, limit: int) -> list[dict]:
+    """Chart rows -> track dicts with 1-based rank preserved."""
+    out: list[dict] = []
+    for index, row in enumerate(rows or []):
+        if not isinstance(row, dict) or not row.get("videoId"):
+            continue
+        track = _parse_track(row)
+        if not track.get("rank"):
+            track["rank"] = index + 1
+        out.append(track)
+        if len(out) >= limit:
+            break
+    return out
+
+
 async def get_trending(limit: int = 20) -> list[dict]:
     """Top songs from YouTube Music's charts, newest chart position first.
 
     Chart rows carry a 1-based position; it is preserved as `rank` (and
     back-filled from list order when upstream omits it) so callers can render
     "#1 this week" without guessing from array order.
+
+    Upstream shape drift, handled here so callers never see it: the charts
+    endpoint used to expose a `songs` section; it now returns only `videos`
+    (chart *playlist* stubs) and `artists`. When `songs` is missing, the
+    first chart playlist ("Daily Top Music Videos") is read directly — its
+    tracks are the chart itself. A plain popular-song search is the final
+    fallback so the section still renders when both chart shapes fail.
     """
     await _get_ytm_async()
     loop = asyncio.get_event_loop()
     try:
-        charts   = await loop.run_in_executor(None, lambda: _get_ytm().get_charts())
-        trending = charts.get("songs", {}).get("items", [])
-        out: list[dict] = []
-        for index, row in enumerate(trending[:limit]):
-            if not row.get("videoId"):
-                continue
-            track = _parse_track(row)
-            if not track.get("rank"):
-                track["rank"] = index + 1
-            out.append(track)
-        return out
+        charts = await loop.run_in_executor(None, lambda: _get_ytm().get_charts())
+
+        # Legacy shape — global chart still carries per-song rows.
+        songs = (charts.get("songs") or {}).get("items") or []
+        out = _rows_to_chart_tracks(songs, limit)
+        if out:
+            return out
+
+        # Current shape — `videos` holds chart playlists; read the first one.
+        playlist_id = next(
+            (
+                v.get("playlistId")
+                for v in charts.get("videos") or []
+                if isinstance(v, dict) and v.get("playlistId")
+            ),
+            None,
+        )
+        if playlist_id:
+            data = await loop.run_in_executor(
+                None, lambda: _get_ytm().get_playlist(playlist_id, limit=limit)
+            )
+            out = _rows_to_chart_tracks((data or {}).get("tracks") or [], limit)
+            if out:
+                return out
+
+        # Last resort — popular songs via search, ranked by result order.
+        rows = await loop.run_in_executor(
+            None,
+            lambda: _get_ytm().search("top songs this week", filter="songs", limit=limit),
+        )
+        return _rows_to_chart_tracks(rows, limit)
     except Exception as e:
         _record_ytm_failure()
         log.warning("ytmusic.trending.failed", error=str(e))

@@ -6,7 +6,7 @@ import {
 } from '@/store/download.store'
 import { downloadsApi } from '@/api/downloads.api'
 import { ws } from '@/lib/websocket.lib'
-import type { DownloadJob, DownloadOptions } from '@/types/download.types'
+import type { DownloadJob, DownloadOptions, AudioFormat, AudioQuality } from '@/types/download.types'
 import type { Track } from '@/types/track.types'
 import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
@@ -51,6 +51,26 @@ function persistedOptions() {
     retries: autoRetry ? Math.max(0, retries) : 0,
     speedLimit: Math.max(0, readPref('dl-speed-cap', 0)),
     concurrency: Math.min(8, Math.max(1, readPref('dl-concurrent', 3))),
+  }
+}
+
+/** Settings → Downloads defaults, read fresh on every download call so a
+ *  change applies to the next job without a reload. These are the fallback
+ *  when a caller (modal, playlist batch) does not pass its own choice. */
+function persistedMediaPrefs() {
+  const fmt = readPref<string>('dl-format', DOWNLOAD_DEFAULTS.format)
+  const fmts = ['mp3', 'opus', 'm4a', 'flac', 'wav'] as const
+  const quality = readPref<string>('dl-quality', DOWNLOAD_DEFAULTS.quality)
+  const quals = ['128', '192', '256', '320', 'best'] as const
+  return {
+    format: (fmts as readonly string[]).includes(fmt)
+      ? (fmt as AudioFormat)
+      : DOWNLOAD_DEFAULTS.format,
+    quality: (quals as readonly string[]).includes(quality)
+      ? (quality as AudioQuality)
+      : DOWNLOAD_DEFAULTS.quality,
+    embedArtwork: readPref('dl-artwork', DOWNLOAD_DEFAULTS.embedArtwork),
+    embedLyrics: readPref('dl-lyrics', DOWNLOAD_DEFAULTS.embedLyrics),
   }
 }
 
@@ -148,13 +168,14 @@ export function useDownloads() {
 
     const tempId = uid('dl')
     // Persisted advanced options win unless this call overrides them
+    const media = persistedMediaPrefs()
     const payload: DownloadOptions = {
       ...persistedOptions(),
       ...options,
-      format: options.format ?? DOWNLOAD_DEFAULTS.format,
-      quality: options.quality ?? DOWNLOAD_DEFAULTS.quality,
-      embedArtwork: options.embedArtwork ?? DOWNLOAD_DEFAULTS.embedArtwork,
-      embedLyrics: options.embedLyrics ?? DOWNLOAD_DEFAULTS.embedLyrics,
+      format: options.format ?? media.format,
+      quality: options.quality ?? media.quality,
+      embedArtwork: options.embedArtwork ?? media.embedArtwork,
+      embedLyrics: options.embedLyrics ?? media.embedLyrics,
     }
 
     // Optimistic job shown immediately in the UI
@@ -196,6 +217,67 @@ export function useDownloads() {
     removeJob(id)
   }, [removeJob])
 
+  /** Download many tracks at once (playlists, albums). Uses the backend's
+   *  batch endpoint in ≤20-track chunks; each job streams its own progress
+   *  over the same WebSocket path as a single download. Optimistic stubs
+   *  appear immediately so the activity feed reflects the request. */
+  const downloadMany = useCallback(async (tracks: Track[]) => {
+    if (!tracks.length) return
+    const media = persistedMediaPrefs()
+    const advanced = persistedOptions()
+    for (let i = 0; i < tracks.length; i += 20) {
+      const chunk = tracks.slice(i, i + 20)
+      const stubs = chunk.map(t => ({
+        id: uid('dl'),
+        trackId: t.id,
+        title: t.title,
+        artist: t.artist?.name ?? 'Unknown Artist',
+        artworkUrl: t.artworkUrl,
+        status: 'queued' as const,
+        progress: 0,
+        format: media.format,
+        quality: media.quality,
+        error: '',
+        filePath: '',
+        createdAt: new Date().toISOString(),
+        embedMetadata: advanced.embedMetadata,
+        fileNaming: advanced.fileNaming,
+        retries: advanced.retries,
+        speedLimit: advanced.speedLimit,
+        concurrency: advanced.concurrency,
+      }))
+      stubs.forEach(addJob)
+      try {
+        const jobs = await downloadsApi.batchDownload({
+          track_ids: chunk.map(t => t.id),
+          format: media.format,
+          quality: media.quality,
+          embedArtwork: media.embedArtwork,
+          embedLyrics: media.embedLyrics,
+          embedMetadata: advanced.embedMetadata,
+          fileNaming: advanced.fileNaming,
+          customPath: advanced.customPath || undefined,
+          retries: advanced.retries,
+          speedLimit: advanced.speedLimit,
+          concurrency: advanced.concurrency,
+        })
+        // Swap stubs for real server jobs, in order where possible
+        jobs.forEach((job, idx) => {
+          const stub = stubs[idx]
+          if (stub) removeJob(stub.id)
+          addJob(job)
+        })
+      } catch (e) {
+        stubs.forEach(stub =>
+          updateJob(stub.id, {
+            status: 'error',
+            error: e instanceof Error ? e.message : 'Batch download failed',
+          })
+        )
+      }
+    }
+  }, [addJob, removeJob, updateJob])
+
   const retry = useCallback(async (id: string) => {
     // Optimistically reset to queued while the retry request is in-flight
     updateJob(id, { status: 'queued', progress: 0, error: undefined })
@@ -229,6 +311,7 @@ export function useDownloads() {
     activeJobs,
     completedJobs,
     download,
+    downloadMany,
     cancel,
     retry,
     resume,

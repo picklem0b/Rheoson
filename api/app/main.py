@@ -586,6 +586,17 @@ async def health_diag(request: Request, _user: dict = Depends(get_current_user))
     return await healthmod.diagnostics(request.headers.get("x-request-id", ""))
 
 
+@app.get("/api/health/selftest", tags=["health"])
+async def health_selftest(request: Request, _user: dict = Depends(get_current_user)):
+    """Route-level self-test: drives a bounded, read-only request suite
+    through the app's own ASGI stack (search, library, stream HEAD, job
+    store, socket handshake, lyrics, categories) and reports per-route
+    pass/fail with latency. Complements /api/health/diag, which checks
+    dependencies — this checks that the routes built on them cooperate."""
+    from app.core.selftest import run_selftest
+    return await run_selftest(app)
+
+
 @app.get("/api/version", tags=["version"])
 async def version_info():
     return JSONResponse({

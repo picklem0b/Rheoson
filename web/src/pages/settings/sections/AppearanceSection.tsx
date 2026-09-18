@@ -1,16 +1,22 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Sun, Moon } from "lucide-react";
+import { Check, Sun, Moon, Eye, EyeOff } from "lucide-react";
 import { useThemeStore } from "@/store/theme.store";
+import { useUIStore } from "@/store/ui.store";
 import { ACCENT_THEMES } from "@/themes";
+import { usePersisted } from "@/hooks/persisted.hook";
 import {
    SettingsGroup,
    SettingsRow,
+   Toggle,
    Slider
 } from "../components/SettingsPrimitives";
 
 export default function AppearanceSection() {
    const { theme, glassOpacity, setAccent, setSurface, setGlassOpacity } =
       useThemeStore();
+   const { reduceMotion, setReduceMotion, sidebarCollapsed, toggleSidebar } =
+      useUIStore();
+   const [keepAwake, setKeepAwake] = usePersisted("keep-awake", true);
 
    return (
       <div className='pb-4'>
@@ -137,6 +143,38 @@ export default function AppearanceSection() {
                label='Glass opacity'
                formatValue={v => `${Math.round(v * 100)}%`}
             />
+         </SettingsGroup>
+
+         {/* Motion & screen */}
+         <SettingsGroup
+            title='Motion & screen'
+            footer='Reduce motion jumps every animation straight to its end state — the whole app stops moving. Keep screen awake holds the display on while music plays.'>
+            <SettingsRow
+               label='Reduce motion'
+               description='Stop animations across the entire app — gentle on eyes and battery'>
+               <Toggle value={reduceMotion} onChange={setReduceMotion} />
+            </SettingsRow>
+            <SettingsRow
+               label='Keep screen awake'
+               description='Hold the display on while music is playing'>
+               <Toggle value={keepAwake} onChange={setKeepAwake} />
+            </SettingsRow>
+         </SettingsGroup>
+
+         {/* Layout shortcuts */}
+         <SettingsGroup
+            title='Layout shortcuts'
+            footer='The desktop sidebar can be collapsed to icons to give the content more room. Full layout controls live in the Layout section.'>
+            <SettingsRow
+               label='Collapse sidebar'
+               description={sidebarCollapsed ? 'Sidebar is collapsed to icons' : 'Sidebar shows icons and labels'}
+               onClick={toggleSidebar}
+               icon={sidebarCollapsed ? <EyeOff className='w-[14px] h-[14px]' /> : <Eye className='w-[14px] h-[14px]' />}
+               iconBg='#8B5CF6'>
+               <span className='text-[13px] text-[var(--text-muted)]'>
+                  {sidebarCollapsed ? 'Collapsed' : 'Expanded'}
+               </span>
+            </SettingsRow>
          </SettingsGroup>
 
          {/* Fonts and navigation live in Layout — they are the only display
