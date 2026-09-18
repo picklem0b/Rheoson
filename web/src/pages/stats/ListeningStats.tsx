@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  BarChart3, Clock, Heart, Users, Music2, TrendingUp, Calendar
+  BarChart3, Clock, Heart, Users, Music2, TrendingUp, Calendar, LogIn, BarChartBig
 } from 'lucide-react'
 import { analyticsApi } from '@/api/analytics.api'
+import { useAuthStore } from '@/store/auth.store'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Button } from '@/components/ui/Button'
 import { formatCount } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 
@@ -51,28 +54,41 @@ function BarChart({ data, maxValue }: { data: { label: string; value: number }[]
 }
 
 export default function ListeningStats() {
+  const navigate = useNavigate()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+
+  const enabled = isAuthenticated
+
   const { data: stats, isLoading: loadingStats } = useQuery({
     queryKey: ['analytics', 'stats'],
     queryFn: analyticsApi.getStats,
     staleTime: 60_000,
+    enabled,
+    retry: 0,
   })
 
   const { data: topArtists } = useQuery({
     queryKey: ['analytics', 'top-artists'],
     queryFn: () => analyticsApi.getTopArtists(30, 5),
     staleTime: 60_000,
+    enabled,
+    retry: 0,
   })
 
   const { data: hourlyData } = useQuery({
     queryKey: ['analytics', 'hourly'],
     queryFn: () => analyticsApi.getListeningByHour(30),
     staleTime: 60_000,
+    enabled,
+    retry: 0,
   })
 
   const { data: dailyData } = useQuery({
     queryKey: ['analytics', 'daily'],
     queryFn: () => analyticsApi.getListeningByDay(7),
     staleTime: 60_000,
+    enabled,
+    retry: 0,
   })
 
   const hourly = hourlyData?.hours ?? []
@@ -89,6 +105,44 @@ export default function ListeningStats() {
     value: d.plays,
   }))
 
+  const loadingAny = loadingStats
+  const hasAny =
+    !!stats || hourly.length > 0 || daily.length > 0 ||
+    (topArtists?.artists.length ?? 0) > 0
+
+  // ── Guest gate: analytics are account-scoped by policy ──────
+  if (!isAuthenticated) {
+    return (
+      <ScrollArea className="h-full">
+        <div className="px-4 lg:px-8 pt-6 pb-10 space-y-6">
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Your Stats</h1>
+            <p className="text-sm text-[var(--text-muted)] mt-0.5">Listening insights and trends</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center text-center py-16 gap-4"
+          >
+            <div className="w-20 h-20 rounded-[2rem] bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]">
+              <LogIn className="w-8 h-8 text-[var(--text-muted)]" />
+            </div>
+            <div>
+              <p className="font-bold text-[var(--text-primary)]">Stats live with your account</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1 max-w-xs">
+                Sign in to see your listening history, top artists, and hourly
+                trends — every play counts from the moment you do.
+              </p>
+            </div>
+            <Button variant="primary" size="md" onClick={() => navigate('/auth')}>
+              Sign in
+            </Button>
+          </motion.div>
+        </div>
+      </ScrollArea>
+    )
+  }
+
   return (
     <ScrollArea className="h-full">
       <div className="px-4 lg:px-8 pt-6 pb-10 space-y-6">
@@ -97,6 +151,30 @@ export default function ListeningStats() {
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Your Stats</h1>
           <p className="text-sm text-[var(--text-muted)] mt-0.5">Listening insights and trends</p>
         </motion.div>
+
+        {/* Sign-out empty state — distinct from loading, so the page never
+            renders as a blank shell while the account has no plays yet */}
+        {!loadingAny && !hasAny && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center text-center py-16 gap-4"
+          >
+            <div className="w-20 h-20 rounded-[2rem] bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]">
+              <BarChartBig className="w-8 h-8 text-[var(--text-muted)]" />
+            </div>
+            <div>
+              <p className="font-bold text-[var(--text-primary)]">No listening data yet</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1 max-w-xs">
+                Play a few songs and this page fills up with your hours, top
+                artists, and listening patterns.
+              </p>
+            </div>
+            <Button variant="secondary" size="md" onClick={() => navigate('/')}>
+              Find something to play
+            </Button>
+          </motion.div>
+        )}
 
         {/* Stats grid */}
         {loadingStats ? (
