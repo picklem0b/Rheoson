@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, Play, Plus, Sparkles, UserPlus, X } from 'lucide-react'
+import { Check, Play, Plus, Sparkles, User, UserPlus, X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
@@ -38,10 +38,11 @@ export default function Artist() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
-  const { data: artist, isLoading } = useQuery({
+  const { data: artist, isLoading, isError } = useQuery({
     queryKey: ['artist', id],
     queryFn:  () => getArtist(id!),
     enabled:  !!id,
+    retry:    1,
   })
 
   // Follow state (server-side, per user)
@@ -110,6 +111,31 @@ export default function Artist() {
   const dismissRelease = () => {
     setAlertDismissed(true)
     if (id) markReleaseSeen(id).catch(() => {})
+  }
+
+  // Not-found state — without this the page renders a bare hero skeleton
+  // forever when a browse id doesn't resolve (bad link, delisted artist).
+  if (!isLoading && (isError || (!artist || !artist.name || artist.name === 'Unknown Artist'))) {
+    return (
+      <div className="flex flex-col h-full">
+        <TopBar transparent />
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 px-8">
+          <div className="w-20 h-20 rounded-[2rem] bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]">
+            <User className="w-8 h-8 text-[var(--text-muted)]" />
+          </div>
+          <div>
+            <p className="font-bold text-[var(--text-primary)]">Artist unavailable</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1 max-w-xs">
+              This artist page couldn&apos;t be loaded. It may have been removed,
+              or the link is out of date.
+            </p>
+          </div>
+          <Button variant="secondary" size="md" onClick={() => navigate(-1)}>
+            Go back
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

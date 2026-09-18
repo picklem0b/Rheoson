@@ -19,6 +19,7 @@ import {
    pruneAudioCache
 } from "@/lib/audioCache";
 import { usePersisted } from "@/hooks/persisted.hook";
+import { useQueryClient } from "@tanstack/react-query";
 import {
    SettingsGroup,
    SettingsRow,
@@ -51,7 +52,9 @@ function fmt(bytes: number) {
 }
 
 export default function StorageSection() {
+   const queryClient = useQueryClient();
    const [dirs, setDirs] = usePersisted<Dir[]>("music-dirs", DEFAULT_DIRS);
+   const [autoWarm, setAutoWarm] = usePersisted("storage-auto-warm", true);
    const [adding, setAdding] = useState(false);
    const [pathInput, setPathInput] = useState("");
    const [preview, setPreview] = useState<Record<string, AudioFile[]>>({});
@@ -372,6 +375,26 @@ export default function StorageSection() {
                   <Download className='w-4 h-4 text-[var(--text-muted)]/40' />
                }
             />
+            <SettingsRow
+               label='Refresh library view'
+               description='Refetch every library list on this device from the server'
+               onClick={() => {
+                  queryClient.invalidateQueries();
+               }}
+               icon={<RefreshCw className='w-[14px] h-[14px]' />}
+               iconBg='#0EA5E9'
+            />
+         </SettingsGroup>
+
+         {/* Caching behaviour */}
+         <SettingsGroup
+            title='Caching behaviour'
+            footer='Warm-ahead pre-buffers tracks you are about to hear so skips are instant. Turning it off saves data at the cost of slower skips.'>
+            <SettingsRow
+               label='Warm-ahead pre-buffer'
+               description='Fetch upcoming tracks in the background while listening'>
+               <Toggle value={autoWarm} onChange={setAutoWarm} />
+            </SettingsRow>
          </SettingsGroup>
 
          {/* Cache */}

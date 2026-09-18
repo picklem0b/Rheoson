@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { Toaster } from "@/components/ui/Toaster";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
@@ -35,9 +35,19 @@ import { cn } from "@/lib/utils";
  *  Sidebar on left, no BottomNav, PlayerBar pinned at bottom of content column.
  */
 
+/** Settings → Appearance → Reduce motion. Read per render of the toggle
+ *  subscriber; applied by wrapping the shell in MotionConfig with
+ *  reducedMotion="always", which makes every framer-motion animation in the
+ *  app jump to its end state — a global, accessible motion kill-switch. */
+function useReduceMotion(): boolean {
+   const reduced = useUIStore(s => s.reduceMotion);
+   return reduced;
+}
+
 export default function RootLayout() {
    // Cross-device playback sync (this tab ⇄ the account's other devices)
    usePlayerSync();
+   const reduceMotion = useReduceMotion();
 
    const hasTrack = usePlayerStore(s => s.currentTrack !== null);
    const navPosition = useUIStore(s => s.navPosition);
@@ -47,6 +57,7 @@ export default function RootLayout() {
    const navAtTop = navPosition === 'top';
 
    return (
+      <MotionConfig reducedMotion={reduceMotion ? "always" : "never"}>
       <Toaster>
          <div className='flex h-full w-full overflow-hidden bg-[var(--bg-base)]'>
             {/* ── Desktop sidebar ───────────────────────────── */}
@@ -156,5 +167,6 @@ export default function RootLayout() {
             <OnboardingGate />
          </div>
       </Toaster>
+      </MotionConfig>
    );
 }

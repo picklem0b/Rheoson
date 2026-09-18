@@ -15,6 +15,7 @@ Welcome to the Rheoson documentation. Start wherever matches your goal — every
 | If you want to… | Read |
 |-----------------|------|
 | Understand what Rheoson is | [README](../README.md) → [Architecture](ARCHITECTURE.md) |
+| Learn the codebase from the ground up | [Developer Handbook](handbook/README.md) — 23 chapters from first principles to full contribution |
 | Deploy your own instance | [Deployment](DEPLOYMENT.md) → [Operations](OPERATIONS.md) |
 | Contribute code | [Contributing](CONTRIBUTING.md) → [Development](DEVELOPMENT.md) |
 | Build against the API | [API Reference](API.md) (+ live Swagger at `/api/docs`) |
@@ -30,6 +31,7 @@ Welcome to the Rheoson documentation. Start wherever matches your goal — every
 5. [Deployment](DEPLOYMENT.md) — Render / Docker / Termux / APK
 6. [Operations](OPERATIONS.md) — health, backups, incidents, upgrades
 7. Deep dives — streaming, downloads, auth, frontend, mobile
+8. New to programming or the codebase? The [Developer Handbook](handbook/README.md) teaches both from first principles.
 
 ---
 

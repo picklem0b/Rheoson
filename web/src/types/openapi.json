@@ -1347,6 +1347,31 @@
         ]
       }
     },
+    "/api/health/selftest": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Selftest",
+        "description": "Route-level self-test: drives a bounded, read-only request suite\nthrough the app's own ASGI stack (search, library, stream HEAD, job\nstore, socket handshake, lyrics, categories) and reports per-route\npass/fail with latency. Complements /api/health/diag, which checks\ndependencies \u2014 this checks that the routes built on them cooperate.",
+        "operationId": "health_selftest_api_health_selftest_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/library/albums": {
       "get": {
         "tags": [

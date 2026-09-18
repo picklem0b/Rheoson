@@ -31,6 +31,12 @@ const _inflight = new Map<string, AbortController>();
  */
 export function cacheUpcomingTracks(trackIds: string[], limit = 2): void {
   if (!isOnline() || cacheLimitBytes() <= 0) return;
+  // Settings → Storage → Warm-ahead pre-buffer. Read per call so the toggle
+  // applies to the next skip without a reload.
+  try {
+    const raw = localStorage.getItem('rheoson-storage-auto-warm');
+    if (raw !== null && JSON.parse(raw) === false) return;
+  } catch { /* default on */ }
   trackIds.slice(0, limit).forEach((id) => {
     if (!id) return;
     warmAudioCache(id, `${API_BASE}/stream/${id}/audio`).catch(() => {

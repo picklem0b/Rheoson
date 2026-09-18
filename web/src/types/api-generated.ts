@@ -565,6 +565,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/health/selftest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health Selftest
+         * @description Route-level self-test: drives a bounded, read-only request suite
+         *     through the app's own ASGI stack (search, library, stream HEAD, job
+         *     store, socket handshake, lyrics, categories) and reports per-route
+         *     pass/fail with latency. Complements /api/health/diag, which checks
+         *     dependencies — this checks that the routes built on them cooperate.
+         */
+        get: operations["health_selftest_api_health_selftest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/library/albums": {
         parameters: {
             query?: never;
@@ -3447,6 +3471,26 @@ export interface operations {
         };
     };
     health_diag_api_health_diag_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    health_selftest_api_health_selftest_get: {
         parameters: {
             query?: never;
             header?: never;

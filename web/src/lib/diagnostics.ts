@@ -23,6 +23,7 @@ export type Severity = 'ok' | 'warn' | 'bad' | 'unknown'
 export type FixKind =
    | 'recheck'
    | 'deep'
+   | 'selftest'
    | 'rescan'
    | 'update-tools'
    | 'clear-stream-cache'

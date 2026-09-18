@@ -24,8 +24,19 @@ function _isSupported(): boolean {
   return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function'
 }
 
+/** Settings → Audio → Haptic feedback. Read per call so toggling applies
+ *  immediately without a reload; defaults on. */
+function _enabled(): boolean {
+  try {
+    const raw = localStorage.getItem('rheoson-haptics-enabled')
+    return raw !== null ? (JSON.parse(raw) as boolean) : true
+  } catch {
+    return true
+  }
+}
+
 export function haptic(pattern: HapticPattern = 'light'): void {
-  if (!_isSupported()) return
+  if (!_isSupported() || !_enabled()) return
   try {
     navigator.vibrate(PATTERNS[pattern])
   } catch {

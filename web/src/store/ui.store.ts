@@ -42,6 +42,11 @@ interface UIStore {
   fontFamily:  FontFamily
   fontSize:    FontSize
 
+  /** Settings → Appearance → Reduce motion. When true, the shell renders
+   *  inside <MotionConfig reducedMotion="always"> so every framer-motion
+   *  animation jumps to its end state — one switch that calms the whole app. */
+  reduceMotion: boolean
+
   // Actions — panels
   toggleQueue:        () => void
   toggleLyrics:       () => void
@@ -58,6 +63,7 @@ interface UIStore {
   setNavPosition: (v: NavPosition) => void
   setFontFamily:  (v: FontFamily)  => void
   setFontSize:    (v: FontSize)    => void
+  setReduceMotion:(v: boolean)     => void
   initLayout:     () => void
 }
 
@@ -83,6 +89,7 @@ export const useUIStore = create<UIStore>()(
       navPosition: 'bottom',
       fontFamily:  'plus-jakarta',
       fontSize:    'default',
+      reduceMotion: false,
 
       toggleQueue:      () => set((s) => ({ showQueue:   !s.showQueue,   showLyrics: false, showEqualizer: false })),
       toggleLyrics:     () => set((s) => ({ showLyrics:  !s.showLyrics,  showQueue:  false, showEqualizer: false })),
@@ -119,6 +126,8 @@ export const useUIStore = create<UIStore>()(
         applyLayout(get().fontFamily, v)
       },
 
+      setReduceMotion: (v) => set({ reduceMotion: v }),
+
       initLayout: () => {
         const { fontFamily, fontSize } = get()
         applyLayout(fontFamily, fontSize)
@@ -133,6 +142,7 @@ export const useUIStore = create<UIStore>()(
         navPosition:      s.navPosition,
         fontFamily:       s.fontFamily,
         fontSize:         s.fontSize,
+        reduceMotion:     s.reduceMotion,
       }),
     },
   ),

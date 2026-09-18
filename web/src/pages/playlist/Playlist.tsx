@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Play, Shuffle, MoreHorizontal, Heart, Download, ListPlus, Pencil, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Play, Shuffle, MoreHorizontal, Download, ListPlus, Pencil, Plus, Trash2, PenLine } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueue } from "@/hooks/queue.hook";
+import { useDownloads } from "@/hooks/downloads.hook";
 import { getPlaylist, playlistsApi } from "@/api/playlists.api";
 import { tracksApi } from "@/api/tracks.api";
 import { recommendationsApi } from "@/api/recommendations.api";
@@ -15,6 +16,8 @@ import { TrackRowSkeleton } from "@/components/ui/Skeleton";
 import { ArtworkImage } from "@/components/ui/ArtworkImage";
 import { useToast } from "@/components/ui/Toaster";
 import { PlaylistCover, PlaylistCoverEditor } from "@/components/playlist/PlaylistCover";
+import { Modal } from "@/components/ui/Modal";
+import { Button as UiButton } from "@/components/ui/Button";
 import { usePlaylistMenuStore } from "@/store/playlistMenu.store";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { formatDuration, formatTotalDuration, truncate } from "@/lib/formatters";
@@ -23,12 +26,32 @@ import type { Track } from "@/types/track.types";
 
 export default function Playlist() {
    const { id } = useParams<{ id: string }>();
+   const navigate = useNavigate();
    const { playAll, playTrack, addToQueue } = useQueue();
+   const { downloadMany } = useDownloads();
    const { toast } = useToast();
    const queryClient = useQueryClient();
    const openPlaylistMenu = usePlaylistMenuStore((s) => s.openForTrack);
 
    const [showCoverEditor, setShowCoverEditor] = useState(false);
+   const [menuOpen, setMenuOpen] = useState(false);
+   const [showRename, setShowRename] = useState(false);
+   const [showDelete, setShowDelete] = useState(false);
+   const [newTitle, setNewTitle] = useState("");
+   const [busy, setBusy] = useState(false);
+   const menuRef = useRef<HTMLDivElement>(null);
+
+   // Close the overflow menu on outside click
+   useEffect(() => {
+      if (!menuOpen) return;
+      const handler = (e: MouseEvent) => {
+         if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+            setMenuOpen(false);
+         }
+      };
+      document.addEventListener("mousedown", handler);
+      return () => document.removeEventListener("mousedown", handler);
+   }, [menuOpen]);
 
    const { data: playlist, isLoading } = useQuery({
       queryKey: ["playlist", id],
@@ -83,6 +106,35 @@ export default function Playlist() {
    const refreshCover = () => {
       queryClient.invalidateQueries({ queryKey: ["playlist", id] });
       queryClient.invalidateQueries({ queryKey: ["playlists"] });
+   };
+
+   const handleRename = async () => {
+      if (!id || !newTitle.trim() || !playlist) return;
+      setBusy(true);
+      try {
+         await playlistsApi.updatePlaylist(id, { title: newTitle.trim() });
+         toast("Playlist renamed", "success", 1800);
+         setShowRename(false);
+         queryClient.invalidateQueries({ queryKey: ["playlist", id] });
+         queryClient.invalidateQueries({ queryKey: ["playlists"] });
+      } catch {
+         toast("Could not rename playlist", "error");
+      } finally {
+         setBusy(false);
+      }
+   };
+
+   const handleDelete = async () => {
+      if (!id || !playlist) return;
+      setBusy(true);
+      try {
+         await playlistsApi.deletePlaylist(id);
+         toast(`Deleted "${truncate(playlist.title, 24)}"`, "success", 1800);
+         navigate("/library", { replace: true });
+      } catch {
+         toast("Could not delete playlist", "error");
+         setBusy(false);
+      }
    };
 
    return (
@@ -170,15 +222,60 @@ export default function Playlist() {
                         <Shuffle className='w-4 h-4' />
                         Shuffle
                      </Button>
-                     <IconButton size='md' variant='ghost'>
-                        <Heart />
-                     </IconButton>
-                     <IconButton size='md' variant='ghost'>
+                     <IconButton
+                        size='md'
+                        variant='ghost'
+                        title='Download all tracks'
+                        disabled={!tracks.length}
+                        onClick={() => {
+                           if (!playlist) return;
+                           downloadMany(playlist.tracks);
+                           toast(`Downloading ${playlist.tracks.length} track${playlist.tracks.length === 1 ? '' : 's'}…`, "success", 2200);
+                        }}>
                         <Download />
                      </IconButton>
-                     <IconButton size='md' variant='ghost'>
-                        <MoreHorizontal />
-                     </IconButton>
+                     <div className='relative' ref={menuRef}>
+                        <IconButton
+                           size='md'
+                           variant='ghost'
+                           title='More options'
+                           onClick={() => setMenuOpen(o => !o)}>
+                           <MoreHorizontal />
+                        </IconButton>
+                        <AnimatePresence>
+                           {menuOpen && (
+                              <motion.div
+                                 initial={{ opacity: 0, scale: 0.94, y: -4 }}
+                                 animate={{ opacity: 1, scale: 1, y: 0 }}
+                                 exit={{ opacity: 0, scale: 0.94, y: -4 }}
+                                 transition={{ type: "spring", damping: 24, stiffness: 340 }}
+                                 className='absolute right-0 top-full mt-1 z-50 w-52 glass-strong rounded-2xl
+                                    border border-[var(--border)] shadow-2xl overflow-hidden origin-top-right'>
+                                 <button
+                                    onClick={() => {
+                                       setMenuOpen(false);
+                                       setNewTitle(playlist?.title ?? "");
+                                       setShowRename(true);
+                                    }}
+                                    className='w-full flex items-center gap-3 px-4 py-3 text-left
+                                       hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)] transition-colors'>
+                                    <PenLine className='w-4 h-4 text-[var(--text-muted)]' />
+                                    <span className='text-sm font-medium text-[var(--text-primary)]'>Rename</span>
+                                 </button>
+                                 <button
+                                    onClick={() => {
+                                       setMenuOpen(false);
+                                       setShowDelete(true);
+                                    }}
+                                    className='w-full flex items-center gap-3 px-4 py-3 text-left
+                                       hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)] transition-colors'>
+                                    <Trash2 className='w-4 h-4 text-red-400' />
+                                    <span className='text-sm font-medium text-red-400'>Delete playlist</span>
+                                 </button>
+                              </motion.div>
+                           )}
+                        </AnimatePresence>
+                     </div>
                   </div>
                </div>
             </div>
@@ -271,6 +368,43 @@ export default function Playlist() {
                onSaved={refreshCover}
             />
          )}
+
+         {/* Rename dialog */}
+         <Modal open={showRename} onClose={() => setShowRename(false)} title='Rename playlist'>
+            <input
+               value={newTitle}
+               onChange={e => setNewTitle(e.target.value)}
+               onKeyDown={e => {
+                  if (e.key === "Enter") handleRename();
+                  if (e.key === "Escape") setShowRename(false);
+               }}
+               autoFocus
+               maxLength={80}
+               className='w-full h-11 px-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]
+                  text-[var(--text-primary)] outline-none focus:border-[var(--accent)] transition-colors'
+               placeholder='Playlist name'
+            />
+            <div className='flex justify-end gap-2 mt-4'>
+               <UiButton variant='ghost' size='sm' onClick={() => setShowRename(false)}>Cancel</UiButton>
+               <UiButton variant='primary' size='sm' disabled={!newTitle.trim() || busy} onClick={handleRename}>
+                  Save
+               </UiButton>
+            </div>
+         </Modal>
+
+         {/* Delete confirmation */}
+         <Modal open={showDelete} onClose={() => setShowDelete(false)} title='Delete playlist'>
+            <p className='text-sm text-[var(--text-secondary)]'>
+               Delete &quot;{playlist?.title ?? "this playlist"}&quot; permanently? The tracks
+               stay in your library.
+            </p>
+            <div className='flex justify-end gap-2 mt-4'>
+               <UiButton variant='ghost' size='sm' onClick={() => setShowDelete(false)}>Cancel</UiButton>
+               <UiButton variant='primary' size='sm' disabled={busy} onClick={handleDelete} className='!bg-red-500 !hover:bg-red-400'>
+                  Delete
+               </UiButton>
+            </div>
+         </Modal>
       </div>
    );
 }
