@@ -6,7 +6,7 @@ import {
 } from '@/store/download.store'
 import { downloadsApi } from '@/api/downloads.api'
 import { ws } from '@/lib/websocket.lib'
-import type { DownloadJob, DownloadOptions } from '@/types/download.types'
+import type { DownloadJob, DownloadOptions, AudioFormat, AudioQuality } from '@/types/download.types'
 import type { Track } from '@/types/track.types'
 import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
@@ -51,6 +51,26 @@ function persistedOptions() {
     retries: autoRetry ? Math.max(0, retries) : 0,
     speedLimit: Math.max(0, readPref('dl-speed-cap', 0)),
     concurrency: Math.min(8, Math.max(1, readPref('dl-concurrent', 3))),
+  }
+}
+
+/** Settings → Downloads defaults, read fresh on every download call so a
+ *  change applies to the next job without a reload. These are the fallback
+ *  when a caller (modal, playlist batch) does not pass its own choice. */
+function persistedMediaPrefs() {
+  const fmt = readPref<string>('dl-format', DOWNLOAD_DEFAULTS.format)
+  const fmts = ['mp3', 'opus', 'm4a', 'flac', 'wav'] as const
+  const quality = readPref<string>('dl-quality', DOWNLOAD_DEFAULTS.quality)
+  const quals = ['128', '192', '256', '320', 'best'] as const
+  return {
+    format: (fmts as readonly string[]).includes(fmt)
+      ? (fmt as AudioFormat)
+      : DOWNLOAD_DEFAULTS.format,
+    quality: (quals as readonly string[]).includes(quality)
+      ? (quality as AudioQuality)
+      : DOWNLOAD_DEFAULTS.quality,
+    embedArtwork: readPref('dl-artwork', DOWNLOAD_DEFAULTS.embedArtwork),
+    embedLyrics: readPref('dl-lyrics', DOWNLOAD_DEFAULTS.embedLyrics),
   }
 }
 
@@ -148,13 +168,14 @@ export function useDownloads() {
 
     const tempId = uid('dl')
     // Persisted advanced options win unless this call overrides them
+    const media = persistedMediaPrefs()
     const payload: DownloadOptions = {
       ...persistedOptions(),
       ...options,
-      format: options.format ?? DOWNLOAD_DEFAULTS.format,
-      quality: options.quality ?? DOWNLOAD_DEFAULTS.quality,
-      embedArtwork: options.embedArtwork ?? DOWNLOAD_DEFAULTS.embedArtwork,
-      embedLyrics: options.embedLyrics ?? DOWNLOAD_DEFAULTS.embedLyrics,
+      format: options.format ?? media.format,
+      quality: options.quality ?? media.quality,
+      embedArtwork: options.embedArtwork ?? media.embedArtwork,
+      embedLyrics: options.embedLyrics ?? media.embedLyrics,
     }
 
     // Optimistic job shown immediately in the UI
