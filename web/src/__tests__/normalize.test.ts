@@ -69,3 +69,46 @@ describe('normalizeTrack', () => {
       expect(normalizeTrack({ id: 'x', duration: '1:02:03' }).duration).toBe(3723)
    })
 })
+
+describe('weekly trending contract', () => {
+   // The exact drift that blanked the Home page: YouTube Music removed the
+   // charts `songs` section, the backend returned `{week, tracks: []}`, and
+   // every section fed from it (hero, top-3, trending rail) vanished. This
+   // pins the weekly payload shape the frontend relies on.
+   const WEEKLY = {
+      week: '2026-W38',
+      tracks: [
+         {
+            id: 'fcnDmrtj6Sk',
+            title: 'Dai Dai',
+            duration: '2:51',
+            rank: 1,
+            playCount: '91,247,531',
+            artworkUrl: 'https://i.ytimg.com/vi/fcnDmrtj6Sk/hqdefault.jpg',
+            artist: { id: 'UC123', name: 'Shakira' },
+            album: { id: '', name: '' },
+         },
+      ],
+   }
+
+   it('extracts tracks from the { week, tracks } envelope', () => {
+      const tracks = normalizeTracks(WEEKLY.tracks)
+      expect(tracks).toHaveLength(1)
+      expect(tracks[0].id).toBe('fcnDmrtj6Sk')
+      expect(tracks[0].rank).toBe(1)
+      expect(tracks[0].artist.name).toBe('Shakira')
+   })
+
+   it('keeps real chart rows and drops placeholder rows', () => {
+      const tracks = normalizeTracks([
+        ...WEEKLY.tracks,
+        { id: '', title: 'No video id' },
+      ])
+      expect(tracks).toHaveLength(1)
+   })
+
+   it('an empty weekly envelope produces no tracks, not junk', () => {
+      expect(normalizeTracks([])).toEqual([])
+      expect(normalizeTracks(null as unknown as unknown[])).toEqual([])
+   })
+})
