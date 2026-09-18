@@ -5,6 +5,18 @@ import { useUIStore } from '@/store/ui.store'
 import { clamp } from '@/lib/utils'
 import { PLAYER_DEFAULTS } from '@/lib/constants'
 
+/** Settings → Audio → Seek step (5–60 s, default 10). Read per press so a
+ *  change applies to the very next arrow key. */
+function _seekStep(): number {
+  try {
+    const raw = localStorage.getItem('rheoson-seek-step')
+    const n = raw !== null ? Number(JSON.parse(raw)) : NaN
+    return Number.isFinite(n) ? Math.min(60, Math.max(5, n)) : PLAYER_DEFAULTS.seekStep
+  } catch {
+    return PLAYER_DEFAULTS.seekStep
+  }
+}
+
 export function useKeyboardShortcuts() {
   const { togglePlay, seek, skipNext, skipPrev } = usePlayer()
   const { cycleRepeat, toggleShuffle } = usePlayerStore()
@@ -47,12 +59,12 @@ export function useKeyboardShortcuts() {
 
         case 'ArrowRight':
           e.preventDefault()
-          seekRef.current(clamp(progress + PLAYER_DEFAULTS.seekStep, 0, duration))
+          seekRef.current(clamp(progress + _seekStep(), 0, duration))
           break
 
         case 'ArrowLeft':
           e.preventDefault()
-          seekRef.current(clamp(progress - PLAYER_DEFAULTS.seekStep, 0, duration))
+          seekRef.current(clamp(progress - _seekStep(), 0, duration))
           break
 
         case 'ArrowUp':

@@ -23,4 +23,10 @@ export const downloadsApi = {
 
   deleteDownload: (id: string) =>
     api.delete<void>(`/downloads/${id}`),
+
+  /** Start many downloads at once (backend caps at 20 per call). */
+  batchDownload: (payload: {
+    track_ids: string[]
+  } & DownloadOptions) =>
+    api.post<DownloadJob[]>('/downloads/batch', payload),
 }

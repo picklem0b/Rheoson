@@ -21,6 +21,9 @@ export default function DownloadsSection() {
    const [wifiOnly, setWifi] = usePersisted("dl-wifi-only", false);
    const [autoRetry, setAutoRetry] = usePersisted("dl-auto-retry", true);
    const [maxConc, setMaxConc] = usePersisted("dl-concurrent", 3);
+   const [retries, setRetries] = usePersisted("dl-retries", 3);
+   const [speedCap, setSpeedCap] = usePersisted("dl-speed-cap", 0);
+   const [naming, setNaming] = usePersisted<string>("dl-naming", "artist-title");
 
    return (
       <div className='pb-4'>
@@ -133,10 +136,40 @@ export default function DownloadsSection() {
                <Toggle value={autoRetry} onChange={setAutoRetry} />
             </SettingsRow>
             <SettingsRow
+               label='Retry attempts'
+               description='How many times a failed download is retried (0 retries when auto-retry is off)'>
+               <Stepper value={retries} onChange={setRetries} min={0} max={8} />
+            </SettingsRow>
+            <SettingsRow
                label='Concurrent downloads'
                description='Tracks downloading simultaneously'>
                <Stepper value={maxConc} onChange={setMaxConc} min={1} max={8} />
             </SettingsRow>
+         </SettingsGroup>
+
+         {/* Advanced — all read per-download by the pipeline */}
+         <SettingsGroup
+            title='Advanced'
+            footer='Speed cap is in kilobytes per second (0 = unlimited). File naming decides the saved file name: artist first, title first, or the internal track ID.'>
+            <SettingsRow
+               label='Speed cap'
+               description='Limit per-download bandwidth to be polite to your network'>
+               <Stepper
+                  value={speedCap}
+                  onChange={setSpeedCap}
+                  min={0}
+                  max={4096}
+               />
+            </SettingsRow>
+            <RadioGroup
+               value={naming as "artist-title" | "title-artist" | "id"}
+               onChange={setNaming}
+               options={[
+                  { value: "artist-title", label: 'Artist — Title', sub: 'Default — groups files by artist' },
+                  { value: "title-artist", label: 'Title — Artist', sub: 'Alphabetical by song name' },
+                  { value: "id", label: 'Track ID only', sub: 'Short internal ID — best for large libraries' }
+               ]}
+            />
          </SettingsGroup>
       </div>
    );
