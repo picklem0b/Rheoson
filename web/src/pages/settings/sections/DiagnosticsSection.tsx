@@ -6,6 +6,7 @@ import {
    CheckCircle2,
    CircleDashed,
    RefreshCw,
+   Route,
    Server,
    ShieldCheck,
    Stethoscope,
@@ -13,7 +14,7 @@ import {
    WifiOff
 } from 'lucide-react'
 import type { ApiTargetSource } from '@/lib/constants'
-import { healthApi, type HealthPayload } from '@/api/health.api'
+import { healthApi, type HealthPayload, type SelftestPayload } from '@/api/health.api'
 import { api } from '@/api/client.api'
 import { useAuthStore } from '@/store/auth.store'
 import { isOnline, onStatusChange } from '@/lib/network'
@@ -187,6 +188,7 @@ export default function DiagnosticsSection() {
    const isAuthenticated = useAuthStore(s => s.isAuthenticated)
 
    const [deep, setDeep] = useState<HealthPayload | null>(null)
+   const [selftest, setSelftest] = useState<SelftestPayload | null>(null)
    const [fixState, setFixState] = useState<Record<string, ActionState>>({})
    const [toolOutput, setToolOutput] = useState<string | null>(null)
    const [online, setOnline] = useState(isOnline())
@@ -228,6 +230,9 @@ export default function DiagnosticsSection() {
                   break
                case 'deep':
                   setDeep(await healthApi.deep())
+                  break
+               case 'selftest':
+                  setSelftest(await healthApi.selftest())
                   break
                case 'rescan':
                   await api.post('/settings/rescan')
@@ -355,6 +360,48 @@ export default function DiagnosticsSection() {
                </SettingsRow>
             )}
          </SettingsGroup>
+
+         {/* ── Route self-test ────────────────────────────── */}
+         {isAuthenticated && (
+            <SettingsGroup
+               title='Route self-test'
+               footer='Drives real, read-only requests through the server — search, library, streaming, downloads — so broken routes show up here instead of in your ears.'>
+               <SettingsRow
+                  label='Test the routes'
+                  description={
+                     selftest
+                        ? `${selftest.summary.pass} passed · ${selftest.summary.fail} failed · ${selftest.summary.skipped} skipped · ${selftest.totalMs} ms`
+                        : 'Send live probe requests through every major route'
+                  }
+                  onClick={() => runFix('__selftest', { label: 'Test routes', kind: 'selftest' })}
+                  icon={<Route className='w-[14px] h-[14px]' />}
+                  iconBg='#0EA5E9'>
+                  {fixState['__selftest'] === 'loading' ? (
+                     <RefreshCw className='w-4 h-4 text-[var(--text-muted)] animate-spin' />
+                  ) : fixState['__selftest'] === 'ok' ? (
+                     <CheckCircle2 className='w-4 h-4 text-emerald-400' />
+                  ) : fixState['__selftest'] === 'err' ? (
+                     <AlertTriangle className='w-4 h-4 text-red-400' />
+                  ) : null}
+               </SettingsRow>
+               {selftest?.checks.map(c => {
+                  const s = SEVERITY[c.status === 'pass' ? 'ok' : c.status === 'warn' ? 'warn' : c.status === 'fail' ? 'bad' : 'unknown']
+                  const Icon = s.Icon
+                  return (
+                     <SettingsRow
+                        key={c.name}
+                        label={c.description}
+                        description={c.detail || undefined}
+                        icon={<Icon className='w-[14px] h-[14px]' />}
+                        iconBg={c.status === 'pass' ? '#22C55E' : c.status === 'warn' ? '#F59E0B' : c.status === 'fail' ? '#EF4444' : '#6B7280'}>
+                        <span className={cn('text-[12px] tabular-nums', s.color)}>
+                           {c.latencyMs != null ? `${c.latencyMs} ms` : s.label}
+                        </span>
+                     </SettingsRow>
+                  )
+               })}
+            </SettingsGroup>
+         )}
 
          {/* yt-dlp self-update output */}
          {toolOutput && (
