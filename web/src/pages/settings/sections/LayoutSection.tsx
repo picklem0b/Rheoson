@@ -1,5 +1,5 @@
 import { useUIStore } from "@/store/ui.store";
-import { SettingsGroup, RadioGroup } from "../components/SettingsPrimitives";
+import { SettingsGroup, RadioGroup, SettingsRow } from "../components/SettingsPrimitives";
 
 export default function LayoutSection() {
    const {
@@ -7,6 +7,10 @@ export default function LayoutSection() {
       navPosition,
       fontFamily,
       fontSize,
+      sidebarCollapsed,
+      toggleSidebar,
+      reduceMotion,
+      setReduceMotion,
       setNavStyle,
       setNavPosition,
       setFontFamily,
@@ -112,6 +116,27 @@ export default function LayoutSection() {
                   }
                ]}
             />
+         </SettingsGroup>
+
+         <SettingsGroup
+            title='Desktop & panels'
+            footer='The sidebar only appears on screens wide enough for it (lg and up). Panels are the queue and lyrics drawers.'>
+            <SettingsRow
+               label='Collapse sidebar'
+               description={sidebarCollapsed ? 'Currently collapsed to icons' : 'Currently showing icons and labels'}
+               onClick={toggleSidebar}>
+               <span className='text-[13px] text-[var(--text-muted)]'>
+                  {sidebarCollapsed ? 'Collapsed' : 'Expanded'}
+               </span>
+            </SettingsRow>
+            <SettingsRow
+               label='Reduce motion'
+               description='Also in Appearance — stops every animation app-wide'
+               onClick={() => setReduceMotion(!reduceMotion)}>
+               <span className='text-[13px] text-[var(--text-muted)]'>
+                  {reduceMotion ? 'On' : 'Off'}
+               </span>
+            </SettingsRow>
          </SettingsGroup>
       </div>
    );

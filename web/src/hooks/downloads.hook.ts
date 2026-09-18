@@ -217,6 +217,67 @@ export function useDownloads() {
     removeJob(id)
   }, [removeJob])
 
+  /** Download many tracks at once (playlists, albums). Uses the backend's
+   *  batch endpoint in ≤20-track chunks; each job streams its own progress
+   *  over the same WebSocket path as a single download. Optimistic stubs
+   *  appear immediately so the activity feed reflects the request. */
+  const downloadMany = useCallback(async (tracks: Track[]) => {
+    if (!tracks.length) return
+    const media = persistedMediaPrefs()
+    const advanced = persistedOptions()
+    for (let i = 0; i < tracks.length; i += 20) {
+      const chunk = tracks.slice(i, i + 20)
+      const stubs = chunk.map(t => ({
+        id: uid('dl'),
+        trackId: t.id,
+        title: t.title,
+        artist: t.artist?.name ?? 'Unknown Artist',
+        artworkUrl: t.artworkUrl,
+        status: 'queued' as const,
+        progress: 0,
+        format: media.format,
+        quality: media.quality,
+        error: '',
+        filePath: '',
+        createdAt: new Date().toISOString(),
+        embedMetadata: advanced.embedMetadata,
+        fileNaming: advanced.fileNaming,
+        retries: advanced.retries,
+        speedLimit: advanced.speedLimit,
+        concurrency: advanced.concurrency,
+      }))
+      stubs.forEach(addJob)
+      try {
+        const jobs = await downloadsApi.batchDownload({
+          track_ids: chunk.map(t => t.id),
+          format: media.format,
+          quality: media.quality,
+          embedArtwork: media.embedArtwork,
+          embedLyrics: media.embedLyrics,
+          embedMetadata: advanced.embedMetadata,
+          fileNaming: advanced.fileNaming,
+          customPath: advanced.customPath || undefined,
+          retries: advanced.retries,
+          speedLimit: advanced.speedLimit,
+          concurrency: advanced.concurrency,
+        })
+        // Swap stubs for real server jobs, in order where possible
+        jobs.forEach((job, idx) => {
+          const stub = stubs[idx]
+          if (stub) removeJob(stub.id)
+          addJob(job)
+        })
+      } catch (e) {
+        stubs.forEach(stub =>
+          updateJob(stub.id, {
+            status: 'error',
+            error: e instanceof Error ? e.message : 'Batch download failed',
+          })
+        )
+      }
+    }
+  }, [addJob, removeJob, updateJob])
+
   const retry = useCallback(async (id: string) => {
     // Optimistically reset to queued while the retry request is in-flight
     updateJob(id, { status: 'queued', progress: 0, error: undefined })
@@ -250,6 +311,7 @@ export function useDownloads() {
     activeJobs,
     completedJobs,
     download,
+    downloadMany,
     cancel,
     retry,
     resume,

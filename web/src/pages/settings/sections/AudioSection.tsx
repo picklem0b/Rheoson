@@ -10,6 +10,8 @@ import {
    setEQPreset,
    applyFromStorage
 } from "@/lib/audioEffects";
+import { useToast } from "@/components/ui/Toaster";
+import { haptic } from "@/lib/haptics";
 
 /**
  * Audio settings — every control here is read live by the audio engine
@@ -24,6 +26,10 @@ export default function AudioSection() {
    const [bassBoost, setBassBoost] = usePersisted("bass-boost", false);
    const [mono, setMono] = usePersisted("mono", false);
    const [preAmpGain, setPreAmpGain] = usePersisted("pre-amp-gain", 0);
+   const [gapless, setGapless] = usePersisted("gapless", true);
+   const [seekStep, setSeekStep] = usePersisted("seek-step", 10);
+   const [hapticsOn, setHapticsOn] = usePersisted("haptics-enabled", true);
+   const { toast } = useToast();
 
    return (
       <div className='pb-4'>
@@ -33,6 +39,30 @@ export default function AudioSection() {
                label='Autoplay'
                description='When your queue ends, keep playing similar music'>
                <Toggle value={autoplay} onChange={setAutoplay} />
+            </SettingsRow>
+            <SettingsRow
+               label='Gapless queue'
+               description='Warm upcoming tracks while you listen so skipping never waits'>
+               <Toggle value={gapless} onChange={setGapless} />
+            </SettingsRow>
+            <Slider
+               value={seekStep}
+               onChange={setSeekStep}
+               min={5}
+               max={60}
+               step={5}
+               label='Seek step'
+               formatValue={v => `${v} s`}
+            />
+            <SettingsRow
+               label='Haptic feedback'
+               description='Vibrate on play, pause, and skip on supported devices'
+               onClick={() => {
+                  setHapticsOn(true);
+                  haptic('success');
+                  toast('Haptics working', 'success', 1600);
+               }}>
+               <Toggle value={hapticsOn} onChange={setHapticsOn} />
             </SettingsRow>
          </SettingsGroup>
 

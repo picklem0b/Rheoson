@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Play, Shuffle, MoreHorizontal, Heart, Download, ListPlus, Pencil, Plus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueue } from "@/hooks/queue.hook";
+import { useDownloads } from "@/hooks/downloads.hook";
 import { getPlaylist, playlistsApi } from "@/api/playlists.api";
 import { tracksApi } from "@/api/tracks.api";
 import { recommendationsApi } from "@/api/recommendations.api";
@@ -24,6 +25,7 @@ import type { Track } from "@/types/track.types";
 export default function Playlist() {
    const { id } = useParams<{ id: string }>();
    const { playAll, playTrack, addToQueue } = useQueue();
+   const { downloadMany } = useDownloads();
    const { toast } = useToast();
    const queryClient = useQueryClient();
    const openPlaylistMenu = usePlaylistMenuStore((s) => s.openForTrack);
@@ -173,7 +175,16 @@ export default function Playlist() {
                      <IconButton size='md' variant='ghost'>
                         <Heart />
                      </IconButton>
-                     <IconButton size='md' variant='ghost'>
+                     <IconButton
+                        size='md'
+                        variant='ghost'
+                        title='Download all tracks'
+                        disabled={!tracks.length}
+                        onClick={() => {
+                           if (!playlist) return;
+                           downloadMany(playlist.tracks);
+                           toast(`Downloading ${playlist.tracks.length} track${playlist.tracks.length === 1 ? '' : 's'}…`, "success", 2200);
+                        }}>
                         <Download />
                      </IconButton>
                      <IconButton size='md' variant='ghost'>

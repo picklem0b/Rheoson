@@ -35,6 +35,18 @@ export function downloadChimeEnabled(): boolean {
    return readPref("notif-dl-done", true);
 }
 
+/** Settings → Notifications → chime volume (0..1). Falls back to whatever
+ *  the caller passed when unset, so call sites keep their tuned levels. */
+export function chimeVolume(fallback = 0.35): number {
+   try {
+      const raw = localStorage.getItem("rheoson-chime-volume");
+      const n = raw !== null ? Number(JSON.parse(raw)) : NaN;
+      return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : fallback;
+   } catch {
+      return fallback;
+   }
+}
+
 /**
  * Play the UI chime. No-op when sound effects are disabled (or audio can't
  * start — e.g. autoplay policy), which is fine.
@@ -47,6 +59,9 @@ export function playChime(volume = 0.35, force = false): void {
    if (!force && !soundEffectsEnabled()) return;
    if (!_chime) return;
    _chime.currentTime = 0;
-   _chime.volume = volume;
+   // An explicitly chosen volume in Settings wins over the caller's default;
+   // force === true means the Settings preview, which already passes the
+   // user's choice — either way chimeVolume() resolves the same value.
+   _chime.volume = force ? volume : chimeVolume(volume);
    _chime.play().catch(() => {});
 }

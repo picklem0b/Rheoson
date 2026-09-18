@@ -11,11 +11,23 @@
 let _wakeLock: WakeLockSentinel | null = null
 let _active = false
 
+/** Settings → Appearance → Keep screen awake. Read per request so a change
+ *  applies on the next play without a reload; defaults on. */
+function _keepAwakeEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem('rheoson-keep-awake')
+    return raw !== null ? (JSON.parse(raw) as boolean) : true
+  } catch {
+    return true
+  }
+}
+
 /**
- * Request a screen wake lock. No-ops on unsupported browsers.
+ * Request a screen wake lock. No-ops on unsupported browsers, and honours
+ * the Settings toggle.
  */
 export async function requestWakeLock(): Promise<void> {
-  if (_active) return
+  if (_active || !_keepAwakeEnabled()) return
   _active = true
 
   try {
