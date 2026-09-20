@@ -6,6 +6,17 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.18.6
+
+Redesign phase 6/7 — settings, auth, landing.
+
+- feat(settings): status colors move onto semantic tokens — pass/warn/fail states in Diagnostics, LibraryDoctor badges, Privacy/Notifications icon chips, and danger rows all read `--success`/`--warning`/`--danger`, so they stay legible in both surfaces and track the palette instead of hard-coded hexes.
+- fix(settings): Diagnostics' dark-only `bg-black/20` icon wells render `--bg-elevated` and work in light mode; a new `--warning` token pair joins the status family in both themes.
+- fix(settings): two user-facing strings still carried icon names from the icon migration — the shortcut list said "DownloadSimple current track" and Storage showed an Android path `/storage/emulated/0/DownloadSimple`; both restored to real text.
+- feat(landing): the sign-in button no longer addresses the auth vendor by name ("Continue with Clerk" → "Sign in"), and the gate carries the brand slogan as an accent-colored eyebrow above the description.
+- fix(auth): auth.css fallbacks updated from the retired purple palette to the current crimson identity, so pre-hydration flashes match the active theme.
+- fix(settings): SettingsRow danger text uses `--danger-text` instead of a raw Tailwind red.
+
 ## v2.18.5
 
 Redesign phase 5/7 — detail pages and Profile.

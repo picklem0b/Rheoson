@@ -32,7 +32,7 @@ interface AudioFile {
 const DEFAULT_DIRS: Dir[] = [
    { path: "/data/data/com.termux/files/home/Rheoson/music", active: true },
    { path: "/storage/emulated/0/Music", active: true },
-   { path: "/storage/emulated/0/DownloadSimple", active: false }
+   { path: "/storage/emulated/0/Download", active: false }
 ];
 
 function fmt(bytes: number) {
@@ -502,7 +502,7 @@ function StateRow({
          {state === "loading" && (
             <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
          )}
-         {state === "ok" && <CheckCircle className='w-4 h-4 text-green-400' />}
+         {state === "ok" && <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />}
          {state === "err" && <WarningCircle className='w-4 h-4 text-red-400' />}
          {state === "idle" && idleIcon}
       </SettingsRow>

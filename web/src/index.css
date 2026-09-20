@@ -140,6 +140,9 @@
   --success-rgb: 48 209 88;
   --success-text: rgb(48 209 88);
   --success-bg: rgb(var(--success-rgb) / 0.12);
+  --warning-rgb: 255 159 10;
+  --warning-text: rgb(255 159 10);
+  --warning-bg: rgb(var(--warning-rgb) / 0.12);
 
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -193,6 +196,9 @@
   --success-rgb: 40 167 69;
   --success-text: rgb(32 142 59);
   --success-bg: rgb(var(--success-rgb) / 0.1);
+  --warning-rgb: 204 122 0;
+  --warning-text: rgb(150 90 0);
+  --warning-bg: rgb(var(--warning-rgb) / 0.1);
 
   --shadow-sm: 0 1px 2px rgb(var(--gray-950) / 0.06);
   --shadow-md: 0 4px 16px rgb(var(--gray-950) / 0.08);

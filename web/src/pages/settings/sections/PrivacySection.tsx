@@ -156,7 +156,7 @@ export default function PrivacySection() {
                   <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
                )}
                {backupState === "ok" && (
-                  <CheckCircle className='w-4 h-4 text-green-400' />
+                  <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />
                )}
                {backupState === "err" && (
                   <WarningCircle className='w-4 h-4 text-red-400' />
@@ -186,7 +186,7 @@ export default function PrivacySection() {
                   <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
                )}
                {restoreState === "ok" && (
-                  <CheckCircle className='w-4 h-4 text-green-400' />
+                  <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />
                )}
                {restoreState === "err" && (
                   <WarningCircle className='w-4 h-4 text-red-400' />
@@ -234,7 +234,7 @@ export default function PrivacySection() {
                danger
                onClick={signOutState === "idle" ? signOutDevice : undefined}
                icon={<ArrowClockwise className='w-[14px] h-[14px]' />}
-               iconBg='#EF4444'
+               iconBg='var(--danger)'
             />
          </SettingsGroup>
 
@@ -293,7 +293,7 @@ function HistoryRow({
          {state === "loading" && (
             <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
          )}
-         {state === "ok" && <CheckCircle className='w-4 h-4 text-green-400' />}
+         {state === "ok" && <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />}
          {state === "err" && <WarningCircle className='w-4 h-4 text-red-400' />}
          {state === "idle" && <Trash className='w-4 h-4 text-red-400' />}
       </SettingsRow>
