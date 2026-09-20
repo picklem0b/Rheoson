@@ -6,6 +6,20 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.2
+
+Milestone 2.19 phase 2/8 — the auth and API trust boundary.
+
+- fix(auth): **removed the account-takeover login proxy.** `POST /auth/login` and `POST /auth/register` looked a user up by email and called Clerk's Backend API to create a session, which performs no password check — knowing an email address was enough to obtain that account's session. No client called them; sign-in is handled by Clerk's hosted components, which verify the credential before a session exists. A regression test pins them as gone.
+- fix(downloads): **jobs are scoped to their owner.** Job state is process-global, so every signed-in account could list and cancel everyone else's downloads. Jobs now record an owner at enqueue time, and listing, fetching, cancelling, retrying and deleting all filter on it. Jobs recorded before ownership existed stay reachable so an upgrade does not strand a running transfer.
+- fix(authz): the library Doctor's scan and repair routes are admin-only. Both walk and delete files in the shared music library, so they now sit behind the same instance-configuration gate as the directory and rescan routes; the diagnostics screen explains the restriction in plain language instead of echoing the server's configuration instructions.
+- fix(config): **environment validation fails closed.** An unrecognised `ENV` (`prodction`, an empty value, a typo) selected development defaults — an insecure `SECRET_KEY`, a relaxed Clerk requirement, an open admin allowlist — on a host that was actually serving users. Only the explicit development aliases relax the posture now, names are matched case-insensitively, and an unrecognised value is reported at startup.
+- fix(auth): Clerk issuer matching is host-exact. Substring matching accepted `https://clerk.com.attacker.tld`, which is exactly the forgery the issuer check exists to prevent. A new `CLERK_ISSUER` setting pins a custom domain exactly.
+- fix(webhooks): replayed deliveries are ignored. Svix retries any delivery it believes failed, so a verified signature did not make a replay harmless — a duplicate `user.created` re-ran the handler. Delivery ids are claimed in `webhook_events` (unique `_id`) and a duplicate becomes a no-op.
+- fix(downloads): job persistence is atomic — write to a sibling temp file and rename, so a crash mid-write can no longer leave a truncated jobs document that the loader reads as "no jobs", discarding every job's resume state.
+- fix(data): the visitor counter counts accounts, not logins. It moved from the removed login proxy to `user.created`, gated on the upsert actually inserting, so replayed events cannot double-count.
+- docs(api): the auth section documents why no credential proxy exists, and the guest matrix now lists downloads as session-required.
+
 ## v2.19.1
 
 Milestone 2.19 phase 1/8 — playback and download reliability.

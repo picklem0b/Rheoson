@@ -88,19 +88,12 @@ Kubernetes/Render-style liveness (zero I/O) and readiness (fast storage probe). 
 
 ## Auth endpoints
 
-### `POST /api/auth/login`
-Authenticates through Clerk's Backend API (used by local/no-JS clients).
-
-```json
-{ "email": "you@example.com", "password": "••••" }
-```
-
-- `201` → `{ "token": "<jwt>", "user": { … } }`
-- `401` on unknown credentials (fail closed, same shape as invalid token)
-- `422` on malformed payloads
-
-### `POST /api/auth/register`
-Creates the account via Clerk Backend API and immediately creates a session. Same response shape as login. `20/min` rate limit — this fronts account creation.
+Credentials are handled entirely by Clerk's hosted components. There is no
+server-side login or registration route: Clerk's Backend API can mint a session
+for a user id without verifying a password, so such a proxy would make an email
+address sufficient to obtain a session for that account. Account creation is
+observed through `POST /api/webhooks/clerk` (`user.created`), which is also
+what increments the visitor counter.
 
 ### `GET /api/auth/me` (auth)
 Returns the synced user record: `{ "id", "email", "name", "image_url", "created_at", "preferences", "stats" }`.
@@ -111,8 +104,9 @@ Updates profile fields (`name`, `image_url`) and preference keys (`theme`, `audi
 ### `POST /api/auth/logout` (auth)
 Revokes the Clerk session server-side. `{"ok": true}`.
 
-### `GET /api/auth/visitor-count` (auth)
-Aggregate visitor counter from the `visitors` collection.
+### `GET /api/auth/visitor-count`
+Public: the landing page renders this counter for guests. Counts distinct
+accounts, incremented once per `user.created` delivery.
 
 ---
 

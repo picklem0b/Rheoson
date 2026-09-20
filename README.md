@@ -274,10 +274,9 @@ GET  /api/health              GET /api/health/diag (auth)
 GET  /health/live             GET /health/ready
 GET  /api/version
 
-# Auth (Clerk)
-POST /api/auth/register       POST /api/auth/login
+# Auth (Clerk — sign-in happens in Clerk's own components)
 POST /api/auth/logout         GET  /api/auth/me
-PATCH /api/auth/me            GET  /api/auth/visitor-count
+PATCH /api/auth/me            GET  /api/auth/visitor-count (public)
 POST /api/webhooks/clerk      (Svix-signed webhook)
 
 # Search

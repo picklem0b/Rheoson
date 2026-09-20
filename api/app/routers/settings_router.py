@@ -304,16 +304,23 @@ async def _run_doctor(fn, *args):
 
 
 @router.get("/doctor/scan")
-async def doctor_scan(_user: dict = Depends(get_current_user)):
-    """Scan the library for corrupt files, duplicates and empty folders."""
+async def doctor_scan(user: dict = Depends(get_current_user)):
+    """Scan the library for corrupt files, duplicates and empty folders.
+
+    Admin-only: the scan is an instance-wide filesystem walk, and the repairs
+    it feeds delete files, so it sits behind the same gate as the directory
+    and rescan routes rather than being open to every signed-in account.
+    """
+    _require_admin(user)
     from app.services import library_doctor
 
     return await asyncio.to_thread(library_doctor.scan_library)
 
 
 @router.post("/doctor/fix")
-async def doctor_fix(body: DoctorFixSchema, _user: dict = Depends(get_current_user)):
+async def doctor_fix(body: DoctorFixSchema, user: dict = Depends(get_current_user)):
     """Repair one reported item, or sweep all of one kind when no path given."""
+    _require_admin(user)
     from app.services import library_doctor
 
     kind = body.kind

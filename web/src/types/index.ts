@@ -64,12 +64,6 @@ export type Lyrics = components['schemas']['LyricsSchema']
 /** A single lyrics line. */
 export type LyricsLine = components['schemas']['LyricsLineSchema']
 
-/** Login request. */
-export type LoginRequest = components['schemas']['LoginRequest']
-
-/** Register request. */
-export type RegisterRequest = components['schemas']['RegisterRequest']
-
 // ── Extended types ────────────────────────────────────────────
 // Types that aren't in the API schema but are used in the frontend.
 

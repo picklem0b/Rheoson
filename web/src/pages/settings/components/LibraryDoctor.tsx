@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CaretDown, CaretRight, WarningCircle, CheckCircle, Warning, Copy, FolderOpen, ArrowClockwise, Scan, Trash, SpinnerGap } from '@phosphor-icons/react'
-import { api } from '@/api/client.api'
+import { api, type ApiError } from '@/api/client.api'
 import { cn } from '@/lib/utils'
 import {
    SettingsGroup,
@@ -118,7 +118,17 @@ export default function LibraryDoctor() {
          else if (res.emptyDirs.length) setExpanded('emptyDirs')
       } catch (e) {
          if (!mounted.current) return
-         setError(e instanceof Error ? e.message : 'Scan failed')
+         // Repairs touch the shared library, so the server restricts them to
+         // the instance owner. Say that in plain language rather than
+         // echoing the server's configuration instructions.
+         const status = (e as ApiError)?.status
+         setError(
+            status === 403
+               ? 'Library repairs are limited to the instance owner on this server.'
+               : e instanceof Error
+                 ? e.message
+                 : 'Scan failed'
+         )
          setPhase('error')
       }
    }, [])

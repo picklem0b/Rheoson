@@ -137,6 +137,20 @@ class _MockAggCursor:
             yield r
 
 
+def _update_result(upserted_id=None, modified: int = 0):
+    """A result object shaped like Motor's UpdateResult.
+
+    ``upserted_id`` has to be a real ``None`` when nothing was inserted: a bare
+    MagicMock auto-creates any attribute you read, so every upsert would look
+    like an insert and any code branching on it would always take the
+    new-document path.
+    """
+    result = MagicMock()
+    result.upserted_id = upserted_id
+    result.modified_count = modified
+    return result
+
+
 class MockCollection:
     def __init__(self):
         self._docs: list[dict] = []
@@ -152,40 +166,42 @@ class MockCollection:
         return _MockAggCursor(matches)
 
     async def insert_one(self, doc):
+        if "_id" in doc and any(d.get("_id") == doc["_id"] for d in self._docs):
+            # Mirrors Mongo's duplicate-key error, so callers that lean on
+            # _id uniqueness (webhook replay de-duplication) behave here the
+            # same way they do in production.
+            raise RuntimeError("E11000 duplicate key error collection")
         self._docs.append(dict(doc))
         result = MagicMock()
         result.inserted_id = doc.get("_id", "mock_id")
         return result
 
+    @staticmethod
+    def _apply_update(doc: dict, update: dict) -> None:
+        """Apply `$set` and `$inc`, resolving dotted paths like Mongo does."""
+        for k, v in (update.get("$set") or {}).items():
+            if "." in k:
+                parent = doc
+                parts = k.split(".")
+                for part in parts[:-1]:
+                    parent = parent.setdefault(part, {})
+                parent[parts[-1]] = v
+            else:
+                doc[k] = v
+        for k, v in (update.get("$inc") or {}).items():
+            doc[k] = doc.get(k, 0) + v
+
     async def update_one(self, filter, update, upsert=False):
         for doc in self._docs:
             if all(doc.get(k) == v for k, v in filter.items()):
-                if "$set" in update:
-                    for k, v in update["$set"].items():
-                        # Dotted paths address nested documents
-                        # (e.g. preferences.autoplay) like real Mongo does.
-                        if "." in k:
-                            parent = doc
-                            parts = k.split(".")
-                            for part in parts[:-1]:
-                                parent = parent.setdefault(part, {})
-                            parent[parts[-1]] = v
-                        else:
-                            doc[k] = v
-                return MagicMock()
-        if upsert and "$set" in update:
+                self._apply_update(doc, update)
+                return _update_result(modified=1)
+        if upsert and ("$set" in update or "$inc" in update):
             new_doc: dict = {**filter}
-            for k, v in update["$set"].items():
-                if "." in k:
-                    parent = new_doc
-                    parts = k.split(".")
-                    for part in parts[:-1]:
-                        parent = parent.setdefault(part, {})
-                    parent[parts[-1]] = v
-                else:
-                    new_doc[k] = v
+            self._apply_update(new_doc, update)
             self._docs.append(new_doc)
-        return MagicMock()
+            return _update_result(upserted_id=new_doc.get("_id"), modified=0)
+        return _update_result()
 
     async def delete_one(self, filter):
         self._docs = [d for d in self._docs if not _mock_matches(d, filter)]
