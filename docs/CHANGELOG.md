@@ -6,6 +6,15 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.6
+
+Milestone 2.19 phase 6/8 — library information architecture.
+
+- feat(library): **the library is one page of stacked sections, not a tab strip.** Liked songs, playlists, albums and artists each carry a real heading — icon chip, title, and count — with a rule that fades out across the width to separate them. Previously only the selected tab existed on screen, so the row of tabs hid three quarters of the library and its headings had no weight to carry.
+- feat(library): every section's query runs with the page, so nothing waits on a tab the user may never open, and each section keeps its own loading skeletons and empty state.
+- fix(library): the page had accumulated two query-key spellings (`['liked-tracks']` against the registry's `qk.likedTracks()`, and album/artist lists that had no registry entry at all). They now go through `lib/queryKeys.ts`, so likes and playlist changes refresh the library the same way they refresh every other surface.
+- fix(ui): dropped the unreachable `liked` branch from the library's empty-state map (liked songs render their own section state) and tidied the Phosphor import into the project's multi-line form.
+
 ## v2.19.5
 
 Milestone 2.19 phase 5/8 — browse and discovery.

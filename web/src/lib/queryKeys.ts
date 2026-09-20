@@ -22,6 +22,8 @@ export const qk = {
   // ── Library ────────────────────────────────────────────────
   libraryTracks: () => ['tracks'] as const,
   localTracks: () => ['tracks', 'local'] as const,
+  libraryAlbums: () => ['library-albums'] as const,
+  libraryArtists: () => ['library-artists'] as const,
 
   // ── Playlists ──────────────────────────────────────────────
   playlists: () => ['playlists'] as const,
