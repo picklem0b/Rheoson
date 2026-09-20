@@ -121,10 +121,10 @@ async def _cron_keep_alive() -> None:
     if settings.is_dev:
         return
 
-    # NOTE (production investigation): the previous default pointed at
-    # Rheoson-api-vnny.onrender.com, which is dead (404), so the keep-alive
-    # silently failed and the real instance slept (≈50 s cold starts).
-    # Point it at the canonical API host; RENDER_API_URL overrides it.
+    # Default to the canonical Render host so a freshly deployed instance
+    # keeps itself warm with no configuration; RENDER_API_URL overrides it
+    # for custom domains. The default must be an absolute origin — a relative
+    # or dead host would make the pings fail silently and the instance sleep.
     url = settings.RENDER_API_URL or "https://rheoson-api-9e4c.onrender.com"
     health_url = f"{url}/api/health"
     t0 = time.monotonic()
@@ -542,7 +542,7 @@ async def health_ready(request: Request):
     return await healthmod.ready(request.headers.get("x-request-id", ""))
 
 
-@app.api_route("/api/health", methods=["GET", "HEAD"], tags=["health"])
+@app.api_route("/api/health", methods=["GET", "HEAD"], tags=["health"], operation_id="health_api_health")
 async def health(request: Request):
     """Full cheap health snapshot with per-subsystem checks.
 

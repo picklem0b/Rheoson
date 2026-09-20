@@ -13,7 +13,7 @@ so the recommendation engine can read them efficiently.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -27,7 +27,6 @@ from app.services.signal_service import (
     get_artist_stats,
     get_time_of_day_preferences,
     get_total_signals,
-    get_play_history,
 )
 
 log = structlog.get_logger()
@@ -112,7 +111,6 @@ async def build_taste_profile(
     disliked_track_ids = _compute_disliked_tracks(artist_stats)
 
     # ── Aggregate stats ───────────────────────────────────────
-    signal_counts = {}
     # Reuse artist_stats to compute totals
     total_plays = sum(s.get("plays", 0) for s in artist_stats.values())
     total_likes = sum(s.get("likes", 0) for s in artist_stats.values())

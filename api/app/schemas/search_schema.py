@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Optional, Any
 from pydantic import BaseModel, Field
 from app.schemas.track_schema import TrackSchema, ArtistSchema, AlbumSchema
 

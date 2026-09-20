@@ -39,17 +39,35 @@ services:
       - key: SPOTIFY_CLIENT_SECRET
         sync: false
 
-      # Restrict CORS to the actual frontend origin.
+      # sync: false makes the Blueprint deploy prompt for these instead of
+      # booting without them — validate_startup refuses to start in production
+      # without a real SECRET_KEY and Clerk keys, so prompting here is the
+      # difference between a working deploy and one that crash-loops.
+      - key: SECRET_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_WEBHOOK_SECRET
+        sync: false
+
+      # Restrict CORS to the actual frontend origin. Origins are matched
+      # exactly, so the scheme/host must be lowercase — browsers normalize
+      # the Origin header and "https://Rheoson.onrender.com" would never match.
       # Update the URL if your Render service names differ.
       - key: CORS_ORIGINS
-        value: '["https://Rheoson.onrender.com","http://localhost:3000"]'
+        value: '["https://rheoson.onrender.com","http://localhost:3000","http://localhost:5173"]'
 
   # ── Frontend (React / Vite SPA) ──────────────────────────────
   - type: web
     name: Rheoson
     env: static
     rootDir: web
-    buildCommand: npm ci && npm run build
+    # verify:api-base fails the deploy if the bundle shipped a relative /api
+    # (the same guard the APK CI runs) instead of deploying a player that
+    # cannot reach the API.
+    buildCommand: npm ci && npm run build && npm run verify:api-base
     staticPublishPath: dist
 
     # Redirect all routes to index.html so react-router handles
@@ -63,4 +81,8 @@ services:
       # Must match the actual API service URL — used at build time by Vite
       # to bake the correct API_BASE into the JS bundle.
       - key: VITE_API_URL
-        value: https://rheoson-api-vnny.onrender.com
+        value: https://rheoson-api-9e4c.onrender.com
+      # Prompted at deploy time; without it the bundle ships in local mode
+      # (no Clerk provider, every account feature silently unavailable).
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false

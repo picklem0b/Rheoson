@@ -8,8 +8,9 @@ from app.core.exceptions import SearchError
 
 log = structlog.get_logger()
 
-# BUG #18: User-Agent rotation pool — if YouTube blocks one UA,
-# the next YTMusic() call will use a different one.
+# User-Agent rotation pool — when YouTube blocks or throttles one UA,
+# the next YTMusic() call uses a different one, so a single blocked
+# identity cannot take down search.
 _UA_POOL = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -41,7 +42,8 @@ async def _get_ytm_async() -> YTMusic:
             return _ytm
         if _ytm_error is not None and _fail_count < _MAX_FAILURES:
             raise SearchError(f"YTMusic unavailable: {_ytm_error}") from _ytm_error
-        # BUG FIX: Recovery after max failures — wait for backoff period
+        # Recovery after max failures: once the backoff period has elapsed
+        # the client is rebuilt instead of erroring forever.
         if _fail_count >= _MAX_FAILURES:
             elapsed = time.monotonic() - _last_fail_time
             if elapsed < _RETRY_BACKOFF:

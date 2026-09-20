@@ -19,7 +19,6 @@ Doctor screen can re-open without rescanning a large library every time.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 

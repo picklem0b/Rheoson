@@ -1,5 +1,8 @@
-from fastapi import HTTPException, Request
+import structlog
+from fastapi import Request
 from fastapi.responses import JSONResponse
+
+log = structlog.get_logger()
 
 
 class RheosonException(Exception):
@@ -55,6 +58,16 @@ async def Rheoson_exception_handler(request: Request, exc: RheosonException):
 
 
 async def generic_exception_handler(request: Request, exc: Exception):
+    # The response body is deliberately generic; the log line carries the
+    # real exception so production incidents stay diagnosable without
+    # leaking internals to the client.
+    log.error(
+        "api.unhandled_exception",
+        method=request.method,
+        path=request.url.path,
+        error=str(exc),
+        exc_info=True,
+    )
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error", "type": "UnexpectedError"},

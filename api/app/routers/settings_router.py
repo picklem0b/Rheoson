@@ -278,8 +278,6 @@ async def restore_backup(body: RestoreSchema, user: dict = Depends(get_current_u
 
 async def _run_doctor(fn, *args):
     """Run blocking doctor work off the event loop, mapping ValueError to 400."""
-    from app.services import library_doctor
-
     try:
         return await asyncio.to_thread(fn, *args)
     except ValueError as e:

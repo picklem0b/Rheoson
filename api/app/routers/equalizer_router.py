@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 from app.core.deps import get_optional_user
 
 router = APIRouter()
