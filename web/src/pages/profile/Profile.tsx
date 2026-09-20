@@ -14,23 +14,6 @@ import { isClerkEnabled } from '@/lib/constants'
 
 // ── Avatar ─────────────────────────────────────────────────────
 
-const AVATAR_GRADIENTS = [
-  'from-violet-600 to-fuchsia-500',
-  'from-blue-600 to-cyan-500',
-  'from-emerald-600 to-teal-500',
-  'from-rose-600 to-pink-500',
-  'from-amber-600 to-orange-500',
-  'from-indigo-600 to-purple-500',
-]
-
-function getAvatarGradient(name: string): string {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]
-}
-
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
@@ -39,15 +22,14 @@ function getInitials(name: string): string {
 
 // ── Stat card ──────────────────────────────────────────────────
 
-function ProfileStat({ icon: Icon, label, value, color }: {
+function ProfileStat({ icon: Icon, label, value }: {
   icon: React.ElementType
   label: string
   value: string | number
-  color?: string
 }) {
   return (
     <div className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]/50">
-      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', color ?? 'bg-[var(--accent-subtle)]')}>
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--accent-subtle)]">
         <Icon className="w-4 h-4 text-[var(--accent)]" />
       </div>
       <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{value}</p>
@@ -58,12 +40,11 @@ function ProfileStat({ icon: Icon, label, value, color }: {
 
 // ── Quick link ─────────────────────────────────────────────────
 
-function QuickLink({ icon: Icon, label, description, to, color }: {
+function QuickLink({ icon: Icon, label, description, to }: {
   icon: React.ElementType
   label: string
   description: string
   to: string
-  color?: string
 }) {
   const navigate = useNavigate()
   return (
@@ -72,11 +53,8 @@ function QuickLink({ icon: Icon, label, description, to, color }: {
       onClick={() => navigate(to)}
       className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-[var(--bg-elevated)] transition-colors text-left"
     >
-      <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: color ?? 'var(--accent)' }}
-      >
-        <Icon className="w-4 h-4 text-white" />
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-[var(--accent-subtle)]">
+        <Icon className="w-4 h-4 text-[var(--accent)]" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[var(--text-primary)]">{label}</p>
@@ -136,7 +114,6 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
   const displayName = user?.name ?? 'Your account'
   const email = user?.email ?? ''
   const initials = getInitials(displayName)
-  const gradient = getAvatarGradient(displayName)
 
   // Format member since date
   const memberSince = useMemo(() => {
@@ -206,11 +183,10 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
           transition={{ delay: 0.05 }}
           className="rounded-[24px] overflow-hidden border border-[var(--border)]/30 bg-[var(--bg-surface)]"
         >
-          {/* Gradient banner */}
-          <div className={cn('h-28 bg-gradient-to-br relative', gradient)}>
-            <div className="absolute inset-0 bg-black/10" />
-            <div className="absolute right-4 top-3 opacity-20">
-              <MusicNotes className="w-8 h-8 text-white" />
+          {/* Banner */}
+          <div className="h-28 bg-[var(--accent-subtle)] relative">
+            <div className="absolute right-4 top-3 opacity-30">
+              <MusicNotes className="w-8 h-8 text-[var(--accent)]" />
             </div>
           </div>
 
@@ -227,15 +203,14 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
                 <div
                   className={cn(
                     'w-[88px] h-[88px] rounded-[22px] flex items-center justify-center',
-                    'text-3xl font-black text-white border-4 border-[var(--bg-surface)] shadow-xl',
-                    'bg-gradient-to-br',
-                    gradient,
+                    'text-3xl font-black text-[var(--accent)] bg-[var(--accent-subtle)]',
+                    'border-4 border-[var(--bg-surface)] shadow-xl',
                   )}
                 >
                   {initials}
                 </div>
               )}
-              <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-green-500 border-[3px] border-[var(--bg-surface)]" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[var(--success-text)] border-[3px] border-[var(--bg-surface)]" />
             </div>
 
             <div className="mt-3">
@@ -336,8 +311,8 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
             <ProfileStat icon={Clock} label="Hours" value={stats?.estimated_listening_hours ?? 0} />
             <ProfileStat icon={ChartLineUp} label="7-day plays" value={stats?.plays_7d ?? 0} />
             <ProfileStat icon={Calendar} label="Active days" value={stats?.active_days_30d ?? 0} />
-            <ProfileStat icon={Flame} label="Day streak" value={stats?.current_streak ?? 0} color="bg-orange-500/10" />
-            <ProfileStat icon={Medal} label="Best streak" value={stats?.longest_streak ?? 0} color="bg-amber-500/10" />
+            <ProfileStat icon={Flame} label="Day streak" value={stats?.current_streak ?? 0} />
+            <ProfileStat icon={Medal} label="Best streak" value={stats?.longest_streak ?? 0} />
           </div>
         </motion.div>
 
@@ -351,12 +326,12 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
             Quick access
           </p>
           <div className="bg-[var(--bg-surface)] rounded-[18px] overflow-hidden divide-y divide-[var(--border)]/40 border border-[var(--border)]/30">
-            <QuickLink icon={ChartLineUp} label="Listening stats" description="Detailed charts and insights" to="/stats" color="#8B5CF6" />
-            <QuickLink icon={TrendUp} label="Your year in review" description="Your personal Wrapped" to="/wrapped" color="#EC4899" />
-            <QuickLink icon={Palette} label="Appearance" description="Theme, accent, transparency" to="/settings" color="#3B82F6" />
-            <QuickLink icon={HardDrives} label="Storage" description="Music directories, cache" to="/settings" color="#F97316" />
-            <QuickLink icon={Shield} label="Privacy" description="ClockCounterClockwise, data, legal" to="/settings" color="#6B7280" />
-            <QuickLink icon={GearSix} label="All settings" description="Configure Rheoson" to="/settings" color="#14B8A6" />
+            <QuickLink icon={ChartLineUp} label="Listening stats" description="Detailed charts and insights" to="/stats" />
+            <QuickLink icon={TrendUp} label="Your year in review" description="Your personal Wrapped" to="/wrapped" />
+            <QuickLink icon={Palette} label="Appearance" description="Theme, accent, transparency" to="/settings" />
+            <QuickLink icon={HardDrives} label="Storage" description="Music directories, cache" to="/settings" />
+            <QuickLink icon={Shield} label="Privacy" description="History, data, legal" to="/settings" />
+            <QuickLink icon={GearSix} label="All settings" description="Configure Rheoson" to="/settings" />
           </div>
         </motion.div>
 

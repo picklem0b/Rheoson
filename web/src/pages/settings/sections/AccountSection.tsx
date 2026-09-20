@@ -9,21 +9,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
-const AVATAR_GRADIENTS = [
-  "from-violet-600 to-fuchsia-500",
-  "from-blue-600 to-cyan-500",
-  "from-emerald-600 to-teal-500",
-  "from-rose-600 to-pink-500",
-  "from-amber-600 to-orange-500",
-];
-
-function getGradient(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
-}
-
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -45,7 +30,6 @@ export default function AccountSection() {
 
   const name = user?.name ?? "Your account";
   const initials = getInitials(name);
-  const gradient = getGradient(name);
 
   const fetchStatus = useCallback(() => {
     setChecking(true);
@@ -81,9 +65,7 @@ export default function AccountSection() {
             <div
               className={cn(
                 "w-[64px] h-[64px] rounded-[18px] flex items-center justify-center",
-                "text-[26px] font-black text-white shadow-lg flex-shrink-0",
-                "bg-gradient-to-br",
-                gradient
+                "text-[26px] font-black text-[var(--accent)] bg-[var(--accent-subtle)] shadow-lg flex-shrink-0"
               )}
             >
               {initials}

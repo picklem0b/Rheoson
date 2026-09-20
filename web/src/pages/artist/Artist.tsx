@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, Play, Plus, Sparkle, User, UserPlus, X } from '@phosphor-icons/react'
+import { Check, MusicNotes, Play, Plus, Sparkle, User, UserPlus, X } from '@phosphor-icons/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
@@ -23,13 +23,6 @@ import { useToast } from '@/components/ui/Toaster'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { Track, Album as AlbumType } from '@/types'
-
-const GRADIENTS = [
-  'from-rose-900 to-pink-700',
-  'from-violet-900 to-indigo-700',
-  'from-cyan-900 to-sky-700',
-  'from-amber-900 to-yellow-700',
-]
 
 export default function Artist() {
   const { id }   = useParams<{ id: string }>()
@@ -76,7 +69,7 @@ export default function Artist() {
     onError: () => toast('Could not update follow — try again', 'error'),
   })
 
-  const gradientIndex = (id ?? '').length % GRADIENTS.length
+
 
   // Top albums for this listener: newest first, albums before singles, capped
   // at five so the rail stays a curated shortlist rather than a discography.
@@ -157,25 +150,25 @@ export default function Artist() {
               </>
             ) : (
               <>
-                <div className={cn('absolute inset-0 bg-gradient-to-br', GRADIENTS[gradientIndex])} />
+                <div className="absolute inset-0 bg-[var(--bg-overlay)]" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-transparent to-transparent" />
               </>
             )
           }
           <div className="relative px-4 lg:px-8 pb-6 w-full">
-            <h1 className="text-4xl font-bold text-white drop-shadow-lg">
+            <h1 className="text-4xl font-bold text-[var(--text-primary)]">
               {artist?.name ?? '—'}
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
               {artist?.monthlyListeners != null && artist.monthlyListeners > 0 && (
-                <p className="text-sm text-white/75">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {artist.monthlyListeners.toLocaleString()} monthly listeners
                 </p>
               )}
               {(artist?.genres ?? []).slice(0, 3).map((genre) => (
                 <span
                   key={genre}
-                  className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-white/15 text-white/90"
+                  className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
                 >
                   {genre}
                 </span>
@@ -273,7 +266,6 @@ export default function Artist() {
                   key={track.id}
                   track={track}
                   index={i}
-                  gradient={GRADIENTS[i % GRADIENTS.length]}
                   onClick={() => artist?.topTracks && playTrack(track, artist.topTracks)}
                 />
               ))}
@@ -292,7 +284,7 @@ export default function Artist() {
                 </span>
               </div>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                {topAlbums.map((album, i) => (
+                {topAlbums.map((album) => (
                   <motion.button
                     key={album.id}
                     whileHover={{ scale: 1.04, y: -3 }}
@@ -310,10 +302,9 @@ export default function Artist() {
                           className="w-36 h-36 rounded-2xl object-cover border border-[var(--border)] mb-2 shadow-md"
                         />
                       ) : (
-                        <div className={cn(
-                          'w-36 h-36 rounded-2xl mb-2 bg-gradient-to-br border border-[var(--border)]',
-                          GRADIENTS[(i + 2) % GRADIENTS.length],
-                        )} />
+                        <div className="w-36 h-36 rounded-2xl mb-2 bg-[var(--bg-overlay)] border border-[var(--border)] flex items-center justify-center">
+                          <MusicNotes className="w-10 h-10 text-[var(--text-muted)]" weight="duotone" />
+                        </div>
                       )
                     }
                     <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{album.title}</p>
@@ -331,7 +322,7 @@ export default function Artist() {
             <div>
               <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">Singles</h2>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                {(artist?.singles ?? []).slice(0, 8).map((single, i) => (
+                {(artist?.singles ?? []).slice(0, 8).map((single) => (
                   <motion.button
                     key={single.id}
                     whileTap={{ scale: 0.96 }}
@@ -348,10 +339,9 @@ export default function Artist() {
                           className="w-32 h-32 rounded-2xl object-cover border border-[var(--border)] mb-2"
                         />
                       ) : (
-                        <div className={cn(
-                          'w-32 h-32 rounded-2xl mb-2 bg-gradient-to-br border border-[var(--border)]',
-                          GRADIENTS[(i + 1) % GRADIENTS.length],
-                        )} />
+                        <div className="w-32 h-32 rounded-2xl mb-2 bg-[var(--bg-overlay)] border border-[var(--border)] flex items-center justify-center">
+                          <MusicNotes className="w-9 h-9 text-[var(--text-muted)]" weight="duotone" />
+                        </div>
                       )
                     }
                     <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{single.title}</p>
@@ -366,7 +356,7 @@ export default function Artist() {
             <div>
               <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">Fans also like</h2>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                {(artist?.related ?? []).slice(0, 8).map((related, i) => (
+                {(artist?.related ?? []).slice(0, 8).map((related) => (
                   <motion.button
                     key={related.id}
                     whileTap={{ scale: 0.96 }}
@@ -377,10 +367,9 @@ export default function Artist() {
                       {related.imageUrl
                         ? <img src={related.imageUrl} alt={related.name} className="w-full h-full object-cover" />
                         : (
-                          <div className={cn(
-                            'w-full h-full bg-gradient-to-br',
-                            GRADIENTS[i % GRADIENTS.length],
-                          )} />
+                          <div className="w-full h-full bg-[var(--bg-overlay)] flex items-center justify-center">
+                            <User className="w-8 h-8 text-[var(--text-muted)]" weight="duotone" />
+                          </div>
                         )
                       }
                     </div>
@@ -422,11 +411,10 @@ export default function Artist() {
 interface PopularTrackRowProps {
   track:    Track
   index:    number
-  gradient: string
   onClick:  () => void
 }
 
-function PopularTrackRow({ track, index, gradient, onClick }: PopularTrackRowProps) {
+function PopularTrackRow({ track, index, onClick }: PopularTrackRowProps) {
   const contextMenu = useTrackContextMenu(track)
   const intent = usePrefetchOnIntent(track.id)
   return (
@@ -447,7 +435,11 @@ function PopularTrackRow({ track, index, gradient, onClick }: PopularTrackRowPro
 
       {track.artworkUrl
         ? <img src={track.artworkUrl} alt={track.title} loading="lazy" decoding="async" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
-        : <div className={cn('w-11 h-11 rounded-xl flex-shrink-0 bg-gradient-to-br', gradient)} />
+        : (
+          <div className="w-11 h-11 rounded-xl flex-shrink-0 bg-[var(--bg-overlay)] border border-[var(--border)] flex items-center justify-center">
+            <MusicNotes className="w-5 h-5 text-[var(--text-muted)]" weight="duotone" />
+          </div>
+        )
       }
 
       <div className="flex-1 min-w-0">
