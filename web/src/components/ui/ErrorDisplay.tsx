@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, RefreshCw, Server, AlertCircle } from 'lucide-react';
+import { Warning, ArrowClockwise, HardDrives, WarningCircle } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 
 export type ErrorSeverity = 'error' | 'warning' | 'info';
@@ -17,9 +17,9 @@ export interface ErrorDisplayProps {
 }
 
 const icons = {
-  error: <AlertTriangle className="w-5 h-5 text-red-400" />,
-  warning: <AlertCircle className="w-5 h-5 text-yellow-400" />,
-  info: <Server className="w-5 h-5 text-blue-400" />,
+  error: <Warning className="w-5 h-5 text-red-400" />,
+  warning: <WarningCircle className="w-5 h-5 text-yellow-400" />,
+  info: <HardDrives className="w-5 h-5 text-blue-400" />,
 };
 
 const styles = {
@@ -64,7 +64,7 @@ export function ErrorDisplay({
                 onClick={onRetry}
                 className="px-3 py-1.5 rounded-full text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center gap-1.5"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <ArrowClockwise className="w-3.5 h-3.5" />
                 {retryLabel}
               </motion.button>
             )}
@@ -125,7 +125,7 @@ export function EmptyStateError({
       className="flex flex-col items-center justify-center py-20 gap-4 text-center"
     >
       <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center">
-        <AlertTriangle className="w-7 h-7 text-red-400" />
+        <Warning className="w-7 h-7 text-red-400" />
       </div>
       <div>
         <p className="font-semibold text-[var(--text-primary)]">{message}</p>

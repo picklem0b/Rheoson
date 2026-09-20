@@ -2,11 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Mail, Calendar, Music2, Clock, Heart, TrendingUp,
-  ChevronRight, LogOut, Settings, Palette, HardDrive,
-  Pencil, Check, X, Shield, BarChart3, Flame, Award,
-} from 'lucide-react'
+import { EnvelopeSimple, Calendar, MusicNotes, Clock, Heart, TrendUp, CaretRight, SignOut, GearSix, Palette, HardDrives, Pencil, Check, X, Shield, ChartLineUp, Flame, Medal } from '@phosphor-icons/react'
 import { useAuthStore } from '@/store/auth.store'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import { analyticsApi } from '@/api/analytics.api'
@@ -86,7 +82,7 @@ function QuickLink({ icon: Icon, label, description, to, color }: {
         <p className="text-sm font-semibold text-[var(--text-primary)]">{label}</p>
         <p className="text-xs text-[var(--text-muted)] truncate">{description}</p>
       </div>
-      <ChevronRight className="w-4 h-4 text-[var(--text-muted)]/40 flex-shrink-0" />
+      <CaretRight className="w-4 h-4 text-[var(--text-muted)]/40 flex-shrink-0" />
     </motion.button>
   )
 }
@@ -119,7 +115,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
     retry: false,
   })
 
-  // Library count
+  // Books count
   const { data: libraryTracks } = useQuery({
     queryKey: ['tracks', 'local'],
     queryFn: () => tracksApi.getAll(),
@@ -214,7 +210,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
           <div className={cn('h-28 bg-gradient-to-br relative', gradient)}>
             <div className="absolute inset-0 bg-black/10" />
             <div className="absolute right-4 top-3 opacity-20">
-              <Music2 className="w-8 h-8 text-white" />
+              <MusicNotes className="w-8 h-8 text-white" />
             </div>
           </div>
 
@@ -302,7 +298,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
 
               {email && (
                 <div className="flex items-center gap-1.5 mt-1">
-                  <Mail className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  <EnvelopeSimple className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                   <span className="text-sm text-[var(--text-muted)]">{email}</span>
                 </div>
               )}
@@ -334,14 +330,14 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
             Your stats
           </p>
           <div className="grid grid-cols-3 gap-2">
-            <ProfileStat icon={Music2} label="Library" value={formatCount(trackCount)} />
+            <ProfileStat icon={MusicNotes} label="Books" value={formatCount(trackCount)} />
             <ProfileStat icon={Heart} label="Liked" value={formatCount(likedCount ?? 0)} />
-            <ProfileStat icon={TrendingUp} label="Plays" value={formatCount(stats?.total_plays ?? 0)} />
+            <ProfileStat icon={TrendUp} label="Plays" value={formatCount(stats?.total_plays ?? 0)} />
             <ProfileStat icon={Clock} label="Hours" value={stats?.estimated_listening_hours ?? 0} />
-            <ProfileStat icon={BarChart3} label="7-day plays" value={stats?.plays_7d ?? 0} />
+            <ProfileStat icon={ChartLineUp} label="7-day plays" value={stats?.plays_7d ?? 0} />
             <ProfileStat icon={Calendar} label="Active days" value={stats?.active_days_30d ?? 0} />
             <ProfileStat icon={Flame} label="Day streak" value={stats?.current_streak ?? 0} color="bg-orange-500/10" />
-            <ProfileStat icon={Award} label="Best streak" value={stats?.longest_streak ?? 0} color="bg-amber-500/10" />
+            <ProfileStat icon={Medal} label="Best streak" value={stats?.longest_streak ?? 0} color="bg-amber-500/10" />
           </div>
         </motion.div>
 
@@ -355,12 +351,12 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
             Quick access
           </p>
           <div className="bg-[var(--bg-surface)] rounded-[18px] overflow-hidden divide-y divide-[var(--border)]/40 border border-[var(--border)]/30">
-            <QuickLink icon={BarChart3} label="Listening stats" description="Detailed charts and insights" to="/stats" color="#8B5CF6" />
-            <QuickLink icon={TrendingUp} label="Your year in review" description="Your personal Wrapped" to="/wrapped" color="#EC4899" />
+            <QuickLink icon={ChartLineUp} label="Listening stats" description="Detailed charts and insights" to="/stats" color="#8B5CF6" />
+            <QuickLink icon={TrendUp} label="Your year in review" description="Your personal Wrapped" to="/wrapped" color="#EC4899" />
             <QuickLink icon={Palette} label="Appearance" description="Theme, accent, transparency" to="/settings" color="#3B82F6" />
-            <QuickLink icon={HardDrive} label="Storage" description="Music directories, cache" to="/settings" color="#F97316" />
-            <QuickLink icon={Shield} label="Privacy" description="History, data, legal" to="/settings" color="#6B7280" />
-            <QuickLink icon={Settings} label="All settings" description="Configure Rheoson" to="/settings" color="#14B8A6" />
+            <QuickLink icon={HardDrives} label="Storage" description="Music directories, cache" to="/settings" color="#F97316" />
+            <QuickLink icon={Shield} label="Privacy" description="ClockCounterClockwise, data, legal" to="/settings" color="#6B7280" />
+            <QuickLink icon={GearSix} label="All settings" description="Configure Rheoson" to="/settings" color="#14B8A6" />
           </div>
         </motion.div>
 
@@ -377,7 +373,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
               className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
             >
               <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                <LogOut className="w-4 h-4 text-red-400" />
+                <SignOut className="w-4 h-4 text-red-400" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-red-400">Sign out</p>

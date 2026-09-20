@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, type ReactNode } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
-import { RefreshCw } from 'lucide-react'
+import { ArrowClockwise } from '@phosphor-icons/react'
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>
@@ -86,7 +86,7 @@ export default function PullToRefresh({
           style={{ rotate: spinnerRotation }}
           className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center"
         >
-          <RefreshCw
+          <ArrowClockwise
             className={`w-4 h-4 text-[var(--accent)] ${refreshing ? 'animate-spin' : ''}`}
           />
         </motion.div>

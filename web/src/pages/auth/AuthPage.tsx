@@ -14,7 +14,7 @@ interface AuthPageProps {
  * publishable key is configured. Clerk renders its own "Continue with…"
  * provider buttons, email/password form, and sign-in/sign-up links.
  *
- * Flow: Landing ("Continue with…") → /auth (this page) → Home.
+ * Flow: Landing ("Continue with…") → /auth (this page) → House.
  *
  * There is deliberately NO manual redirect effect here: Clerk's
  * afterSignInUrl / afterSignUpUrl is the single source of truth for the

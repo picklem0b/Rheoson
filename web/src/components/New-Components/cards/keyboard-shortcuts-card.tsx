@@ -2,7 +2,7 @@ import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { Command } from 'lucide-react';
+import { CommandIcon } from '@phosphor-icons/react';
 
 export type KeyboardShortcut = {
   keys: string[];
@@ -59,7 +59,7 @@ export const KeyboardShortcutsCard = forwardRef<
         className='mb-4 flex items-center gap-2.5'
       >
         <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] text-white'>
-          <Command size={14} />
+          <CommandIcon size={14} />
         </div>
         <div>
           <h4 className='text-sm font-bold text-[var(--text-primary)]'>

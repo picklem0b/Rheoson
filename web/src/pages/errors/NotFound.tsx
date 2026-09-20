@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Home, ArrowLeft, Search } from "lucide-react";
+import { House, ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react';
 
 export default function NotFound() {
    const navigate = useNavigate();
@@ -40,8 +40,8 @@ export default function NotFound() {
                onClick={() => navigate("/")}
                className='flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[var(--accent)]
             text-sm font-bold text-white shadow-lg'>
-               <Home className='w-4 h-4' />
-               Home
+               <House className='w-4 h-4' />
+               House
             </motion.button>
          </div>
 
@@ -50,8 +50,8 @@ export default function NotFound() {
             onClick={() => navigate("/search")}
             className='flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)]
           hover:text-[var(--accent)] transition-colors mt-2'>
-            <Search className='w-3 h-3' />
-            Search for music
+            <MagnifyingGlass className='w-3 h-3' />
+            MagnifyingGlass for music
          </motion.button>
       </div>
    );

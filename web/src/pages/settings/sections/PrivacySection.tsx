@@ -1,14 +1,6 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-   Trash2,
-   CheckCircle2,
-   AlertCircle,
-   RefreshCw,
-   ExternalLink,
-   Download,
-   Upload
-} from "lucide-react";
+import { Trash, CheckCircle, WarningCircle, ArrowClockwise, ArrowSquareOut, DownloadSimple, Upload } from '@phosphor-icons/react';
 import { api } from "@/api/client.api";
 import { usePersisted } from "@/hooks/persisted.hook";
 import {
@@ -97,7 +89,7 @@ export default function PrivacySection() {
    const clearSearch = actionRunner(setClearSearchState, async () => {
       sessionStorage.removeItem("rheoson-last-search");
       localStorage.removeItem("rheoson-search-history");
-      // The Search page also keeps its recent-queries dropdown here; clear it
+      // The MagnifyingGlass page also keeps its recent-queries dropdown here; clear it
       // too so "clear search history" is unambiguous.
       sessionStorage.removeItem("rheoson-recent-searches");
    });
@@ -115,8 +107,8 @@ export default function PrivacySection() {
    return (
       <div className='pb-4'>
          <SettingsGroup
-            title='History'
-            footer='Play history is stored on the server. Search history is stored only on this device.'>
+            title='ClockCounterClockwise'
+            footer='Play history is stored on the server. MagnifyingGlass history is stored only on this device.'>
             <SettingsRow
                label='Save play history'
                description='Off stops recording new recently-played entries (existing history stays until you clear it)'>
@@ -141,7 +133,7 @@ export default function PrivacySection() {
                state={clearSearchState}
                idleLabel='Clear search history'
                idleDesc='Remove saved search queries from this device'
-               okLabel='Search history cleared'
+               okLabel='MagnifyingGlass history cleared'
                onClick={clearSearchState === "idle" ? clearSearch : undefined}
             />
          </SettingsGroup>
@@ -161,16 +153,16 @@ export default function PrivacySection() {
                onClick={backupState === "idle" ? exportBackup : undefined}
                loading={backupState === "loading"}>
                {backupState === "loading" && (
-                  <RefreshCw className='w-4 h-4 text-[var(--accent)] animate-spin' />
+                  <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
                )}
                {backupState === "ok" && (
-                  <CheckCircle2 className='w-4 h-4 text-green-400' />
+                  <CheckCircle className='w-4 h-4 text-green-400' />
                )}
                {backupState === "err" && (
-                  <AlertCircle className='w-4 h-4 text-red-400' />
+                  <WarningCircle className='w-4 h-4 text-red-400' />
                )}
                {backupState === "idle" && (
-                  <Download className='w-4 h-4 text-[var(--text-muted)]/50' />
+                  <DownloadSimple className='w-4 h-4 text-[var(--text-muted)]/50' />
                )}
             </SettingsRow>
 
@@ -191,13 +183,13 @@ export default function PrivacySection() {
                }
                loading={restoreState === "loading"}>
                {restoreState === "loading" && (
-                  <RefreshCw className='w-4 h-4 text-[var(--accent)] animate-spin' />
+                  <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
                )}
                {restoreState === "ok" && (
-                  <CheckCircle2 className='w-4 h-4 text-green-400' />
+                  <CheckCircle className='w-4 h-4 text-green-400' />
                )}
                {restoreState === "err" && (
-                  <AlertCircle className='w-4 h-4 text-red-400' />
+                  <WarningCircle className='w-4 h-4 text-red-400' />
                )}
                {restoreState === "idle" && (
                   <Upload className='w-4 h-4 text-[var(--text-muted)]/50' />
@@ -241,7 +233,7 @@ export default function PrivacySection() {
                description='Clears the session token from this device and reloads the app'
                danger
                onClick={signOutState === "idle" ? signOutDevice : undefined}
-               icon={<RefreshCw className='w-[14px] h-[14px]' />}
+               icon={<ArrowClockwise className='w-[14px] h-[14px]' />}
                iconBg='#EF4444'
             />
          </SettingsGroup>
@@ -250,12 +242,12 @@ export default function PrivacySection() {
             <SettingsRow
                label='Privacy policy'
                onClick={() => window.open(`${GITHUB}/PRIVACY.md`, "_blank")}>
-               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+               <ArrowSquareOut className='w-4 h-4 text-[var(--text-muted)]/40' />
             </SettingsRow>
             <SettingsRow
                label='Terms of service'
                onClick={() => window.open(`${GITHUB}/TERMS.md`, "_blank")}>
-               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+               <ArrowSquareOut className='w-4 h-4 text-[var(--text-muted)]/40' />
             </SettingsRow>
             <SettingsRow
                label='Open source licences'
@@ -265,7 +257,7 @@ export default function PrivacySection() {
                      "_blank"
                   )
                }>
-               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+               <ArrowSquareOut className='w-4 h-4 text-[var(--text-muted)]/40' />
             </SettingsRow>
          </SettingsGroup>
       </div>
@@ -299,11 +291,11 @@ function HistoryRow({
          onClick={onClick}
          loading={state === "loading"}>
          {state === "loading" && (
-            <RefreshCw className='w-4 h-4 text-[var(--accent)] animate-spin' />
+            <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
          )}
-         {state === "ok" && <CheckCircle2 className='w-4 h-4 text-green-400' />}
-         {state === "err" && <AlertCircle className='w-4 h-4 text-red-400' />}
-         {state === "idle" && <Trash2 className='w-4 h-4 text-red-400' />}
+         {state === "ok" && <CheckCircle className='w-4 h-4 text-green-400' />}
+         {state === "err" && <WarningCircle className='w-4 h-4 text-red-400' />}
+         {state === "idle" && <Trash className='w-4 h-4 text-red-400' />}
       </SettingsRow>
    );
 }

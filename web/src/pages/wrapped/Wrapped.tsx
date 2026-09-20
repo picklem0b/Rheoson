@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Award, Flame, Headphones, PlayCircle, Sparkles, TrendingUp,
-} from 'lucide-react'
+import { Medal, Flame, Headphones, PlayCircle, Sparkle, TrendUp } from '@phosphor-icons/react'
 import { analyticsApi, type WrappedReport } from '@/api/analytics.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -140,7 +138,7 @@ export default function Wrapped() {
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-[var(--accent)]" />
+              <Sparkle className="w-5 h-5 text-[var(--accent)]" />
               Your Wrapped
             </h1>
             <p className="text-sm text-[var(--text-muted)] mt-0.5">Your listening year in review</p>
@@ -196,7 +194,7 @@ export default function Wrapped() {
                 <HeroStat icon={PlayCircle} label="Plays" value={formatCount(report.total_plays)} />
                 <HeroStat icon={Headphones} label="Hours" value={hours} />
                 <HeroStat icon={Flame} label="Best streak" value={report.streaks.longest_streak} />
-                <HeroStat icon={Award} label="Top artist" value={topArtistName ? topArtistName.slice(0, 8) : '—'} />
+                <HeroStat icon={Medal} label="Top artist" value={topArtistName ? topArtistName.slice(0, 8) : '—'} />
               </div>
             </motion.div>
 
@@ -204,7 +202,7 @@ export default function Wrapped() {
             {report.top_artists.length > 0 && (
               <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
                 <h2 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-[var(--accent)]" />
+                  <TrendUp className="w-4 h-4 text-[var(--accent)]" />
                   Top artists
                 </h2>
                 <div className="space-y-1">
@@ -248,7 +246,7 @@ export default function Wrapped() {
             {report.genres.length > 0 && (
               <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                 <h2 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-                  <Award className="w-4 h-4 text-[var(--accent)]" />
+                  <Medal className="w-4 h-4 text-[var(--accent)]" />
                   Your genres
                 </h2>
                 <div className="grid grid-cols-2 gap-2">
@@ -274,7 +272,7 @@ export default function Wrapped() {
             {report.months.some((m) => m.plays > 0) && (
               <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                 <h2 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[var(--accent)]" />
+                  <Sparkle className="w-4 h-4 text-[var(--accent)]" />
                   Listening through the year
                 </h2>
                 <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]">

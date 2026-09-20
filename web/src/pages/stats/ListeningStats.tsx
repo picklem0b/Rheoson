@@ -1,9 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import {
-  BarChart3, Clock, Heart, Users, Music2, TrendingUp, Calendar, LogIn, BarChartBig
-} from 'lucide-react'
+import { ChartLineUp, Clock, Heart, Users, MusicNotes, TrendUp, Calendar, SignIn } from '@phosphor-icons/react'
 import { analyticsApi } from '@/api/analytics.api'
 import { useAuthStore } from '@/store/auth.store'
 import { ScrollArea } from '@/components/ui/ScrollArea'
@@ -125,7 +123,7 @@ export default function ListeningStats() {
             className="flex flex-col items-center text-center py-16 gap-4"
           >
             <div className="w-20 h-20 rounded-[2rem] bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]">
-              <LogIn className="w-8 h-8 text-[var(--text-muted)]" />
+              <SignIn className="w-8 h-8 text-[var(--text-muted)]" />
             </div>
             <div>
               <p className="font-bold text-[var(--text-primary)]">Stats live with your account</p>
@@ -161,7 +159,7 @@ export default function ListeningStats() {
             className="flex flex-col items-center text-center py-16 gap-4"
           >
             <div className="w-20 h-20 rounded-[2rem] bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]">
-              <BarChartBig className="w-8 h-8 text-[var(--text-muted)]" />
+              <ChartLineUp className="w-8 h-8 text-[var(--text-muted)]" />
             </div>
             <div>
               <p className="font-bold text-[var(--text-primary)]">No listening data yet</p>
@@ -185,12 +183,12 @@ export default function ListeningStats() {
           </div>
         ) : stats ? (
           <div className="grid grid-cols-2 gap-3">
-            <StatCard icon={Music2} label="Total plays" value={formatCount(stats.total_plays)} />
+            <StatCard icon={MusicNotes} label="Total plays" value={formatCount(stats.total_plays)} />
             <StatCard icon={Clock} label="Listening time" value={`${stats.estimated_listening_hours}h`} />
             <StatCard icon={Heart} label="Liked tracks" value={stats.total_likes} />
             <StatCard icon={Users} label="Artists played" value={stats.unique_artists_30d} />
             <StatCard icon={Calendar} label="Active days" value={stats.active_days_30d} />
-            <StatCard icon={TrendingUp} label="Plays (7d)" value={stats.plays_7d} />
+            <StatCard icon={TrendUp} label="Plays (7d)" value={stats.plays_7d} />
           </div>
         ) : null}
 
@@ -202,7 +200,7 @@ export default function ListeningStats() {
             transition={{ delay: 0.1 }}
           >
             <h2 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--accent)]" />
+              <ChartLineUp className="w-4 h-4 text-[var(--accent)]" />
               Listening by hour
             </h2>
             <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]">
@@ -236,7 +234,7 @@ export default function ListeningStats() {
             transition={{ delay: 0.2 }}
           >
             <h2 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[var(--accent)]" />
+              <TrendUp className="w-4 h-4 text-[var(--accent)]" />
               Top artists (30 days)
             </h2>
             <div className="space-y-1">

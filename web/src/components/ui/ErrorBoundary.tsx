@@ -1,5 +1,5 @@
 import React from 'react'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { Warning, ArrowClockwise } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 
 interface Props {
@@ -49,7 +49,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           className="flex flex-col items-center justify-center py-12 px-6 text-center gap-4"
         >
           <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center">
-            <AlertTriangle className="w-7 h-7 text-red-400" />
+            <Warning className="w-7 h-7 text-red-400" />
           </div>
           <div>
             <h3 className="font-bold text-[var(--text-primary)]">Something went wrong</h3>
@@ -70,7 +70,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
               onClick={this.handleReload}
               className="px-4 py-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-white flex items-center gap-1.5"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <ArrowClockwise className="w-3.5 h-3.5" />
               Reload
             </motion.button>
           </div>

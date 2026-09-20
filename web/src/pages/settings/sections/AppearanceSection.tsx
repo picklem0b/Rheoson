@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Sun, Moon, Eye, EyeOff } from "lucide-react";
+import { Check, Sun, Moon, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useThemeStore } from "@/store/theme.store";
 import { useUIStore } from "@/store/ui.store";
 import { ACCENT_THEMES } from "@/themes";
@@ -169,7 +169,7 @@ export default function AppearanceSection() {
                label='Collapse sidebar'
                description={sidebarCollapsed ? 'Sidebar is collapsed to icons' : 'Sidebar shows icons and labels'}
                onClick={toggleSidebar}
-               icon={sidebarCollapsed ? <EyeOff className='w-[14px] h-[14px]' /> : <Eye className='w-[14px] h-[14px]' />}
+               icon={sidebarCollapsed ? <EyeSlash className='w-[14px] h-[14px]' /> : <Eye className='w-[14px] h-[14px]' />}
                iconBg='#8B5CF6'>
                <span className='text-[13px] text-[var(--text-muted)]'>
                   {sidebarCollapsed ? 'Collapsed' : 'Expanded'}

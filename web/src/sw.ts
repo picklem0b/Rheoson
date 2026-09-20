@@ -169,7 +169,7 @@ registerRoute(
     })
 );
 
-// ── Search results ─────────────────────────────────────────────
+// ── MagnifyingGlass results ─────────────────────────────────────────────
 // /api/search?q=...
 //
 // Strategy: NetworkFirst — always try the server first.
@@ -435,7 +435,7 @@ self.addEventListener("message", (event) => {
 
         case "CLEAR_SEARCH_CACHE":
             caches.delete(CACHE.SEARCH).then(() => {
-                console.debug("[SW] Search cache cleared");
+                console.debug("[SW] MagnifyingGlass cache cleared");
             });
             break;
 

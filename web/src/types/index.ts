@@ -46,10 +46,10 @@ export type ResolveResponse = components['schemas']['ResolveResponseSchema']
 /** A download job. */
 export type DownloadJob = components['schemas']['DownloadJobSchema']
 
-/** Download request payload. */
+/** DownloadSimple request payload. */
 export type DownloadRequest = components['schemas']['DownloadRequestSchema']
 
-/** Download status enum. */
+/** DownloadSimple status enum. */
 export type DownloadStatus = components['schemas']['DownloadJobSchema']['status']
 
 /** Audio format enum. */
