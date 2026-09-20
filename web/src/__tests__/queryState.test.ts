@@ -44,9 +44,17 @@ describe('invalidation covers every surface that shows the data', () => {
 
     expect(keys).toContain(JSON.stringify(qk.likedCount()))
     expect(keys).toContain(JSON.stringify(qk.likedTracks()))
+    expect(keys).toContain(JSON.stringify(qk.likedIds()))
     // Rows embed isLiked, so lists and shelves must re-read too.
     expect(keys).toContain(JSON.stringify(qk.libraryTracks()))
     expect(keys).toContain(JSON.stringify(qk.recommendations()))
+    // Detail and chart surfaces render their own rows.
+    expect(keys).toContain(JSON.stringify(qk.albumAll()))
+    expect(keys).toContain(JSON.stringify(qk.artistAll()))
+    expect(keys).toContain(JSON.stringify(qk.artistContentAll()))
+    expect(keys).toContain(JSON.stringify(qk.trendingFull()))
+    expect(keys).toContain(JSON.stringify(qk.categoryTopAll()))
+    expect(keys).toContain(JSON.stringify(qk.playlistAll()))
   })
 
   it('refreshes both the playlist list and any open playlist', () => {
