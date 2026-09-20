@@ -1,15 +1,15 @@
 # CLAUDE.md — Rheoson Codebase Context
 
-> Version: 2.19.2 · Long-form docs: [docs/README.md](docs/README.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
+> Version: 2.19.3 · Long-form docs: [docs/README.md](docs/README.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
 
 Rheoson is a self-hosted music streaming + download app (Termux/Android APK first, Render cloud second). FastAPI + Socket.IO backend, React 18 + Vite + Capacitor frontend, MongoDB (Motor) for accounts/recommendations/analytics, JSON/SQLite sidecars for library state.
 
 ## Version sync (all 5, always together)
 
-- `api/pyproject.toml` → `version = "2.19.2"` (then run `uv lock` — `uv.lock` carries it too)
-- `web/package.json` → `"version": "2.19.2"`
-- `web/src/lib/constants.ts` → `APP_VERSION = "2.19.2"`
-- `api/app/main.py` → `VERSION = "2.19.2"`
+- `api/pyproject.toml` → `version = "2.19.3"` (then run `uv lock` — `uv.lock` carries it too)
+- `web/package.json` → `"version": "2.19.3"`
+- `web/src/lib/constants.ts` → `APP_VERSION = "2.19.3"`
+- `api/app/main.py` → `VERSION = "2.19.3"`
 
 ## Non-negotiables
 
@@ -58,7 +58,7 @@ cd web && npx tsc --noEmit && npm run lint && npm test && npm run build
 cd api && uv run python -m pytest -q
 ```
 
-Current baseline: 100 frontend + 277 backend tests, lint/tsc/pyflakes clean. Backend tests patch `app.core.database.get_db` as a FastAPI dependency; a mock-DB round trip in a test means the fixture resets `_shared_mock_db` state (see `tests/conftest.py::_clean_state`).
+Current baseline: 100 frontend + 281 backend tests, lint/tsc/pyflakes clean. Backend tests patch `app.core.database.get_db` as a FastAPI dependency; a mock-DB round trip in a test means the fixture resets `_shared_mock_db` state (see `tests/conftest.py::_clean_state`).
 
 ## Data map
 

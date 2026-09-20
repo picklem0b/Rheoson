@@ -175,10 +175,10 @@ async def _handle_user_created(data: dict) -> None:
     if not primary_email and emails:
         primary_email = emails[0].get("email_address", "")
 
-    # Extract name
-    first_name = data.get("first_name", "") or ""
-    last_name = data.get("last_name", "") or ""
-    full_name = f"{first_name} {last_name}".strip() or primary_email.split("@")[0]
+    # Identity is the username alone — this product has no first/last name.
+    # Clerk enforces uniqueness at sign-up; the email local part is only a
+    # fallback for accounts that predate the field being required.
+    username = (data.get("username") or "").strip() or primary_email.split("@")[0] or clerk_id
 
     # Profile image
     image_url = data.get("image_url", "")
@@ -194,9 +194,7 @@ async def _handle_user_created(data: dict) -> None:
             {
                 "$set": {
                     "email": primary_email,
-                    "name": full_name,
-                    "first_name": first_name,
-                    "last_name": last_name,
+                    "username": username,
                     "image_url": image_url,
                     "clerk_id": clerk_id,
                     "updated_at": now,
@@ -244,9 +242,7 @@ async def _handle_user_updated(data: dict) -> None:
     if not primary_email and emails:
         primary_email = emails[0].get("email_address", "")
 
-    first_name = data.get("first_name", "") or ""
-    last_name = data.get("last_name", "") or ""
-    full_name = f"{first_name} {last_name}".strip() or primary_email.split("@")[0]
+    username = (data.get("username") or "").strip()
     image_url = data.get("image_url", "")
 
     updates: dict = {
@@ -254,12 +250,8 @@ async def _handle_user_updated(data: dict) -> None:
     }
     if primary_email:
         updates["email"] = primary_email
-    if full_name:
-        updates["name"] = full_name
-    if first_name:
-        updates["first_name"] = first_name
-    if last_name:
-        updates["last_name"] = last_name
+    if username:
+        updates["username"] = username
     if image_url:
         updates["image_url"] = image_url
 

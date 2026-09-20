@@ -10,8 +10,7 @@ interface AuthState {
   /** True once mount-time token validation has finished. */
   ready: boolean;
   isLoading: boolean;
-  /** Sync Clerk user data into local store (called from ClerkUserSync). */
-  syncClerkUser: (clerkUser: { id: string; email?: string; name?: string; imageUrl?: string; createdAt?: string } | null) => void;
+  /** Sync Clerk user data into local store (called from ClerkUserSync). */      syncClerkUser: (clerkUser: { id: string; email?: string; username?: string; imageUrl?: string; createdAt?: string } | null) => void;
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
   setToken: (token: string) => void;
@@ -37,7 +36,7 @@ export const useAuthStore = create<AuthState>()(
           user: {
             id: clerkUser.id,
             email: clerkUser.email ?? '',
-            name: clerkUser.name ?? clerkUser.email ?? 'User',
+            username: clerkUser.username ?? clerkUser.email ?? 'User',
             image_url: clerkUser.imageUrl,
             created_at: clerkUser.createdAt,
           },

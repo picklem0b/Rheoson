@@ -58,3 +58,7 @@ tsconfig.tsbuildinfo
 music/.history.json
 graphify-out/cache/
 graphify-out/.graphify_*
+
+# Agent tooling (skills, prompts) is developer-local, like reference/ and notes.txt.
+.claude/
+.agent/

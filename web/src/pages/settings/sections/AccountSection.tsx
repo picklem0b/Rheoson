@@ -28,7 +28,7 @@ export default function AccountSection() {
   const [checking, setChecking] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const name = user?.name ?? "Your account";
+  const name = user?.username ?? "Your account";
   const initials = getInitials(name);
 
   const fetchStatus = useCallback(() => {

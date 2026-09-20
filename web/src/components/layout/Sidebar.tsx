@@ -57,7 +57,7 @@ function ClerkProfileButton({ navigate }: { navigate: ReturnType<typeof useNavig
   const { user: clerkUser } = useUser()
   const localUser = useAuthStore((s) => s.user)
 
-  const name = clerkUser?.fullName ?? clerkUser?.username ?? localUser?.name ?? 'Your account'
+  const name = clerkUser?.username ?? localUser?.username ?? 'Your account'
   const imageUrl = clerkUser?.imageUrl ?? localUser?.image_url
   return <ProfileButtonBody navigate={navigate} name={name} imageUrl={imageUrl} />
 }
@@ -67,7 +67,7 @@ function LocalProfileButton({ navigate }: { navigate: ReturnType<typeof useNavig
   return (
     <ProfileButtonBody
       navigate={navigate}
-      name={localUser?.name ?? 'Your account'}
+      name={localUser?.username ?? 'Your account'}
       imageUrl={localUser?.image_url}
     />
   )
