@@ -92,7 +92,11 @@ Rheoson versions as `v2.MILESTONE.PHASE[-rc]` — not generic semver:
 
 Tags are **always annotated** (`git tag -a`), never lightweight. The subject is `v2.M.PHASE — <phase theme>`; the body lists what the phase delivered as bullets, and feeds `docs/CHANGELOG.md`. Push tags with `git push --follow-tags` (never a bare `git push --tags`).
 
-### Current milestone: 2.17 — latest phase: v2.17.9 (stable)
+### Current milestone: 2.18 — latest phase: v2.18.2 (stable)
+
+Milestone 2.18 is the full frontend redesign (premium minimal, iOS-style, two
+experience shells — desktop and mobile — with the APK pinned to the mobile
+shell). Phases ship as `v2.18.1`, `v2.18.2`, … until the redesign completes.
 
 **Tag a phase (after the version files are bumped and gates pass):**
 ```bash
