@@ -6,6 +6,30 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.18.2
+
+Redesign phase 2/7 — app shells and the icon system.
+
+- feat(shell): **desktop sidebar shell and mobile bottom nav** rebuilt on the Phase 1 token layer. The bottom nav is safe-area padded for notched devices; active states, spacing and icon sizing all come from the semantic token layer. A device-class bridge in RootLayout keeps the APK on the mobile shell even on tablets — a 1280-wide Android tablet renders the phone experience, never a stretched desktop UI.
+- feat(motion): route transitions with iOS spring curves; navigation is the only place screens animate — playback controls stay instant.
+- refactor(icons): **complete lucide-react → @phosphor-icons/react migration** across every consumer. One family, one stroke weight, applied by a deterministic codemod; `lucide-react` is removed from the dependency tree and the vendor manualChunks now pins the Phosphor chunk.
+
+---
+
+## v2.18.1
+
+Redesign phase 1/7 — the design-token foundation everything else builds on.
+
+- feat(ui): **three-layer token architecture** (primitive → semantic → component) in `index.css`. Themes and surfaces now change at the variable layer only; every existing variable name was preserved so components kept working untouched through the phases that follow.
+- feat(type): **Geist Sans + Geist Mono self-hosted** as variable fonts — no render-blocking Google Fonts request. Tabular figures for all durations and timestamps; tightened display tracking.
+- feat(theme): single tinted neutral ramp, near-black dark and inverted light with zero pure black/white; all seven accents recalibrated below the 80% saturation line; tinted diffuse shadows; WCAG AA contrast verified in both themes.
+- feat(a11y): `:focus-visible` ring everywhere, `prefers-reduced-motion` plus an in-app toggle wired to the CSS layer, `prefers-reduced-transparency` solid fallback for frosted surfaces.
+- feat(platform): `useDeviceClass()` — pointer modality, viewport width, Capacitor native override and `display-mode: standalone`, resolving to one of desktop/mobile/tablet. The APK always renders the mobile shell, even on tablets; safe-area tokens wired.
+- feat(brand): **"Feel the Beat"** slogan in the PWA manifest, `index.html` and OG tags; `APP_SLOGAN` constant.
+- chore(release): version 2.18.1 across all five sync points (`uv.lock` included).
+
+---
+
 ## v2.17.11
 
 Guest-first restore, update feature, and a complete onboarding course.
