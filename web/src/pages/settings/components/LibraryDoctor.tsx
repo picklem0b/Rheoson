@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CaretDown, CaretRight, WarningCircle, CheckCircle, Warning, Copy, FolderOpen, ArrowClockwise, Scan, Trash, SpinnerGap } from '@phosphor-icons/react'
-import { api } from '@/api/client.api'
+import { api, type ApiError } from '@/api/client.api'
 import { cn } from '@/lib/utils'
 import {
    SettingsGroup,
@@ -9,7 +9,7 @@ import {
 } from '../components/SettingsPrimitives'
 
 /**
- * Interactive Books Doctor.
+ * Interactive Library Doctor.
  *
  * One "Scan library" action drives everything: a progress phase while the
  * server walks every music directory, then grouped findings (corrupt
@@ -118,7 +118,17 @@ export default function LibraryDoctor() {
          else if (res.emptyDirs.length) setExpanded('emptyDirs')
       } catch (e) {
          if (!mounted.current) return
-         setError(e instanceof Error ? e.message : 'Scan failed')
+         // Repairs touch the shared library, so the server restricts them to
+         // the instance owner. Say that in plain language rather than
+         // echoing the server's configuration instructions.
+         const status = (e as ApiError)?.status
+         setError(
+            status === 403
+               ? 'Library repairs are limited to the instance owner on this server.'
+               : e instanceof Error
+                 ? e.message
+                 : 'Scan failed'
+         )
          setPhase('error')
       }
    }, [])
@@ -187,7 +197,7 @@ export default function LibraryDoctor() {
             id: 'corrupt' as const,
             title: 'Corrupt files',
             icon: WarningCircle,
-            tint: 'text-red-400',
+            tint: 'text-[var(--danger-text)]',
             items: scan.corrupt,
             freed: scan.corrupt.reduce((a, f) => a + f.size, 0),
             sweepKind: 'corrupt' as const,
@@ -197,7 +207,7 @@ export default function LibraryDoctor() {
             id: 'duplicates' as const,
             title: 'Duplicate tracks',
             icon: Copy,
-            tint: 'text-amber-400',
+            tint: 'text-[var(--warning-text)]',
             items: scan.duplicates,
             freed: scan.duplicates.reduce((a, f) => a + f.size, 0),
             sweepKind: 'duplicates' as const,
@@ -231,7 +241,7 @@ export default function LibraryDoctor() {
 
    return (
       <SettingsGroup
-         title='Books doctor'
+         title='Library doctor'
          footer='Scans every music folder for files that cannot play, copies of the same track, and leftover folders. Nothing is touched until you choose a repair.'>
          {/* ── Scan launcher / summary ─────────────────── */}
          <div className='px-4 py-4'>
@@ -273,8 +283,8 @@ export default function LibraryDoctor() {
             {phase === 'error' && (
                <button
                   onClick={() => void runScan()}
-                  className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-red-400/25 bg-red-400/10 text-left'>
-                  <Warning className='w-[18px] h-[18px] text-red-400 flex-shrink-0' />
+                  className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-[var(--danger)]/25 bg-[var(--danger-bg)] text-left'>
+                  <Warning className='w-[18px] h-[18px] text-[var(--danger-text)] flex-shrink-0' />
                   <div className='min-w-0 flex-1'>
                      <p className='text-[14px] font-semibold text-[var(--text-primary)]'>
                         Scan failed
@@ -313,7 +323,7 @@ export default function LibraryDoctor() {
                      <div className='min-w-0 flex-1'>
                         <p className='text-[15px] font-semibold text-[var(--text-primary)]'>
                            {totalProblems === 0
-                              ? 'Books is clean'
+                              ? 'Library is clean'
                               : `${totalProblems} thing${totalProblems === 1 ? '' : 's'} found`}
                         </p>
                         <p className='text-[12.5px] text-[var(--text-muted)] mt-0.5'>
@@ -409,8 +419,8 @@ export default function LibraryDoctor() {
                                                       st === 'ok'
                                                          ? 'border-emerald-400/30 text-emerald-400'
                                                          : st === 'err'
-                                                           ? 'border-red-400/30 text-red-400'
-                                                           : 'border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-400/30'
+                                                           ? 'border-[var(--danger)]/25 text-[var(--danger-text)]'
+                                                           : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--danger-text)] hover:border-[var(--danger)]/25'
                                                    )}>
                                                    {st === 'loading' ? (
                                                       <SpinnerGap className='w-3.5 h-3.5 animate-spin' />
@@ -442,7 +452,7 @@ export default function LibraryDoctor() {
                                                 className={cn(
                                                    'flex-1 px-3 py-2 rounded-full text-[12.5px] font-bold flex items-center justify-center gap-1.5',
                                                    group.danger
-                                                      ? 'bg-red-500/90 text-white'
+                                                      ? 'bg-[var(--danger)] text-white'
                                                       : 'bg-[var(--accent)] text-white'
                                                 )}>
                                                 {sweepState[group.id] === 'loading' ? (
@@ -468,7 +478,7 @@ export default function LibraryDoctor() {
                                                 </>
                                              ) : sweepState[group.id] === 'err' ? (
                                                 <>
-                                                   <Warning className='w-3.5 h-3.5 text-red-400' />
+                                                   <Warning className='w-3.5 h-3.5 text-[var(--danger-text)]' />
                                                    Failed — try again
                                                 </>
                                              ) : (

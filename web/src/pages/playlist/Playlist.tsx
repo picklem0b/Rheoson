@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Shuffle, DotsThreeOutline, DownloadSimple, ListPlus, Pencil, Plus, Trash, PencilSimple } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { qk } from "@/lib/queryKeys";
+import { invalidatePlaylistSurfaces } from "@/lib/queryInvalidation";
 import { useQueue } from "@/hooks/queue.hook";
 import { useDownloads } from "@/hooks/downloads.hook";
 import { getPlaylist, playlistsApi } from "@/api/playlists.api";
@@ -54,7 +56,7 @@ export default function Playlist() {
    }, [menuOpen]);
 
    const { data: playlist, isLoading } = useQuery({
-      queryKey: ["playlist", id],
+      queryKey: qk.playlist(id!),
       queryFn: () => getPlaylist(id!),
       enabled: !!id,
    });
@@ -97,15 +99,14 @@ export default function Playlist() {
       try {
          await playlistsApi.addTrack(id, track.id);
          toast(`Added "${truncate(track.title, 24)}"`, "success");
-         queryClient.invalidateQueries({ queryKey: ["playlist", id] });
+         invalidatePlaylistSurfaces(queryClient);
       } catch {
          toast("Could not add track", "error");
       }
    };
 
    const refreshCover = () => {
-      queryClient.invalidateQueries({ queryKey: ["playlist", id] });
-      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+      invalidatePlaylistSurfaces(queryClient);
    };
 
    const handleRename = async () => {
@@ -115,8 +116,7 @@ export default function Playlist() {
          await playlistsApi.updatePlaylist(id, { title: newTitle.trim() });
          toast("Playlist renamed", "success", 1800);
          setShowRename(false);
-         queryClient.invalidateQueries({ queryKey: ["playlist", id] });
-         queryClient.invalidateQueries({ queryKey: ["playlists"] });
+         invalidatePlaylistSurfaces(queryClient);
       } catch {
          toast("Could not rename playlist", "error");
       } finally {
@@ -225,7 +225,7 @@ export default function Playlist() {
                      <IconButton
                         size='md'
                         variant='ghost'
-                        title='DownloadSimple all tracks'
+                        title='Download all tracks'
                         disabled={!tracks.length}
                         onClick={() => {
                            if (!playlist) return;
@@ -269,8 +269,8 @@ export default function Playlist() {
                                     }}
                                     className='w-full flex items-center gap-3 px-4 py-3 text-left
                                        hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)] transition-colors'>
-                                    <Trash className='w-4 h-4 text-red-400' />
-                                    <span className='text-sm font-medium text-red-400'>Delete playlist</span>
+                                    <Trash className='w-4 h-4 text-[var(--danger-text)]' />
+                                    <span className='text-sm font-medium text-[var(--danger-text)]'>Delete playlist</span>
                                  </button>
                               </motion.div>
                            )}
@@ -400,7 +400,7 @@ export default function Playlist() {
             </p>
             <div className='flex justify-end gap-2 mt-4'>
                <UiButton variant='ghost' size='sm' onClick={() => setShowDelete(false)}>Cancel</UiButton>
-               <UiButton variant='primary' size='sm' disabled={busy} onClick={handleDelete} className='!bg-red-500 !hover:bg-red-400'>
+               <UiButton variant='danger' size='sm' disabled={busy} onClick={handleDelete}>
                   Delete
                </UiButton>
             </div>

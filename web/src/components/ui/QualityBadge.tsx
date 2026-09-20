@@ -9,10 +9,10 @@ interface QualityBadgeProps {
 const FORMAT_COLORS: Record<string, string> = {
   mp3:  'bg-blue-500/15 text-blue-400 border-blue-500/20',
   flac: 'bg-purple-500/15 text-purple-400 border-purple-500/20',
-  m4a:  'bg-green-500/15 text-green-400 border-green-500/20',
+  m4a:  'bg-[var(--success)]/15 text-[var(--success-text)] border-[var(--success)]/20',
   opus: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20',
   ogg:  'bg-orange-500/15 text-orange-400 border-orange-500/20',
-  wav:  'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
+  wav:  'bg-yellow-500/15 text-[var(--warning-text)] border-[var(--warning)]/20',
 }
 
 function formatLabel(quality?: string): string {

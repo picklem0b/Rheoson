@@ -73,7 +73,7 @@
 }
 
 .clerk-auth-wrapper .cl-formButtonPrimary {
-  background: var(--accent, #7c3aed) !important;
+  background: var(--accent, #E5193A) !important;
   border-radius: 0.75rem !important;
   font-weight: 700 !important;
   text-transform: none !important;
@@ -107,8 +107,8 @@
 }
 
 .auth-input:focus {
-  border-color: var(--accent, #7c3aed);
-  box-shadow: 0 0 0 3px var(--accent-subtle, rgba(124, 58, 237, 0.1));
+  border-color: var(--accent, #E5193A);
+  box-shadow: 0 0 0 3px var(--accent-subtle, rgba(229, 25, 58, 0.1));
 }
 
 .auth-input::placeholder {
@@ -119,7 +119,7 @@
   padding: 0.75rem 1.5rem;
   border-radius: 0.75rem;
   border: none;
-  background: var(--accent, #7c3aed);
+  background: var(--accent, #E5193A);
   color: #fff;
   font-size: 0.9rem;
   font-weight: 700;

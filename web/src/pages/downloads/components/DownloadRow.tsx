@@ -78,7 +78,7 @@ export default function DownloadRow({ job: jobProp, index, onCancel, onRetry, on
       className={cn(
         'relative overflow-hidden rounded-3xl border transition-all duration-200',
         isError
-          ? 'bg-red-500/5 border-red-500/20'
+          ? 'bg-[var(--danger-bg)] border-[rgb(var(--danger-rgb)/0.25)]'
           : 'bg-[var(--bg-surface)] border-[var(--border)]',
       )}
     >
@@ -120,7 +120,7 @@ export default function DownloadRow({ job: jobProp, index, onCancel, onRetry, on
             </p>
           )}
           {isError && job.error && (
-            <p className="text-xs text-red-400 mt-0.5 truncate">{job.error}</p>
+            <p className="text-xs text-[var(--danger-text)] mt-0.5 truncate">{job.error}</p>
           )}
         </div>
 

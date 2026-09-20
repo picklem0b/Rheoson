@@ -1,7 +1,9 @@
-import { Component, useEffect, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useEffect, useRef, type ErrorInfo, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useAuthStore } from '@/store/auth.store';
 import { setClerkToken, setClerkTokenProvider } from '@/api/client.api';
+import { activateSnapshot, clearSnapshots } from '@/lib/querySnapshot';
 
 /**
  * Bridges Clerk's user state AND session token into the local Zustand
@@ -59,6 +61,7 @@ export class ClerkCrashGuard extends Component<CrashGuardProps, CrashGuardState>
 export default function ClerkUserSync() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { user } = useUser();
+  const queryClient = useQueryClient();
   const syncClerkUser = useAuthStore((s) => s.syncClerkUser);
 
   // Sync user data into the Zustand store. Gated on isLoaded: while Clerk is
@@ -70,7 +73,7 @@ export default function ClerkUserSync() {
       syncClerkUser({
         id: user.id,
         email: user.primaryEmailAddress?.emailAddress,
-        name: user.fullName ?? user.username ?? undefined,
+        username: user.username ?? undefined,
         imageUrl: user.imageUrl,
         createdAt: user.createdAt?.toISOString(),
       });
@@ -102,6 +105,24 @@ export default function ClerkUserSync() {
 
     return () => setClerkTokenProvider(null);
   }, [isLoaded, isSignedIn, getToken]);
+
+  // Remember the small account summaries so a revisit paints them immediately
+  // instead of showing a spinner for an answer that has not changed. Keyed per
+  // account, and wiped on sign-out so a shared device cannot show the next
+  // person the previous account's counts.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const account = isSignedIn && user ? user.id : '';
+    const dispose = activateSnapshot(queryClient, account);
+    return () => dispose();
+  }, [isLoaded, isSignedIn, user, queryClient]);
+
+  const wasSignedIn = useRef(false);
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (wasSignedIn.current && !isSignedIn) clearSnapshots();
+    wasSignedIn.current = isSignedIn;
+  }, [isLoaded, isSignedIn]);
 
   return null;
 }

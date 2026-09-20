@@ -9,21 +9,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
-const AVATAR_GRADIENTS = [
-  "from-violet-600 to-fuchsia-500",
-  "from-blue-600 to-cyan-500",
-  "from-emerald-600 to-teal-500",
-  "from-rose-600 to-pink-500",
-  "from-amber-600 to-orange-500",
-];
-
-function getGradient(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
-}
-
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -43,9 +28,8 @@ export default function AccountSection() {
   const [checking, setChecking] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const name = user?.name ?? "Your account";
+  const name = user?.username ?? "Your account";
   const initials = getInitials(name);
-  const gradient = getGradient(name);
 
   const fetchStatus = useCallback(() => {
     setChecking(true);
@@ -81,9 +65,7 @@ export default function AccountSection() {
             <div
               className={cn(
                 "w-[64px] h-[64px] rounded-[18px] flex items-center justify-center",
-                "text-[26px] font-black text-white shadow-lg flex-shrink-0",
-                "bg-gradient-to-br",
-                gradient
+                "text-[26px] font-black text-[var(--accent)] bg-[var(--accent-subtle)] shadow-lg flex-shrink-0"
               )}
             >
               {initials}
@@ -97,8 +79,8 @@ export default function AccountSection() {
               {user?.email ?? "View profile"}
             </p>
             <div className="flex items-center gap-1.5 mt-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              <span className="text-[12px] text-green-400 font-semibold">
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
+              <span className="text-[12px] text-[var(--success-text)] font-semibold">
                 Self-hosted · Local
               </span>
             </div>
@@ -117,7 +99,7 @@ export default function AccountSection() {
           className={cn(
             "flex items-center gap-2.5 px-4 py-3 text-[13px] font-medium border-b border-[var(--border)]/50",
             spotifyOk
-              ? "text-green-400 bg-green-500/5"
+              ? "text-[var(--success-text)] bg-[var(--success-bg)]"
               : "text-orange-400 bg-orange-500/5"
           )}
         >
@@ -175,7 +157,7 @@ export default function AccountSection() {
             label="How it's used"
             description="Metadata, artwork, and link resolution only — audio never comes from Spotify"
           >
-            <Check className="w-4 h-4 text-green-400" />
+            <Check className="w-4 h-4 text-[var(--success-text)]" />
           </SettingsRow>
         )}
       </SettingsGroup>
@@ -188,7 +170,7 @@ export default function AccountSection() {
           danger
           onClick={() => setConfirmClear(true)}
           icon={<Trash className="w-[14px] h-[14px]" />}
-          iconBg="#EF4444"
+          iconBg="var(--danger)"
         />
       </SettingsGroup>
 

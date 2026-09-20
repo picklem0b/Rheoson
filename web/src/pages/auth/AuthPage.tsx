@@ -14,7 +14,7 @@ interface AuthPageProps {
  * publishable key is configured. Clerk renders its own "Continue with…"
  * provider buttons, email/password form, and sign-in/sign-up links.
  *
- * Flow: Landing ("Continue with…") → /auth (this page) → House.
+ * Flow: Landing ("Continue with…") → /auth (this page) → Home.
  *
  * There is deliberately NO manual redirect effect here: Clerk's
  * afterSignInUrl / afterSignUpUrl is the single source of truth for the
@@ -123,8 +123,8 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
           </div>
         </div>
 
-        <div className="px-4 py-6 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-center">
-          <p className="text-sm font-medium text-yellow-400">
+        <div className="px-4 py-6 rounded-2xl bg-[var(--warning-bg)] border border-[var(--warning)]/20 text-center">
+          <p className="text-sm font-medium text-[var(--warning-text)]">
             Authentication not configured
           </p>
           <p className="text-xs text-[var(--text-muted)] mt-2">

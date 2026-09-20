@@ -6,6 +6,8 @@ import { searchApi, type CategoryMeta } from '@/api/search.api'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
 import { usePlayerStore } from '@/store/player.store'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
+import { qk } from '@/lib/queryKeys'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -34,19 +36,22 @@ interface CategoryGridProps {
 }
 
 /**
- * Browse categories, each backed by its own weekly top-5 chart.
+ * Browse categories, each backed by its own weekly chart.
  *
  * Tapping a tile expands it in place rather than navigating: the point of the
- * grid is "show me the five best of this genre this week", and making the user
- * leave the page to see that would be a step backwards. The charts themselves
- * are cached server-side per ISO week, so expanding a tile is instant after
- * the first time.
+ * grid is "show me the best of this genre this week", and making the user leave
+ * the page to see that would be a step backwards. The charts themselves are
+ * cached server-side per ISO week, so expanding a tile is instant after the
+ * first time.
  */
+
+/** How many tracks a category chart asks for. */
+const CATEGORY_TRACKS = 10
 export function CategoryGrid({ onSelect }: CategoryGridProps) {
    const [expanded, setExpanded] = useState<string | null>(null)
 
    const { data } = useQuery({
-      queryKey: ['search', 'categories'],
+      queryKey: qk.searchCategories(),
       queryFn: () => searchApi.getCategories(),
       staleTime: 60 * 60_000,
       retry: 1,
@@ -77,7 +82,7 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                      }
                      aria-expanded={isOpen}
                      className={cn(
-                        'relative h-[92px] overflow-hidden rounded-2xl bg-gradient-to-br',
+                        'group relative h-[124px] overflow-hidden rounded-2xl bg-gradient-to-br sm:h-[140px]',
                         cat.gradient,
                         'border shadow-md transition-all active:brightness-110',
                         isOpen
@@ -103,15 +108,15 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                         className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"
                         aria-hidden
                      />
-                     <span className="absolute top-2 left-3 text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow">
+                     <span className="absolute top-2.5 left-3 text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow">
                         {cat.hero}
                      </span>
-                     <span className="absolute bottom-2.5 left-3 text-sm font-bold text-white drop-shadow">
+                     <span className="absolute bottom-3 left-3 text-base font-bold text-white drop-shadow">
                         {cat.label}
                      </span>
                      <CaretRight
                         className={cn(
-                           'absolute right-3 bottom-2.5 h-3.5 w-3.5 text-white/70 transition-transform',
+                           'absolute right-3 bottom-3 h-4 w-4 text-white/75 transition-transform',
                            isOpen && 'rotate-90'
                         )}
                      />
@@ -154,8 +159,8 @@ function CategoryTopSongs({
    const { playTrack, playAll } = useQueue()
 
    const { data, isLoading, isError, refetch, isFetching } = useQuery({
-      queryKey: ['category-top', slug],
-      queryFn: () => searchApi.getCategoryTop(slug, 5),
+      queryKey: qk.categoryTop(slug),
+      queryFn: () => searchApi.getCategoryTop(slug, CATEGORY_TRACKS),
       staleTime: 6 * 60 * 60_000,
       retry: 1,
    })
@@ -168,20 +173,25 @@ function CategoryTopSongs({
          initial={{ opacity: 0, height: 0 }}
          animate={{ opacity: 1, height: 'auto' }}
          exit={{ opacity: 0, height: 0 }}
-         className="mt-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]"
+         className="mt-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]"
       >
-         <div className="flex items-center gap-2 border-b border-[var(--border)]/50 px-4 py-3">
+         <div className="flex items-center gap-2 border-b border-[var(--border)]/50 px-4 py-3.5">
             <Trophy className="h-4 w-4 flex-shrink-0 text-[var(--accent)]" />
-            <div className="min-w-0 flex-1">
-               <p className="text-sm font-bold text-[var(--text-primary)]">
-                  Top 5 {label}
-                  <span className="ml-1.5 text-[10px] font-semibold tracking-widest text-[var(--text-muted)] uppercase">
-                     {week ? `· week ${Number(week.split('-W')[1] ?? 0) || ''}` : 'this week'}
-                  </span>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+               <p className="truncate text-base font-bold text-[var(--text-primary)]">
+                  {label}
                </p>
-               <p className="text-[11px] text-[var(--text-muted)]">
-                  Refreshed weekly and cached on the server
-               </p>
+               <span className="flex-shrink-0 text-[10px] font-semibold tracking-widest text-[var(--text-muted)] uppercase">
+                  {week ? `· week ${Number(week.split('-W')[1] ?? 0) || ''}` : '· this week'}
+               </span>
+               <InfoTooltip
+                  label={`About the ${label} chart`}
+                  className="flex-shrink-0"
+               >
+                  The most-played {label} tracks this week. The chart refreshes
+                  once a week and is served from the server cache, so opening a
+                  category is instant.
+               </InfoTooltip>
             </div>
 
             {tracks.length > 0 && (
@@ -212,10 +222,10 @@ function CategoryTopSongs({
             </button>
          </div>
 
-         <div className="p-2">
+         <div className="p-2 sm:p-3">
             {isLoading && (
                <div className="space-y-1.5 p-1">
-                  {Array.from({ length: 5 }).map((_, i) => (
+                  {Array.from({ length: 6 }).map((_, i) => (
                      <Skeleton key={i} className="h-14 rounded-xl" />
                   ))}
                </div>

@@ -8,11 +8,11 @@ been removed for security.
 from __future__ import annotations
 import asyncio
 import json
-import subprocess
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.core import toolchain
 from app.core.config import settings
 from app.core.deps import get_current_user
 
@@ -208,27 +208,46 @@ async def update_tools(user: dict = Depends(get_current_user)):
     diagnostics screen offers it as a one-tap repair instead.
     """
     _require_admin(user)
-    loop = asyncio.get_event_loop()
-
-    def _run() -> tuple[bool, str]:
-        try:
-            res = subprocess.run(
-                ["yt-dlp", "-U"],
-                capture_output=True,
-                text=True,
-                timeout=180,
-            )
-        except FileNotFoundError:
-            return False, "yt-dlp is not installed on the server"
-        except subprocess.TimeoutExpired:
-            return False, "yt-dlp -U timed out"
-        except Exception as e:
-            return False, str(e)[:200]
-        output = ((res.stdout or "") + (res.stderr or "")).strip()
-        return res.returncode == 0, (output[-400:] or "no output")
-
-    ok, output = await loop.run_in_executor(None, _run)
+    ok, output = await asyncio.to_thread(toolchain.upgrade_ytdlp)
+    await _refresh_health_probe()
     return {"ok": ok, "output": output}
+
+
+@router.post("/tools/install-ffmpeg")
+async def install_ffmpeg(user: dict = Depends(get_current_user)):
+    """Provide the audio post-processor downloads and fallback playback need.
+
+    Audio extraction, format conversion and thumbnail embedding all run
+    through ffmpeg, and the transcoding fallback cannot exist without it. On
+    the Android build the Termux package manager installs it without any
+    privilege escalation, which is the one case the server can repair itself;
+    elsewhere the response carries the command for the operator to run.
+    """
+    _require_admin(user)
+    ok, output = await asyncio.to_thread(toolchain.install_ffmpeg)
+    await _refresh_health_probe()
+    return {"ok": ok, "output": output}
+
+
+@router.get("/tools")
+async def tool_status(user: dict = Depends(get_current_user)):
+    """What this host can actually do, for the diagnostics screen."""
+    _require_admin(user)
+    return toolchain.capabilities()
+
+
+async def _refresh_health_probe() -> None:
+    """Re-probe after a tool change so the Doctor reflects it immediately.
+
+    The health snapshot is refreshed once a minute; without this the screen
+    that just repaired ffmpeg would keep reporting it missing until the next
+    background pass.
+    """
+    try:
+        from app.core import health
+        await health.refresh_probe()
+    except Exception:  # noqa: BLE001 — a stale probe must not fail the repair
+        pass
 
 
 # ── Backup & restore ──────────────────────────────────────────
@@ -285,16 +304,23 @@ async def _run_doctor(fn, *args):
 
 
 @router.get("/doctor/scan")
-async def doctor_scan(_user: dict = Depends(get_current_user)):
-    """Scan the library for corrupt files, duplicates and empty folders."""
+async def doctor_scan(user: dict = Depends(get_current_user)):
+    """Scan the library for corrupt files, duplicates and empty folders.
+
+    Admin-only: the scan is an instance-wide filesystem walk, and the repairs
+    it feeds delete files, so it sits behind the same gate as the directory
+    and rescan routes rather than being open to every signed-in account.
+    """
+    _require_admin(user)
     from app.services import library_doctor
 
     return await asyncio.to_thread(library_doctor.scan_library)
 
 
 @router.post("/doctor/fix")
-async def doctor_fix(body: DoctorFixSchema, _user: dict = Depends(get_current_user)):
+async def doctor_fix(body: DoctorFixSchema, user: dict = Depends(get_current_user)):
     """Repair one reported item, or sweep all of one kind when no path given."""
+    _require_admin(user)
     from app.services import library_doctor
 
     kind = body.kind

@@ -32,7 +32,7 @@ interface AudioFile {
 const DEFAULT_DIRS: Dir[] = [
    { path: "/data/data/com.termux/files/home/Rheoson/music", active: true },
    { path: "/storage/emulated/0/Music", active: true },
-   { path: "/storage/emulated/0/DownloadSimple", active: false }
+   { path: "/storage/emulated/0/Download", active: false }
 ];
 
 function fmt(bytes: number) {
@@ -236,7 +236,7 @@ export default function StorageSection() {
                         <motion.button
                            whileTap={{ scale: 0.82 }}
                            onClick={() => removeDir(d.path)}
-                           className='w-7 h-7 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors'>
+                           className='w-7 h-7 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--danger-text)] hover:bg-[var(--danger-bg)] transition-colors'>
                            <Trash className='w-3.5 h-3.5' />
                         </motion.button>
                      </div>
@@ -340,13 +340,13 @@ export default function StorageSection() {
             />
          </SettingsGroup>
 
-         {/* Books */}
-         <SettingsGroup title='Books'>
+         {/* Library */}
+         <SettingsGroup title='Library'>
             <StateRow
                state={rescanState}
                idleLabel='Rescan library'
                idleDesc='Re-index all active directories and update track metadata'
-               okLabel='Books rescanned'
+               okLabel='Library rescanned'
                errLabel='Rescan failed'
                onClick={rescanState === "idle" ? rescan : undefined}
                idleIcon={
@@ -356,8 +356,8 @@ export default function StorageSection() {
             <StateRow
                state={exportState}
                idleLabel='Export library'
-               idleDesc='DownloadSimple your full track library as a JSON file'
-               okLabel='Books exported'
+               idleDesc='Download your full track library as a JSON file'
+               okLabel='Library exported'
                errLabel='Export failed'
                onClick={exportState === "idle" ? exportLib : undefined}
                idleIcon={
@@ -397,7 +397,7 @@ export default function StorageSection() {
                okLabel='Stream cache cleared'
                errLabel='Failed to clear'
                onClick={streamState === "idle" ? clearStream : undefined}
-               idleIcon={<Trash className='w-4 h-4 text-red-400' />}
+               idleIcon={<Trash className='w-4 h-4 text-[var(--danger-text)]' />}
                danger
             />
             <StateRow
@@ -407,7 +407,7 @@ export default function StorageSection() {
                okLabel='Artwork cache cleared'
                errLabel='Failed to clear'
                onClick={artworkState === "idle" ? clearArtwork : undefined}
-               idleIcon={<Trash className='w-4 h-4 text-red-400' />}
+               idleIcon={<Trash className='w-4 h-4 text-[var(--danger-text)]' />}
                danger
             />
          </SettingsGroup>
@@ -460,7 +460,7 @@ export default function StorageSection() {
                okLabel='Offline audio cleared'
                errLabel='Failed to clear'
                onClick={audioState === "idle" ? clearAudio : undefined}
-               idleIcon={<Trash className='w-4 h-4 text-red-400' />}
+               idleIcon={<Trash className='w-4 h-4 text-[var(--danger-text)]' />}
                danger
             />
          </SettingsGroup>
@@ -502,8 +502,8 @@ function StateRow({
          {state === "loading" && (
             <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
          )}
-         {state === "ok" && <CheckCircle className='w-4 h-4 text-green-400' />}
-         {state === "err" && <WarningCircle className='w-4 h-4 text-red-400' />}
+         {state === "ok" && <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />}
+         {state === "err" && <WarningCircle className='w-4 h-4 text-[var(--danger-text)]' />}
          {state === "idle" && idleIcon}
       </SettingsRow>
    );

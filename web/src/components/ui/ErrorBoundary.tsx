@@ -48,8 +48,8 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center justify-center py-12 px-6 text-center gap-4"
         >
-          <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center">
-            <Warning className="w-7 h-7 text-red-400" />
+          <div className="w-16 h-16 rounded-3xl bg-[var(--danger-bg)] flex items-center justify-center">
+            <Warning className="w-7 h-7 text-[var(--danger-text)]" />
           </div>
           <div>
             <h3 className="font-bold text-[var(--text-primary)]">Something went wrong</h3>

@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Play, Shuffle, Heart, DownloadSimple } from '@phosphor-icons/react'
+import { MusicNotes, Play, Shuffle, Heart, DownloadSimple } from '@phosphor-icons/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateLikeSurfaces } from '@/lib/queryInvalidation'
+import { qk } from '@/lib/queryKeys'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { getAlbum } from '@/api/library.api'
@@ -19,48 +21,44 @@ import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { Track } from '@/types/track.types'
 
-const GRADIENTS = [
-  'from-cyan-900 to-blue-700',
-  'from-rose-900 to-red-700',
-  'from-amber-900 to-orange-700',
-  'from-emerald-900 to-green-700',
-]
-
 export default function Album() {
   const { id } = useParams<{ id: string }>()
   const { playAll, playTrack } = useQueue()
   const { downloadMany } = useDownloads()
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const [liked, setLiked] = useState(false)
 
   const { data: album, isLoading } = useQuery({
-    queryKey: ['album', id],
+    queryKey: qk.album(id!),
     queryFn:  () => getAlbum(id!),
     enabled:  !!id,
   })
 
   const albumTracks = album?.tracks ?? []
+  const firstId = albumTracks[0]?.id
 
-  // Like state follows the first track of the album being liked
-  useEffect(() => {
-    let cancelled = false
-    const firstId = albumTracks[0]?.id
-    if (!firstId) {
-      setLiked(false)
-      return
-    }
-    likedStore.has(firstId).then(v => {
-      if (!cancelled) setLiked(v)
-    })
-    return () => { cancelled = true }
-  }, [albumTracks.length, albumTracks[0]?.id]) // eslint-disable-line react-hooks/exhaustive-deps -- first track id only
+  // Like state follows the first track of the album. It is read from the shared
+  // liked set rather than a one-off IndexedDB lookup, so a like made anywhere
+  // else in the app is reflected here the moment that set is refreshed.
+  const { data: likedIds } = useQuery({
+    queryKey: qk.likedIds(),
+    queryFn:  () => likedStore.getAll(),
+    enabled:  !!firstId,
+  })
+
+  const likedFromSet = useMemo(
+    () => (firstId ? (likedIds ?? []).includes(firstId) : false),
+    [likedIds, firstId]
+  )
+
+  // Optimistic overrides, cleared once the shared set catches up.
+  const [override, setOverride] = useState<boolean | null>(null)
+  const liked = override ?? likedFromSet
 
   const toggleLike = async () => {
-    const firstId = albumTracks[0]?.id
     if (!firstId) return
     const next = !liked
-    setLiked(next)
+    setOverride(next)
     try {
       if (next) {
         await tracksApi.likeTrack(firstId)
@@ -69,23 +67,20 @@ export default function Album() {
         await tracksApi.unlikeTrack(firstId)
         await likedStore.remove(firstId)
       }
-      queryClient.invalidateQueries({ queryKey: ['liked'] })
+      invalidateLikeSurfaces(queryClient)
+      setOverride(null)
     } catch {
-      setLiked(!next)
+      setOverride(null)
       toast('Could not update liked tracks', 'error')
     }
   }
 
-  const gradientIndex = parseInt(id ?? '0') % GRADIENTS.length
-
   return (
     <div className="flex flex-col h-full">
       <TopBar transparent />
-      <ScrollArea className="flex-1">
-
-        {/* ── Hero ──────────────────────────────────────────── */}
+      <ScrollArea className="flex-1">        {/* ── Hero ──────────────────────────────────────────── */}
         <div className="relative px-4 lg:px-8 pt-4 pb-8">
-          <div className={cn('absolute inset-0 bg-gradient-to-b opacity-30', GRADIENTS[gradientIndex])} />
+          <div className="absolute inset-0 bg-[var(--bg-overlay)] opacity-60" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--bg-base)]" />
 
           <div className="relative flex flex-col items-center text-center gap-4 pt-4">
@@ -102,7 +97,9 @@ export default function Album() {
                     className="w-52 h-52 rounded-3xl shadow-2xl object-cover"
                   />
                 ) : (
-                  <div className={cn('w-52 h-52 rounded-3xl shadow-2xl bg-gradient-to-br', GRADIENTS[gradientIndex])} />
+                  <div className="w-52 h-52 rounded-3xl shadow-2xl bg-[var(--bg-overlay)] border border-[var(--border)] flex items-center justify-center">
+                    <MusicNotes className="w-16 h-16 text-[var(--text-muted)]" weight="duotone" />
+                  </div>
                 )
               }
             </motion.div>
@@ -143,7 +140,7 @@ export default function Album() {
               <IconButton
                 size="md"
                 variant="ghost"
-                title="DownloadSimple all tracks"
+                title="Download all tracks"
                 disabled={!albumTracks.length}
                 onClick={() => {
                   if (!albumTracks.length) return

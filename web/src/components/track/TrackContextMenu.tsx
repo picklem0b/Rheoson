@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, ListPlus, DownloadSimple, Heart, ShareNetwork, Radio, EyeSlash } from '@phosphor-icons/react'
 import { useQueryClient } from '@tanstack/react-query'
+import { invalidateLikeSurfaces } from '@/lib/queryInvalidation'
 import { useContextMenuStore } from '@/store/contextMenu.store'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayer } from '@/hooks/player.hook'
@@ -53,10 +54,7 @@ function useMenuActions(track: Track, onClose: () => void) {
   const { toast } = useToast()
 
   const refreshLikes = () => {
-    queryClient.invalidateQueries({ queryKey: ['liked-tracks'] })
-    queryClient.invalidateQueries({ queryKey: ['liked-count'] })
-    queryClient.invalidateQueries({ queryKey: ['tracks'] })
-    queryClient.invalidateQueries({ queryKey: ['recommendations'] })
+    invalidateLikeSurfaces(queryClient)
   }
 
   const actions = [
@@ -95,7 +93,7 @@ function useMenuActions(track: Track, onClose: () => void) {
     },
     {
       id: 'download',
-      label: 'DownloadSimple',
+      label: 'Download',
       icon: <DownloadSimple className="w-4 h-4" />,
       run: () => {
         openDownloadModal(track.id, track)
@@ -204,8 +202,8 @@ function MenuRow({ label, icon, danger, onRun }: MenuRowProps) {
       onClick={onRun}
       className={cnRow(danger)}
     >
-      <span className={danger ? 'text-red-400' : 'text-[var(--text-secondary)]'}>{icon}</span>
-      <span className={danger ? 'text-red-400' : 'text-[var(--text-primary)]'}>{label}</span>
+      <span className={danger ? 'text-[var(--danger-text)]' : 'text-[var(--text-secondary)]'}>{icon}</span>
+      <span className={danger ? 'text-[var(--danger-text)]' : 'text-[var(--text-primary)]'}>{label}</span>
     </button>
   )
 }
@@ -214,7 +212,7 @@ function cnRow(danger?: boolean) {
   return [
     'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-semibold transition-colors',
     danger
-      ? 'text-red-400 hover:bg-red-500/10'
+      ? 'text-[var(--danger-text)] hover:bg-[var(--danger-bg)]'
       : 'hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)]',
   ].join(' ')
 }

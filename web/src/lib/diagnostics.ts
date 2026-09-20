@@ -26,6 +26,7 @@ export type FixKind =
    | 'selftest'
    | 'rescan'
    | 'update-tools'
+   | 'install-ffmpeg'
    | 'clear-stream-cache'
    | 'clear-remote-cache'
    | 'open-storage'
@@ -183,7 +184,8 @@ function binariesFinding(check: HealthCheck): Finding {
          severity: 'warn',
          detail: check.detail ?? 'ffmpeg is missing',
          impact:
-            'Playback works. Downloads keep the original format instead of being converted to your chosen one, and embedded artwork/lyrics may be skipped.',
+            'Downloads keep the original audio container instead of your chosen format, and artwork is not embedded. Playback falls back to the untranscoded stream.',
+         fix: { label: 'Install ffmpeg', kind: 'install-ffmpeg' },
       }
    }
 

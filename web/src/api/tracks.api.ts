@@ -230,7 +230,7 @@ export const tracksApi = {
     * This week's charts, cached server-side per ISO week.
     *
     * Cheaper than `getTrending` (one upstream fetch per week) and carries
-    * `rank` + `playCount`, which the House top-3 podium uses for detail.
+    * `rank` + `playCount`, which the Home top-3 podium uses for detail.
     */
    getWeeklyTrending: async (limit = 10): Promise<Track[]> => {
       if (!isOnline()) return [];

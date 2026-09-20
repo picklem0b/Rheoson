@@ -1,11 +1,16 @@
-"""Authentication routes — Clerk-backed registration, login, profile.
+"""Authentication routes — profile, preferences and the visitor counter.
 
-Guest mode was removed: every data endpoint requires a verified Clerk
-session, and this router only exposes the three entry points that cannot
-carry a Bearer token yet (register, login, and the Clerk webhook live in
-clerk_webhook_router). Everything else here requires get_current_user.
+Credentials belong to Clerk. The client signs in through Clerk's own hosted
+components, which verify the password (and any email/phone or MFA challenge)
+before a session exists. This router deliberately exposes **no** login or
+registration proxy: Clerk's Backend API can mint a session for a user id
+without any credential check, so such a route would let knowing an email
+address replace knowing the password.
 
-The visitor counter tracks registered accounts for the landing display.
+Everything here requires a verified Clerk session, except the public visitor
+counter the landing page renders. Account creation is observed through the
+Clerk webhook (see clerk_webhook_router), which is also what feeds that
+counter.
 """
 
 from __future__ import annotations
@@ -14,14 +19,9 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, Field
 
-from app.core.auth import (
-    clerk_create_session,
-    clerk_create_user,
-    clerk_find_user_by_email,
-    clerk_revoke_session,
-)
+from app.core.auth import clerk_revoke_session
 from app.core.database import get_db, db_available
 from app.core.deps import get_current_user, get_optional_user
 
@@ -30,24 +30,17 @@ router = APIRouter()
 
 # ── Schemas ───────────────────────────────────────────────────
 
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str
-    name: str | None = None
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class TokenResponse(BaseModel):
-    session_token: str
-    user: dict
-
-
 class UpdateProfileRequest(BaseModel):
-    name: str | None = None
+    """The one editable profile field.
+
+    Identity is a username — there is no first/last name in this product. It is
+    validated server-side rather than trusted: it becomes the display name and
+    the future messaging handle, so it is confined to a URL-free charset and a
+    bounded length. Clerk owns uniqueness; this owns shape.
+    """
+    username: str | None = Field(
+        None, min_length=3, max_length=32, pattern=r"^[A-Za-z0-9_.]+$"
+    )
 
 
 class PreferencesRequest(BaseModel):
@@ -61,96 +54,6 @@ class PreferencesRequest(BaseModel):
 
 
 # ── Routes ────────────────────────────────────────────────────
-
-@router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(body: RegisterRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Register a new user via Clerk Backend API."""
-    # Create user in Clerk
-    clerk_user = await clerk_create_user(
-        email=body.email,
-        password=body.password,
-        name=body.name,
-    )
-    if clerk_user is None:
-        raise HTTPException(status_code=409, detail="Email may already be registered")
-
-    clerk_id = clerk_user["id"]
-
-    # Create a session (returns a JWT)
-    session = await clerk_create_session(clerk_id)
-    if session is None:
-        raise HTTPException(status_code=500, detail="Failed to create session")
-
-    # Get the JWT from the session
-    session_token = session.get("last_active_token", {}).get("jwt", "")
-    if not session_token:
-        raise HTTPException(status_code=500, detail="No session token returned")
-
-    # Store/update user in MongoDB
-    now = datetime.now(timezone.utc)
-    user_doc = {
-        "_id": clerk_id,
-        "email": body.email,
-        "name": body.name or body.email.split("@")[0],
-        "clerk_id": clerk_id,
-        "created_at": now,
-        "updated_at": now,
-    }
-    await db.users.update_one(
-        {"_id": clerk_id},
-        {"$set": user_doc},
-        upsert=True,
-    )
-
-    # Increment visitor counter
-    await _increment_visitor_counter(db, "authed")
-
-    return TokenResponse(
-        session_token=session_token,
-        user={
-            "id": clerk_id,
-            "email": body.email,
-            "name": user_doc["name"],
-        },
-    )
-
-
-@router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Login via Clerk — verify credentials and create a session.
-
-    Clerk's Backend API has no password-check endpoint, so we create a
-    real session for the matching Clerk account and hand its JWT back.
-    Clerk enforces the password on session creation: unknown credentials
-    return 404/422 here, which maps to a generic 401 for the client.
-    """
-    clerk_user = await clerk_find_user_by_email(body.email)
-    if clerk_user is None:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    session = await clerk_create_session(clerk_user["id"])
-    if session is None:
-        # Wrong password / MFA required / account blocked all surface here.
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    session_token = session.get("last_active_token", {}).get("jwt", "")
-    if not session_token:
-        raise HTTPException(status_code=500, detail="No session token returned")
-
-    await _increment_visitor_counter(db, "authed")
-
-    return TokenResponse(
-        session_token=session_token,
-        user={
-            "id": clerk_user["id"],
-            "email": body.email,
-            "name": (
-                clerk_user.get("first_name", "")
-                or body.email.split("@")[0]
-            ),
-        },
-    )
-
 
 @router.post("/logout")
 async def logout(user: dict = Depends(get_current_user)):
@@ -174,7 +77,8 @@ async def get_profile(user: dict = Depends(get_current_user)):
                 return {
                     "id": clerk_id,
                     "email": mongo_user.get("email", user.get("email_address", "")),
-                    "name": mongo_user.get("name", ""),
+                    "username": mongo_user.get("username", ""),
+                    "image_url": mongo_user.get("image_url", ""),
                     "created_at": mongo_user.get("created_at"),
                 }
         except Exception:
@@ -184,7 +88,8 @@ async def get_profile(user: dict = Depends(get_current_user)):
     return {
         "id": clerk_id,
         "email": user.get("email_address", ""),
-        "name": user.get("first_name", ""),
+        "username": user.get("username", ""),
+        "image_url": "",
     }
 
 
@@ -203,8 +108,8 @@ async def update_profile(
     db = _get_db()
 
     updates: dict = {"updated_at": datetime.now(timezone.utc)}
-    if body.name is not None:
-        updates["name"] = body.name
+    if body.username is not None:
+        updates["username"] = body.username
 
     await db.users.update_one({"_id": clerk_id}, {"$set": updates})
     return {"ok": True}
@@ -272,21 +177,6 @@ async def update_preferences_route(
 
 
 # ── Visitor Counter ───────────────────────────────────────────
-
-async def _increment_visitor_counter(db: AsyncIOMotorDatabase, kind: str) -> None:
-    """Increment the visitor counter (guest or authed)."""
-    try:
-        await db.visitors.update_one(
-            {"_id": "counter"},
-            {
-                "$inc": {kind: 1},
-                "$set": {"updated_at": datetime.now(timezone.utc)},
-            },
-            upsert=True,
-        )
-    except Exception:
-        pass  # Non-critical
-
 
 @router.get("/visitor-count")
 async def visitor_count(

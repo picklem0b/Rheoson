@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, DotsThreeOutline, Queue, Microphone, DownloadSimple, WifiSlash, SlidersHorizontal } from '@phosphor-icons/react';
 import { usePlayerStore } from "@/store/player.store";
@@ -13,9 +14,11 @@ import { IconButton } from "@/components/ui/IconButton";
 import { useToast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/utils";
 import { truncate } from "@/lib/formatters";
+import { invalidateLikeSurfaces } from "@/lib/queryInvalidation";
 
 export default function PlayerBar() {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const currentTrack = usePlayerStore(s => s.currentTrack);
    const isPlaying = usePlayerStore(s => s.isPlaying);
    const isLoading = usePlayerStore(s => s.isLoading);
@@ -63,6 +66,8 @@ export default function PlayerBar() {
             next
                ? await tracksApi.likeTrack(currentTrack.id)
                : await tracksApi.unlikeTrack(currentTrack.id);
+            // Every surface showing this track's like state, not just this one.
+            invalidateLikeSurfaces(queryClient);
          } catch {
             setLiked(!next); // revert on failure
          }
@@ -105,16 +110,11 @@ export default function PlayerBar() {
                 so the menu was invisible behind the bar. The two absolutely
                 positioned decorations below carry their own clipping instead. */}
             <div
-               className='relative rounded-3xl mx-1'
+               className='glass relative rounded-3xl mx-1'
                style={{
-                  background:
-                     "linear-gradient(135deg, rgba(17,17,17,0.92) 0%, rgba(10,10,10,0.95) 100%)",
-                  backdropFilter: "blur(40px)",
-                  WebkitBackdropFilter: "blur(40px)",
-                  border: "1px solid rgba(255,255,255,0.08)",
                   boxShadow: isPlaying
-                     ? "0 -4px 24px rgba(229,25,58,0.08), 0 4px 16px rgba(0,0,0,0.4)"
-                     : "0 4px 20px rgba(0,0,0,0.4), 0 -2px 8px rgba(0,0,0,0.2)"
+                     ? "inset 0 1px 0 var(--glass-highlight), 0 -4px 24px var(--accent-subtle), var(--shadow-lg)"
+                     : "inset 0 1px 0 var(--glass-highlight), var(--shadow-lg)"
                }}>
                {/* Subtle accent glow line at top when playing */}
                {isPlaying && (
@@ -191,7 +191,8 @@ export default function PlayerBar() {
                   <motion.button
                      whileTap={{ scale: 0.8 }}
                      onClick={handleLike}
-                     className='flex-shrink-0 p-1.5'>
+                     aria-label={liked ? "Remove from liked" : "Like song"}
+                     className='flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center active:bg-[var(--bg-elevated)]'>
                      <Heart
                         className={cn(
                            "w-4 h-4 transition-all duration-200",
@@ -276,7 +277,7 @@ export default function PlayerBar() {
                                     }
                                  },
                                  {
-                                    label: "DownloadSimple",
+                                    label: "Download",
                                     icon: <DownloadSimple className='w-4 h-4' />,
                                     action: () => {
                                        openDownloadModal(currentTrack.id, currentTrack);

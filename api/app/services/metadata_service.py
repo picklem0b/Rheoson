@@ -1,12 +1,15 @@
 from __future__ import annotations
+import base64
 import hashlib
 import os
 import structlog
 from pathlib import Path
 from mutagen import File as MutagenFile
-from mutagen.id3 import ID3, APIC
-from mutagen.mp4 import MP4
-from mutagen.flac import FLAC
+from mutagen.id3 import ID3, APIC, TALB, TDRC, TIT2, TPE1, TRCK, USLT
+from mutagen.mp4 import MP4, MP4Cover
+from mutagen.flac import FLAC, Picture
+from mutagen.oggopus import OggOpus
+from mutagen.oggvorbis import OggVorbis
 
 log = structlog.get_logger()
 
@@ -131,12 +134,196 @@ def extract_artwork_bytes(path: Path) -> bytes | None:
                 return f.pictures[0].data
         elif suffix in (".ogg", ".opus"):
             f = MutagenFile(path)
-            if hasattr(f, "tags") and f.tags:
-                for val in f.tags.values():
-                    if isinstance(val, list):
-                        for item in val:
-                            if hasattr(item, "data"):
-                                return item.data
+            tags = getattr(f, "tags", None)
+            if tags:
+                # Vorbis comments carry artwork as a base64-encoded FLAC
+                # picture structure in `metadata_block_picture`. Looking for
+                # an object with `.data` — the previous approach — matched
+                # nothing, because the value is a plain base64 string.
+                raw = tags.get("metadata_block_picture")
+                if raw:
+                    encoded = raw[0] if isinstance(raw, (list, tuple)) else raw
+                    picture = Picture(base64.b64decode(encoded))
+                    if picture.data:
+                        return bytes(picture.data)
     except Exception as e:
         log.debug("metadata.artwork.failed", path=str(path), error=str(e))
     return None
+
+
+# ── Writing tags ──────────────────────────────────────────────
+
+# Picture types per the ID3/Vorbis convention: 3 is "front cover".
+_PICTURE_TYPE_FRONT_COVER = 3
+
+
+def _image_mime(data: bytes) -> str:
+    """Sniff the artwork's MIME type from its signature.
+
+    The remote fetcher returns raw bytes with no content type attached, and all
+    three tag formats need the MIME declared. Guessing from the URL is not
+    reliable — ytmusicapi thumbnails are served extensionless through
+    arbitrary CDN paths — so the bytes are inspected directly.
+    """
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    # Most tag readers fall back to JPEG when the type is unknown, which is the
+    # safest default for a mislabelled buffer.
+    return "image/jpeg"
+
+
+def write_tags(
+    path: Path,
+    *,
+    title: str,
+    artist: str,
+    album: str = "",
+    artwork: bytes | None = None,
+    lyrics: str = "",
+    track_number: int = 0,
+    date: str = "",
+) -> None:
+    """Write title/artist/album/artwork/lyrics into a downloaded audio file.
+
+    Handles the containers this app downloads: ``mp3`` (ID3), ``m4a``/``mp4``/
+    ``aac`` (iTunes atoms), ``flac`` and ``ogg``/``opus`` (Vorbis comments).
+    Only the fields actually supplied are written, and empty artwork or lyrics
+    are skipped rather than stored as zero-length frames — a placeholder cover
+    is worse than none, because readers show a broken image instead of falling
+    back to the album-less default.
+
+    Raises for an unsupported container or a genuine write failure; the caller
+    treats tagging as best-effort and records the reason.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"cannot tag missing file: {path}")
+
+    suffix = path.suffix.lower()
+    artwork = artwork or b""
+    cover_data = artwork if artwork else None
+
+    if suffix == ".mp3":
+        try:
+            tags = ID3(path)
+        except Exception:
+            # A file with no existing ID3 tag raises rather than returning
+            # empty — start a fresh tag block in that case.
+            tags = ID3()
+        tags.delall("TIT2")
+        tags.delall("TPE1")
+        tags.delall("TALB")
+        tags.delall("TRCK")
+        tags.delall("TDRC")
+        tags.delall("APIC")
+        tags.delall("USLT")
+        tags.add(TIT2(encoding=3, text=title))
+        tags.add(TPE1(encoding=3, text=artist))
+        if album:
+            tags.add(TALB(encoding=3, text=album))
+        if track_number:
+            tags.add(TRCK(encoding=3, text=str(track_number)))
+        if date:
+            tags.add(TDRC(encoding=3, text=date))
+        if cover_data:
+            tags.add(
+                APIC(
+                    encoding=3,
+                    mime=_image_mime(cover_data),
+                    type=_PICTURE_TYPE_FRONT_COVER,
+                    desc="Cover",
+                    data=cover_data,
+                )
+            )
+        if lyrics:
+            tags.add(USLT(encoding=3, lang="eng", desc="", text=lyrics))
+        tags.save(path)
+
+    elif suffix in (".m4a", ".mp4", ".aac", ".m4b"):
+        audio = MP4(path)
+        if audio.tags is None:
+            audio.add_tags()
+        if not audio.tags:
+            raise RuntimeError("could not create an MP4 tag block")
+        audio.tags["\xa9nam"] = [title]
+        audio.tags["\xa9ART"] = [artist]
+        if album:
+            audio.tags["\xa9alb"] = [album]
+        if date:
+            audio.tags["\xa9day"] = [date]
+        if track_number:
+            audio.tags["trkn"] = [(track_number, 0)]
+        if cover_data:
+            fmt = (
+                MP4Cover.FORMAT_PNG
+                if _image_mime(cover_data) == "image/png"
+                else MP4Cover.FORMAT_JPEG
+            )
+            audio.tags["covr"] = [MP4Cover(cover_data, imageformat=fmt)]
+        if lyrics:
+            audio.tags["\xa9lyr"] = [lyrics]
+        audio.save()
+
+    elif suffix == ".flac":
+        audio = FLAC(path)
+        audio["title"] = [title]
+        audio["artist"] = [artist]
+        if album:
+            audio["album"] = [album]
+        if date:
+            audio["date"] = [date]
+        if track_number:
+            audio["tracknumber"] = [str(track_number)]
+        if lyrics:
+            audio["lyrics"] = [lyrics]
+        if cover_data:
+            picture = Picture()
+            picture.type = _PICTURE_TYPE_FRONT_COVER
+            picture.mime = _image_mime(cover_data)
+            picture.desc = "Cover"
+            picture.data = cover_data
+            audio.clear_pictures()
+            audio.add_picture(picture)
+        audio.save()
+
+    elif suffix in (".ogg", ".opus"):
+        audio = OggOpus(path) if suffix == ".opus" else OggVorbis(path)
+        audio["title"] = [title]
+        audio["artist"] = [artist]
+        if album:
+            audio["album"] = [album]
+        if date:
+            audio["date"] = [date]
+        if track_number:
+            audio["tracknumber"] = [str(track_number)]
+        if lyrics:
+            audio["lyrics"] = [lyrics]
+        if cover_data:
+            # Vorbis has no picture block; the convention is a base64-encoded
+            # FLAC picture structure in a `metadata_block_picture` comment.
+            picture = Picture()
+            picture.type = _PICTURE_TYPE_FRONT_COVER
+            picture.mime = _image_mime(cover_data)
+            picture.desc = "Cover"
+            picture.data = cover_data
+            audio["metadata_block_picture"] = [
+                base64.b64encode(picture.write()).decode("ascii")
+            ]
+        audio.save()
+
+    else:
+        raise ValueError(f"unsupported container for tagging: {suffix or 'no extension'}")
+
+    log.debug(
+        "metadata.write.ok",
+        path=str(path),
+        container=suffix,
+        has_artwork=bool(cover_data),
+        has_lyrics=bool(lyrics),
+    )

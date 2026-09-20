@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.18.1"
+    "version": "2.19.11"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -599,48 +599,6 @@
         }
       }
     },
-    "/api/auth/login": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Login",
-        "description": "Login via Clerk \u2014 verify credentials and create a session.\n\nClerk's Backend API has no password-check endpoint, so we create a\nreal session for the matching Clerk account and hand its JWT back.\nClerk enforces the password on session creation: unknown credentials\nreturn 404/422 here, which maps to a generic 401 for the client.",
-        "operationId": "login_api_auth_login_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/auth/logout": {
       "post": {
         "tags": [
@@ -816,48 +774,6 @@
             "content": {
               "application/json": {
                 "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/auth/register": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Register",
-        "description": "Register a new user via Clerk Backend API.",
-        "operationId": "register_api_auth_register_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
               }
             }
           }
@@ -2888,7 +2804,7 @@
           "settings"
         ],
         "summary": "Doctor Scan",
-        "description": "Scan the library for corrupt files, duplicates and empty folders.",
+        "description": "Scan the library for corrupt files, duplicates and empty folders.\n\nAdmin-only: the scan is an instance-wide filesystem walk, and the repairs\nit feeds delete files, so it sits behind the same gate as the directory\nand rescan routes rather than being open to every signed-in account.",
         "operationId": "doctor_scan_api_settings_doctor_scan_get",
         "responses": {
           "200": {
@@ -3011,6 +2927,56 @@
         "summary": "Spotify Status",
         "description": "Check if Spotify credentials are configured via environment.",
         "operationId": "spotify_status_api_settings_spotify_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/settings/tools": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Tool Status",
+        "description": "What this host can actually do, for the diagnostics screen.",
+        "operationId": "tool_status_api_settings_tools_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/settings/tools/install-ffmpeg": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Install Ffmpeg",
+        "description": "Provide the audio post-processor downloads and fallback playback need.\n\nAudio extraction, format conversion and thumbnail embedding all run\nthrough ffmpeg, and the transcoding fallback cannot exist without it. On\nthe Android build the Termux package manager installs it without any\nprivilege escalation, which is the one case the server can repair itself;\nelsewhere the response carries the command for the operator to run.",
+        "operationId": "install_ffmpeg_api_settings_tools_install_ffmpeg_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4937,25 +4903,6 @@
         ],
         "title": "ImportPlaylistRequest"
       },
-      "LoginRequest": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "title": "Email"
-          },
-          "password": {
-            "type": "string",
-            "title": "Password"
-          }
-        },
-        "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
-        "title": "LoginRequest"
-      },
       "LyricsLineSchema": {
         "properties": {
           "time": {
@@ -5128,36 +5075,6 @@
         "type": "object",
         "title": "PreferencesRequest",
         "description": "A partial patch of device-independent preferences.\n\nThe whitelist lives in services/preferences.py; unknown keys are dropped\nrather than rejected so a client that ships a newer toggle than this\nserver understands does not have its whole patch refused."
-      },
-      "RegisterRequest": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "title": "Email"
-          },
-          "password": {
-            "type": "string",
-            "title": "Password"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
-        "title": "RegisterRequest"
       },
       "RescanSchema": {
         "properties": {
@@ -5413,25 +5330,6 @@
           "tracks"
         ]
       },
-      "TokenResponse": {
-        "properties": {
-          "session_token": {
-            "type": "string",
-            "title": "Session Token"
-          },
-          "user": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "User"
-          }
-        },
-        "type": "object",
-        "required": [
-          "session_token",
-          "user"
-        ],
-        "title": "TokenResponse"
-      },
       "TrackSchema": {
         "properties": {
           "id": {
@@ -5548,20 +5446,24 @@
       },
       "UpdateProfileRequest": {
         "properties": {
-          "name": {
+          "username": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 32,
+                "minLength": 3,
+                "pattern": "^[A-Za-z0-9_.]+$"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Name"
+            "title": "Username"
           }
         },
         "type": "object",
-        "title": "UpdateProfileRequest"
+        "title": "UpdateProfileRequest",
+        "description": "The one editable profile field.\n\nIdentity is a username \u2014 there is no first/last name in this product. It is\nvalidated server-side rather than trusted: it becomes the display name and\nthe future messaging handle, so it is confined to a URL-free charset and a\nbounded length. Clerk owns uniqueness; this owns shape."
       },
       "ValidationError": {
         "properties": {

@@ -12,11 +12,36 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from app.core import toolchain
 from app.core.config import settings
 from app.services import stream_service
 from app.websocket.ws_manager import ws_manager
 
 log = structlog.get_logger()
+
+
+# ── User-facing failure copy ──────────────────────────────────
+# A raw yt-dlp tail is a diagnostic, not a message: it quotes video ids,
+# signed URL fragments and upstream wording the user can do nothing with. Each
+# case below is something the user can act on. The untouched tail is still
+# logged, so nothing is lost for debugging.
+
+def _friendly_download_error(tail: str) -> str:
+    """Map a yt-dlp stderr tail to a message safe to show a user."""
+    low = (tail or '').lower()
+    if 'ffmpeg' in low:
+        return 'Audio conversion is unavailable on this server. Run the Doctor repair, then retry.'
+    if stream_service.is_extractor_failure(tail):
+        return 'YouTube refused this track on every client we tried. Update the download engine or retry shortly.'
+    if 'timed out' in low or 'timeout' in low:
+        return 'The download timed out. Retry to resume from where it stopped.'
+    if 'no space left' in low:
+        return 'There is no storage space left for this download.'
+    if 'name resolution' in low or 'unable to resolve host' in low or 'connection' in low:
+        return 'The download source could not be reached. Check the connection and retry.'
+    if 'permission denied' in low:
+        return 'The music folder is not writable.'
+    return 'The download did not complete. Retry to resume it.'
 
 # ── Job store ─────────────────────────────────────────────────
 # Jobs are persisted to a JSON file so the job list (and each job's resume
@@ -102,10 +127,20 @@ def _load_jobs() -> None:
 
 
 def _persist_jobs() -> None:
-    """Persist jobs to disk (called after every mutation)."""
+    """Persist jobs to disk atomically (called after every mutation).
+
+    A direct write truncates the file first, so a crash or a SIGKILL mid-write
+    leaves a half-written document — and the loader treats unparseable JSON as
+    "no jobs", discarding every job's resume state exactly when the staged
+    bytes on disk are the only copy left. Writing a sibling temp file and
+    renaming is atomic on POSIX, so a reader sees either the old document or
+    the new one, never a partial one.
+    """
     try:
         _JOBS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _JOBS_FILE.write_text(json.dumps(_jobs, default=str))
+        tmp = _JOBS_FILE.with_name(_JOBS_FILE.name + ".tmp")
+        tmp.write_text(json.dumps(_jobs, default=str))
+        os.replace(tmp, _JOBS_FILE)
     except Exception as e:
         log.warning("download.jobs.persist_failed", error=str(e))
 
@@ -141,9 +176,14 @@ def _new_job(
     retries:      int   = 3,
     speed_limit:  int   = 0,
     concurrency:  int   = 3,
+    owner:        str | None = None,
 ) -> dict:
     return {
         'id':           job_id or str(uuid.uuid4()),
+        # Who this job belongs to. Jobs are process-global state, so without
+        # an owner every signed-in account sees and can cancel everyone
+        # else's downloads.
+        'owner':        owner,
         'trackId':      track_id,
         'title':        title,
         'artist':       artist,
@@ -193,16 +233,33 @@ def _with_resume_fields(job: dict) -> dict:
     return job
 
 
-def get_all_jobs() -> list[dict]:
+def _may_access(job: dict | None, owner: str | None) -> bool:
+    """True when `owner` is allowed to see or act on `job`.
+
+    A job with no recorded owner stays accessible: it was created before
+    ownership existed (or by an internal caller), and hiding it would strand
+    downloads that are still running.
+    """
+    if job is None:
+        return False
+    recorded = job.get('owner')
+    return recorded is None or recorded == owner
+
+
+def get_all_jobs(owner: str | None = None) -> list[dict]:
+    """Jobs visible to `owner`, newest first."""
     return [
         _with_resume_fields(dict(j))
         for j in reversed(list(_jobs.values()))
+        if _may_access(j, owner)
     ]
 
 
-def get_job(job_id: str) -> dict | None:
+def get_job(job_id: str, owner: str | None = None) -> dict | None:
     job = _jobs.get(job_id)
-    return _with_resume_fields(dict(job)) if job else None
+    if not _may_access(job, owner):
+        return None
+    return _with_resume_fields(dict(job))
 
 # ── URL resolution ────────────────────────────────────────────
 
@@ -465,6 +522,20 @@ async def _run_download(
     # Walking the client ladder turns that into a slower success instead of a
     # permanent failure.
     attempts = stream_service.client_attempts()
+    can_postprocess = toolchain.has_ffmpeg()
+
+    if not toolchain.ytdlp().available:
+        # A missing binary cannot be fixed by another player client, so this
+        # fails before burning the ladder on seven identical spawn errors.
+        log.error('download.engine_missing', job_id=job_id)
+        raise RuntimeError('The download engine is not installed on this server.')
+    if not can_postprocess:
+        log.warning(
+            'download.ffmpeg_missing',
+            job_id=job_id,
+            hint=toolchain.install_hint('ffmpeg'),
+        )
+
     rc, tail, used_client = 1, '', ''
 
     for index, extractor_args in enumerate(attempts):
@@ -478,21 +549,25 @@ async def _run_download(
         # Maps 1:1 to the postprocessors the library path used before the
         # cancellable-subprocess rewrite: extract audio, embed tags, embed art.
         cmd = [
-            'yt-dlp', '--no-playlist', '--quiet', '--no-warnings', '--newline',
+            toolchain.ytdlp_bin(), '--no-playlist', '--quiet', '--no-warnings', '--newline',
             '--retries', str(retries), '--fragment-retries', str(retries),
-            '--format', stream_service.FORMAT_SELECTOR,
-            '-x', '--audio-format', fmt, '--audio-quality', quality_q,
+            '--format',
+            stream_service.FORMAT_SELECTOR if can_postprocess else stream_service.RAW_AUDIO_SELECTOR,
             '-o', out_tmpl,
         ]
+        if can_postprocess:
+            # Extraction, conversion and tag embedding all shell out to ffmpeg.
+            cmd += ['-x', '--audio-format', fmt, '--audio-quality', quality_q]
+            cmd += toolchain.ffmpeg_location_args()
         for arg in extractor_args:
             cmd += ['--extractor-args', arg]
         if resume:
             # Resume partially downloaded .part files left by an earlier
             # attempt (crash, cancel, network loss). No-op when starting fresh.
             cmd.append('--continue')
-        if embed_metadata:
+        if embed_metadata and can_postprocess:
             cmd += ['--add-metadata']
-        if embed_artwork:
+        if embed_artwork and can_postprocess:
             cmd += ['--write-thumbnail', '--embed-thumbnail']
         if speed_limit > 0:
             cmd += ['--limit-rate', f'{speed_limit}K']
@@ -524,9 +599,14 @@ async def _run_download(
         # (instant failures) are cleaned up.
         if _staged_bytes(job_id) == 0:
             shutil.rmtree(staging, ignore_errors=True)
-        raise RuntimeError(
-            f'yt-dlp exited with code {rc} ({used_client} client): {tail[:300]}'
+        log.error(
+            'download.failed',
+            job_id=job_id,
+            returncode=rc,
+            client=used_client,
+            tail=tail[:500],
         )
+        raise RuntimeError(_friendly_download_error(tail))
 
     files = [
         p for p in staging.iterdir()
@@ -766,6 +846,7 @@ async def enqueue_download(
     job_id:          Optional[str] = None,
     playlist_name:   Optional[str] = None,
     resume:          bool          = False,
+    owner:           Optional[str] = None,
 ) -> dict:
     global _jobs_loaded
     # Lazy-load persisted jobs on first use — import-time loading would run
@@ -781,7 +862,7 @@ async def enqueue_download(
             embed_metadata=embed_metadata, embed_artwork=embed_artwork,
             embed_lyrics=embed_lyrics, file_naming=file_naming,
             custom_path=custom_path, retries=retries,
-            speed_limit=speed_limit, concurrency=concurrency,
+            speed_limit=speed_limit, concurrency=concurrency, owner=owner,
         )
         job['status']    = 'error'
         job['error']     = str(e)
@@ -794,7 +875,7 @@ async def enqueue_download(
         embed_metadata=embed_metadata, embed_artwork=embed_artwork,
         embed_lyrics=embed_lyrics, file_naming=file_naming,
         custom_path=custom_path, retries=retries,
-        speed_limit=speed_limit, concurrency=concurrency,
+        speed_limit=speed_limit, concurrency=concurrency, owner=owner,
     )
     _jobs[job['id']] = job
 
@@ -807,8 +888,9 @@ async def enqueue_download(
     return job
 
 
-async def cancel_job(job_id: str) -> bool:
-    if job_id not in _jobs:
+async def cancel_job(job_id: str, owner: str | None = None) -> bool:
+    job = _jobs.get(job_id)
+    if not _may_access(job, owner):
         return False
     task = _tasks.pop(job_id, None)
     if task and not task.done():
@@ -830,7 +912,11 @@ async def cancel_job(job_id: str) -> bool:
     return True
 
 
-async def retry_job(job_id: str, resume: Optional[bool] = None) -> Optional[dict]:
+async def retry_job(
+    job_id: str,
+    resume: Optional[bool] = None,
+    owner: str | None = None,
+) -> Optional[dict]:
     """Re-run a failed or cancelled job.
 
     resume semantics (default: auto):
@@ -842,7 +928,7 @@ async def retry_job(job_id: str, resume: Optional[bool] = None) -> Optional[dict
       - None  → resume when partial data exists, fresh otherwise.
     """
     job = _jobs.get(job_id)
-    if not job:
+    if not _may_access(job, owner):
         return None
     # A still-running previous attempt must be fully stopped before a new
     # one starts, or two yt-dlp processes would write the same staging dir.
@@ -880,4 +966,22 @@ async def retry_job(job_id: str, resume: Optional[bool] = None) -> Optional[dict
         concurrency=int(job.get('concurrency', settings.MAX_CONCURRENT_DOWNLOADS)),
         job_id=job_id,
         resume=resume,
+        owner=job.get('owner'),
     )
+
+
+async def delete_job(job_id: str, owner: str | None = None) -> bool:
+    """Forget a job, keeping staged data for one that is still running.
+
+    A running job (downloading/converting/tagging) keeps its process and its
+    partial transfer, so dropping the record must not delete the staging
+    directory out from under it.
+    """
+    job = _jobs.get(job_id)
+    if not _may_access(job, owner):
+        return False
+    if job.get('status') not in ('downloading', 'converting', 'tagging'):
+        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
+    del _jobs[job_id]
+    _persist_jobs()
+    return True

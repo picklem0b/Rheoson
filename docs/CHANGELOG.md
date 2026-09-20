@@ -6,6 +6,208 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.11
+
+Follow-up to the container/type fix: resolving what the inert streaming flags were actually for.
+
+- refactor(streaming): **streaming now states its real intent — relay the native audio stream, never transcode.** The yt-dlp invocation carried `-x --audio-format mp3 --audio-quality …`, which do nothing when the output is a pipe (a post-processor needs a real file to re-encode) and whose only real effect was to imply audio-only format selection. Streaming is deliberately left untranscoded: browsers decode YouTube's native m4a directly, re-encoding lossy→lossy would only degrade quality, and the warm cache would end up holding a re-encoded copy when the native stream is the best version to keep. The audio-only selector is now requested explicitly via `--format`, which is also what removes the ffmpeg/host fork — one identical command everywhere, no `has_ffmpeg()` branch on the streaming path. `AUDIO_FORMAT` keeps governing downloads, where it genuinely applies.
+- chore(streaming): `_fill_buffer_transcode` renamed to `_fill_buffer_ytdlp` — the old name described a thing the function never did, and it was that mismatch which hid the wrong-Content-Type bug in the first place.
+- test: the container-mime suite asserts the spawned command requests `bestaudio…` explicitly and carries no `-x`, so a regression here would pipe video into an audio buffer rather than fail a sniff.
+- test(helper): the test suite's temp base is removed at exit (registered at import, so an aborted run still cleans up).
+
+## v2.19.10
+
+Found by playing a real track end to end with the CDN fast path forced out.
+
+- fix(streaming): **the fallback served audio under a Content-Type that did not describe it.** A remote session was created with a hardcoded `audio/mp4`, and the growing-buffer response built its headers from that value *before* the fill had a chance to correct it — so on the transcoding fallback the server announced one container while streaming another. The response sets `X-Content-Type-Options: nosniff`, so nothing downstream could repair it. Sessions now wait (bounded, and normally free) for the fill's report of the container it is actually producing.
+- fix(streaming): **the fill inferred its container from `has_ffmpeg()` instead of reading the bytes.** The rule was “ffmpeg is installed, therefore the output is mp3”. That is false: yt-dlp is piped to stdout and a post-processor needs a real file to run against, so the bytes are the stream YouTube served (m4a) on every host. Verified directly — the same command writing to a file yields a genuine `MP3 ADTS`, while writing to stdout yields `ftypmp42`. The container is now sniffed from the first chunk, which the existing `_sniff_audio_mime` already detected correctly and nothing called on that path.
+- fix(streaming): the bounded-wait fallback no longer consults `AUDIO_FORMAT` for the same reason; it reports `audio/mp4`, the honest expectation for a piped stream.
+- test: the streaming fill is driven with a stubbed yt-dlp process and asserted to report the container from the bytes with ffmpeg both present and absent, so the inference cannot come back (4 new tests), plus two session-level tests that the growing-buffer response carries the fill's type and that a failed fill still releases the wait (6 new tests).
+
+## v2.19.9
+
+Found by downloading a real track end to end instead of trusting the unit suite.
+
+- fix(websocket): **a download started while no client was connected died immediately.** `ws_manager.emit` logged `log.warning("ws.emit.queued", event=event)`; structlog binds the first positional argument to a reserved `event` key, so the keyword collided and raised `TypeError`. `emit` is called at the top of `_download_task`, so that TypeError propagated straight out of the emit call and killed the job before it fetched a byte — the exact “downloading doesn’t work” symptom. The same collision sat on the failure and queue-full paths, where it replaced the real error with a logging error. All three now use `event_name`, and `emit` is total: a transport or logging failure can no longer fail the caller.
+- fix(downloads): **tagging never ran.** `_tag_and_finish` imported `write_tags` from `metadata_service`, which only had readers, so every download reported `download.tag.failed — cannot import name 'write_tags'` and landed an untagged file with no cover art. Implemented the writer for `mp3` (ID3), `m4a`/`mp4`/`aac` (iTunes atoms), `flac` and `ogg`/`opus` (Vorbis comments), including embedded artwork, lyrics, track number and year. Artwork MIME is sniffed from the bytes rather than guessed from the URL, and zero-length artwork is skipped instead of stored as a broken frame.
+- fix(metadata): `extract_artwork_bytes` returned nothing for `ogg`/`opus`. It looked for a value with a `.data` attribute, but the Vorbis convention stores artwork as a base64-encoded FLAC picture in `metadata_block_picture`, which is a plain string. Now decoded properly, so an embedded cover is served back for those containers.
+- chore(deps): yt-dlp `2026.3.17` → `2026.8.19` through the lockfile.
+- test: the emit helper (buffering, transport failure, bounded queue), a source guard against reintroducing the reserved `event` keyword anywhere in `app/`, and `write_tags` across all five containers round-tripped through the library scanner's own reader (14 new tests).
+
+## v2.19.8
+
+Milestone 2.19 phase 8/8 — close-out.
+
+- fix(state): **a like made anywhere refreshes the surfaces that render track rows.** The registry from v2.19.4 covered the count, the liked list, library rows and shelves, but album, artist, artist-content, trending, category charts and open playlists all render their own `isLiked` rows and were left out — a heart tapped on the player could sit stale on an album or chart the user was looking at. Those keys now live in `lib/queryKeys.ts` and `invalidateLikeSurfaces` covers them.
+- fix(album): the album's like button read IndexedDB exactly once on mount and never subscribed, so it could not follow a like made elsewhere. It now reads the shared liked set (a cheap IDs query) and keeps a short optimistic override until that set catches up.
+- fix(playlist): the playlist page and the add-to-playlist sheet invalidated their keys inline; they now call the shared helpers, so a rename or an add refreshes the list and any open playlist in one place.
+- refactor(state): Trending, CategoryGrid, Artist and Album queries go through the shared registry rather than spelling their keys inline.
+- fix(a11y): `InfoTooltip` is a click disclosure, not a hover tooltip, so its panel no longer carries `role="tooltip"` (which is announced on hover/focus, not activation). The trigger keeps `aria-expanded` / `aria-controls`, which is what a disclosure should expose.
+- docs: feature status, roadmap and README brought current with the 2.19 line.
+
+## v2.19.7
+
+Milestone 2.19 phase 7/8 — creator surfaces.
+
+- feat(nowplaying): **the creator tab is a real artist destination.** It carries the artist's identity header with reach (monthly listeners, or subscribers), a **Popular** chart of their top tracks that plays in place, and a horizontal **Releases** rail that mixes albums ahead of singles so the row reads as a discography. A route into the full artist page closes it off.
+- fix(nowplaying): the tab previously duplicated the lyrics that the Lyrics tab already owns, so a track with lyrics showed the same words twice. Lyrics now live only where they are labelled, and the creator tab spends its space on who the artist is and what they have made.
+- feat(nowplaying): the profile-unavailable state names the situation plainly ("No profile available for this artist") and offers an **Open** action instead of dead-ending.
+- fix(state): the follow button used ad-hoc query keys and invalidated nothing, so a follow made here was invisible to the following list and artist page until reload. It now reads and writes through the shared registry and calls `invalidateArtistFollowSurfaces`.
+- chore(types): added `qk.artistContent` and refreshed the generated OpenAPI contract.
+
+## v2.19.6
+
+Milestone 2.19 phase 6/8 — library information architecture.
+
+- feat(library): **the library is one page of stacked sections, not a tab strip.** Liked songs, playlists, albums and artists each carry a real heading — icon chip, title, and count — with a rule that fades out across the width to separate them. Previously only the selected tab existed on screen, so the row of tabs hid three quarters of the library and its headings had no weight to carry.
+- feat(library): every section's query runs with the page, so nothing waits on a tab the user may never open, and each section keeps its own loading skeletons and empty state.
+- fix(library): the page had accumulated two query-key spellings (`['liked-tracks']` against the registry's `qk.likedTracks()`, and album/artist lists that had no registry entry at all). They now go through `lib/queryKeys.ts`, so likes and playlist changes refresh the library the same way they refresh every other surface.
+- fix(ui): dropped the unreachable `liked` branch from the library's empty-state map (liked songs render their own section state) and tidied the Phosphor import into the project's multi-line form.
+
+## v2.19.5
+
+Milestone 2.19 phase 5/8 — browse and discovery.
+
+- feat(ui): **category tiles have presence without taking over the screen.** Tiles grow from 92px to 124px (140px from `sm`), the genre label steps up to a readable size, and the chevron matches it — a proper browse target rather than a cramped chip.
+- feat(browse): a category chart now shows **ten** tracks instead of five, in the same row treatment as the library, with room around it on larger screens.
+- fix(ui): removed the implementation copy that sat under every category heading ("Refreshed weekly and cached on the server"). The explanation is real and useful, so it moved behind an info affordance rather than being deleted.
+- feat(ui): new `InfoTooltip` primitive — an info icon that opens a short explanation on click (works on touch), closes on Escape or an outside tap, and announces its expanded state. Explanations no longer have to occupy permanent space in a heading to be available.
+- docs: album, artist and playlist pages were confirmed as complete routed destinations (`/album/:id`, `/artist/:id`, `/playlist/:id`) rather than stubs.
+
+## v2.19.4
+
+Milestone 2.19 phase 4/8 — instant state.
+
+- fix(state): **a like now refreshes every surface that shows it.** Query keys were written inline at each call site, and two surfaces asking the same question spelled them differently — the profile read a count under `['tracks','liked','count']` while the tray invalidated `['liked-count']`. Liking a track from the player therefore invalidated nothing and the count sat stale on pages the user was not looking at. Keys now live in one registry (`lib/queryKeys.ts`) and mutations call surface-wide helpers (`lib/queryInvalidation.ts`): likes refresh the count, the liked list, library rows, history and recommendation shelves; playlists refresh the list and any open playlist; follows refresh the artist and the following list; plays refresh history and stats.
+- fix(state): the like toggles in PlayerBar and NowPlaying did not invalidate anything at all; they now do, so a heart tapped on the player updates the profile counter without a reload.
+- feat(state): **remembered answers paint instantly.** A small, whitelisted localStorage snapshot (`lib/querySnapshot.ts`) restores the like count, playlist list, recently-played and following list on the next visit, so a page shows a known number immediately instead of a spinner. Nothing large is stored (no library listings, no search results), entries older than 24 hours are ignored, and every restored value is stamped as already-stale so the server's answer still replaces it.
+- fix(privacy): the snapshot is namespaced per account and wiped on sign-out, so a shared device cannot show the next person the previous account's counts. Storage being unavailable degrades to a no-op rather than an error.
+- test(state): the registry's whitelist, each invalidation group, and the snapshot's restore/staleness/per-account/sign-out behaviour are covered (9 new tests).
+
+## v2.19.3
+
+Milestone 2.19 phase 3/8 — the account contract.
+
+- feat(auth): **identity is a username, and only a username.** The product has no first or last name, so the Clerk webhook no longer derives one: `user.created`/`user.updated` record `username` (Clerk's field, with the email local part as a fallback for accounts that predate it being required) and drop `name`/`first_name`/`last_name` entirely. The user document, `/auth/me` and the profile screen all speak username.
+- fix(auth): `PATCH /auth/me` validates the username server-side — `3–32` characters from `A–Z a–z 0–9 _ .`. It becomes the display name and the handle a future messaging feature will address people by, so its shape is enforced rather than trusted; Clerk owns uniqueness.
+- feat(ui): the profile editor, settings account row, sidebar profile button and profile card all read `username`; the previous `fullName` fallback is gone so a signed-in account can no longer show a first/last-derived name.
+- docs(auth): the account contract is now written down — username rules, "email or phone, at least one", password minimum, and the Clerk instance configuration it maps to, including the NIST note that 15 characters is the stronger minimum for single-factor sign-in.
+- test(accounts): sign-up payloads that carry a username and no name, the email-local-part fallback, username updates, and the server-side shape validation are all covered.
+
+## v2.19.2
+
+Milestone 2.19 phase 2/8 — the auth and API trust boundary.
+
+- fix(auth): **removed the account-takeover login proxy.** `POST /auth/login` and `POST /auth/register` looked a user up by email and called Clerk's Backend API to create a session, which performs no password check — knowing an email address was enough to obtain that account's session. No client called them; sign-in is handled by Clerk's hosted components, which verify the credential before a session exists. A regression test pins them as gone.
+- fix(downloads): **jobs are scoped to their owner.** Job state is process-global, so every signed-in account could list and cancel everyone else's downloads. Jobs now record an owner at enqueue time, and listing, fetching, cancelling, retrying and deleting all filter on it. Jobs recorded before ownership existed stay reachable so an upgrade does not strand a running transfer.
+- fix(authz): the library Doctor's scan and repair routes are admin-only. Both walk and delete files in the shared music library, so they now sit behind the same instance-configuration gate as the directory and rescan routes; the diagnostics screen explains the restriction in plain language instead of echoing the server's configuration instructions.
+- fix(config): **environment validation fails closed.** An unrecognised `ENV` (`prodction`, an empty value, a typo) selected development defaults — an insecure `SECRET_KEY`, a relaxed Clerk requirement, an open admin allowlist — on a host that was actually serving users. Only the explicit development aliases relax the posture now, names are matched case-insensitively, and an unrecognised value is reported at startup.
+- fix(auth): Clerk issuer matching is host-exact. Substring matching accepted `https://clerk.com.attacker.tld`, which is exactly the forgery the issuer check exists to prevent. A new `CLERK_ISSUER` setting pins a custom domain exactly.
+- fix(webhooks): replayed deliveries are ignored. Svix retries any delivery it believes failed, so a verified signature did not make a replay harmless — a duplicate `user.created` re-ran the handler. Delivery ids are claimed in `webhook_events` (unique `_id`) and a duplicate becomes a no-op.
+- fix(downloads): job persistence is atomic — write to a sibling temp file and rename, so a crash mid-write can no longer leave a truncated jobs document that the loader reads as "no jobs", discarding every job's resume state.
+- fix(data): the visitor counter counts accounts, not logins. It moved from the removed login proxy to `user.created`, gated on the upsert actually inserting, so replayed events cannot double-count.
+- docs(api): the auth section documents why no credential proxy exists, and the guest matrix now lists downloads as session-required.
+
+## v2.19.1
+
+Milestone 2.19 phase 1/8 — playback and download reliability.
+
+- fix(downloads): **ffmpeg is resolved, not assumed.** Audio extraction (`-x`), format conversion and thumbnail embedding all shell out to ffmpeg, so a host without it failed every download with a raw subprocess tail. `app/core/toolchain.py` locates both binaries (explicit `YTDLP_BIN`/`FFMPEG_BIN` override → `PATH` → Termux `$PREFIX/bin` → system directories), caches the result, and reports it; every yt-dlp invocation now passes `--ffmpeg-location` so post-processing works outside an interactive shell.
+- fix(downloads): **a download no longer dies without ffmpeg.** When no ffmpeg is resolvable the job switches to the audio-only `bestaudio` ladder (`m4a`/`mp4`/`webm`, all library extensions now) and skips the post-processors, so the track still lands instead of failing.
+- fix(streaming): the transcoding fallback relays the raw audio-only container when ffmpeg is absent, instead of refusing to play; the buffer's mime type is sniffed from its first bytes rather than assumed to be MP3.
+- feat(tooling): the Doctor gains an **Install ffmpeg** repair beside the existing yt-dlp update. Termux installs it through its own package manager with no privilege escalation; other hosts are handed the exact command. A tool change re-probes health immediately so the result is visible at once.
+- feat(tooling): `GET /settings/tools` reports what the host can actually do (downloader present, transcoder present, install hint); the daily yt-dlp cron runs through the resolved binary and logs tool readiness, so a missing ffmpeg shows up in the log rather than only in a failed download.
+- fix(downloads): **failure copy is user-safe.** The raw `yt-dlp exited with code 1 (…)` tail no longer reaches the UI — the log keeps the diagnostic, the user gets an actionable sentence — and the failed-download pill no longer leads with a video id when metadata resolution failed.
+- fix(ui): removed the last `DownloadSimple` text corruption from the earlier icon migration (`DownloadSimple failed`, menu labels, section titles, download buttons and adding-to-library copy) and the module comments that described it.
+- fix(library): `mp4`/`webm` audio containers are indexed and served; extension matching is case-insensitive everywhere.
+- test(toolchain): resolution order, the ffmpeg-absent download and stream fallbacks, and the no-leak failure copy are covered by a new suite; the download ladder tests pin the post-processor so the host's own ffmpeg cannot change what they measure.
+
+## v2.18.7
+
+Redesign phase 7/7 — motion governance and the status-token close-out.
+
+- feat(a11y): reduce-motion now honors the OS-level `prefers-reduced-motion` setting in addition to the in-app toggle — framer-motion animations jump to their end state and the CSS layer collapses non-framer motion when either signal is active, tracked live so changing the system setting takes effect without a reload.
+- feat(tokens): every raw status color is gone — 76 sites across 16 files (badges, toasts, error displays, download failures, doctor diagnostics, profile chips, quality badges) now read the semantic `--danger`/`--success`/`--warning` families, which stay legible in both themes and track the palette.
+- fix(tokens): the base `--danger`/`--success`/`--warning` variables were missing (only the `-rgb`/`-text`/`-bg` variants existed); the base tokens now back every status reference.
+- feat(tokens): a `--warning` pair joins the status family in both themes with AA-contrast text colors.
+- fix(ui): Button's danger variant, Badge's success/warning variants, Toast icons, and ErrorDisplay all read tokens instead of hard-coded Tailwind palette colors.
+- chore(docs): CLAUDE.md documents the two-shell layout system and the status-token rule.
+
+## v2.18.6
+
+Redesign phase 6/7 — settings, auth, landing.
+
+- feat(settings): status colors move onto semantic tokens — pass/warn/fail states in Diagnostics, LibraryDoctor badges, Privacy/Notifications icon chips, and danger rows all read `--success`/`--warning`/`--danger`, so they stay legible in both surfaces and track the palette instead of hard-coded hexes.
+- fix(settings): Diagnostics' dark-only `bg-black/20` icon wells render `--bg-elevated` and work in light mode; a new `--warning` token pair joins the status family in both themes.
+- fix(settings): two user-facing strings still carried icon names from the icon migration — the shortcut list said "DownloadSimple current track" and Storage showed an Android path `/storage/emulated/0/DownloadSimple`; both restored to real text.
+- feat(landing): the sign-in button no longer addresses the auth vendor by name ("Continue with Clerk" → "Sign in"), and the gate carries the brand slogan as an accent-colored eyebrow above the description.
+- fix(auth): auth.css fallbacks updated from the retired purple palette to the current crimson identity, so pre-hydration flashes match the active theme.
+- fix(settings): SettingsRow danger text uses `--danger-text` instead of a raw Tailwind red.
+
+## v2.18.5
+
+Redesign phase 5/7 — detail pages and Profile.
+
+- feat(detail): **Album, Artist and related-artwork placeholders** move from per-item gradient pools to the token layer — a muted duotone glyph on `--bg-overlay`, hairline borders. The Artist hero is now readable in both themes: theme-aware text over the artwork fade instead of white-with-drop-shadow, and a token backdrop when no image exists.
+- feat(profile): the profile banner, avatar initials, stat icons and quick links drop their six raw hue assignments for one accent treatment; presence dot uses the new `--success` token pair (added alongside `--danger` in the token layer).
+- fix(downloads): error rows use the semantic `--danger` tokens instead of raw reds.
+- feat(wrapped): the hero card keys off the neutral ramp with the accent reserved for charts and highlights; empty-state and bar-chart fuchsia literals replaced by tokens.
+- fix(profile): user-facing copy corrupted by the icon codemod repaired ("History, data, legal").
+- feat(playlist): destructive delete actions use the Button `danger` variant and `--danger` text tokens. The user-chosen gradient cover picker remains product functionality and is untouched.
+- chore(release): version 2.18.5 across all five sync points.
+
+---
+
+## v2.18.4
+
+Redesign phase 4/7 — the player surfaces.
+
+- fix(player): **PlayerBar works in light theme.** The card was a hard-coded dark gradient with a raw crimson glow; it now renders the shared glass material (theme-aware, solid fallback under `prefers-reduced-transparency`) with token-driven elevation, and the playing-state glow is expressed through `--accent-subtle` instead of a hard-coded rgba literal.
+- feat(nowplaying): desktop gets a centered player column and a centered segmented tab control. The full-screen backdrop keys off the neutral ramp instead of pure black.
+- fix(player): volume icon mapping was inverted between breakpoints (low volume showed the loud speaker); now `SpeakerX` below mute, `SpeakerLow` under half, `SpeakerHigh` above.
+- fix(ui): codemod-corrupted menu labels repaired — the overflow and context menus read "Download", not "DownloadSimple".
+- feat(a11y): the PlayerBar like button carries an accessible name and a 40px hit area.
+- chore(release): version 2.18.4 across all five sync points.
+
+---
+
+## v2.18.3
+
+Redesign phase 3/7 — Home, Search and Library.
+
+- feat(home): token-driven placeholder surfaces replace the multi-hue gradient pools on artwork-less items — a muted Phosphor glyph on `--bg-overlay` instead of eight saturated gradients competing with the accent. Desktop gets a max-width content column; QuickPicks and its skeleton share the same responsive grid so loading and loaded states align pixel-for-pixel.
+- feat(search): desktop max-width column, 40px minimum touch targets on history rows and suggestion rows, and the text-corruption sweep across user-facing copy introduced by the Phase 2 icon codemod ("MagnifyingGlass for songs" → "Search for songs").
+- feat(library): same placeholder treatment across grid, list and artist views; 1px hairline borders replace 2px on avatars; raw reds replaced with the semantic `--danger` token pair (liked hearts, remove buttons).
+- feat(tokens): semantic `--danger-rgb` / `--danger-text` / `--danger-bg` added to the token layer with light-theme re-mapping — status hues stay recognizable regardless of the active accent.
+- fix(tests): page-component names restored (`Home`, `Search`, `Library`) after the icon codemod collided with page identifiers.
+- chore(release): version 2.18.3 across all five sync points.
+
+---
+
+## v2.18.2
+
+Redesign phase 2/7 — app shells and the icon system.
+
+- feat(shell): **desktop sidebar shell and mobile bottom nav** rebuilt on the Phase 1 token layer. The bottom nav is safe-area padded for notched devices; active states, spacing and icon sizing all come from the semantic token layer. A device-class bridge in RootLayout keeps the APK on the mobile shell even on tablets — a 1280-wide Android tablet renders the phone experience, never a stretched desktop UI.
+- feat(motion): route transitions with iOS spring curves; navigation is the only place screens animate — playback controls stay instant.
+- refactor(icons): **complete lucide-react → @phosphor-icons/react migration** across every consumer. One family, one stroke weight, applied by a deterministic codemod; `lucide-react` is removed from the dependency tree and the vendor manualChunks now pins the Phosphor chunk.
+
+---
+
+## v2.18.1
+
+Redesign phase 1/7 — the design-token foundation everything else builds on.
+
+- feat(ui): **three-layer token architecture** (primitive → semantic → component) in `index.css`. Themes and surfaces now change at the variable layer only; every existing variable name was preserved so components kept working untouched through the phases that follow.
+- feat(type): **Geist Sans + Geist Mono self-hosted** as variable fonts — no render-blocking Google Fonts request. Tabular figures for all durations and timestamps; tightened display tracking.
+- feat(theme): single tinted neutral ramp, near-black dark and inverted light with zero pure black/white; all seven accents recalibrated below the 80% saturation line; tinted diffuse shadows; WCAG AA contrast verified in both themes.
+- feat(a11y): `:focus-visible` ring everywhere, `prefers-reduced-motion` plus an in-app toggle wired to the CSS layer, `prefers-reduced-transparency` solid fallback for frosted surfaces.
+- feat(platform): `useDeviceClass()` — pointer modality, viewport width, Capacitor native override and `display-mode: standalone`, resolving to one of desktop/mobile/tablet. The APK always renders the mobile shell, even on tablets; safe-area tokens wired.
+- feat(brand): **"Feel the Beat"** slogan in the PWA manifest, `index.html` and OG tags; `APP_SLOGAN` constant.
+- chore(release): version 2.18.1 across all five sync points (`uv.lock` included).
+
+---
+
 ## v2.17.11
 
 Guest-first restore, update feature, and a complete onboarding course.

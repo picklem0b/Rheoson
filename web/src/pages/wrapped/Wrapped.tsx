@@ -68,7 +68,7 @@ function MonthChart({ months }: { months: { month: number; plays: number }[] }) 
               transition={{ delay: i * 0.02, type: 'spring', damping: 20 }}
               className={cn(
                 'w-full rounded-t-sm',
-                active ? 'bg-gradient-to-t from-[var(--accent)] to-fuchsia-400' : 'bg-[var(--border)] opacity-40'
+                active ? 'bg-[var(--accent)]' : 'bg-[var(--border)] opacity-40'
               )}
             />
             <span className="text-[8px] text-[var(--text-muted)]">{name}</span>
@@ -167,8 +167,8 @@ export default function Wrapped() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-16 px-6"
           >
-            <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-br from-[var(--accent)] to-fuchsia-500 flex items-center justify-center mb-4">
-              <Headphones className="w-7 h-7 text-white" />
+            <div className="w-16 h-16 mx-auto rounded-3xl bg-[var(--accent-subtle)] flex items-center justify-center mb-4">
+              <Headphones className="w-7 h-7 text-[var(--accent)]" />
             </div>
             <h2 className="text-xl font-black text-[var(--text-primary)]">Nothing to wrap up yet</h2>
             <p className="text-sm text-[var(--text-muted)] mt-2 max-w-sm mx-auto leading-relaxed">
@@ -182,7 +182,7 @@ export default function Wrapped() {
             <motion.div
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-[24px] p-6 text-white bg-gradient-to-br from-violet-600 via-fuchsia-600 to-rose-500 shadow-xl"
+              className="rounded-[24px] p-6 text-white bg-[rgb(var(--gray-900))] border border-[var(--border)] shadow-xl"
             >
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Your {report.year}</p>
               <h2 className="text-3xl font-black mt-1 leading-tight">
@@ -258,7 +258,7 @@ export default function Wrapped() {
                       </div>
                       <div className="h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-rose-400"
+                          className="h-full rounded-full bg-[var(--accent)]"
                           style={{ width: `${maxGenre > 0 ? (g.plays / maxGenre) * 100 : 0}%` }}
                         />
                       </div>

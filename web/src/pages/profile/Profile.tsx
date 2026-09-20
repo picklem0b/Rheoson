@@ -9,27 +9,11 @@ import { analyticsApi } from '@/api/analytics.api'
 import { tracksApi } from '@/api/tracks.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { formatCount } from '@/lib/formatters'
+import { qk } from '@/lib/queryKeys'
 import { cn } from '@/lib/utils'
 import { isClerkEnabled } from '@/lib/constants'
 
 // ── Avatar ─────────────────────────────────────────────────────
-
-const AVATAR_GRADIENTS = [
-  'from-violet-600 to-fuchsia-500',
-  'from-blue-600 to-cyan-500',
-  'from-emerald-600 to-teal-500',
-  'from-rose-600 to-pink-500',
-  'from-amber-600 to-orange-500',
-  'from-indigo-600 to-purple-500',
-]
-
-function getAvatarGradient(name: string): string {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]
-}
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -39,15 +23,14 @@ function getInitials(name: string): string {
 
 // ── Stat card ──────────────────────────────────────────────────
 
-function ProfileStat({ icon: Icon, label, value, color }: {
+function ProfileStat({ icon: Icon, label, value }: {
   icon: React.ElementType
   label: string
   value: string | number
-  color?: string
 }) {
   return (
     <div className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]/50">
-      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', color ?? 'bg-[var(--accent-subtle)]')}>
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--accent-subtle)]">
         <Icon className="w-4 h-4 text-[var(--accent)]" />
       </div>
       <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{value}</p>
@@ -58,12 +41,11 @@ function ProfileStat({ icon: Icon, label, value, color }: {
 
 // ── Quick link ─────────────────────────────────────────────────
 
-function QuickLink({ icon: Icon, label, description, to, color }: {
+function QuickLink({ icon: Icon, label, description, to }: {
   icon: React.ElementType
   label: string
   description: string
   to: string
-  color?: string
 }) {
   const navigate = useNavigate()
   return (
@@ -72,11 +54,8 @@ function QuickLink({ icon: Icon, label, description, to, color }: {
       onClick={() => navigate(to)}
       className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-[var(--bg-elevated)] transition-colors text-left"
     >
-      <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: color ?? 'var(--accent)' }}
-      >
-        <Icon className="w-4 h-4 text-white" />
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-[var(--accent-subtle)]">
+        <Icon className="w-4 h-4 text-[var(--accent)]" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[var(--text-primary)]">{label}</p>
@@ -103,8 +82,8 @@ export default function Profile() {
 function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
-  const [editingName, setEditingName] = useState(false)
-  const [nameValue, setNameValue] = useState('')
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [usernameValue, setUsernameValue] = useState('')
   const [saving, setSaving] = useState(false)
 
   // Stats from analytics API
@@ -115,7 +94,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
     retry: false,
   })
 
-  // Books count
+  // Library count
   const { data: libraryTracks } = useQuery({
     queryKey: ['tracks', 'local'],
     queryFn: () => tracksApi.getAll(),
@@ -127,16 +106,15 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
 
   // Liked count
   const { data: likedCount } = useQuery({
-    queryKey: ['tracks', 'liked', 'count'],
+    queryKey: qk.likedCount(),
     queryFn: tracksApi.getLikedCount,
     staleTime: 60_000,
     retry: 0,
   })
 
-  const displayName = user?.name ?? 'Your account'
+  const displayUsername = user?.username ?? 'Your account'
   const email = user?.email ?? ''
-  const initials = getInitials(displayName)
-  const gradient = getAvatarGradient(displayName)
+  const initials = getInitials(displayUsername)
 
   // Format member since date
   const memberSince = useMemo(() => {
@@ -149,29 +127,29 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
     }
   }, [user?.created_at])
 
-  const startEditName = () => {
-    setNameValue(displayName)
-    setEditingName(true)
+  const startEditUsername = () => {
+    setUsernameValue(displayUsername)
+    setEditingUsername(true)
   }
 
   const cancelEdit = () => {
-    setEditingName(false)
-    setNameValue('')
+    setEditingUsername(false)
+    setUsernameValue('')
   }
 
-  const saveName = async () => {
-    if (!nameValue.trim() || nameValue.trim() === displayName) {
-      setEditingName(false)
+  const saveUsername = async () => {
+    if (!usernameValue.trim() || usernameValue.trim() === displayUsername) {
+      setEditingUsername(false)
       return
     }
     setSaving(true)
     try {
       const { authApi } = await import('@/api/auth.api')
-      await authApi.updateProfile({ name: nameValue.trim() })
+      await authApi.updateProfile({ username: usernameValue.trim() })
       useAuthStore.setState((state) => ({
-        user: state.user ? { ...state.user, name: nameValue.trim() } : null,
+        user: state.user ? { ...state.user, username: usernameValue.trim() } : null,
       }))
-      setEditingName(false)
+      setEditingUsername(false)
     } catch {
       // Silently fail
     } finally {
@@ -206,11 +184,10 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
           transition={{ delay: 0.05 }}
           className="rounded-[24px] overflow-hidden border border-[var(--border)]/30 bg-[var(--bg-surface)]"
         >
-          {/* Gradient banner */}
-          <div className={cn('h-28 bg-gradient-to-br relative', gradient)}>
-            <div className="absolute inset-0 bg-black/10" />
-            <div className="absolute right-4 top-3 opacity-20">
-              <MusicNotes className="w-8 h-8 text-white" />
+          {/* Banner */}
+          <div className="h-28 bg-[var(--accent-subtle)] relative">
+            <div className="absolute right-4 top-3 opacity-30">
+              <MusicNotes className="w-8 h-8 text-[var(--accent)]" />
             </div>
           </div>
 
@@ -220,27 +197,26 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
               {user?.image_url ? (
                 <img
                   src={user.image_url}
-                  alt={displayName}
+                  alt={displayUsername}
                   className="w-[88px] h-[88px] rounded-[22px] object-cover border-4 border-[var(--bg-surface)] shadow-xl"
                 />
               ) : (
                 <div
                   className={cn(
                     'w-[88px] h-[88px] rounded-[22px] flex items-center justify-center',
-                    'text-3xl font-black text-white border-4 border-[var(--bg-surface)] shadow-xl',
-                    'bg-gradient-to-br',
-                    gradient,
+                    'text-3xl font-black text-[var(--accent)] bg-[var(--accent-subtle)]',
+                    'border-4 border-[var(--bg-surface)] shadow-xl',
                   )}
                 >
                   {initials}
                 </div>
               )}
-              <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-green-500 border-[3px] border-[var(--bg-surface)]" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[var(--success-text)] border-[3px] border-[var(--bg-surface)]" />
             </div>
 
             <div className="mt-3">
               <AnimatePresence mode="wait" initial={false}>
-                {editingName ? (
+                {editingUsername ? (
                   <motion.div
                     key="editing"
                     initial={{ opacity: 0, y: 4 }}
@@ -250,19 +226,19 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
                   >
                     <input
                       autoFocus
-                      value={nameValue}
-                      onChange={(e) => setNameValue(e.target.value)}
+                      value={usernameValue}
+                      onChange={(e) => setUsernameValue(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveName()
+                        if (e.key === 'Enter') saveUsername()
                         if (e.key === 'Escape') cancelEdit()
                       }}
                       className="flex-1 h-10 px-3 text-lg font-bold rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)] text-[var(--text-primary)] outline-none"
                     />
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      onClick={saveName}
+                      onClick={saveUsername}
                       disabled={saving}
-                      className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center"
+                      className="w-10 h-10 rounded-xl bg-[var(--success)] flex items-center justify-center"
                     >
                       <Check className="w-5 h-5 text-white" />
                     </motion.button>
@@ -283,11 +259,11 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
                     className="flex items-center gap-2"
                   >
                     <h2 className="text-2xl font-black text-[var(--text-primary)] truncate">
-                      {displayName}
+                      {displayUsername}
                     </h2>
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      onClick={startEditName}
+                      onClick={startEditUsername}
                       className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0"
                     >
                       <Pencil className="w-3.5 h-3.5 text-[var(--text-muted)]" />
@@ -304,8 +280,8 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
               )}
 
               <div className="flex items-center gap-3 mt-2">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--success-bg)] text-[var(--success-text)] border border-[var(--success)]/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
                   Signed in
                 </div>
 
@@ -330,14 +306,14 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
             Your stats
           </p>
           <div className="grid grid-cols-3 gap-2">
-            <ProfileStat icon={MusicNotes} label="Books" value={formatCount(trackCount)} />
+            <ProfileStat icon={MusicNotes} label="Library" value={formatCount(trackCount)} />
             <ProfileStat icon={Heart} label="Liked" value={formatCount(likedCount ?? 0)} />
             <ProfileStat icon={TrendUp} label="Plays" value={formatCount(stats?.total_plays ?? 0)} />
             <ProfileStat icon={Clock} label="Hours" value={stats?.estimated_listening_hours ?? 0} />
             <ProfileStat icon={ChartLineUp} label="7-day plays" value={stats?.plays_7d ?? 0} />
             <ProfileStat icon={Calendar} label="Active days" value={stats?.active_days_30d ?? 0} />
-            <ProfileStat icon={Flame} label="Day streak" value={stats?.current_streak ?? 0} color="bg-orange-500/10" />
-            <ProfileStat icon={Medal} label="Best streak" value={stats?.longest_streak ?? 0} color="bg-amber-500/10" />
+            <ProfileStat icon={Flame} label="Day streak" value={stats?.current_streak ?? 0} />
+            <ProfileStat icon={Medal} label="Best streak" value={stats?.longest_streak ?? 0} />
           </div>
         </motion.div>
 
@@ -351,12 +327,12 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
             Quick access
           </p>
           <div className="bg-[var(--bg-surface)] rounded-[18px] overflow-hidden divide-y divide-[var(--border)]/40 border border-[var(--border)]/30">
-            <QuickLink icon={ChartLineUp} label="Listening stats" description="Detailed charts and insights" to="/stats" color="#8B5CF6" />
-            <QuickLink icon={TrendUp} label="Your year in review" description="Your personal Wrapped" to="/wrapped" color="#EC4899" />
-            <QuickLink icon={Palette} label="Appearance" description="Theme, accent, transparency" to="/settings" color="#3B82F6" />
-            <QuickLink icon={HardDrives} label="Storage" description="Music directories, cache" to="/settings" color="#F97316" />
-            <QuickLink icon={Shield} label="Privacy" description="ClockCounterClockwise, data, legal" to="/settings" color="#6B7280" />
-            <QuickLink icon={GearSix} label="All settings" description="Configure Rheoson" to="/settings" color="#14B8A6" />
+            <QuickLink icon={ChartLineUp} label="Listening stats" description="Detailed charts and insights" to="/stats" />
+            <QuickLink icon={TrendUp} label="Your year in review" description="Your personal Wrapped" to="/wrapped" />
+            <QuickLink icon={Palette} label="Appearance" description="Theme, accent, transparency" to="/settings" />
+            <QuickLink icon={HardDrives} label="Storage" description="Music directories, cache" to="/settings" />
+            <QuickLink icon={Shield} label="Privacy" description="History, data, legal" to="/settings" />
+            <QuickLink icon={GearSix} label="All settings" description="Configure Rheoson" to="/settings" />
           </div>
         </motion.div>
 
@@ -372,11 +348,11 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
             >
-              <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                <SignOut className="w-4 h-4 text-red-400" />
+              <div className="w-9 h-9 rounded-xl bg-[var(--danger-bg)] flex items-center justify-center flex-shrink-0">
+                <SignOut className="w-4 h-4 text-[var(--danger-text)]" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-red-400">Sign out</p>
+                <p className="text-sm font-semibold text-[var(--danger-text)]">Sign out</p>
                 <p className="text-xs text-[var(--text-muted)]">You&apos;ll need to sign in again</p>
               </div>
             </motion.button>

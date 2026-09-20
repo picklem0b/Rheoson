@@ -1,13 +1,31 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
    motion,
    AnimatePresence,
    useMotionValue,
    useTransform
 } from "framer-motion";
-import { CaretDown, Heart, DotsThreeOutline, DownloadSimple, Microphone, Queue, Plus, MusicNotes, X, WifiSlash, User, Users, SealCheck, Info, Link as LinkIcon } from '@phosphor-icons/react';
+import {
+   CaretDown,
+   CaretRight,
+   Heart,
+   DotsThreeOutline,
+   DownloadSimple,
+   Microphone,
+   Queue,
+   Plus,
+   Play,
+   MusicNotes,
+   X,
+   WifiSlash,
+   User,
+   Users,
+   SealCheck,
+   Info,
+   Link as LinkIcon
+} from '@phosphor-icons/react';
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { useQueueStore } from "@/store/queue.store";
@@ -17,12 +35,15 @@ import { usePlayer } from "@/hooks/player.hook";
 import { useLyrics } from "@/hooks/lyrics.hook";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { tracksApi } from "@/api/tracks.api";
+import { invalidateLikeSurfaces } from "@/lib/queryInvalidation";
 import {
    getArtist,
    getFollowStatus,
    followArtist,
    unfollowArtist
 } from "@/api/library.api";
+import { qk } from "@/lib/queryKeys";
+import { invalidateArtistFollowSurfaces } from "@/lib/queryInvalidation";
 import PlayerControls from "@/components/player/PlayerControls";
 import ProgressBar from "@/components/player/ProgressBar";
 import { Spinner } from "@/components/ui/Spinner";
@@ -36,11 +57,10 @@ type Tab = "queue" | "lyric" | "creator";
 
 const MENU_ITEMS = [
    { icon: Heart, label: "Like", action: "like" },
-   { icon: DownloadSimple, label: "DownloadSimple", action: "download" },
+   { icon: DownloadSimple, label: "Download", action: "download" },
    { icon: Plus, label: "Add to queue", action: "queue-add" },
    { icon: LinkIcon, label: "Copy link", action: "copy-link" },
-   { icon: Microphone, label: "View lyrics", action: "lyrics" },
-   { icon: MusicNotes, label: "Song details", action: "details" }
+   { icon: Microphone, label: "View lyrics", action: "lyrics" }
 ];
 
 function ContextSheet({
@@ -245,9 +265,10 @@ function LyricsTab({
 }
 
 // ── Creator tab ───────────────────────────────────────────────
-// The creator behind the current track, laid out the way a creator's own
-// profile is: who they are, how far their music reaches, and a follow —
-// then the lyrics, which is the only content this tab carries.
+// The creator behind the current track: who they are, how far their music
+// reaches, and enough of their catalogue to keep listening without leaving
+// the player. Lyrics live only in the Lyrics tab, so this surface carries
+// identity and songs rather than a second copy of the same words.
 //
 // Follow state is optimistic. The button flips on tap and reverts only if
 // the request actually fails, because a follow that silently does nothing
@@ -283,8 +304,11 @@ function CreatorTab({
            ? artistName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
            : "";
 
+   const queryClient = useQueryClient();
+   const { playAll, playTrack } = useQueue();
+
    const { data, isLoading } = useQuery({
-      queryKey: ["artist-content", browseId || "none"],
+      queryKey: qk.artistContent(browseId || "none"),
       queryFn:  () => getArtist(browseId).catch(() => null),
       enabled:  !!browseId,
       staleTime: 10 * 60_000,
@@ -293,7 +317,7 @@ function CreatorTab({
 
    // Follow status is per-user, so it is only asked for when signed in.
    const { data: followStatus, refetch: refetchFollow } = useQuery({
-      queryKey: ["artist-follow", browseId || "none"],
+      queryKey: qk.artistFollow(browseId || "none"),
       queryFn:  () => getFollowStatus(browseId).catch(() => null),
       enabled:  !!browseId && isAuthenticated,
       staleTime: 60_000,
@@ -320,6 +344,8 @@ function CreatorTab({
          } else {
             await unfollowArtist(browseId);
          }
+         // A follow is visible elsewhere (the following list, the artist page).
+         invalidateArtistFollowSurfaces(queryClient, browseId);
          await refetchFollow();
       } catch {
          // Reverted below — the server stays the source of truth.
@@ -336,11 +362,27 @@ function CreatorTab({
          ? compactCount(artist.monthlyListeners)
          : compactCount(artist.subscribers));
 
+   const topTracks = (artist?.topTracks ?? []).slice(0, 5);
+   // Albums before singles — a release decade reads as a discography, a
+   // singles wall reads as a feed.
+   const releases = [
+      ...(artist?.albums ?? []).map(a => ({ ...a, kind: "album" as const })),
+      ...(artist?.singles ?? []).map(a => ({ ...a, kind: "single" as const }))
+   ].slice(0, 8);
+   const hasCatalogue = topTracks.length > 0 || releases.length > 0;
+
    if (isLoading) {
       return (
-         <div className='space-y-2 py-4 pb-8'>
-            {Array.from({ length: 4 }).map((_, i) => (
-               <div key={i} className='h-14 rounded-2xl bg-white/5 animate-pulse' />
+         <div className='space-y-3 py-4 pb-8'>
+            <div className='flex items-center gap-3'>
+               <div className='h-14 w-14 rounded-full bg-white/5 animate-pulse' />
+               <div className='flex-1 space-y-2'>
+                  <div className='h-4 w-40 rounded-full bg-white/5 animate-pulse' />
+                  <div className='h-3 w-24 rounded-full bg-white/5 animate-pulse' />
+               </div>
+            </div>
+            {Array.from({ length: 3 }).map((_, i) => (
+               <div key={i} className='h-12 rounded-xl bg-white/5 animate-pulse' />
             ))}
          </div>
       );
@@ -431,18 +473,152 @@ function CreatorTab({
                <div className='w-14 h-14 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0'>
                   <User className='w-6 h-6 text-white/50' />
                </div>
-               <div className='min-w-0'>
+               <div className='min-w-0 flex-1'>
                   <p className='font-bold text-white truncate'>
                      {artistName ?? "This artist"}
                   </p>
                   <p className='text-[11px] text-white/40'>
-                     Profile unavailable right now
+                     No profile available for this artist
                   </p>
+               </div>
+               {browseId && (
+                  <button
+                     onClick={() =>
+                        navigate(`/artist/${encodeURIComponent(browseId)}`)
+                     }
+                     className='flex-shrink-0 rounded-full border border-white/25 px-4 py-1.5 text-xs font-bold text-white/80 transition-colors hover:text-white'>
+                     Open
+                  </button>
+               )}
+            </div>
+         )}
+
+         {/* Popular — the songs people actually start with. */}
+         {topTracks.length > 0 && (
+            <div>
+               <div className='mb-1.5 flex items-center justify-between px-1'>
+                  <h3 className='text-[11px] font-bold uppercase tracking-widest text-white/50'>
+                     Popular
+                  </h3>
+                  <button
+                     onClick={() => playAll(topTracks)}
+                     className='rounded-full px-3 py-1 text-[11px] font-bold text-white/60 transition-colors hover:text-white'>
+                     Play all
+                  </button>
+               </div>
+               <div className='space-y-0.5'>
+                  {topTracks.map((track, i) => (
+                     <CreatorTrackRow
+                        key={track.id}
+                        track={track}
+                        index={i}
+                        onPlay={() => playTrack(track, topTracks)}
+                     />
+                  ))}
                </div>
             </div>
          )}
 
+         {/* Releases — the discography, newest first. */}
+         {releases.length > 0 && (
+            <div>
+               <h3 className='mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-white/50'>
+                  Releases
+               </h3>
+               <div className='flex gap-3 overflow-x-auto pb-1 no-scrollbar'>
+                  {releases.map(release => (
+                     <button
+                        key={release.id}
+                        onClick={() => navigate(`/album/${release.id}`)}
+                        className='w-28 flex-shrink-0 text-left'>
+                        <div className='mb-1.5 aspect-square w-full overflow-hidden rounded-xl bg-white/5'>
+                           {release.artworkUrl && (
+                              <img
+                                 src={release.artworkUrl}
+                                 alt={release.title}
+                                 loading='lazy'
+                                 className='h-full w-full object-cover'
+                                 onError={e => {
+                                    (e.target as HTMLImageElement).src =
+                                       "/assets/logo.png";
+                                 }}
+                              />
+                           )}
+                        </div>
+                        <p className='truncate text-xs font-semibold text-white'>
+                           {release.title}
+                        </p>
+                        <p className='text-[10px] text-white/40'>
+                           {release.kind === "single" ? "Single" : "Album"}
+                           {release.releaseYear > 0
+                              ? ` · ${release.releaseYear}`
+                              : ""}
+                        </p>
+                     </button>
+                  ))}
+               </div>
+            </div>
+         )}
+
+         {/* The tab is a summary; the full page carries the rest. */}
+         {artist && hasCatalogue && (
+            <button
+               onClick={() => navigate(`/artist/${encodeURIComponent(browseId)}`)}
+               className='flex w-full items-center justify-center gap-1.5 rounded-full border border-white/15 py-2.5 text-xs font-bold text-white/70 transition-colors hover:text-white'>
+               View full artist profile
+               <CaretRight className='h-3.5 w-3.5' />
+            </button>
+         )}
       </div>
+   );
+}
+
+// ── Creator tab rows ──────────────────────────────────────────
+
+function CreatorTrackRow({
+   track,
+   index,
+   onPlay
+}: {
+   track: Track;
+   index: number;
+   onPlay: () => void;
+}) {
+   const contextMenu = useTrackContextMenu(track);
+   return (
+      <motion.button
+         whileTap={{ scale: 0.98 }}
+         onClick={onPlay}
+         {...contextMenu}
+         className='group flex w-full items-center gap-3 rounded-xl px-1.5 py-2 text-left transition-colors hover:bg-white/5'>
+         <span className='w-5 text-center text-xs tabular-nums text-white/40 group-hover:hidden'>
+            {index + 1}
+         </span>
+         <Play className='hidden h-4 w-4 fill-current text-white group-hover:block' />
+         {track.artworkUrl ? (
+            <img
+               src={track.artworkUrl}
+               alt={track.title}
+               loading='lazy'
+               className='h-10 w-10 flex-shrink-0 rounded-lg object-cover'
+            />
+         ) : (
+            <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/5'>
+               <MusicNotes className='h-4 w-4 text-white/40' />
+            </div>
+         )}
+         <div className='min-w-0 flex-1'>
+            <p className='truncate text-sm font-semibold text-white'>
+               {track.title}
+            </p>
+            <p className='truncate text-xs text-white/40'>
+               {track.album?.title ?? 'Single'}
+            </p>
+         </div>
+         <span className='flex-shrink-0 text-xs tabular-nums text-white/40'>
+            {formatDuration(track.duration)}
+         </span>
+      </motion.button>
    );
 }
 
@@ -568,6 +744,7 @@ function PlaylistTabRow({
 // ── Main page ─────────────────────────────────────────────────
 
 export default function NowPlaying() {
+   const queryClient = useQueryClient();
    const navigate = useNavigate();
 
    const currentTrack = usePlayerStore(s => s.currentTrack);
@@ -609,6 +786,8 @@ export default function NowPlaying() {
          next
             ? await tracksApi.likeTrack(currentTrack.id)
             : await tracksApi.unlikeTrack(currentTrack.id);
+         // Keep the count on every other page honest without a reload.
+         invalidateLikeSurfaces(queryClient);
       } catch {
          setLiked(!next);
       }
@@ -647,7 +826,7 @@ export default function NowPlaying() {
    return (
       <motion.div
          style={{ opacity, scale }}
-         className='fixed inset-0 z-50 flex flex-col bg-black overflow-hidden'>
+         className='fixed inset-0 z-50 flex flex-col bg-[rgb(var(--gray-950))] overflow-hidden'>
          {/* Blurred artwork background */}
          <div className='absolute inset-0 pointer-events-none'>
             <img
@@ -673,8 +852,8 @@ export default function NowPlaying() {
             <div className='w-10 h-1 rounded-full bg-white/25' />
          </motion.div>
 
-         {/* Scrollable main content */}
-         <div className='relative z-10 flex flex-col h-full overflow-y-auto no-scrollbar'>
+         {/* Scrollable main content — desktop centers the player column */}
+         <div className='relative z-10 flex flex-col h-full overflow-y-auto no-scrollbar lg:max-w-2xl lg:mx-auto lg:w-full'>
             {/* Top bar */}
             <div className='flex items-center justify-between px-5 pt-10 pb-2 flex-shrink-0'>
                <motion.button
@@ -808,7 +987,7 @@ export default function NowPlaying() {
             </div>
 
             {/* Tabs — segmented pill control, active tab filled */}
-            <div className='flex-shrink-0 px-6 mt-4'>
+            <div className='flex-shrink-0 px-6 mt-4 flex justify-center'>
                <div className='inline-flex gap-1 rounded-full bg-white/5 p-1'>
                   {(["queue", "lyric", "creator"] as Tab[]).map(t => (
                      <button

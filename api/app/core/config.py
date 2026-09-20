@@ -84,15 +84,45 @@ class Settings(BaseSettings):
     # ── Render deployment URL (for keep-alive ping) ────────────
     RENDER_API_URL: str = ""
 
+    # ── Clerk ─────────────────────────────────────────────────
+    #: Pins the exact issuer for a production instance on a custom domain
+    #: (e.g. "https://clerk.rheoson.app"). Left unset, the default Clerk
+    #: issuers are accepted — see app.core.auth._issuer_allowed.
+    CLERK_ISSUER: str = ""
+
     # ── Computed ──────────────────────────────────────────────
+
+    #: Environment names this application understands. Anything else is
+    #: treated as a deployed environment rather than falling back to
+    #: development defaults.
+    _DEV_ENVS = frozenset({"development", "dev", "local", "test", "testing"})
+    _PROD_ENVS = frozenset({"production", "prod", "staging"})
+
+    @property
+    def env_name(self) -> str:
+        """The configured environment, case-insensitive and trimmed."""
+        return (self.ENV or "").strip().lower()
 
     @property
     def is_prod(self) -> bool:
-        return self.ENV == "production"
+        """True for every deployed environment — including unrecognised ones.
+
+        This has to fail closed. `ENV=prodction`, an empty value, or any other
+        typo must not select development defaults (an insecure SECRET_KEY, a
+        skipped Clerk requirement, an open admin allowlist) on a host that is
+        actually serving users. Only the explicit development aliases relax
+        the posture.
+        """
+        return self.env_name not in self._DEV_ENVS
 
     @property
     def is_dev(self) -> bool:
-        return self.ENV == "development"
+        return self.env_name in self._DEV_ENVS
+
+    @property
+    def env_recognised(self) -> bool:
+        """False when ENV is a typo, so startup validation can say so."""
+        return self.env_name in self._DEV_ENVS or self.env_name in self._PROD_ENVS
 
     @property
     def has_spotify(self) -> bool:
@@ -125,6 +155,13 @@ settings = Settings()
 def validate_startup() -> None:
     """Validate critical config at startup. Exit in production if misconfigured."""
     errors: list[str] = []
+
+    if not settings.env_recognised:
+        errors.append(
+            f"ENV is not recognised (got {settings.ENV!r}); expected one of "
+            f"{sorted(settings._DEV_ENVS | settings._PROD_ENVS)}. "
+            "Treating this as a deployed environment."
+        )
 
     if settings.is_prod:
         if settings.SECRET_KEY == "dev-only-insecure-secret-key-do-not-use-in-prod":

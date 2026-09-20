@@ -8,14 +8,17 @@ One row per user-visible feature. Labels: **Implemented** (shipped, tested), **P
 | Spotify link resolution (track/album/playlist/artist) | Implemented | Metadata only, requires credentials | v1.1 |
 | Streaming with byte-range seek | Implemented | Session-backed remote fills | v1.3 |
 | Offline playback of downloaded tracks | Implemented | Served from disk, zero network | v1.3 |
-| Downloads (5 formats, quality, batch) | Implemented | Live progress over Socket.IO | v1.2 |
+| Downloads (5 formats, quality, batch) | Implemented | Live progress over Socket.IO; jobs owner-scoped | v1.2 |
 | Tagging (artwork + synced lyrics) | Implemented | mutagen | v1.2 |
 | Synced LRC lyrics | Implemented | Multi-provider chain | v1.2 |
 | Playlists CRUD + reorder + import/export | Implemented | Per-user, file-backed | v1.1 |
 | Spotify playlist import | Implemented | Concurrent track matching | v1.1 |
 | Smart playlists (most-played, recently-added, discover, time-capsule) | Implemented | Computed per request | v2.14 |
 | Likes / play history (per user) | Implemented | Isolation covered by tests | v2.14 |
-| Clerk authentication | Implemented | JWKS verification; fail-closed in prod | v2.15.1 |
+| Clerk authentication | Implemented | JWKS verification; host-exact issuer; fail-closed env | v2.15.1 |
+| Account identity (username; email or phone; password) | Implemented | Username is the sole identity field, validated 3–32 chars | v2.19.3 |
+| Playback toolchain resolution (ffmpeg / yt-dlp) | Implemented | Resolved per process; downloads degrade without ffmpeg | v2.19.1 |
+| Instant library state (query registry + local snapshot) | Implemented | Counts, playlists, history and follows paint before the network | v2.19.4 |
 | Per-user data isolation | Implemented | Likes/history/playlists | v2.14.19 |
 | Clerk webhook user sync | Implemented | Svix-signed | v2.15 |
 | Health system (live/ready/snapshot/diag) | Implemented | Background probe loop | v2.15.4 |
@@ -40,8 +43,8 @@ One row per user-visible feature. Labels: **Implemented** (shipped, tested), **P
 | Background audio sync (PWA) | Planned | Depends on Workbox periodicsync adoption | — |
 | Release-signed APK channel | Planned | Keystore required | — |
 | Guest mode | Deprecated | Removed for security (v2.14.19); every endpoint requires a session | — |
-| Legacy JWT auth (passlib/jose login) | Deprecated | Replaced by Clerk; register/login now proxy Clerk Backend API | v2.15.1 |
+| Legacy JWT auth (passlib/jose login) | Deprecated | Replaced by Clerk; the register/login proxy routes were removed (they minted a session from an email alone) | v2.15.1 |
 
 ---
 
-*Last verified against `main`: 2026-09-10 (v2.17.7).*
+*Last verified against `dev`: 2026-09-20 (v2.19.11).*

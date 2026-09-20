@@ -1,10 +1,13 @@
 """Guest-first policy — the matrix every deployment must satisfy.
 
-CLAUDE.md promises: without an account you can search, stream, read lyrics,
-browse categories, see trending/recently-played and start downloads. This
-suite pins that promise endpoint by endpoint, and pins the other half too:
-account features must still refuse anonymous callers, and a *presented but
-invalid* token must 401 rather than silently degrade to guest.
+Without an account you can search, stream, read lyrics, browse categories and
+see trending/recently-played. Downloads are **not** on that list: starting a
+download writes into the shared music library and mutates process-global job
+state, so it requires a session like every other account-scoped action.
+
+This suite pins that matrix endpoint by endpoint, and pins the other half too:
+account features must refuse anonymous callers, and a *presented but invalid*
+token must 401 rather than silently degrade to guest.
 """
 
 from __future__ import annotations
@@ -33,7 +36,6 @@ GUEST_ALLOWED = [
     ("GET", "/api/library/albums", None),
     ("GET", "/api/library/artists", None),
     ("GET", "/api/artists/some-artist?name=Something", None),
-    ("POST", "/api/downloads", {"trackId": "dQw4w9WgXcQ"}),
     ("POST", "/api/tracks/dQw4w9WgXcQ/warm", None),
     ("GET", "/api/share/dQw4w9WgXcQ/link", None),
 ]
@@ -46,6 +48,10 @@ STRICT_ANON = [
     ("DELETE", "/api/tracks/dQw4w9WgXcQ/like", None),
     ("GET", "/api/playlists", None),
     ("POST", "/api/playlists", {"title": "x"}),
+    # Downloads write to the shared library and to global job state.
+    ("GET", "/api/downloads", None),
+    ("POST", "/api/downloads", {"trackId": "dQw4w9WgXcQ"}),
+    ("POST", "/api/downloads/batch", {"track_ids": ["dQw4w9WgXcQ"]}),
     ("GET", "/api/auth/me", None),
     ("GET", "/api/auth/me/preferences", None),
     ("PUT", "/api/auth/me/preferences", {}),

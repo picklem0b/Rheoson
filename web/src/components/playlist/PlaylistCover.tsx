@@ -183,7 +183,7 @@ export function PlaylistCoverEditor({ open, playlistId, currentUrl, onClose, onS
         <button
           onClick={() => save('')}
           disabled={saving}
-          className="mt-4 w-full flex items-center justify-center gap-2 h-10 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-sm font-semibold text-[var(--text-muted)] hover:text-red-400 transition-colors disabled:opacity-50"
+          className="mt-4 w-full flex items-center justify-center gap-2 h-10 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--danger-text)] transition-colors disabled:opacity-50"
         >
           <X className="w-4 h-4" />
           Remove cover

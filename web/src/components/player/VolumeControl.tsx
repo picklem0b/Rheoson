@@ -12,8 +12,8 @@ export default function VolumeControl() {
 
   const VolumeIcon =
     displayVolume === 0   ? SpeakerX  :
-    displayVolume < 0.35  ? SpeakerHigh   :
-    displayVolume < 0.70  ? SpeakerLow  : SpeakerHigh
+    displayVolume < 0.5   ? SpeakerLow :
+    SpeakerHigh
 
   const handleScroll = useCallback((e: React.WheelEvent) => {
     const delta = e.deltaY < 0 ? 0.05 : -0.05

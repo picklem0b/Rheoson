@@ -35,11 +35,18 @@ ID_D = "ddddddddddd"
 PAYLOAD = bytes(range(256)) * 16  # 4096 bytes of deterministic audio
 
 
-def _fake_fill(content: bytes, delay: float = 0.0):
+def _fake_fill(content: bytes, delay: float = 0.0, mime: str = "audio/mpeg"):
     """Return an async fake for ``_fill_buffer`` that writes `content` to
-    dest, optionally after sleeping `delay` seconds."""
+    dest, optionally after sleeping `delay` seconds.
 
-    async def _fill(track_id: str, dest):
+    Mirrors the real signature: the fill reports the container it is producing
+    through `on_mime` before it writes any audio, which is what a response
+    awaits so it can advertise a truthful Content-Type.
+    """
+
+    async def _fill(track_id: str, dest, on_mime=None):
+        if on_mime is not None:
+            on_mime(mime)
         if delay:
             await asyncio.sleep(delay)
         with open(dest, "wb") as f:
@@ -72,8 +79,10 @@ async def _reset_stream_state():
 async def test_concurrent_get_share_single_fill(client, monkeypatch):
     calls: list[str] = []
 
-    async def counting_fill(track_id: str, dest):
+    async def counting_fill(track_id: str, dest, on_mime=None):
         calls.append(track_id)
+        if on_mime is not None:
+            on_mime("audio/mpeg")
         with open(dest, "wb") as f:
             f.write(PAYLOAD)
 
@@ -95,7 +104,9 @@ async def test_client_disconnect_does_not_cache_partial_or_kill_fill(client, mon
     started = asyncio.Event()
     release = asyncio.Event()
 
-    async def gated_fill(track_id: str, dest):
+    async def gated_fill(track_id: str, dest, on_mime=None):
+        if on_mime is not None:
+            on_mime("audio/mpeg")
         with open(dest, "wb") as f:
             f.write(PAYLOAD[:100])
         started.set()
@@ -142,7 +153,7 @@ async def test_client_disconnect_does_not_cache_partial_or_kill_fill(client, mon
 async def test_failed_fill_does_not_retry_storm(client, monkeypatch):
     calls: list[str] = []
 
-    async def failing_fill(track_id: str, dest):
+    async def failing_fill(track_id: str, dest, on_mime=None):
         calls.append(track_id)
         raise RuntimeError("simulated yt-dlp failure")
 
@@ -191,6 +202,55 @@ async def test_open_ended_range_from_zero_streams_without_waiting(client, monkey
     # progressively instead of rejecting a Content-Range it cannot verify.
     assert resp.status_code == 200, resp.text
     assert resp.content == PAYLOAD
+
+
+async def test_growing_buffer_advertises_the_container_it_is_streaming(client, monkeypatch):
+    """The fallback path must not announce mp3 bytes as audio/mp4.
+
+    The regression: a session was created with a hardcoded ``audio/mp4`` and
+    the response headers were built from it before the fill had a chance to
+    report the real container. On the transcoding fallback the body was mp3,
+    so the server claimed the wrong type — and because the response also sets
+    ``X-Content-Type-Options: nosniff``, nothing downstream could repair it.
+
+    The session must instead wait for the fill's report, which every branch
+    produces before writing audio.
+    """
+    monkeypatch.setattr(
+        sr, "_fill_buffer", _fake_fill(PAYLOAD, delay=0.3, mime="audio/mpeg")
+    )
+
+    resp = await client.get(
+        f"/api/stream/{ID_A}/audio",
+        headers={"Range": "bytes=0-"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"].startswith("audio/mpeg"), (
+        f"buffer was mpeg but the response said {resp.headers['content-type']}"
+    )
+    assert resp.content == PAYLOAD
+
+
+@pytest.mark.asyncio
+async def test_growing_buffer_mime_is_released_even_when_the_fill_fails(client, monkeypatch):
+    """A failed fill must release the wait rather than stalling the response."""
+
+    async def failing_fill(track_id: str, dest, on_mime=None):
+        raise RuntimeError("simulated failure before any byte")
+
+    monkeypatch.setattr(sr, "_fill_buffer", failing_fill)
+
+    session = await sr._ensure_remote_session(ID_C)
+    assert session is not None
+    for _ in range(200):
+        if session["done"].is_set():
+            break
+        await asyncio.sleep(0.02)
+
+    # The fill never published a container, so the wait must have been released
+    # by the fill finishing — not left to time out.
+    assert session["mime_ready"].is_set()
 
 
 async def test_bounded_range_during_fill_waits_for_complete_file(client, monkeypatch):

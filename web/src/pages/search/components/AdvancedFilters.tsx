@@ -114,7 +114,7 @@ export default function AdvancedFilters({ filters, onChange }: AdvancedFiltersPr
                 </div>
               </div>
 
-              {/* Books only */}
+              {/* Library only */}
               <div>
                 <button
                   onClick={() => onChange({ ...filters, libraryOnly: !filters.libraryOnly })}
@@ -127,7 +127,7 @@ export default function AdvancedFilters({ filters, onChange }: AdvancedFiltersPr
                 >
                   <Books className={cn('w-4 h-4', filters.libraryOnly ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]')} />
                   <span className={cn('text-sm font-medium', filters.libraryOnly ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]')}>
-                    Books only
+                    Library only
                   </span>
                 </button>
               </div>

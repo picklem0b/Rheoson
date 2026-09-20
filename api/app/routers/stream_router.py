@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse, Response
+from app.core import toolchain
 from app.core.config import settings
 from app.core.deps import get_current_user, get_optional_user
 from app.services.artwork_service import extract_artwork, fetch_remote_artwork
@@ -26,11 +27,16 @@ from app.services import stream_service
 log    = structlog.get_logger()
 router = APIRouter()
 
-AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
+#: Containers the library serves. ``mp4``/``webm`` carry audio-only streams
+#: (``bestaudio``) and are what a download produces on a host without ffmpeg,
+#: where audio cannot be extracted into a dedicated container.
+AUDIO_EXTS = {"mp3", "flac", "m4a", "mp4", "webm", "ogg", "opus", "wav"}
 MIME_MAP   = {
     ".mp3":  "audio/mpeg",
     ".flac": "audio/flac",
     ".m4a":  "audio/mp4",
+    ".mp4":  "audio/mp4",
+    ".webm": "audio/webm",
     ".ogg":  "audio/ogg",
     ".opus": "audio/ogg; codecs=opus",
     ".wav":  "audio/wav",
@@ -350,7 +356,7 @@ def _mime_from_response(url: str, content_type: str) -> str:
     return stream_service.mime_from_response(url, content_type)
 
 
-async def _download_direct(url: str, dest: Path) -> str:
+async def _download_direct(url: str, dest: Path, on_mime=None) -> str:
     """Stream a resolved CDN URL into `dest`. Returns the audio mime type."""
     import httpx
 
@@ -365,6 +371,12 @@ async def _download_direct(url: str, dest: Path) -> str:
         ) as res:
             res.raise_for_status()
             content_type = (res.headers.get("content-type") or "").split(";")[0].strip().lower()
+            mime = _mime_from_response(url, content_type)
+            # The container is known the moment the response headers arrive,
+            # before any body is read. Publishing here lets a concurrent
+            # response describe the stream truthfully instead of guessing.
+            if on_mime is not None:
+                on_mime(mime)
             written = 0
             with open(dest, "wb") as f:
                 async for chunk in res.aiter_bytes(CHUNK):
@@ -375,20 +387,25 @@ async def _download_direct(url: str, dest: Path) -> str:
 
     if written < 1024:
         raise RuntimeError("direct stream produced no audio")
-    return _mime_from_response(url, content_type)
+    return mime
 
 
-async def _fill_buffer(track_id: str, dest: Path) -> str:
-    """Fill the buffer file, preferring the untranscoded direct stream.
+async def _fill_buffer(track_id: str, dest: Path, on_mime=None) -> str:
+    """Fill the buffer file, preferring the CDN's own bytes.
 
-    Returns the mime type of the bytes written. Falls back to the transcoding
-    yt-dlp path when no direct URL can be resolved, so a track the CDN refuses
-    still plays — just more slowly.
+    Returns the mime type of the bytes written. Falls back to the yt-dlp path
+    when no direct URL can be resolved, so a track the CDN refuses still
+    plays — just more slowly.
+
+    `on_mime` is called as soon as the container is known, which is always
+    before any audio is written. The type differs per branch (the CDN's own
+    container vs whatever yt-dlp emits), so it cannot be assumed up front, and
+    a response built before it is known would announce the wrong one.
     """
     direct = await _resolve_direct_url(track_id)
     if direct:
         try:
-            mime = await _download_direct(direct, dest)
+            mime = await _download_direct(direct, dest, on_mime=on_mime)
             log.info(
                 "stream.buffer.direct_filled",
                 track_id=track_id,
@@ -407,8 +424,7 @@ async def _fill_buffer(track_id: str, dest: Path) -> str:
             except OSError:
                 pass
 
-    await _fill_buffer_transcode(track_id, dest)
-    return "audio/mpeg"
+    return await _fill_buffer_ytdlp(track_id, dest, on_mime=on_mime)
 
 
 # ── Artwork cache ─────────────────────────────────────────────
@@ -452,6 +468,12 @@ def _artwork_cache_set(key: str, data: bytes) -> None:
 # queue behind background fills and leave the first play waiting.
 _REMOTE_FILL_LIMIT = 8
 _SESSION_IDLE_TTL  = 600.0   # finished sessions are swept after 10 min idle
+
+#: How long a growing-buffer response waits for the fill to report which
+#: container it is producing. Every branch knows it as soon as it has seen a
+#: byte, so this is normally satisfied almost immediately — it only bounds the
+#: pathological case where the first chunk is slow to arrive.
+_MIME_READY_TIMEOUT = 2.0
 # Platform temp dir (TMPDIR-aware) so the buffer works unchanged on Termux,
 # Render and VPS — a hard-coded /tmp does not exist on every Android build.
 _buffer_dir = Path(tempfile.gettempdir()) / "Rheoson_stream_buffer"
@@ -465,10 +487,35 @@ def _session_file(track_id: str) -> Path:
     return _buffer_dir / f"{track_id}.audio"
 
 
+def _predicted_fill_mime() -> str:
+    """The container a streaming fill is most likely to produce.
+
+    Only a fallback for the bounded wait in :func:`_serve_session_stream`; the
+    fill reports the real type as soon as it has seen a byte, and that always
+    wins.
+
+    Deliberately does not consult ``AUDIO_FORMAT``. The fill pipes yt-dlp to
+    stdout, and a post-processor needs a real file to run against, so the bytes
+    are the stream YouTube served (m4a, itag 140) whether or not ffmpeg is
+    installed. Predicting from ``AUDIO_FORMAT`` is what made the response
+    announce ``audio/mpeg`` while the body was an MP4.
+    """
+    return "audio/mp4"
+
+
 async def _fill_session(track_id: str, session: dict) -> None:
     """Background task: fill the buffer file, then flag the session done."""
+
+    def _publish(mime: str) -> None:
+        """Record the container as soon as the fill knows it."""
+        if mime:
+            session["mime"] = mime
+        session["mime_ready"].set()
+
     try:
-        session["mime"] = await _fill_buffer(track_id, session["path"])
+        session["mime"] = await _fill_buffer(
+            track_id, session["path"], on_mime=_publish
+        )
         session["ok"] = True
         log.info("stream.session.filled", track_id=track_id, mime=session["mime"])
     except asyncio.CancelledError:
@@ -481,6 +528,10 @@ async def _fill_session(track_id: str, session: dict) -> None:
         except OSError:
             pass
     finally:
+        # A fill that failed or ended without publishing a container must still
+        # release anyone waiting on the type — the response then falls back to
+        # the predicted value instead of waiting out the timeout.
+        session["mime_ready"].set()
         session["done"].set()
 
 
@@ -537,14 +588,18 @@ async def _ensure_remote_session(track_id: str) -> dict | None:
                 pass  # fall through, release lock and retry after a beat
             else:
                 session = {
-                    "done":     asyncio.Event(),
-                    "ok":       False,
-                    "accessed": now,
-                    "path":     _session_file(track_id),
-                    # YouTube's direct CDN streams are m4a (itag 140). The
-                    # real type is confirmed as soon as _fill_buffer resolves
-                    # the URL; the transcode fallback overwrites it to mp3.
-                    "mime":     "audio/mp4",
+                    "done":       asyncio.Event(),
+                    # Set the moment the fill reports the container it is
+                    # producing, always before the first useful byte. Response
+                    # headers are built from `mime`, and the response sets
+                    # nosniff, so a wrong value cannot be repaired downstream.
+                    "mime_ready": asyncio.Event(),
+                    "ok":         False,
+                    "accessed":   now,
+                    "path":       _session_file(track_id),
+                    # Best-effort value used only if the fill has not reported
+                    # the real container in time.
+                    "mime":       _predicted_fill_mime(),
                 }
                 session["task"] = asyncio.create_task(_fill_session(track_id, session))
                 _remote_sessions[track_id] = session
@@ -846,8 +901,35 @@ def _serve_local(path: Path, request: Request, mime: Optional[str] = None) -> Re
 # of a background session task (see _ensure_remote_session) so it is
 # decoupled from any single HTTP response.
 
-async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
-    """Spawn yt-dlp and write the re-encoded audio stream to dest."""
+def _sniff_audio_mime(data: bytes) -> str:
+    """Best-effort container sniff for a raw, untranscoded audio buffer."""
+    if len(data) >= 12 and data[4:8] == b"ftyp":
+        return "audio/mp4"
+    if data[:4] == b"\x1a\x45\xdf\xa3":
+        return "audio/webm"
+    if data[:4] == b"OggS":
+        return "audio/ogg"
+    return "audio/mpeg"
+
+
+async def _fill_buffer_ytdlp(track_id: str, dest: Path, on_mime=None) -> str:
+    """Fill the buffer with yt-dlp and report the container it actually wrote.
+
+    Streaming deliberately relays the native audio stream instead of
+    transcoding it. ``AUDIO_FORMAT`` describes what a *download* produces — a
+    real file, which a post-processor can re-encode — while this path pipes
+    yt-dlp to stdout, where post-processing cannot run. Transcoding here would
+    also degrade quality (lossy→lossy), burn CPU on the phone for nothing the
+    player needs (browsers decode the native m4a directly), and poison the
+    warm cache with a re-encoded copy when the native stream is the best
+    version to keep.
+
+    The audio-only selector is requested explicitly rather than implied by the
+    ``-x`` shorthand: yt-dlp's default format is video+audio, and the
+    post-processing flags that used to sit here do nothing on a pipe. Bytes
+    are sniffed for the true container — m4a in practice, but the selector can
+    fall through to webm/opus on tracks without an m4a stream.
+    """
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
 
     extractor_args_variants = [
@@ -859,12 +941,10 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
         "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     ]
-    audio_fmt  = settings.AUDIO_FORMAT or "mp3"
-    audio_qual = "0" if settings.AUDIO_QUALITY == "best" else (settings.AUDIO_QUALITY or "192")
+    # Audio-only, m4a first — identical on every host, with or without ffmpeg.
     base_cmd = [
-        "yt-dlp", "--quiet", "--no-warnings", "--no-playlist",
-        "-x", "--audio-format", audio_fmt, "--audio-quality", f"{audio_qual}K",
-        "-o", "-",
+        toolchain.ytdlp_bin(), "--quiet", "--no-warnings", "--no-playlist",
+        "--format", stream_service.RAW_AUDIO_SELECTOR, "-o", "-",
     ]
 
     for attempt in range(3):
@@ -908,7 +988,11 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
             continue
 
         # The first chunk was already consumed from stdout above, so it must
-        # be written to dest explicitly before streaming the rest.
+        # be written to dest explicitly before streaming the rest. It is also
+        # the only honest source for the container — sniff it, never assume it.
+        mime = _sniff_audio_mime(first_chunk)
+        if on_mime is not None:
+            on_mime(mime)
         try:
             with open(dest, "wb") as f:
                 f.write(first_chunk)
@@ -919,8 +1003,13 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
                         break
                     f.write(chunk)
             await proc.wait()
-            log.info("stream.buffer.filled", track_id=track_id, size=dest.stat().st_size)
-            return
+            log.info(
+                "stream.buffer.filled",
+                track_id=track_id,
+                size=dest.stat().st_size,
+                mime=mime,
+            )
+            return mime
         except Exception as e:
             log.warning("stream.buffer.write_error", track_id=track_id, error=str(e))
             if dest.exists():
@@ -964,6 +1053,20 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
     """
     path = session["path"]
     done = session["done"]
+
+    # Answer with the container the fill is actually producing. The wait is
+    # bounded and normally free — every branch reports the type before it
+    # writes audio — so this buys a truthful Content-Type for no perceptible
+    # startup delay. A slow first chunk falls back to the predicted value
+    # rather than stalling. `mime_ready` is always set by the fill, including
+    # on failure, so this cannot hang.
+    try:
+        await asyncio.wait_for(
+            asyncio.shield(session["mime_ready"].wait()),
+            timeout=_MIME_READY_TIMEOUT,
+        )
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        pass
 
     def _size() -> int:
         try:

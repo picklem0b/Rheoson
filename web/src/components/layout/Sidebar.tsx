@@ -8,9 +8,9 @@ import { isClerkEnabled } from '@/lib/constants'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
 
 const NAV_ITEMS = [
-  { to: '/', icon: House, label: 'House' },
-  { to: '/search', icon: MagnifyingGlass, label: 'MagnifyingGlass' },
-  { to: '/library', icon: Books, label: 'Books' },
+  { to: '/', icon: House, label: 'Home' },
+  { to: '/search', icon: MagnifyingGlass, label: 'Search' },
+  { to: '/library', icon: Books, label: 'Library' },
   { to: '/downloads', icon: DownloadSimple, label: 'My Music' },
   { to: '/settings', icon: GearSix, label: 'Settings' },
 ]
@@ -57,7 +57,7 @@ function ClerkProfileButton({ navigate }: { navigate: ReturnType<typeof useNavig
   const { user: clerkUser } = useUser()
   const localUser = useAuthStore((s) => s.user)
 
-  const name = clerkUser?.fullName ?? clerkUser?.username ?? localUser?.name ?? 'Your account'
+  const name = clerkUser?.username ?? localUser?.username ?? 'Your account'
   const imageUrl = clerkUser?.imageUrl ?? localUser?.image_url
   return <ProfileButtonBody navigate={navigate} name={name} imageUrl={imageUrl} />
 }
@@ -67,7 +67,7 @@ function LocalProfileButton({ navigate }: { navigate: ReturnType<typeof useNavig
   return (
     <ProfileButtonBody
       navigate={navigate}
-      name={localUser?.name ?? 'Your account'}
+      name={localUser?.username ?? 'Your account'}
       imageUrl={localUser?.image_url}
     />
   )

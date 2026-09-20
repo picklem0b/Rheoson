@@ -274,10 +274,9 @@ GET  /api/health              GET /api/health/diag (auth)
 GET  /health/live             GET /health/ready
 GET  /api/version
 
-# Auth (Clerk)
-POST /api/auth/register       POST /api/auth/login
+# Auth (Clerk — sign-in happens in Clerk's own components)
 POST /api/auth/logout         GET  /api/auth/me
-PATCH /api/auth/me            GET  /api/auth/visitor-count
+PATCH /api/auth/me            GET  /api/auth/visitor-count (public)
 POST /api/webhooks/clerk      (Svix-signed webhook)
 
 # Search
@@ -475,10 +474,12 @@ Start at **[docs/README.md](docs/README.md)** — the progressive index with the
 - [x] v1.3 — Single Howl instance, offline playback, cron jobs
 - [x] v2.14 — Clerk auth, per-user isolation, guest mode removal
 - [x] v2.15 — Production hardening: session-backed streaming, cancellable downloads, health system
-- [x] v2.16 — Discovery loop (Daily Mixes, Radio, taste onboarding), cross-device sync, Wrapped   - [x] v2.17 — Documentation overhaul, CI test gates
+- [x] v2.16 — Discovery loop (Daily Mixes, Radio, taste onboarding), cross-device sync, Wrapped
+- [x] v2.17 — Documentation overhaul, CI test gates
 
-- [ ] v2.18 — PWA background sync improvements, Android release signing
-- [ ] v3.0 — Multi-server federation, full offline PWA
+- [x] v2.18 — Full frontend redesign: token architecture, two-shell layout, iOS-style minimal language
+- [x] v2.19 — Playback/download reliability, auth and API trust boundary, instant library state, browse and creator surfaces
+- [ ] v3.0 — Multi-server federation, full offline PWA, Android release signing
 
 ---
 

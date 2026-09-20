@@ -16,17 +16,17 @@ interface ToastProps extends ToastData {
 }
 
 const icons = {
-  success: <CheckCircle className="w-4 h-4 text-green-400" />,
-  error:   <XCircle     className="w-4 h-4 text-red-400" />,
+  success: <CheckCircle className="w-4 h-4 text-[var(--success-text)]" />,
+  error:   <XCircle     className="w-4 h-4 text-[var(--danger-text)]" />,
   info:    <Info        className="w-4 h-4 text-blue-400" />,
-  warning: <Warning className="w-4 h-4 text-yellow-400" />,
+  warning: <Warning className="w-4 h-4 text-[var(--warning-text)]" />,
 }
 
 const styles = {
-  success: 'border-green-500/20',
-  error:   'border-red-500/20',
+  success: 'border-[var(--success)]/20',
+  error:   'border-[var(--danger)]/20',
   info:    'border-blue-500/20',
-  warning: 'border-yellow-500/20',
+  warning: 'border-[var(--warning)]/20',
 }
 
 export function Toast({ id, type, message, onDismiss }: ToastProps) {

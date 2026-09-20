@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
 import tempfile
 import pytest
 import pytest_asyncio
@@ -11,6 +13,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 # ── Isolate every test run from the dev machine's real music library ──
 _test_base = tempfile.mkdtemp(prefix="rheoson-api-test-")
+# The base is created once per session and holds a whole music tree, a stream
+# cache and the download staging area. Without this it is never removed, so a
+# machine that runs the suite repeatedly accumulates one directory per run.
+# Registered at import so it still fires when a run aborts mid-session.
+atexit.register(shutil.rmtree, _test_base, ignore_errors=True)
 os.environ["MUSIC_DIR"] = os.path.join(_test_base, "music")
 os.environ["DOWNLOADS_DIR"] = os.path.join(_test_base, "downloads")
 os.environ["EXTRA_MUSIC_DIRS"] = "[]"
@@ -137,6 +144,20 @@ class _MockAggCursor:
             yield r
 
 
+def _update_result(upserted_id=None, modified: int = 0):
+    """A result object shaped like Motor's UpdateResult.
+
+    ``upserted_id`` has to be a real ``None`` when nothing was inserted: a bare
+    MagicMock auto-creates any attribute you read, so every upsert would look
+    like an insert and any code branching on it would always take the
+    new-document path.
+    """
+    result = MagicMock()
+    result.upserted_id = upserted_id
+    result.modified_count = modified
+    return result
+
+
 class MockCollection:
     def __init__(self):
         self._docs: list[dict] = []
@@ -152,40 +173,42 @@ class MockCollection:
         return _MockAggCursor(matches)
 
     async def insert_one(self, doc):
+        if "_id" in doc and any(d.get("_id") == doc["_id"] for d in self._docs):
+            # Mirrors Mongo's duplicate-key error, so callers that lean on
+            # _id uniqueness (webhook replay de-duplication) behave here the
+            # same way they do in production.
+            raise RuntimeError("E11000 duplicate key error collection")
         self._docs.append(dict(doc))
         result = MagicMock()
         result.inserted_id = doc.get("_id", "mock_id")
         return result
 
+    @staticmethod
+    def _apply_update(doc: dict, update: dict) -> None:
+        """Apply `$set` and `$inc`, resolving dotted paths like Mongo does."""
+        for k, v in (update.get("$set") or {}).items():
+            if "." in k:
+                parent = doc
+                parts = k.split(".")
+                for part in parts[:-1]:
+                    parent = parent.setdefault(part, {})
+                parent[parts[-1]] = v
+            else:
+                doc[k] = v
+        for k, v in (update.get("$inc") or {}).items():
+            doc[k] = doc.get(k, 0) + v
+
     async def update_one(self, filter, update, upsert=False):
         for doc in self._docs:
             if all(doc.get(k) == v for k, v in filter.items()):
-                if "$set" in update:
-                    for k, v in update["$set"].items():
-                        # Dotted paths address nested documents
-                        # (e.g. preferences.autoplay) like real Mongo does.
-                        if "." in k:
-                            parent = doc
-                            parts = k.split(".")
-                            for part in parts[:-1]:
-                                parent = parent.setdefault(part, {})
-                            parent[parts[-1]] = v
-                        else:
-                            doc[k] = v
-                return MagicMock()
-        if upsert and "$set" in update:
+                self._apply_update(doc, update)
+                return _update_result(modified=1)
+        if upsert and ("$set" in update or "$inc" in update):
             new_doc: dict = {**filter}
-            for k, v in update["$set"].items():
-                if "." in k:
-                    parent = new_doc
-                    parts = k.split(".")
-                    for part in parts[:-1]:
-                        parent = parent.setdefault(part, {})
-                    parent[parts[-1]] = v
-                else:
-                    new_doc[k] = v
+            self._apply_update(new_doc, update)
             self._docs.append(new_doc)
-        return MagicMock()
+            return _update_result(upserted_id=new_doc.get("_id"), modified=0)
+        return _update_result()
 
     async def delete_one(self, filter):
         self._docs = [d for d in self._docs if not _mock_matches(d, filter)]
@@ -343,6 +366,15 @@ def _clean_state():
         track_identity._invalidate_caches()
     except Exception:
         pass
+    # Binary resolution is cached for the process lifetime. A cached path
+    # would outlive a test's monkeypatched PATH and point at the host's real
+    # yt-dlp, so a test that installs a fake one would silently test the
+    # wrong binary — or skip the subprocess path entirely.
+    try:
+        from app.core import toolchain
+        toolchain.refresh()
+    except Exception:
+        pass
     # The shared mock DB is session-scoped: clear its collections too, so
     # per-user DB state (users, signals, profiles) can't leak between tests
     # any more than the file-backed stores above can.
@@ -381,6 +413,11 @@ def _clean_state():
     try:
         from app.services import track_identity
         track_identity._invalidate_caches()
+    except Exception:
+        pass
+    try:
+        from app.core import toolchain
+        toolchain.refresh()
     except Exception:
         pass
 

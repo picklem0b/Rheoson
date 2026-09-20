@@ -89,7 +89,7 @@ export default function PrivacySection() {
    const clearSearch = actionRunner(setClearSearchState, async () => {
       sessionStorage.removeItem("rheoson-last-search");
       localStorage.removeItem("rheoson-search-history");
-      // The MagnifyingGlass page also keeps its recent-queries dropdown here; clear it
+      // The Search page also keeps its recent-queries dropdown here; clear it
       // too so "clear search history" is unambiguous.
       sessionStorage.removeItem("rheoson-recent-searches");
    });
@@ -108,7 +108,7 @@ export default function PrivacySection() {
       <div className='pb-4'>
          <SettingsGroup
             title='ClockCounterClockwise'
-            footer='Play history is stored on the server. MagnifyingGlass history is stored only on this device.'>
+            footer='Play history is stored on the server. Search history is stored only on this device.'>
             <SettingsRow
                label='Save play history'
                description='Off stops recording new recently-played entries (existing history stays until you clear it)'>
@@ -133,7 +133,7 @@ export default function PrivacySection() {
                state={clearSearchState}
                idleLabel='Clear search history'
                idleDesc='Remove saved search queries from this device'
-               okLabel='MagnifyingGlass history cleared'
+               okLabel='Search history cleared'
                onClick={clearSearchState === "idle" ? clearSearch : undefined}
             />
          </SettingsGroup>
@@ -156,10 +156,10 @@ export default function PrivacySection() {
                   <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
                )}
                {backupState === "ok" && (
-                  <CheckCircle className='w-4 h-4 text-green-400' />
+                  <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />
                )}
                {backupState === "err" && (
-                  <WarningCircle className='w-4 h-4 text-red-400' />
+                  <WarningCircle className='w-4 h-4 text-[var(--danger-text)]' />
                )}
                {backupState === "idle" && (
                   <DownloadSimple className='w-4 h-4 text-[var(--text-muted)]/50' />
@@ -186,10 +186,10 @@ export default function PrivacySection() {
                   <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
                )}
                {restoreState === "ok" && (
-                  <CheckCircle className='w-4 h-4 text-green-400' />
+                  <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />
                )}
                {restoreState === "err" && (
-                  <WarningCircle className='w-4 h-4 text-red-400' />
+                  <WarningCircle className='w-4 h-4 text-[var(--danger-text)]' />
                )}
                {restoreState === "idle" && (
                   <Upload className='w-4 h-4 text-[var(--text-muted)]/50' />
@@ -234,7 +234,7 @@ export default function PrivacySection() {
                danger
                onClick={signOutState === "idle" ? signOutDevice : undefined}
                icon={<ArrowClockwise className='w-[14px] h-[14px]' />}
-               iconBg='#EF4444'
+               iconBg='var(--danger)'
             />
          </SettingsGroup>
 
@@ -293,9 +293,9 @@ function HistoryRow({
          {state === "loading" && (
             <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
          )}
-         {state === "ok" && <CheckCircle className='w-4 h-4 text-green-400' />}
-         {state === "err" && <WarningCircle className='w-4 h-4 text-red-400' />}
-         {state === "idle" && <Trash className='w-4 h-4 text-red-400' />}
+         {state === "ok" && <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />}
+         {state === "err" && <WarningCircle className='w-4 h-4 text-[var(--danger-text)]' />}
+         {state === "idle" && <Trash className='w-4 h-4 text-[var(--danger-text)]' />}
       </SettingsRow>
    );
 }

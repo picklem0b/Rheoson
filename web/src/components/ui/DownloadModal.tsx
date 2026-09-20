@@ -69,7 +69,7 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
 // ── Modal ──────────────────────────────────────────────────────
 
 /**
- * DownloadSimple options modal — opened from the PlayerBar menu, Now Playing,
+ * Download options modal — opened from the PlayerBar menu, Now Playing,
  * and search results via uiStore.openDownloadModal(trackId).
  *
  * Lets the user pick format/quality (defaults come from GearSix →
@@ -140,7 +140,7 @@ export function DownloadModal() {
       closeDownloadModal()
     } catch (e) {
       // e.g. Wi-Fi-only mode on mobile data
-      toast(e instanceof Error ? e.message : 'DownloadSimple failed', 'error', 4000)
+      toast(e instanceof Error ? e.message : 'Download failed', 'error', 4000)
     }
   }
 
@@ -148,7 +148,7 @@ export function DownloadModal() {
     <Modal
       open={!!trackId}
       onClose={closeDownloadModal}
-      title="DownloadSimple"
+      title="Download"
       size="md"
       className="max-h-[88dvh] overflow-y-auto"
     >
@@ -282,7 +282,7 @@ export function DownloadModal() {
           {/* ── Action ───────────────────────────────────── */}
           <Button fullWidth size="md" onClick={handleDownload} disabled={!track}>
             <DownloadSimple className="w-4 h-4" />
-            {lossless ? 'DownloadSimple lossless' : `DownloadSimple ${format.toUpperCase()}`}
+            {lossless ? 'Download lossless' : `Download ${format.toUpperCase()}`}
           </Button>
           <p className="text-center text-[11px] text-[var(--text-muted)] mt-3">
             Queued downloads appear at the top of My Music

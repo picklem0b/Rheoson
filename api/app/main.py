@@ -51,7 +51,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.18.1"
+VERSION = "2.19.11"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -168,25 +168,28 @@ async def _cron_library_scan() -> None:
 
 
 async def _cron_ytdlp_update() -> None:
+    """Keep yt-dlp ahead of YouTube's player changes.
+
+    Runs through the resolved binary (see core.toolchain) rather than assuming
+    one is on PATH, and logs the host's overall tool readiness so a missing
+    ffmpeg is visible in the daily log instead of only when a download fails.
+    """
+    from app.core import toolchain
+
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "yt-dlp", "-U",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        try:
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
-            out = (stdout or b"").decode(errors="ignore").strip()
-            log.info("cron.ytdlp_update.done", output=out[:200] if out else "no output")
-        except asyncio.TimeoutError:
-            log.warning("cron.ytdlp_update.timeout")
-            # Don't leave a hanging update process behind
-            try:
-                proc.kill()
-            except Exception:
-                pass
+        ok, output = await asyncio.to_thread(toolchain.upgrade_ytdlp)
+        if ok:
+            log.info("cron.ytdlp_update.done", output=output[:200] if output else "no output")
+        else:
+            log.warning("cron.ytdlp_update.failed", output=output[:200])
     except Exception as e:
         log.error("cron.ytdlp_update.failed", error=str(e))
+
+    caps = toolchain.capabilities()
+    if not caps["canDownload"]:
+        log.error("cron.toolchain.no_downloader")
+    elif not caps["canTranscode"]:
+        log.warning("cron.toolchain.no_ffmpeg", hint=caps["ffmpeg"]["installHint"])
 
 
 async def _cron_job_cleanup() -> None:

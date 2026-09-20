@@ -1,7 +1,7 @@
 /**
  * Featured — full-page grid of curated playlists/albums.
  * Lives under pages/home/components because it's only ever reached
- * from House's "Featured → See all" button.
+ * from Home's "Featured → See all" button.
  *
  * Path: /featured (registered in router.tsx)
  * Backend: GET /api/library/featured (currently returns local playlists;
@@ -11,21 +11,11 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { Sparkle, Play } from '@phosphor-icons/react'
+import { Sparkle, Play, MusicNotes } from '@phosphor-icons/react'
 import { libraryApi } from '@/api/library.api'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { cn } from '@/lib/utils'
-
-const GRADIENTS = [
-  'from-violet-900 to-purple-700',
-  'from-rose-900 to-pink-700',
-  'from-cyan-900 to-blue-700',
-  'from-amber-900 to-orange-700',
-  'from-emerald-900 to-green-700',
-  'from-red-900 to-rose-700',
-]
 
 // ── Featured card ──────────────────────────────────────────────
 
@@ -46,7 +36,7 @@ function FeaturedCard({ item, index, onClick }: {
       <div className="relative aspect-square rounded-3xl overflow-hidden mb-2.5 shadow-lg">
         {item.artworkUrl
           ? <img src={item.artworkUrl} alt={item.title} className="w-full h-full object-cover" />
-          : <div className={cn('w-full h-full bg-gradient-to-br', GRADIENTS[index % GRADIENTS.length])} />
+          : <div className='w-full h-full bg-[var(--bg-overlay)] flex items-center justify-center'><MusicNotes className='w-8 h-8 text-[var(--text-muted)]' /></div>
         }
         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
           <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg ml-auto">

@@ -8,7 +8,7 @@ import {
 } from "../components/SettingsPrimitives";
 
 /**
- * DownloadSimple settings — only controls the download pipeline actually reads.
+ * Download settings — only controls the download pipeline actually reads.
  * File naming, save location, and speed limits are decided by the backend
  * (MUSIC_DIR layout, yt-dlp), so those controls would be decoration.
  */
@@ -66,7 +66,7 @@ export default function DownloadsSection() {
 
          {/* Quality */}
          <SettingsGroup
-            title='DownloadSimple quality'
+            title='Download quality'
             footer='Only applies to lossy formats (MP3, Opus, M4A). FLAC and WAV are always lossless.'>
             <RadioGroup
                value={quality as "128" | "192" | "256" | "320"}
@@ -124,7 +124,7 @@ export default function DownloadsSection() {
              (MUSIC_DIR + yt-dlp) and intentionally not configurable here. */}
 
          {/* Behaviour */}
-         <SettingsGroup title='DownloadSimple behaviour'>
+         <SettingsGroup title='Download behaviour'>
             <SettingsRow
                label='Wi-Fi only'
                description='Pause all downloads when on mobile data'>

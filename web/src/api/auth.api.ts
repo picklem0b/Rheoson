@@ -3,41 +3,22 @@ import { api } from './client.api';
 export interface AuthUser {
   id: string;
   email: string;
-  name: string;
+  /** The account's single identity — there is no first/last name. */
+  username: string;
   image_url?: string;
   created_at?: string;
 }
 
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-export interface RegisterPayload {
-  email: string;
-  password: string;
-  name?: string;
-}
-
-export interface AuthResponse {
-  session_token: string;
-  user: AuthUser;
-}
+// Sign-in and registration are handled by Clerk's hosted components, which
+// verify the credential before any session exists. There is intentionally no
+// client-side call that trades an email address for a session token.
 
 export const authApi = {
-  login: async (data: LoginPayload): Promise<AuthResponse> => {
-    return api.post<AuthResponse>('/auth/login', data);
-  },
-
-  register: async (data: RegisterPayload): Promise<AuthResponse> => {
-    return api.post<AuthResponse>('/auth/register', data);
-  },
-
   getProfile: async (): Promise<AuthUser> => {
     return api.get<AuthUser>('/auth/me');
   },
 
-  updateProfile: async (data: { name?: string }): Promise<void> => {
+  updateProfile: async (data: { username?: string }): Promise<void> => {
     return api.patch('/auth/me', data);
   },
 

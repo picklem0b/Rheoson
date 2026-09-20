@@ -100,7 +100,7 @@ function TrackRow({
             <motion.button
                whileTap={{ scale: 0.85 }}
                onClick={onAddToPlaylist}
-               className='w-8 h-8 rounded-full flex items-center justify-center bg-[var(--bg-elevated)] text-[var(--text-muted)] active:bg-[var(--accent-subtle)] active:text-[var(--accent)]'
+               className='w-10 h-10 rounded-full flex items-center justify-center bg-[var(--bg-elevated)] text-[var(--text-muted)] active:bg-[var(--accent-subtle)] active:text-[var(--accent)]'
                aria-label={`Add ${track.title} to a playlist`}>
                <ListPlus className='w-3.5 h-3.5' />
             </motion.button>
@@ -108,7 +108,7 @@ function TrackRow({
                whileTap={{ scale: 0.85 }}
                onClick={onDownload}
                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-all",
                   // Always visible on mobile (no hover-only)
                   track.isDownloaded
                      ? "bg-[var(--accent-subtle)] text-[var(--accent)]"
@@ -218,7 +218,7 @@ function ArtistPill({
    );
 }
 
-// ── MagnifyingGlass history row ────────────────────────────────────────
+// ── Search history row ────────────────────────────────────────
 // Recent searches show the song the user actually listened to from
 // each query (tapping it replays that song); queries without a played
 // song fall back to re-running the search.
@@ -291,7 +291,7 @@ function HistoryRow({
                onRemove(entry);
             }}
             aria-label={`Remove ${track?.title ?? entry.query} from recent searches`}
-            className='w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+            className='w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
                     text-[var(--text-muted)] hover:text-[var(--text-primary)]
                     hover:bg-[var(--bg-elevated)] transition-colors'>
             <X className='w-4 h-4' />
@@ -302,7 +302,7 @@ function HistoryRow({
 
 // ── Main page ─────────────────────────────────────────────────
 
-export default function MagnifyingGlass() {
+export default function Search() {
    const {
       query,
       setQuery,
@@ -394,10 +394,10 @@ export default function MagnifyingGlass() {
    return (
       <div className='flex flex-col h-full'>
          {/* ── Header ──────────────────────────────────────────── */}
-         <div className='px-4 pt-6 pb-3 space-y-3 flex-shrink-0'>
+         <div className='px-4 lg:px-8 pt-6 pb-3 space-y-3 flex-shrink-0 lg:max-w-3xl lg:mx-auto'>
             <div className='flex items-center justify-between'>
                <h1 className='text-2xl font-bold text-[var(--text-primary)]'>
-                  MagnifyingGlass
+                  Search
                </h1>
                {/* Link type indicator in header */}
                {(inputType === "spotify" || inputType === "youtube") && (
@@ -455,7 +455,8 @@ export default function MagnifyingGlass() {
          </div>
 
          {/* ── Content ─────────────────────────────────────────── */}
-         <ScrollArea className='flex-1 px-4 pb-6'>
+         <ScrollArea className='flex-1 px-4 lg:px-8 pb-6'>
+            <div className='lg:max-w-3xl lg:mx-auto'>
             <AnimatePresence mode='wait'>
                {/* Categories (idle state) */}
                {!query && (
@@ -540,12 +541,12 @@ export default function MagnifyingGlass() {
                      initial={{ opacity: 0, y: 10 }}
                      animate={{ opacity: 1, y: 0 }}
                      className='flex flex-col items-center py-20 gap-4 text-center'>
-                     <div className='w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center'>
-                        <X className='w-7 h-7 text-red-400' />
+                     <div className='w-16 h-16 rounded-3xl bg-[var(--danger-bg)] flex items-center justify-center'>
+                        <X className='w-7 h-7 text-[var(--danger-text)]' />
                      </div>
                      <div>
                         <p className='font-semibold text-[var(--text-primary)]'>
-                           MagnifyingGlass failed
+                           Search failed
                         </p>
                         <p className='text-sm text-[var(--text-secondary)] mt-1'>
                            {error}
@@ -670,6 +671,7 @@ export default function MagnifyingGlass() {
                   </motion.div>
                )}
             </AnimatePresence>
+            </div>
          </ScrollArea>
       </div>
    );

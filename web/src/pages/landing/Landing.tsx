@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight } from '@phosphor-icons/react'
 import { useAuth } from '@clerk/clerk-react'
 import { useAuthStore } from '@/store/auth.store'
-import { APP_NAME, isClerkEnabled } from '@/lib/constants'
+import { APP_NAME, APP_SLOGAN, isClerkEnabled } from '@/lib/constants'
 import AppLogo from '@/components/ui/AppLogo'
 
 /**
@@ -14,7 +14,7 @@ import AppLogo from '@/components/ui/AppLogo'
  * sign-in / sign-up choice — Clerk's own flow handles both and lets the user
  * switch between them, so mirroring that choice here only added a step.
  *
- * Flow: this screen → /auth (Clerk) → House.
+ * Flow: this screen → /auth (Clerk) → Home.
  */
 export default function Landing() {
   return isClerkEnabled() ? <ClerkGate /> : <GateBody clerkEnabled={false} />
@@ -77,7 +77,10 @@ function GateBody({ clerkEnabled, authed = false }: GateBodyProps) {
         <h1 className="text-3xl font-black tracking-tight text-[var(--text-primary)]">
           {APP_NAME}
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+        <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
+          {APP_SLOGAN}
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-[var(--text-muted)]">
           Stream from YouTube Music, download to your device, and listen offline.
         </p>
 
@@ -87,7 +90,7 @@ function GateBody({ clerkEnabled, authed = false }: GateBodyProps) {
           onClick={() => navigate('/auth')}
           className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--accent)] px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-brand/25 transition-shadow hover:shadow-xl hover:shadow-brand/35"
         >
-          Continue with Clerk
+          Sign in
           <ArrowRight className="h-4 w-4" />
         </motion.button>
 

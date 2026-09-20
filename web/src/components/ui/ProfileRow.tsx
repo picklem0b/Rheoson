@@ -34,7 +34,7 @@ export function ProfileRow() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
 
-  const name = user?.name ?? 'Your account'
+  const name = user?.username ?? 'Your account'
   const initials = getInitials(name)
   const gradient = getGradient(name)
 

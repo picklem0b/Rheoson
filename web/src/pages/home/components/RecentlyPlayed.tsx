@@ -1,7 +1,7 @@
 /**
  * RecentlyPlayed — full-page view of every recently played track.
  * Lives under pages/home/components because it's only ever reached
- * from House's "Quick picks → See all" button, not linked from anywhere else.
+ * from Home's "Quick picks → See all" button, not linked from anywhere else.
  *
  * Path: /recently-played (registered in router.tsx)
  * Backend: GET /api/tracks/recently-played (returns up to 50, hydrated)
@@ -11,6 +11,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateHistorySurfaces } from '@/lib/queryInvalidation'
 import { Clock, Play, Shuffle, Trash } from '@phosphor-icons/react'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
@@ -94,7 +95,7 @@ export default function RecentlyPlayed() {
 
   const { data: tracks, isLoading } = useQuery({
     queryKey: ['recently-played-full'],
-    // Larger limit than the House preview — this is the full view
+    // Larger limit than the Home preview — this is the full view
     queryFn:  () => tracksApi.getRecentlyPlayed(50),
   })
 
@@ -102,9 +103,8 @@ export default function RecentlyPlayed() {
     setClearing(true)
     try {
       await tracksApi.clearHistory()
-      // Refresh both the full list and the House preview query
-      queryClient.invalidateQueries({ queryKey: ['recently-played-full'] })
-      queryClient.invalidateQueries({ queryKey: ['recently-played'] })
+      // Refresh both the full list and the Home preview query
+      invalidateHistorySurfaces(queryClient)
     } finally {
       setClearing(false)
     }
@@ -132,7 +132,7 @@ export default function RecentlyPlayed() {
             size="md"
             loading={clearing}
             onClick={handleClear}
-            className="ml-auto text-red-400"
+            className="ml-auto text-[var(--danger-text)]"
           >
             <Trash className="w-4 h-4" />
             Clear

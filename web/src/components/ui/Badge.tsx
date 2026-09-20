@@ -11,9 +11,9 @@ export function Badge({ children, variant = 'surface', size = 'md', className }:
   const variants = {
     accent:  'bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]',
     surface: 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)]',
-    success: 'bg-green-500/10 text-green-400 border border-green-500/20',
-    warning: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
-    danger:  'bg-red-500/10 text-red-400 border border-red-500/20',
+    success: 'bg-[var(--success-bg)] text-[var(--success-text)] border border-[var(--success)]/20',
+    warning: 'bg-[var(--warning-bg)] text-[var(--warning-text)] border border-[var(--warning)]/20',
+    danger:  'bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger)]/20',
   }
   const sizes = {
     sm: 'text-2xs px-2 py-0.5 rounded-lg',

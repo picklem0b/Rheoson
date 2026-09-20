@@ -3,12 +3,16 @@ import re
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from app.core.deps import get_optional_user
+from app.core.deps import get_current_user
 from app.schemas.download_schema import DownloadRequestSchema, DownloadJobSchema
 from app.services.download_service import (
     enqueue_download, get_all_jobs, get_job,
-    cancel_job, retry_job, _persist_jobs,
+    cancel_job, retry_job, delete_job,
 )
+
+# Every route here requires a verified session and scopes its job list to that
+# session's owner. Jobs are process-global state, so an unscoped list (or an
+# anonymous cancel) would leak and mutate other accounts' downloads.
 
 # redirect_slashes=False prevents FastAPI from doing a 307 redirect from
 # POST /api/downloads → POST /api/downloads/ which causes the client to
@@ -53,7 +57,7 @@ def _validate_custom_path(custom_path: Optional[str]) -> None:
 
 @router.post("", response_model=DownloadJobSchema, status_code=202)
 @router.post("/", response_model=DownloadJobSchema, status_code=202, include_in_schema=False)
-async def start_download(req: DownloadRequestSchema, _user: dict | None = Depends(get_optional_user)):
+async def start_download(req: DownloadRequestSchema, user: dict = Depends(get_current_user)):
     if not req.trackId and not req.url:
         raise HTTPException(status_code=400, detail="trackId or url is required")
 
@@ -94,29 +98,30 @@ async def start_download(req: DownloadRequestSchema, _user: dict | None = Depend
         retries=req.retries,
         speed_limit=req.speedLimit,
         concurrency=req.concurrency,
+        owner=user.get("sub"),
     )
     return job
 
 
 @router.get("", response_model=list[DownloadJobSchema])
 @router.get("/", response_model=list[DownloadJobSchema], include_in_schema=False)
-async def list_downloads(_user: dict | None = Depends(get_optional_user)):
-    return get_all_jobs()
+async def list_downloads(user: dict = Depends(get_current_user)):
+    return get_all_jobs(owner=user.get("sub"))
 
 
 @router.get("/{job_id}", response_model=DownloadJobSchema)
-async def get_download(job_id: str, _user: dict | None = Depends(get_optional_user)):
+async def get_download(job_id: str, user: dict = Depends(get_current_user)):
     job_id = _validate_job_id(job_id)
-    job = get_job(job_id)
+    job = get_job(job_id, owner=user.get("sub"))
     if not job:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
     return job
 
 
 @router.post("/{job_id}/cancel")
-async def cancel_download(job_id: str, _user: dict | None = Depends(get_optional_user)):
+async def cancel_download(job_id: str, user: dict = Depends(get_current_user)):
     job_id = _validate_job_id(job_id)
-    ok = await cancel_job(job_id)
+    ok = await cancel_job(job_id, owner=user.get("sub"))
     if not ok:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
     return {"ok": True}
@@ -136,30 +141,21 @@ class RetryRequest(BaseModel):
 async def retry_download(
     job_id: str,
     body: RetryRequest | None = None,
-    _user: dict | None = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
     job_id = _validate_job_id(job_id)
     resume = body.resume if body is not None and body.resume is not None else None
-    job = await retry_job(job_id, resume=resume)
+    job = await retry_job(job_id, resume=resume, owner=user.get("sub"))
     if not job:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
     return job
 
 
 @router.delete("/{job_id}")
-async def delete_download(job_id: str, _user: dict | None = Depends(get_optional_user)):
+async def delete_download(job_id: str, user: dict = Depends(get_current_user)):
     job_id = _validate_job_id(job_id)
-    from app.services.download_service import _jobs, _staging_dir
-    if job_id not in _jobs:
+    if not await delete_job(job_id, owner=user.get("sub")):
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
-    # Only wipe the staging dir when the job is actually gone-for-good.
-    # A running job (downloading/converting/tagging) keeps its process and
-    # its partial data; deleting its record must not corrupt that.
-    if _jobs[job_id].get("status") not in ("downloading", "converting", "tagging"):
-        import shutil
-        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
-    del _jobs[job_id]
-    _persist_jobs()
     return {"ok": True}
 
 
@@ -180,7 +176,7 @@ class BatchDownloadRequest(BaseModel):
 
 
 @router.post("/batch", response_model=list[DownloadJobSchema], status_code=202)
-async def batch_download(req: BatchDownloadRequest, _user: dict | None = Depends(get_optional_user)):
+async def batch_download(req: BatchDownloadRequest, user: dict = Depends(get_current_user)):
     """Start multiple downloads at once (max 20)."""
     if not req.track_ids:
         raise HTTPException(status_code=400, detail="track_ids cannot be empty")
@@ -206,6 +202,7 @@ async def batch_download(req: BatchDownloadRequest, _user: dict | None = Depends
             retries=req.retries,
             speed_limit=req.speed_limit,
             concurrency=req.concurrency,
+            owner=user.get("sub"),
         )
         jobs.append(job)
     return jobs

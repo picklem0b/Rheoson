@@ -69,16 +69,16 @@ const SEVERITY: Record<
    warn: {
       label: 'Degraded',
       Icon: Warning,
-      color: 'text-amber-400',
-      bg: 'bg-amber-400/12',
-      ring: 'border-amber-400/25'
+      color: 'text-[var(--warning-text)]',
+      bg: 'bg-[var(--warning-bg)]',
+      ring: 'border-[var(--warning)]/25'
    },
    bad: {
       label: 'Problem',
       Icon: Warning,
-      color: 'text-red-400',
+      color: 'text-[var(--danger-text)]',
       bg: 'bg-red-400/12',
-      ring: 'border-red-400/25'
+      ring: 'border-[var(--danger)]/25'
    },
    unknown: {
       label: 'Skipped',
@@ -149,7 +149,7 @@ function FindingRow({
                         state === 'ok'
                            ? 'border-emerald-400/30 text-emerald-400'
                            : state === 'err'
-                             ? 'border-red-400/30 text-red-400'
+                             ? 'border-[var(--danger)]/25 text-[var(--danger-text)]'
                              : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-primary)]',
                         state === 'loading' && 'opacity-50'
                      )}>
@@ -234,6 +234,14 @@ export default function DiagnosticsSection() {
                   if (!res?.ok) throw new Error('update failed')
                   break
                }
+               case 'install-ffmpeg': {
+                  const res = await api.post<{ ok: boolean; output: string }>(
+                     '/settings/tools/install-ffmpeg'
+                  )
+                  setToolOutput(res?.output ?? null)
+                  if (!res?.ok) throw new Error('install failed')
+                  break
+               }
                case 'clear-stream-cache':
                   await api.post('/stream/cache/clear')
                   break
@@ -267,7 +275,7 @@ export default function DiagnosticsSection() {
                overallStyle.bg,
                overallStyle.ring
             )}>
-            <div className='w-[42px] h-[42px] rounded-[12px] bg-black/20 flex items-center justify-center flex-shrink-0'>
+            <div className='w-[42px] h-[42px] rounded-[12px] bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0'>
                <Stethoscope className={cn('w-5 h-5', overallStyle.color)} />
             </div>
             <div className='min-w-0 flex-1'>
@@ -289,7 +297,7 @@ export default function DiagnosticsSection() {
                   setDeep(null)
                   refetch()
                }}
-               className='w-9 h-9 rounded-full bg-black/20 flex items-center justify-center flex-shrink-0'>
+               className='w-9 h-9 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0'>
                <ArrowClockwise
                   className={cn(
                      'w-4 h-4 text-[var(--text-primary)]',
@@ -321,7 +329,7 @@ export default function DiagnosticsSection() {
                   label='No checks reported'
                   description='The server answered without a diagnostics payload.'
                   icon={<Warning className='w-[14px] h-[14px]' />}
-                  iconBg='#6B7280'
+                  iconBg='var(--text-muted)'
                />
             ) : (
                findings.map(f => (
@@ -370,7 +378,7 @@ export default function DiagnosticsSection() {
                   ) : fixState['__selftest'] === 'ok' ? (
                      <CheckCircle className='w-4 h-4 text-emerald-400' />
                   ) : fixState['__selftest'] === 'err' ? (
-                     <Warning className='w-4 h-4 text-red-400' />
+                     <Warning className='w-4 h-4 text-[var(--danger-text)]' />
                   ) : null}
                </SettingsRow>
                {selftest?.checks.map(c => {
@@ -382,7 +390,7 @@ export default function DiagnosticsSection() {
                         label={c.description}
                         description={c.detail || undefined}
                         icon={<Icon className='w-[14px] h-[14px]' />}
-                        iconBg={c.status === 'pass' ? '#22C55E' : c.status === 'warn' ? '#F59E0B' : c.status === 'fail' ? '#EF4444' : '#6B7280'}>
+                        iconBg={c.status === 'pass' ? 'var(--success)' : c.status === 'warn' ? 'var(--warning)' : c.status === 'fail' ? 'var(--danger)' : 'var(--text-muted)'}>
                         <span className={cn('text-[12px] tabular-nums', s.color)}>
                            {c.latencyMs != null ? `${c.latencyMs} ms` : s.label}
                         </span>
@@ -392,7 +400,7 @@ export default function DiagnosticsSection() {
             </SettingsGroup>
          )}
 
-         {/* yt-dlp self-update output */}
+         {/* Latest tool-maintenance output */}
          {toolOutput && (
             <SettingsGroup title='Last tool update'>
                <div className='px-4 py-3.5'>
@@ -440,14 +448,14 @@ export default function DiagnosticsSection() {
                label='Recent errors'
                description='Failed requests kept by the server'
                icon={<Warning className='w-[14px] h-[14px]' />}
-               iconBg={facts.errors ? '#EF4444' : '#6B7280'}>
+               iconBg={facts.errors ? 'var(--danger)' : 'var(--text-muted)'}>
                <span className='text-[14px] text-[var(--text-muted)] tabular-nums'>
                   {facts.errors ?? 0}
                </span>
             </SettingsRow>
          </SettingsGroup>
 
-         {/* ── Books doctor ─────────────────────────────── */}
+         {/* ── Library doctor ─────────────────────────────── */}
          <LibraryDoctor />
 
          {/* ── This device ────────────────────────────────── */}
@@ -468,7 +476,7 @@ export default function DiagnosticsSection() {
                      <WifiSlash className='w-[14px] h-[14px]' />
                   )
                }
-               iconBg={online ? '#22C55E' : '#EF4444'}
+               iconBg={online ? 'var(--success)' : 'var(--danger)'}
             />
             <SettingsRow
                label='Platform'

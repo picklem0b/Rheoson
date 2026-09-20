@@ -84,7 +84,7 @@ export function SettingsRow({
       <div className="min-w-0 flex-1">
         <p className={cn(
           'text-[15px] leading-snug',
-          danger ? 'text-red-400 font-normal' : 'text-[var(--text-primary)] font-[440]',
+          danger ? 'text-[var(--danger-text)] font-normal' : 'text-[var(--text-primary)] font-[440]',
         )}>
           {label}
         </p>

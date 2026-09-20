@@ -228,31 +228,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Login
-         * @description Login via Clerk — verify credentials and create a session.
-         *
-         *     Clerk's Backend API has no password-check endpoint, so we create a
-         *     real session for the matching Clerk account and hand its JWT back.
-         *     Clerk enforces the password on session creation: unknown credentials
-         *     return 404/422 here, which maps to a generic 401 for the client.
-         */
-        post: operations["login_api_auth_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/auth/logout": {
         parameters: {
             query?: never;
@@ -339,26 +314,6 @@ export interface paths {
         get: operations["get_preference_defaults_api_auth_me_preferences_defaults_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Register
-         * @description Register a new user via Clerk Backend API.
-         */
-        post: operations["register_api_auth_register_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1205,6 +1160,10 @@ export interface paths {
         /**
          * Doctor Scan
          * @description Scan the library for corrupt files, duplicates and empty folders.
+         *
+         *     Admin-only: the scan is an instance-wide filesystem walk, and the repairs
+         *     it feeds delete files, so it sits behind the same gate as the directory
+         *     and rescan routes rather than being open to every signed-in account.
          */
         get: operations["doctor_scan_api_settings_doctor_scan_get"];
         put?: never;
@@ -1266,6 +1225,52 @@ export interface paths {
         get: operations["spotify_status_api_settings_spotify_status_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tool Status
+         * @description What this host can actually do, for the diagnostics screen.
+         */
+        get: operations["tool_status_api_settings_tools_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/tools/install-ffmpeg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Install Ffmpeg
+         * @description Provide the audio post-processor downloads and fallback playback need.
+         *
+         *     Audio extraction, format conversion and thumbnail embedding all run
+         *     through ffmpeg, and the transcoding fallback cannot exist without it. On
+         *     the Android build the Termux package manager installs it without any
+         *     privilege escalation, which is the one case the server can repair itself;
+         *     elsewhere the response carries the command for the operator to run.
+         */
+        post: operations["install_ffmpeg_api_settings_tools_install_ffmpeg_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2194,16 +2199,6 @@ export interface components {
             /** Title */
             title?: string | null;
         };
-        /** LoginRequest */
-        LoginRequest: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            /** Password */
-            password: string;
-        };
         /** LyricsLineSchema */
         LyricsLineSchema: {
             /** Time */
@@ -2333,18 +2328,6 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** RegisterRequest */
-        RegisterRequest: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            /** Password */
-            password: string;
-            /** Name */
-            name?: string | null;
-        };
         /** RescanSchema */
         RescanSchema: {
             /** Dirs */
@@ -2436,15 +2419,6 @@ export interface components {
             artists: components["schemas"]["ArtistSchema"][];
             /** Playlists */
             playlists: components["schemas"]["PlaylistResultSchema"][];
-        };
-        /** TokenResponse */
-        TokenResponse: {
-            /** Session Token */
-            session_token: string;
-            /** User */
-            user: {
-                [key: string]: unknown;
-            };
         };
         /** TrackSchema */
         TrackSchema: {
@@ -2539,10 +2513,18 @@ export interface components {
              */
             artworkUrl: string;
         };
-        /** UpdateProfileRequest */
+        /**
+         * UpdateProfileRequest
+         * @description The one editable profile field.
+         *
+         *     Identity is a username — there is no first/last name in this product. It is
+         *     validated server-side rather than trusted: it becomes the display name and
+         *     the future messaging handle, so it is confined to a URL-free charset and a
+         *     bounded length. Clerk owns uniqueness; this owns shape.
+         */
         UpdateProfileRequest: {
-            /** Name */
-            name?: string | null;
+            /** Username */
+            username?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2933,39 +2915,6 @@ export interface operations {
             };
         };
     };
-    login_api_auth_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     logout_api_auth_logout_post: {
         parameters: {
             query?: never;
@@ -3108,39 +3057,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    register_api_auth_register_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4585,6 +4501,46 @@ export interface operations {
         };
     };
     spotify_status_api_settings_spotify_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    tool_status_api_settings_tools_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    install_ffmpeg_api_settings_tools_install_ffmpeg_post: {
         parameters: {
             query?: never;
             header?: never;

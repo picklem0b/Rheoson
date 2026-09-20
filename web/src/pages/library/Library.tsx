@@ -1,8 +1,26 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, SquaresFour, List, MusicNotes, VinylRecord, User, Heart, CaretRight, Play, Shuffle, X, Link as LinkIcon } from '@phosphor-icons/react';
+import {
+   Plus,
+   SquaresFour,
+   List,
+   MusicNotes,
+   VinylRecord,
+   User,
+   Heart,
+   CaretRight,
+   Play,
+   Shuffle,
+   X,
+   Link as LinkIcon
+} from '@phosphor-icons/react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+   invalidateLikeSurfaces,
+   invalidatePlaylistSurfaces
+} from "@/lib/queryInvalidation";
+import { qk } from "@/lib/queryKeys";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
@@ -18,24 +36,7 @@ import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/formatters";
 import type { Artist, Track } from "@/types/track.types";
 
-type LibTab = "liked" | "playlists" | "albums" | "artists";
-
-// ── Gradient pool — consistent colour per item ────────────────
-
-const GRADIENTS = [
-   "from-violet-800 to-purple-600",
-   "from-rose-800 to-red-600",
-   "from-cyan-800 to-blue-600",
-   "from-amber-800 to-orange-600",
-   "from-emerald-800 to-green-600",
-   "from-pink-800 to-rose-600",
-   "from-indigo-800 to-violet-600",
-   "from-teal-800 to-cyan-600"
-];
-
-function gradient(i: number) {
-   return GRADIENTS[i % GRADIENTS.length];
-}
+type LibTab = "playlists" | "albums" | "artists";
 
 // ── Skeleton loaders ──────────────────────────────────────────
 
@@ -69,7 +70,7 @@ function GridView({
                   className={cn(
                      "w-full aspect-square rounded-3xl mb-2.5 relative overflow-hidden",
                      "border border-[var(--border)] shadow-md",
-                     !item.artworkUrl && `bg-gradient-to-br ${gradient(i)}`
+                     !item.artworkUrl && "bg-[var(--bg-overlay)]"
                   )}>
                   {item.artworkUrl ? (
                      <img
@@ -84,7 +85,7 @@ function GridView({
                   ) : (
                      <div className='w-full h-full flex items-center justify-center'>
                         {"artist" in item ? (
-                           <VinylRecord className='w-10 h-10 text-white/40' />
+                           <VinylRecord className='w-10 h-10 text-[var(--text-muted)]' />
                         ) : (
                            <MusicNotes className='w-10 h-10 text-white/40' />
                         )}
@@ -143,7 +144,7 @@ function ListView({
                <div
                   className={cn(
                      "w-14 h-14 rounded-2xl flex-shrink-0 overflow-hidden border border-[var(--border)]",
-                     !item.artworkUrl && `bg-gradient-to-br ${gradient(i)}`,
+                     !item.artworkUrl && "bg-[var(--bg-overlay)]",
                      "flex items-center justify-center"
                   )}>
                   {item.artworkUrl ? (
@@ -157,7 +158,7 @@ function ListView({
                         }}
                      />
                   ) : "artist" in item ? (
-                     <VinylRecord className='w-6 h-6 text-white/50' />
+                     <VinylRecord className='w-6 h-6 text-[var(--text-muted)]' />
                   ) : (
                      <MusicNotes className='w-6 h-6 text-white/50' />
                   )}
@@ -218,7 +219,7 @@ function ArtistGrid({
                      "w-full aspect-square rounded-full overflow-hidden",
                      "border-2 border-[var(--border)] group-active:border-[var(--accent)]",
                      "transition-colors shadow-md",
-                     !artist.imageUrl && `bg-gradient-to-br ${gradient(i)}`,
+                     !artist.imageUrl && "bg-[var(--bg-overlay)]",
                      "flex items-center justify-center"
                   )}>
                   {artist.imageUrl ? (
@@ -250,11 +251,6 @@ function ArtistGrid({
 
 function EmptyState({ tab, onCreate }: { tab: LibTab; onCreate: () => void }) {
    const messages = {
-      liked: {
-         icon: <Heart className='w-8 h-8 text-[var(--text-muted)]' />,
-         text: "No liked songs yet",
-         sub: "Tap the heart icon on any song to save it here"
-      },
       playlists: {
          icon: <MusicNotes className='w-8 h-8 text-[var(--text-muted)]' />,
          text: "No playlists yet",
@@ -299,22 +295,102 @@ function EmptyState({ tab, onCreate }: { tab: LibTab; onCreate: () => void }) {
    );
 }
 
-// ── Tab configuration ────────────────────────────────────────────
+// ── Sections ─────────────────────────────────────────────────────
+//
+// The library used to be a set of tabs, so only one section was ever visible
+// and its heading carried no weight. Stacking them means each needs a real
+// heading and a divider that reads as structure rather than a stray line.
 
-const TABS: { id: LibTab; label: string; icon: React.ReactNode }[] = [
-   {
-      id: "liked",
-      label: "Liked Songs",
-      icon: <Heart className='w-3.5 h-3.5 fill-current' />
-   },
-   {
-      id: "playlists",
-      label: "Playlists",
-      icon: <MusicNotes className='w-3.5 h-3.5' />
-   },
-   { id: "albums", label: "Albums", icon: <VinylRecord className='w-3.5 h-3.5' /> },
-   { id: "artists", label: "Artists", icon: <User className='w-3.5 h-3.5' /> }
-];
+function SectionHeading({
+   icon,
+   title,
+   count,
+   actions
+}: {
+   icon: React.ReactNode;
+   title: string;
+   count?: number;
+   actions?: React.ReactNode;
+}) {
+   return (
+      <div className='mb-4'>
+         <div className='flex items-center gap-3'>
+            <span className='flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--accent)]'>
+               {icon}
+            </span>
+            <h2 className='text-xl font-bold text-[var(--text-primary)]'>
+               {title}
+            </h2>
+            {count !== undefined && count > 0 && (
+               <span className='text-[13px] font-semibold tabular-nums text-[var(--text-muted)]'>
+                  {count}
+               </span>
+            )}
+            <span className='min-w-2 flex-1' />
+            {actions}
+         </div>
+         {/* A rule that fades out rather than a hard line: it separates the
+             sections without drawing a box around each one. */}
+         <div
+            aria-hidden
+            className='mt-3 h-px w-full bg-gradient-to-r from-[var(--border-strong)] via-[var(--border)] to-transparent'
+         />
+      </div>
+   );
+}
+
+function EmptySection({
+   icon,
+   title,
+   note
+}: {
+   icon: React.ReactNode;
+   title: string;
+   note: string;
+}) {
+   return (
+      <div className='flex flex-col items-center justify-center gap-3 py-14'>
+         <div className='flex h-16 w-16 items-center justify-center rounded-[1.75rem] border border-[var(--border)] bg-[var(--bg-elevated)]'>
+            {icon}
+         </div>
+         <div className='text-center'>
+            <p className='text-base font-bold text-[var(--text-primary)]'>{title}</p>
+            <p className='mt-1 text-sm text-[var(--text-muted)]'>{note}</p>
+         </div>
+      </div>
+   );
+}
+
+/** Grid or list, with the loading and empty states the section needs. */
+function LibraryItems({
+   loading,
+   items,
+   empty,
+   grid,
+   onSelect
+}: {
+   loading: boolean;
+   items: Parameters<typeof GridView>[0]["items"];
+   empty: React.ReactNode;
+   grid: boolean;
+   onSelect: (id: string) => void;
+}) {
+   if (loading) {
+      return (
+         <div className='grid grid-cols-2 gap-4 pb-2 sm:grid-cols-3 lg:grid-cols-4'>
+            {Array.from({ length: 4 }).map((_, i) => (
+               <Skeleton key={i} className='h-40 rounded-2xl' />
+            ))}
+         </div>
+      );
+   }
+   if (items.length === 0) return <>{empty}</>;
+   return grid ? (
+      <GridView items={items} onSelect={onSelect} />
+   ) : (
+      <ListView items={items} onSelect={onSelect} />
+   );
+}
 
 // ── CreatePlaylistModal (moved from Playlists page) ─────────────
 
@@ -333,7 +409,7 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
             description: description.trim() || undefined
          }),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ["playlists"] });
+         invalidatePlaylistSurfaces(queryClient);
          toast("Playlist created!", "success");
          onClose();
       },
@@ -343,7 +419,7 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
    const importMutation = useMutation({
       mutationFn: () => playlistsApi.importSpotify(importUrl.trim()),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ["playlists"] });
+         invalidatePlaylistSurfaces(queryClient);
          toast("Playlist imported!", "success");
          onClose();
       },
@@ -534,9 +610,9 @@ function LikedTrackRow({
             <motion.button
                whileTap={{ scale: 0.8 }}
                onClick={onUnlike}
-               className='p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10'
+               className='p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--danger-bg)]'
                aria-label='Unlike'>
-               <Heart className='w-4 h-4 text-red-400 fill-current' />
+               <Heart className='w-4 h-4 text-[var(--danger-text)] fill-current' />
             </motion.button>
             <span className='text-xs text-[var(--text-muted)] tabular-nums'>
                {formatDuration(track.duration)}
@@ -546,51 +622,36 @@ function LikedTrackRow({
    );
 }
 
-export default function Books() {
+export default function Library() {
    const navigate = useNavigate();
    const { toast } = useToast();
 
-   const [tab, setTab] = useState<LibTab>("liked");
    const [grid, setGrid] = useState(true);
    const [showCreate, setShowCreate] = useState(false);
 
+   // Every section is on screen at once, so every query is live — nothing here
+   // waits on a tab the user may never open.
    const { data: playlists, isLoading: loadingPlaylists } = useQuery({
-      queryKey: ["playlists"],
+      queryKey: qk.playlists(),
       queryFn: getPlaylists
    });
 
    const { data: albums, isLoading: loadingAlbums } = useQuery({
-      queryKey: ["library-albums"],
-      queryFn: getAlbums,
-      enabled: tab === "albums"
+      queryKey: qk.libraryAlbums(),
+      queryFn: getAlbums
    });
 
    const { data: artists, isLoading: loadingArtists } = useQuery({
-      queryKey: ["library-artists"],
-      queryFn: getArtists,
-      enabled: tab === "artists"
+      queryKey: qk.libraryArtists(),
+      queryFn: getArtists
    });
 
    const { data: likedTracks, isLoading: loadingLiked } = useQuery<Track[]>({
-      queryKey: ["liked-tracks"],
-      queryFn: () => tracksApi.getLiked(),
-      enabled: tab === "liked"
+      queryKey: qk.likedTracks(),
+      queryFn: () => tracksApi.getLiked()
    });
 
    const { playAll, playTrack } = useQueue();
-
-   const isLoading =
-      (tab === "playlists" && loadingPlaylists) ||
-      (tab === "albums" && loadingAlbums) ||
-      (tab === "artists" && loadingArtists) ||
-      (tab === "liked" && loadingLiked);
-
-   const currentItems =
-      tab === "playlists"
-         ? (playlists ?? [])
-         : tab === "albums"
-           ? (albums ?? [])
-           : [];
 
    const handleCreate = () => {
       setShowCreate(true);
@@ -607,213 +668,159 @@ export default function Books() {
       }
    };
 
+   const queryClient = useQueryClient();
+
    const handleUnlike = async (e: React.MouseEvent, trackId: string) => {
       e.stopPropagation();
       try {
          await tracksApi.unlikeTrack(trackId);
-         queryClient.invalidateQueries({ queryKey: ["liked-tracks"] });
-         queryClient.invalidateQueries({ queryKey: ["liked-count"] });
+         invalidateLikeSurfaces(queryClient);
       } catch {
          // revert silently
       }
    };
 
-   const queryClient = useQueryClient();
-
    return (
       <div className='flex flex-col h-full'>
          {/* ── Header ──────────────────────────────────────────── */}
-         <div className='px-4 pt-6 pb-3 flex-shrink-0 space-y-4'>
-            <div className='flex items-center justify-between'>
-               <h1 className='text-2xl font-bold text-[var(--text-primary)]'>
-                  Books
-               </h1>
-               <div className='flex items-center gap-1'>
-                  {/* Grid/List toggle — only for playlists + albums */}
-                  {(tab === "playlists" || tab === "albums") && (
-                     <IconButton
-                        size='sm'
-                        variant='ghost'
-                        onClick={() => setGrid(!grid)}
-                        title={grid ? "List view" : "Grid view"}>
-                        {grid ? <List /> : <SquaresFour />}
-                     </IconButton>
-                  )}
-                  {tab === "playlists" && (
-                     <IconButton
-                        size='sm'
-                        variant='accent'
-                        onClick={handleCreate}
-                        title='New playlist'>
-                        <Plus />
-                     </IconButton>
-                  )}
-               </div>
-            </div>
-
-            {/* Tab pills */}
-            <div className='flex gap-2 overflow-x-auto no-scrollbar pb-1'>
-               {TABS.map(t => (
-                  <motion.button
-                     key={t.id}
-                     whileTap={{ scale: 0.93 }}
-                     onClick={() => setTab(t.id)}
-                     className={cn(
-                        "flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold",
-                        "transition-all duration-200",
-                        t.id === tab
-                           ? "bg-[var(--text-primary)] text-[var(--bg-base)] shadow-md"
-                           : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)]"
-                     )}>
-                     {t.icon}
-                     {t.label}
-                  </motion.button>
-               ))}
+         <div className='flex flex-shrink-0 items-center justify-between px-4 pt-6 pb-4 lg:px-8'>
+            <h1 className='text-2xl font-bold text-[var(--text-primary)]'>
+               Library
+            </h1>
+            <div className='flex items-center gap-1'>
+               <IconButton
+                  size='sm'
+                  variant='ghost'
+                  onClick={() => setGrid(!grid)}
+                  title={grid ? "List view" : "Grid view"}>
+                  {grid ? <List /> : <SquaresFour />}
+               </IconButton>
+               <IconButton
+                  size='sm'
+                  variant='accent'
+                  onClick={handleCreate}
+                  title='New playlist'>
+                  <Plus />
+               </IconButton>
             </div>
          </div>
 
-         <ScrollArea className='flex-1 px-4 pb-6'>
-            {/* ── Tab content ──────────────────────────────────── */}
-            <AnimatePresence mode='wait'>
-               <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.15 }}>
-                  {/* ── Liked Songs tab ───────────────────────── */}
-                  {tab === "liked" && (
-                     <div className='space-y-6'>
-                        {/* Hero header */}
-                        <motion.div
-                           initial={{ opacity: 0, y: -10 }}
-                           animate={{ opacity: 1, y: 0 }}
-                           className='flex-shrink-0'>
-                           <div className='flex items-end gap-6'>
-                              <div className='w-28 h-28 lg:w-36 lg:h-36 rounded-3xl bg-gradient-to-br from-violet-600 to-purple-500 flex items-center justify-center shadow-2xl flex-shrink-0'>
-                                 <Heart className='w-12 h-12 lg:w-14 lg:h-14 text-white fill-current' />
-                              </div>
-                              <div className='min-w-0'>
-                                 <p className='text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1'>
-                                    Playlist
-                                 </p>
-                                 <h2 className='text-3xl lg:text-4xl font-bold text-[var(--text-primary)]'>
-                                    Liked Songs
-                                 </h2>
-                                 {likedTracks && (
-                                    <p className='text-sm text-[var(--text-secondary)] mt-2'>
-                                       {likedTracks.length}{" "}
-                                       {likedTracks.length === 1
-                                          ? "song"
-                                          : "songs"}
-                                    </p>
-                                 )}
-                              </div>
-                           </div>
-
-                           <div className='flex items-center gap-3 mt-6'>
-                              <Button
-                                 variant='primary'
-                                 size='md'
-                                 disabled={!likedTracks?.length}
-                                 onClick={() =>
-                                    likedTracks && handlePlayAll(likedTracks)
-                                 }>
-                                 <Play className='w-5 h-5 fill-current' />
-                                 Play all
-                              </Button>
-                              <Button
-                                 variant='secondary'
-                                 size='md'
-                                 disabled={!likedTracks?.length}
-                                 onClick={() =>
-                                    likedTracks &&
-                                    handlePlayAll(likedTracks, true)
-                                 }>
-                                 <Shuffle className='w-4 h-4' />
-                                 Shuffle
-                              </Button>
-                           </div>
-                        </motion.div>
-
-                        {/* Track list */}
-                        <div className='space-y-1'>
-                           {loadingLiked &&
-                              Array.from({ length: 10 }).map((_, i) => (
-                                 <Skeleton
-                                    key={i}
-                                    className='h-14 rounded-2xl'
-                                 />
-                              ))}
-                           {likedTracks?.map((track, i) => (
-                              <LikedTrackRow
-                                 key={track.id}
-                                 track={track}
-                                 index={i}
-                                 onPlay={() => playTrack(track, likedTracks)}
-                                 onUnlike={e => handleUnlike(e, track.id)}
-                              />
-                           ))}
-                           {!loadingLiked &&
-                              likedTracks &&
-                              likedTracks.length === 0 && (
-                                 <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className='flex flex-col items-center justify-center py-24 gap-4'>
-                                    <div className='w-20 h-20 rounded-[2rem] bg-[var(--bg-elevated)] flex items-center justify-center border border-[var(--border)]'>
-                                       <Heart className='w-9 h-9 text-[var(--text-muted)]' />
-                                    </div>
-                                    <div className='text-center'>
-                                       <p className='font-bold text-[var(--text-primary)] text-lg'>
-                                          No liked songs yet
-                                       </p>
-                                       <p className='text-[var(--text-muted)] text-sm mt-1'>
-                                          Tap the heart icon on any song to save
-                                          it here
-                                       </p>
-                                    </div>
-                                 </motion.div>
-                              )}
+         <ScrollArea className='flex-1 px-4 lg:px-8 pb-10'>
+            <div className='space-y-10 lg:mx-auto lg:max-w-6xl'>
+               {/* ── Liked Songs ─────────────────────────────── */}
+               <section>
+                  <SectionHeading
+                     icon={<Heart className='h-4 w-4 fill-current' />}
+                     title='Liked Songs'
+                     count={likedTracks?.length}
+                     actions={
+                        <div className='flex items-center gap-2'>
+                           <Button
+                              variant='primary'
+                              size='sm'
+                              disabled={!likedTracks?.length}
+                              onClick={() =>
+                                 likedTracks && handlePlayAll(likedTracks)
+                              }>
+                              <Play className='h-4 w-4 fill-current' />
+                              Play
+                           </Button>
+                           <Button
+                              variant='secondary'
+                              size='sm'
+                              disabled={!likedTracks?.length}
+                              onClick={() =>
+                                 likedTracks && handlePlayAll(likedTracks, true)
+                              }
+                              title='Shuffle liked songs'>
+                              <Shuffle className='h-4 w-4' />
+                           </Button>
                         </div>
+                     }
+                  />
+                  <div className='space-y-1'>
+                     {loadingLiked &&
+                        Array.from({ length: 8 }).map((_, i) => (
+                           <Skeleton key={i} className='h-14 rounded-2xl' />
+                        ))}
+                     {likedTracks?.map((track, i) => (
+                        <LikedTrackRow
+                           key={track.id}
+                           track={track}
+                           index={i}
+                           onPlay={() => playTrack(track, likedTracks)}
+                           onUnlike={e => handleUnlike(e, track.id)}
+                        />
+                     ))}
+                     {!loadingLiked &&
+                        likedTracks &&
+                        likedTracks.length === 0 && (
+                           <EmptySection
+                              icon={
+                                 <Heart className='h-6 w-6 text-[var(--text-muted)]' />
+                              }
+                              title='No liked songs yet'
+                              note='Tap the heart on any song to save it here'
+                           />
+                        )}
+                  </div>
+               </section>
+
+               {/* ── Playlists ───────────────────────────────── */}
+               <section>
+                  <SectionHeading
+                     icon={<MusicNotes className='h-4 w-4' />}
+                     title='Playlists'
+                     count={playlists?.length}
+                  />
+                  <LibraryItems
+                     loading={loadingPlaylists}
+                     items={playlists ?? []}
+                     empty={<EmptyState tab='playlists' onCreate={handleCreate} />}
+                     grid={grid}
+                     onSelect={id => navigate(`/playlist/${id}`)}
+                  />
+               </section>
+
+               {/* ── Albums ──────────────────────────────────── */}
+               <section>
+                  <SectionHeading
+                     icon={<VinylRecord className='h-4 w-4' />}
+                     title='Albums'
+                     count={albums?.length}
+                  />
+                  <LibraryItems
+                     loading={loadingAlbums}
+                     items={albums ?? []}
+                     empty={<EmptyState tab='albums' onCreate={handleCreate} />}
+                     grid={grid}
+                     onSelect={id => navigate(`/album/${id}`)}
+                  />
+               </section>
+
+               {/* ── Artists ─────────────────────────────────── */}
+               <section>
+                  <SectionHeading
+                     icon={<User className='h-4 w-4' />}
+                     title='Artists'
+                     count={artists?.length}
+                  />
+                  {loadingArtists ? (
+                     <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4'>
+                        {Array.from({ length: 4 }).map((_, i) => (
+                           <Skeleton key={i} className='h-32 rounded-2xl' />
+                        ))}
                      </div>
+                  ) : !artists || artists.length === 0 ? (
+                     <EmptyState tab='artists' onCreate={handleCreate} />
+                  ) : (
+                     <ArtistGrid
+                        artists={artists}
+                        onSelect={id => navigate(`/artist/${id}`)}
+                     />
                   )}
-
-                  {/* ── Playlists / Albums tabs ──────────────── */}
-                  {!isLoading &&
-                     tab !== "artists" &&
-                     tab !== "liked" &&
-                     (currentItems.length === 0 ? (
-                        <EmptyState tab={tab} onCreate={handleCreate} />
-                     ) : grid ? (
-                        <GridView
-                           items={currentItems}
-                           onSelect={id =>
-                              navigate(`/${tab.slice(0, -1)}/${id}`)
-                           }
-                        />
-                     ) : (
-                        <ListView
-                           items={currentItems}
-                           onSelect={id =>
-                              navigate(`/${tab.slice(0, -1)}/${id}`)
-                           }
-                        />
-                     ))}
-
-                  {/* ── Artists tab ───────────────────────────── */}
-                  {!isLoading &&
-                     tab === "artists" &&
-                     (!artists || artists.length === 0 ? (
-                        <EmptyState tab='artists' onCreate={handleCreate} />
-                     ) : (
-                        <ArtistGrid
-                           artists={artists}
-                           onSelect={id => navigate(`/artist/${id}`)}
-                        />
-                     ))}
-               </motion.div>
-            </AnimatePresence>
+               </section>
+            </div>
          </ScrollArea>
 
          {/* Create / Import modal */}

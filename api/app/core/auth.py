@@ -15,6 +15,7 @@ import json
 import time
 from base64 import urlsafe_b64decode
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import structlog
@@ -117,15 +118,41 @@ async def verify_clerk_token(token: str) -> dict | None:
             continue
         if not claims.get("sub"):
             continue
-        # Clerk session JWTs assert iss = https://<instance>.clerk.accounts.dev
         iss = claims.get("iss") or ""
-        if iss and not (
-            iss.startswith("https://")
-            and ("clerk.accounts.dev" in iss or "clerk.dev" in iss or "clerk.com" in iss)
-        ):
+        if iss and not _issuer_allowed(iss):
             continue
         return claims
     return None
+
+
+def _issuer_allowed(iss: str) -> bool:
+    """True when `iss` is a Clerk session issuer we accept.
+
+    The check is on the parsed hostname, not the raw string. Substring matching
+    (``"clerk.com" in iss``) accepted any host that merely *contains* the
+    name — ``https://clerk.com.attacker.tld`` passed, which is exactly the
+    token forgery the issuer check exists to prevent.
+
+    Accepted by default: Clerk's own instance domains
+    (``<slug>.clerk.accounts.dev``) and Clerk-managed production domains
+    (``<slug>.clerk.com``). A ``CLERK_ISSUER`` setting pins a custom domain
+    exactly, and then nothing else is accepted.
+    """
+    try:
+        parsed = urlparse(iss)
+    except ValueError:
+        return False
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False
+
+    host = parsed.hostname.lower()
+    configured = (settings.CLERK_ISSUER or "").strip().rstrip("/").lower()
+    if configured:
+        return iss.strip().rstrip("/").lower() == configured
+
+    if host == "clerk.accounts.dev" or host.endswith(".clerk.accounts.dev"):
+        return True
+    return host == "clerk.com" or host.endswith(".clerk.com")
 
 
 async def clerk_get_user(user_id: str) -> dict | None:
@@ -144,85 +171,6 @@ async def clerk_get_user(user_id: str) -> dict | None:
             return None
     except Exception as e:
         log.warning("clerk.user.fetch_failed", user_id=user_id, error=str(e))
-        return None
-
-
-async def clerk_find_user_by_email(email: str) -> dict | None:
-    """Look up a Clerk user by email address via the Backend API.
-
-    Returns the full user object or None when the address is unknown.
-    Clerk may return several users for one address (multiple identities);
-    we take the first non-deleted account.
-    """
-    if not settings.CLERK_SECRET_KEY:
-        return None
-
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                _CLERK_USER_URL,
-                params={"email_address": [email]},
-                headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
-            )
-            if resp.status_code != 200:
-                log.warning("clerk.user.list_by_email_failed", status=resp.status_code)
-                return None
-            users = resp.json().get("data", [])
-            for u in users:
-                if not u.get("deleted"):
-                    return u
-            return None
-    except Exception as e:
-        log.warning("clerk.user.list_by_email_error", error=str(e))
-        return None
-
-
-async def clerk_create_user(email: str, password: str, name: str | None = None) -> dict | None:
-    """Create a user via Clerk Backend API. Returns the user object or None."""
-    if not settings.CLERK_SECRET_KEY:
-        return None
-
-    payload: dict[str, Any] = {
-        "email_address": [email],
-        "password": password,
-    }
-    if name:
-        payload["first_name"] = name
-
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                _CLERK_USER_URL,
-                json=payload,
-                headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
-            )
-            if resp.status_code in (200, 201):
-                return resp.json()
-            log.warning("clerk.user.create_failed", status=resp.status_code, body=resp.text[:200])
-            return None
-    except Exception as e:
-        log.warning("clerk.user.create_error", error=str(e))
-        return None
-
-
-async def clerk_create_session(user_id: str) -> dict | None:
-    """Create a session for a user via Clerk Backend API. Returns session object with JWT."""
-    if not settings.CLERK_SECRET_KEY:
-        return None
-
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                f"{_CLERK_USER_URL}/{user_id}/sessions",
-                json={"active_seconds": 60 * 60 * 24 * 7},  # 7 days
-                headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
-            )
-            if resp.status_code in (200, 201):
-                return resp.json()
-            log.warning("clerk.session.create_failed", status=resp.status_code)
-            return None
-    except Exception as e:
-        log.warning("clerk.session.create_error", error=str(e))
         return None
 
 
