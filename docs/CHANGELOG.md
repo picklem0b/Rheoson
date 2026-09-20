@@ -6,6 +6,20 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.18.5
+
+Redesign phase 5/7 — detail pages and Profile.
+
+- feat(detail): **Album, Artist and related-artwork placeholders** move from per-item gradient pools to the token layer — a muted duotone glyph on `--bg-overlay`, hairline borders. The Artist hero is now readable in both themes: theme-aware text over the artwork fade instead of white-with-drop-shadow, and a token backdrop when no image exists.
+- feat(profile): the profile banner, avatar initials, stat icons and quick links drop their six raw hue assignments for one accent treatment; presence dot uses the new `--success` token pair (added alongside `--danger` in the token layer).
+- fix(downloads): error rows use the semantic `--danger` tokens instead of raw reds.
+- feat(wrapped): the hero card keys off the neutral ramp with the accent reserved for charts and highlights; empty-state and bar-chart fuchsia literals replaced by tokens.
+- fix(profile): user-facing copy corrupted by the icon codemod repaired ("History, data, legal").
+- feat(playlist): destructive delete actions use the Button `danger` variant and `--danger` text tokens. The user-chosen gradient cover picker remains product functionality and is untouched.
+- chore(release): version 2.18.5 across all five sync points.
+
+---
+
 ## v2.18.4
 
 Redesign phase 4/7 — the player surfaces.
