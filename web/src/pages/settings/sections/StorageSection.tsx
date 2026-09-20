@@ -356,7 +356,7 @@ export default function StorageSection() {
             <StateRow
                state={exportState}
                idleLabel='Export library'
-               idleDesc='DownloadSimple your full track library as a JSON file'
+               idleDesc='Download your full track library as a JSON file'
                okLabel='Library exported'
                errLabel='Export failed'
                onClick={exportState === "idle" ? exportLib : undefined}

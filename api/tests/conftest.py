@@ -343,6 +343,15 @@ def _clean_state():
         track_identity._invalidate_caches()
     except Exception:
         pass
+    # Binary resolution is cached for the process lifetime. A cached path
+    # would outlive a test's monkeypatched PATH and point at the host's real
+    # yt-dlp, so a test that installs a fake one would silently test the
+    # wrong binary — or skip the subprocess path entirely.
+    try:
+        from app.core import toolchain
+        toolchain.refresh()
+    except Exception:
+        pass
     # The shared mock DB is session-scoped: clear its collections too, so
     # per-user DB state (users, signals, profiles) can't leak between tests
     # any more than the file-backed stores above can.
@@ -381,6 +390,11 @@ def _clean_state():
     try:
         from app.services import track_identity
         track_identity._invalidate_caches()
+    except Exception:
+        pass
+    try:
+        from app.core import toolchain
+        toolchain.refresh()
     except Exception:
         pass
 

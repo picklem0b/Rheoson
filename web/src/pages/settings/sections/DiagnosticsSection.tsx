@@ -234,6 +234,14 @@ export default function DiagnosticsSection() {
                   if (!res?.ok) throw new Error('update failed')
                   break
                }
+               case 'install-ffmpeg': {
+                  const res = await api.post<{ ok: boolean; output: string }>(
+                     '/settings/tools/install-ffmpeg'
+                  )
+                  setToolOutput(res?.output ?? null)
+                  if (!res?.ok) throw new Error('install failed')
+                  break
+               }
                case 'clear-stream-cache':
                   await api.post('/stream/cache/clear')
                   break
@@ -392,7 +400,7 @@ export default function DiagnosticsSection() {
             </SettingsGroup>
          )}
 
-         {/* yt-dlp self-update output */}
+         {/* Latest tool-maintenance output */}
          {toolOutput && (
             <SettingsGroup title='Last tool update'>
                <div className='px-4 py-3.5'>

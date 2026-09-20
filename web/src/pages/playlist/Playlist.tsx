@@ -225,7 +225,7 @@ export default function Playlist() {
                      <IconButton
                         size='md'
                         variant='ghost'
-                        title='DownloadSimple all tracks'
+                        title='Download all tracks'
                         disabled={!tracks.length}
                         onClick={() => {
                            if (!playlist) return;

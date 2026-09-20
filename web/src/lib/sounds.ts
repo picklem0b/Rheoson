@@ -30,7 +30,7 @@ export function soundEffectsEnabled(): boolean {
    return readPref("notif-sound", true);
 }
 
-/** DownloadSimple-complete chime — additionally gated by "DownloadSimple complete". */
+/** Download-complete chime — additionally gated by "Download complete". */
 export function downloadChimeEnabled(): boolean {
    return readPref("notif-dl-done", true);
 }

@@ -66,7 +66,7 @@ export default function NotificationsSection() {
             title='Downloads'
             footer='Lock-screen playback controls come from the system Media Session — see your device notification shade while playing.'>
             <SettingsRow
-               label='DownloadSimple complete chime'
+               label='Download complete chime'
                description='Play the chime when a track finishes downloading'
                icon={<DownloadSimple className='w-[14px] h-[14px]' />}
                iconBg='var(--success)'>

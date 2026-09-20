@@ -29,6 +29,8 @@ import httpx
 
 import structlog
 
+from app.core import toolchain
+
 log = structlog.get_logger()
 
 # ── Tunables ──────────────────────────────────────────────────
@@ -57,6 +59,15 @@ CHUNK = int(os.environ.get("STREAM_CHUNK_SIZE", "65536"))
 FORMAT_SELECTOR = os.environ.get(
     "STREAM_YTDLP_FORMAT",
     "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio/best[ext=mp4]/best",
+)
+
+#: Audio-only selector for hosts with no ffmpeg. The ladder above ends in a
+#: muxed ``best``, which only yields audio after the extractor runs it through
+#: ffmpeg — so on those hosts the download must stay inside containers that
+#: hold audio on their own and are already valid library extensions.
+RAW_AUDIO_SELECTOR = os.environ.get(
+    "STREAM_YTDLP_RAW_FORMAT",
+    "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio",
 )
 
 #: Client order. `default` is first deliberately: it is YouTube's own mix and
@@ -177,7 +188,7 @@ def resolve_direct_url_sync(track_id: str) -> Optional[str]:
 
     for extractor_args in client_attempts():
         cmd = [
-            "yt-dlp", "--quiet", "--no-warnings", "--no-playlist",
+            toolchain.ytdlp_bin(), "--quiet", "--no-warnings", "--no-playlist",
             "-f", FORMAT_SELECTOR, "-g",
         ]
         for arg in extractor_args:

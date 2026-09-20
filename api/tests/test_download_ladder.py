@@ -36,6 +36,12 @@ def job(monkeypatch, tmp_path):
     monkeypatch.setenv("MUSIC_DIR", str(music))
     monkeypatch.setenv("DOWNLOADS_DIR", str(downloads))
 
+    # This suite pins yt-dlp's format negotiation, so it holds the
+    # post-processor as available: whether the host really ships ffmpeg must
+    # not change what these tests measure.
+    from app.core import toolchain
+    monkeypatch.setattr(toolchain, "has_ffmpeg", lambda: True)
+
     job = ds._new_job("l-81Sh8Thm4", "Oh Ok", "Artist", "", "mp3", "320")
     ds._jobs[job["id"]] = job
     yield job
@@ -133,8 +139,8 @@ async def test_transport_failure_does_not_walk_the_ladder(job, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_exhausted_ladder_names_the_client_and_keeps_partial_data(job, monkeypatch):
-    """Failing every client must still leave something to resume from."""
+async def test_exhausted_ladder_reports_safely_and_keeps_partial_data(job, monkeypatch):
+    """Failing every client must leave resumable bytes and a safe message."""
 
     async def fake_attempt(job_id, job_dict, cmd, concurrency):
         staging = ds._staging_dir(job_id)
@@ -148,11 +154,12 @@ async def test_exhausted_ladder_names_the_client_and_keeps_partial_data(job, mon
         await ds._run_download(job["id"], URL, "Artist")
 
     message = str(err.value)
-    assert "yt-dlp exited with code 1" in message
-    # The error names which client was in play, so a bug report says more than
-    # "download failed".
-    assert "client" in message
-    assert stream_service.CLIENT_LADDER[-1] in message
+    # This string is rendered to the user, so it must be actionable copy — not
+    # the raw subprocess tail, which quotes the video id and upstream wording
+    # the user can do nothing about. The tail is preserved in the log instead.
+    assert "Sign in to confirm" not in message
+    assert "l-81Sh8Thm4" not in message
+    assert "tried" in message
 
     assert ds._staged_bytes(job["id"]) > 0, "resumable bytes must survive"
     staging = ds._staging_dir(job["id"])

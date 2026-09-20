@@ -164,7 +164,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
    return { on, off, emit, isConnected };
 }
 
-// ── DownloadSimple events hook ──────────────────────────────────────
+// ── Download events hook ──────────────────────────────────────
 
 export interface DownloadProgressEvent {
    id: string;

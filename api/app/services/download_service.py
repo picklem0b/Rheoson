@@ -12,11 +12,36 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from app.core import toolchain
 from app.core.config import settings
 from app.services import stream_service
 from app.websocket.ws_manager import ws_manager
 
 log = structlog.get_logger()
+
+
+# ── User-facing failure copy ──────────────────────────────────
+# A raw yt-dlp tail is a diagnostic, not a message: it quotes video ids,
+# signed URL fragments and upstream wording the user can do nothing with. Each
+# case below is something the user can act on. The untouched tail is still
+# logged, so nothing is lost for debugging.
+
+def _friendly_download_error(tail: str) -> str:
+    """Map a yt-dlp stderr tail to a message safe to show a user."""
+    low = (tail or '').lower()
+    if 'ffmpeg' in low:
+        return 'Audio conversion is unavailable on this server. Run the Doctor repair, then retry.'
+    if stream_service.is_extractor_failure(tail):
+        return 'YouTube refused this track on every client we tried. Update the download engine or retry shortly.'
+    if 'timed out' in low or 'timeout' in low:
+        return 'The download timed out. Retry to resume from where it stopped.'
+    if 'no space left' in low:
+        return 'There is no storage space left for this download.'
+    if 'name resolution' in low or 'unable to resolve host' in low or 'connection' in low:
+        return 'The download source could not be reached. Check the connection and retry.'
+    if 'permission denied' in low:
+        return 'The music folder is not writable.'
+    return 'The download did not complete. Retry to resume it.'
 
 # ── Job store ─────────────────────────────────────────────────
 # Jobs are persisted to a JSON file so the job list (and each job's resume
@@ -465,6 +490,20 @@ async def _run_download(
     # Walking the client ladder turns that into a slower success instead of a
     # permanent failure.
     attempts = stream_service.client_attempts()
+    can_postprocess = toolchain.has_ffmpeg()
+
+    if not toolchain.ytdlp().available:
+        # A missing binary cannot be fixed by another player client, so this
+        # fails before burning the ladder on seven identical spawn errors.
+        log.error('download.engine_missing', job_id=job_id)
+        raise RuntimeError('The download engine is not installed on this server.')
+    if not can_postprocess:
+        log.warning(
+            'download.ffmpeg_missing',
+            job_id=job_id,
+            hint=toolchain.install_hint('ffmpeg'),
+        )
+
     rc, tail, used_client = 1, '', ''
 
     for index, extractor_args in enumerate(attempts):
@@ -478,21 +517,25 @@ async def _run_download(
         # Maps 1:1 to the postprocessors the library path used before the
         # cancellable-subprocess rewrite: extract audio, embed tags, embed art.
         cmd = [
-            'yt-dlp', '--no-playlist', '--quiet', '--no-warnings', '--newline',
+            toolchain.ytdlp_bin(), '--no-playlist', '--quiet', '--no-warnings', '--newline',
             '--retries', str(retries), '--fragment-retries', str(retries),
-            '--format', stream_service.FORMAT_SELECTOR,
-            '-x', '--audio-format', fmt, '--audio-quality', quality_q,
+            '--format',
+            stream_service.FORMAT_SELECTOR if can_postprocess else stream_service.RAW_AUDIO_SELECTOR,
             '-o', out_tmpl,
         ]
+        if can_postprocess:
+            # Extraction, conversion and tag embedding all shell out to ffmpeg.
+            cmd += ['-x', '--audio-format', fmt, '--audio-quality', quality_q]
+            cmd += toolchain.ffmpeg_location_args()
         for arg in extractor_args:
             cmd += ['--extractor-args', arg]
         if resume:
             # Resume partially downloaded .part files left by an earlier
             # attempt (crash, cancel, network loss). No-op when starting fresh.
             cmd.append('--continue')
-        if embed_metadata:
+        if embed_metadata and can_postprocess:
             cmd += ['--add-metadata']
-        if embed_artwork:
+        if embed_artwork and can_postprocess:
             cmd += ['--write-thumbnail', '--embed-thumbnail']
         if speed_limit > 0:
             cmd += ['--limit-rate', f'{speed_limit}K']
@@ -524,9 +567,14 @@ async def _run_download(
         # (instant failures) are cleaned up.
         if _staged_bytes(job_id) == 0:
             shutil.rmtree(staging, ignore_errors=True)
-        raise RuntimeError(
-            f'yt-dlp exited with code {rc} ({used_client} client): {tail[:300]}'
+        log.error(
+            'download.failed',
+            job_id=job_id,
+            returncode=rc,
+            client=used_client,
+            tail=tail[:500],
         )
+        raise RuntimeError(_friendly_download_error(tail))
 
     files = [
         p for p in staging.iterdir()

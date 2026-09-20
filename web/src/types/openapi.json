@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.18.6"
+    "version": "2.19.1"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -3011,6 +3011,56 @@
         "summary": "Spotify Status",
         "description": "Check if Spotify credentials are configured via environment.",
         "operationId": "spotify_status_api_settings_spotify_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/settings/tools": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Tool Status",
+        "description": "What this host can actually do, for the diagnostics screen.",
+        "operationId": "tool_status_api_settings_tools_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/settings/tools/install-ffmpeg": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Install Ffmpeg",
+        "description": "Provide the audio post-processor downloads and fallback playback need.\n\nAudio extraction, format conversion and thumbnail embedding all run\nthrough ffmpeg, and the transcoding fallback cannot exist without it. On\nthe Android build the Termux package manager installs it without any\nprivilege escalation, which is the one case the server can repair itself;\nelsewhere the response carries the command for the operator to run.",
+        "operationId": "install_ffmpeg_api_settings_tools_install_ffmpeg_post",
         "responses": {
           "200": {
             "description": "Successful Response",
