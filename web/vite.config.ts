@@ -31,10 +31,10 @@ export default defineConfig({
          ],
 
          manifest: {
-            name: "Rheoson",
+            name: "Rheoson — Feel the Beat",
             short_name: "Rheoson",
             description:
-               "Self-hosted music streaming and download. No subscription, no ads.",
+               "Feel the Beat. Self-hosted music streaming and download. No subscription, no ads.",
             theme_color: "#0A0A0A",
             background_color: "#0A0A0A",
             display: "standalone",
