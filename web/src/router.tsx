@@ -1,9 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import RootLayout from '@/components/layout/RootLayout'
 import AuthGuard from '@/components/layout/AuthGuard'
-import House from '@/pages/home/Home'
-import MagnifyingGlass from '@/pages/search/Search'
-import Books from '@/pages/library/Library'
+import Home from '@/pages/home/Home'
+import Search from '@/pages/search/Search'
+import Library from '@/pages/library/Library'
 import Downloads from '@/pages/downloads/Downloads'
 import Settings from '@/pages/settings/Settings'
 import Profile from '@/pages/profile/Profile'
@@ -17,8 +17,8 @@ import NotFound from '@/pages/errors/NotFound'
 import Landing from '@/pages/landing/Landing'
 import AuthPage from '@/pages/auth/AuthPage'
 
-// House section "See all" pages — these live under pages/home/components/
-// because they only exist as drill-downs from House's sections, not as
+// Home section "See all" pages — these live under pages/home/components/
+// because they only exist as drill-downs from Home's sections, not as
 // independent top-level destinations.
 import RecentlyPlayed from '@/pages/home/components/RecentlyPlayed'
 import Trending        from '@/pages/home/components/Trending'
@@ -35,10 +35,10 @@ export const routes = [
       </AuthGuard>
     ),
     children: [
-      { index: true,              element: <House /> },
-      { path: 'home',             element: <House /> },
-      { path: 'search',           element: <MagnifyingGlass /> },
-      { path: 'library',          element: <Books /> },
+      { index: true,              element: <Home /> },
+      { path: 'home',             element: <Home /> },
+      { path: 'search',           element: <Search /> },
+      { path: 'library',          element: <Library /> },
       { path: 'downloads',        element: <Downloads /> },
       { path: 'settings',         element: <Settings /> },
       { path: 'profile',          element: <Profile /> },
@@ -52,7 +52,7 @@ export const routes = [
       { path: 'playlists',        element: <Navigate to="/library" replace /> },
       { path: 'liked',            element: <Navigate to="/library" replace /> },
 
-      // House section "See all" pages — routed at top level (URLs stay
+      // Home section "See all" pages — routed at top level (URLs stay
       // clean, e.g. /trending) even though the components live under home/
       { path: 'recently-played',  element: <RecentlyPlayed /> },
       { path: 'trending',         element: <Trending /> },
@@ -73,7 +73,7 @@ export const routes = [
   // Without the wildcard those steps fell through to the catch-all, which
   // renders NotFound outside the guard — and mid-flow, still-signed-out
   // users landed back on the marketing page instead of completing sign-in
-  // and reaching House.
+  // and reaching Home.
   { path: '/auth/*',      element: <AuthPage /> },
   { path: '/auth',        element: <AuthPage /> },
   { path: '/landing',     element: <Landing /> },

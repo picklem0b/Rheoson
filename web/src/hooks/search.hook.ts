@@ -185,7 +185,7 @@ export function useSearch() {
          } catch (e) {
             if (!isAbortError(e) && !ctrl.signal.aborted) {
                setError(
-                  e instanceof Error ? e.message : "MagnifyingGlass failed. Try again."
+                  e instanceof Error ? e.message : "Search failed. Try again."
                );
                setResults(null);
             }

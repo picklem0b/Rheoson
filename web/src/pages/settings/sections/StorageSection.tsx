@@ -340,13 +340,13 @@ export default function StorageSection() {
             />
          </SettingsGroup>
 
-         {/* Books */}
-         <SettingsGroup title='Books'>
+         {/* Library */}
+         <SettingsGroup title='Library'>
             <StateRow
                state={rescanState}
                idleLabel='Rescan library'
                idleDesc='Re-index all active directories and update track metadata'
-               okLabel='Books rescanned'
+               okLabel='Library rescanned'
                errLabel='Rescan failed'
                onClick={rescanState === "idle" ? rescan : undefined}
                idleIcon={
@@ -357,7 +357,7 @@ export default function StorageSection() {
                state={exportState}
                idleLabel='Export library'
                idleDesc='DownloadSimple your full track library as a JSON file'
-               okLabel='Books exported'
+               okLabel='Library exported'
                errLabel='Export failed'
                onClick={exportState === "idle" ? exportLib : undefined}
                idleIcon={

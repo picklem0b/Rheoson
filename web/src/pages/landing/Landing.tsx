@@ -14,7 +14,7 @@ import AppLogo from '@/components/ui/AppLogo'
  * sign-in / sign-up choice — Clerk's own flow handles both and lets the user
  * switch between them, so mirroring that choice here only added a step.
  *
- * Flow: this screen → /auth (Clerk) → House.
+ * Flow: this screen → /auth (Clerk) → Home.
  */
 export default function Landing() {
   return isClerkEnabled() ? <ClerkGate /> : <GateBody clerkEnabled={false} />

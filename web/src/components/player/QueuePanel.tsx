@@ -203,14 +203,14 @@ function AddToQueueModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal open onClose={onClose} title="Add to queue" className="max-h-[88dvh] overflow-hidden flex flex-col">
-      {/* MagnifyingGlass field */}
+      {/* Search field */}
       <div className="relative mb-4 flex-shrink-0">
         <MagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
         <input
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="MagnifyingGlass songs to queue…"
+          placeholder="Search songs to queue…"
           className="w-full h-11 pl-10 pr-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]
                      text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]
                      outline-none focus:border-[var(--accent)] transition-colors"

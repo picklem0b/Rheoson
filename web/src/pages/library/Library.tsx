@@ -20,23 +20,6 @@ import type { Artist, Track } from "@/types/track.types";
 
 type LibTab = "liked" | "playlists" | "albums" | "artists";
 
-// ── Gradient pool — consistent colour per item ────────────────
-
-const GRADIENTS = [
-   "from-violet-800 to-purple-600",
-   "from-rose-800 to-red-600",
-   "from-cyan-800 to-blue-600",
-   "from-amber-800 to-orange-600",
-   "from-emerald-800 to-green-600",
-   "from-pink-800 to-rose-600",
-   "from-indigo-800 to-violet-600",
-   "from-teal-800 to-cyan-600"
-];
-
-function gradient(i: number) {
-   return GRADIENTS[i % GRADIENTS.length];
-}
-
 // ── Skeleton loaders ──────────────────────────────────────────
 
 // ── Grid view ─────────────────────────────────────────────────
@@ -69,7 +52,7 @@ function GridView({
                   className={cn(
                      "w-full aspect-square rounded-3xl mb-2.5 relative overflow-hidden",
                      "border border-[var(--border)] shadow-md",
-                     !item.artworkUrl && `bg-gradient-to-br ${gradient(i)}`
+                     !item.artworkUrl && "bg-[var(--bg-overlay)]"
                   )}>
                   {item.artworkUrl ? (
                      <img
@@ -84,7 +67,7 @@ function GridView({
                   ) : (
                      <div className='w-full h-full flex items-center justify-center'>
                         {"artist" in item ? (
-                           <VinylRecord className='w-10 h-10 text-white/40' />
+                           <VinylRecord className='w-10 h-10 text-[var(--text-muted)]' />
                         ) : (
                            <MusicNotes className='w-10 h-10 text-white/40' />
                         )}
@@ -143,7 +126,7 @@ function ListView({
                <div
                   className={cn(
                      "w-14 h-14 rounded-2xl flex-shrink-0 overflow-hidden border border-[var(--border)]",
-                     !item.artworkUrl && `bg-gradient-to-br ${gradient(i)}`,
+                     !item.artworkUrl && "bg-[var(--bg-overlay)]",
                      "flex items-center justify-center"
                   )}>
                   {item.artworkUrl ? (
@@ -157,7 +140,7 @@ function ListView({
                         }}
                      />
                   ) : "artist" in item ? (
-                     <VinylRecord className='w-6 h-6 text-white/50' />
+                     <VinylRecord className='w-6 h-6 text-[var(--text-muted)]' />
                   ) : (
                      <MusicNotes className='w-6 h-6 text-white/50' />
                   )}
@@ -218,7 +201,7 @@ function ArtistGrid({
                      "w-full aspect-square rounded-full overflow-hidden",
                      "border-2 border-[var(--border)] group-active:border-[var(--accent)]",
                      "transition-colors shadow-md",
-                     !artist.imageUrl && `bg-gradient-to-br ${gradient(i)}`,
+                     !artist.imageUrl && "bg-[var(--bg-overlay)]",
                      "flex items-center justify-center"
                   )}>
                   {artist.imageUrl ? (
@@ -534,9 +517,9 @@ function LikedTrackRow({
             <motion.button
                whileTap={{ scale: 0.8 }}
                onClick={onUnlike}
-               className='p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10'
+               className='p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--danger-bg)]'
                aria-label='Unlike'>
-               <Heart className='w-4 h-4 text-red-400 fill-current' />
+               <Heart className='w-4 h-4 text-[var(--danger-text)] fill-current' />
             </motion.button>
             <span className='text-xs text-[var(--text-muted)] tabular-nums'>
                {formatDuration(track.duration)}
@@ -546,7 +529,7 @@ function LikedTrackRow({
    );
 }
 
-export default function Books() {
+export default function Library() {
    const navigate = useNavigate();
    const { toast } = useToast();
 
@@ -607,6 +590,8 @@ export default function Books() {
       }
    };
 
+   const queryClient = useQueryClient();
+
    const handleUnlike = async (e: React.MouseEvent, trackId: string) => {
       e.stopPropagation();
       try {
@@ -618,15 +603,13 @@ export default function Books() {
       }
    };
 
-   const queryClient = useQueryClient();
-
    return (
       <div className='flex flex-col h-full'>
          {/* ── Header ──────────────────────────────────────────── */}
-         <div className='px-4 pt-6 pb-3 flex-shrink-0 space-y-4'>
+         <div className='px-4 lg:px-8 pt-6 pb-3 flex-shrink-0 space-y-4'>
             <div className='flex items-center justify-between'>
                <h1 className='text-2xl font-bold text-[var(--text-primary)]'>
-                  Books
+                  Library
                </h1>
                <div className='flex items-center gap-1'>
                   {/* Grid/List toggle — only for playlists + albums */}
@@ -672,8 +655,9 @@ export default function Books() {
             </div>
          </div>
 
-         <ScrollArea className='flex-1 px-4 pb-6'>
+         <ScrollArea className='flex-1 px-4 lg:px-8 pb-6'>
             {/* ── Tab content ──────────────────────────────────── */}
+            <div className='lg:max-w-6xl lg:mx-auto'>
             <AnimatePresence mode='wait'>
                <motion.div
                   key={tab}
@@ -690,7 +674,7 @@ export default function Books() {
                            animate={{ opacity: 1, y: 0 }}
                            className='flex-shrink-0'>
                            <div className='flex items-end gap-6'>
-                              <div className='w-28 h-28 lg:w-36 lg:h-36 rounded-3xl bg-gradient-to-br from-violet-600 to-purple-500 flex items-center justify-center shadow-2xl flex-shrink-0'>
+                              <div className='w-28 h-28 lg:w-36 lg:h-36 rounded-3xl bg-[var(--accent)] flex items-center justify-center flex-shrink-0 shadow-[0_16px_48px_rgb(var(--accent-rgb)/0.35)]'>
                                  <Heart className='w-12 h-12 lg:w-14 lg:h-14 text-white fill-current' />
                               </div>
                               <div className='min-w-0'>
@@ -814,6 +798,7 @@ export default function Books() {
                      ))}
                </motion.div>
             </AnimatePresence>
+            </div>
          </ScrollArea>
 
          {/* Create / Import modal */}

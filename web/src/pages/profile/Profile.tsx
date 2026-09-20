@@ -115,7 +115,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
     retry: false,
   })
 
-  // Books count
+  // Library count
   const { data: libraryTracks } = useQuery({
     queryKey: ['tracks', 'local'],
     queryFn: () => tracksApi.getAll(),
@@ -330,7 +330,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
             Your stats
           </p>
           <div className="grid grid-cols-3 gap-2">
-            <ProfileStat icon={MusicNotes} label="Books" value={formatCount(trackCount)} />
+            <ProfileStat icon={MusicNotes} label="Library" value={formatCount(trackCount)} />
             <ProfileStat icon={Heart} label="Liked" value={formatCount(likedCount ?? 0)} />
             <ProfileStat icon={TrendUp} label="Plays" value={formatCount(stats?.total_plays ?? 0)} />
             <ProfileStat icon={Clock} label="Hours" value={stats?.estimated_listening_hours ?? 0} />

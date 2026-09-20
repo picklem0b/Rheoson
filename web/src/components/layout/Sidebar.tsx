@@ -8,9 +8,9 @@ import { isClerkEnabled } from '@/lib/constants'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
 
 const NAV_ITEMS = [
-  { to: '/', icon: House, label: 'House' },
-  { to: '/search', icon: MagnifyingGlass, label: 'MagnifyingGlass' },
-  { to: '/library', icon: Books, label: 'Books' },
+  { to: '/', icon: House, label: 'Home' },
+  { to: '/search', icon: MagnifyingGlass, label: 'Search' },
+  { to: '/library', icon: Books, label: 'Library' },
   { to: '/downloads', icon: DownloadSimple, label: 'My Music' },
   { to: '/settings', icon: GearSix, label: 'Settings' },
 ]
