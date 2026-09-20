@@ -6,6 +6,13 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.14
+
+Found by playing the whole app against a live server.
+
+- fix(streaming): **a seek could permanently poison the warm cache.** A ranged CDN relay (any seek past the first 128 KB) was teed into the durable cache like a full play, promoting a partial file as if the track were complete — and because the warm cache outranks every other path, every later seek beyond that file's end answered `416 Range Not Satisfiable` forever, with no recovery short of wiping the cache. The tee now requires the upstream response to actually cover the whole track, and a body that ends short of its promised size is discarded at publish time instead of being published. Verified live: the exact poisoned sequence now leaves the cache empty, a real seek returns 206, and a completed play still warms the cache as designed.
+- test: the relay-gating suite pins all four cases — seeks skipped, 200 cached, whole-file 206 cached, truncated body discarded.
+
 ## v2.19.13
 
 The user-safety and playlist-authoring pass.
