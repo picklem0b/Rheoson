@@ -55,9 +55,10 @@ let _howlFailed = false;
 // cache. Owned here so it can be revoked the moment the track is replaced —
 // leaking one blob per track would pin hundreds of megabytes.
 let _objectUrl: string | null = null;
-// BUG #25: Generation counter — incremented each time a new track is loaded.
-// Howl callbacks from a previous generation are silently ignored, preventing
-// race conditions where a stale onload/onplay clobbers the current track state.
+// Generation counter — incremented each time a new track is loaded. Howl
+// callbacks capture the generation they were created under and are silently
+// ignored when it no longer matches, so a slow onload/onplay from a previous
+// track can never clobber the current one.
 let _generation = 0;
 
 // Track which IDs have had recordPlay called this session
@@ -78,18 +79,6 @@ function _autoplayEnabled(): boolean {
         return raw !== null ? (JSON.parse(raw) as boolean) : true;
     } catch {
         return true;
-    }
-}
-
-// Settings → Audio → Seek step: how far the keyboard arrows and the
-// double-tap seek controls jump. 5–60 s, default 10.
-function _seekStep(): number {
-    try {
-        const raw = localStorage.getItem('rheoson-seek-step');
-        const n = raw !== null ? Number(JSON.parse(raw)) : NaN;
-        return Number.isFinite(n) ? Math.min(60, Math.max(5, n)) : 10;
-    } catch {
-        return 10;
     }
 }
 
@@ -184,8 +173,7 @@ function _startTimer(
 
 function _destroy() {
     _stopTimer();
-    // BUG #25: Increment generation so any in-flight callbacks from the old Howl
-    // are silently ignored when they fire after we destroy.
+    // Invalidate any in-flight callbacks from the Howl being destroyed.
     _generation++;
     if (_howl) {
         _howl.off();
@@ -364,8 +352,8 @@ export function usePlayer() {
             setPlaying(false);
             setDuration(0);
             _loadedId = trackId;
-            // BUG #25: Capture current generation — all Howl callbacks check this
-            // to ensure they belong to the active track.
+            // Capture the generation — every callback below checks it so only
+            // the active track's events are honored.
             const gen = _generation;
 
             // Resolve the URL asynchronously — may need to check local filesystem
@@ -394,7 +382,7 @@ export function usePlayer() {
                 autoplay: false, // we control play after seeking so there's no audible jump
 
                 onload() {
-                    // BUG #25: Ignore if a newer track was loaded while this one was loading
+                    // A newer track was loaded while this one was loading — ignore.
                     if (gen !== _generation) return;
                     _howlFailed = false;
                     const dur = _howl?.duration() ?? 0;
@@ -411,7 +399,7 @@ export function usePlayer() {
                 },
 
                 onplay() {
-                    // BUG #25: Ignore if generation has moved on
+                    // Ignore if generation has moved on
                     if (gen !== _generation) return;
                     // Ensure the DSP graph is attached (a rebuilt Howl has a new element)
                     try { ensureEffectsChain(); } catch { /* direct output */ }
@@ -512,9 +500,8 @@ export function usePlayer() {
 
                 onplayerror(_id, err) {
                     console.error('[Rheoson] play error', { trackId, err });
-                    // BUG FIX: Auto-recover from play errors by destroying
-                    // the current Howl and rebuilding from saved position.
-                    // This fixes the broken play button after a stream error.
+                    // A play error poisons the Howl — recover by destroying it
+                    // and rebuilding from the saved position on the next tap.
                     const savedPos = usePlayerStore.getState().savedProgress;
                     // Try AudioContext resume first (Android user-gesture lock)
                     if (Howler.ctx?.state === 'suspended') {

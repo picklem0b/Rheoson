@@ -16,7 +16,7 @@ import structlog
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.core.database import db_available, get_db
+from app.core.database import get_db
 from app.core.deps import get_current_user
 
 log = structlog.get_logger()

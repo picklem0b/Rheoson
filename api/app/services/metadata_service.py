@@ -4,10 +4,9 @@ import os
 import structlog
 from pathlib import Path
 from mutagen import File as MutagenFile
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TRCK, APIC, TDRC, USLT
-from mutagen.mp4 import MP4, MP4Cover
-from mutagen.flac import FLAC, Picture
-from mutagen.oggvorbis import OggVorbis
+from mutagen.id3 import ID3, APIC
+from mutagen.mp4 import MP4
+from mutagen.flac import FLAC
 
 log = structlog.get_logger()
 
@@ -36,7 +35,6 @@ def _file_id(path: Path) -> str:
 
 def read_track_metadata(path: Path) -> dict:
     """Read ID3/vorbis tags from a local file → TrackSchema-compatible dict."""
-    suffix    = path.suffix.lower()
     title     = path.stem
     artist    = "Unknown Artist"
     album     = "Unknown Album"
@@ -88,6 +86,7 @@ def read_track_metadata(path: Path) -> dict:
         "spotifyId":    None,
         "isDownloaded": True,
         "isLiked":      False,
+        "trackNumber":  track_num,
         "filePath":     str(path),
         "streamUrl":    stream_url,
         "artist": {

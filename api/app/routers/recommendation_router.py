@@ -459,7 +459,7 @@ async def get_daily_mixes(
     for idx, genre in enumerate(genres, start=1):
         try:
             results = await yt_search(f"{genre} hits", limit=limit * 2)
-        except Exception as e:
+        except Exception:
             continue
         tracks = []
         seen_in_mix: set[str] = set()

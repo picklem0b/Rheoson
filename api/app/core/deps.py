@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.auth import verify_clerk_token
@@ -65,8 +65,8 @@ async def get_optional_user(
         return _dev_identity()
 
     if not settings.has_clerk:
-        # Auth unconfigured in production: guests get the guest experience.
-        return None if cred is None else None
+        # Auth unconfigured in production: everyone gets the guest experience.
+        return None
 
     if cred is None:
         return None

@@ -10,7 +10,7 @@ from __future__ import annotations
 import html as html_lib
 from urllib.parse import urlencode, urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
 from app.core.deps import get_optional_user
 

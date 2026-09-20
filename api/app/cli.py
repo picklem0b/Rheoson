@@ -20,8 +20,6 @@ from __future__ import annotations
 import sys
 import asyncio
 import httpx
-import json
-from datetime import datetime
 
 # ── Config ────────────────────────────────────────────────────
 API_BASE = "http://127.0.0.1:8000/api"
@@ -248,7 +246,6 @@ async def cmd_download(query_or_url: str, fmt: str = "mp3", quality: str = "320"
         # Poll until done
         job_id = job.get("id")
         _info("Tracking progress…")
-        import time
         while True:
             await asyncio.sleep(2)
             try:
@@ -348,7 +345,7 @@ async def cmd_lyrics(track_id: str):
 
 async def cmd_stream(track_id: str):
     print()
-    _ok(f"Stream URL:")
+    _ok("Stream URL:")
     print(f"\n  {CY}{API_BASE}/stream/{track_id}/audio{R}\n")
     _dim("Copy this URL into any media player (VLC, mpv, etc)")
     print()

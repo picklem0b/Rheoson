@@ -30,6 +30,10 @@ jobs:
               pip install uv
               uv sync --extra dev
 
+         - name: Backend lint (pyflakes)
+           working-directory: api
+           run: uv run python -m pyflakes app
+
          - name: Backend test suite (hermetic)
            working-directory: api
            # tests/conftest.py pins Clerk config, so this runs anywhere with no
