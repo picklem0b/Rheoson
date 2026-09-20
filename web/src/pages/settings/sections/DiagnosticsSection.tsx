@@ -267,7 +267,7 @@ export default function DiagnosticsSection() {
                overallStyle.bg,
                overallStyle.ring
             )}>
-            <div className='w-[42px] h-[42px] rounded-[12px] bg-black/20 flex items-center justify-center flex-shrink-0'>
+            <div className='w-[42px] h-[42px] rounded-[12px] bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0'>
                <Stethoscope className={cn('w-5 h-5', overallStyle.color)} />
             </div>
             <div className='min-w-0 flex-1'>
@@ -289,7 +289,7 @@ export default function DiagnosticsSection() {
                   setDeep(null)
                   refetch()
                }}
-               className='w-9 h-9 rounded-full bg-black/20 flex items-center justify-center flex-shrink-0'>
+               className='w-9 h-9 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0'>
                <ArrowClockwise
                   className={cn(
                      'w-4 h-4 text-[var(--text-primary)]',
@@ -321,7 +321,7 @@ export default function DiagnosticsSection() {
                   label='No checks reported'
                   description='The server answered without a diagnostics payload.'
                   icon={<Warning className='w-[14px] h-[14px]' />}
-                  iconBg='#6B7280'
+                  iconBg='var(--text-muted)'
                />
             ) : (
                findings.map(f => (
@@ -382,7 +382,7 @@ export default function DiagnosticsSection() {
                         label={c.description}
                         description={c.detail || undefined}
                         icon={<Icon className='w-[14px] h-[14px]' />}
-                        iconBg={c.status === 'pass' ? '#22C55E' : c.status === 'warn' ? '#F59E0B' : c.status === 'fail' ? '#EF4444' : '#6B7280'}>
+                        iconBg={c.status === 'pass' ? 'var(--success)' : c.status === 'warn' ? 'var(--warning)' : c.status === 'fail' ? 'var(--danger)' : 'var(--text-muted)'}>
                         <span className={cn('text-[12px] tabular-nums', s.color)}>
                            {c.latencyMs != null ? `${c.latencyMs} ms` : s.label}
                         </span>
@@ -440,7 +440,7 @@ export default function DiagnosticsSection() {
                label='Recent errors'
                description='Failed requests kept by the server'
                icon={<Warning className='w-[14px] h-[14px]' />}
-               iconBg={facts.errors ? '#EF4444' : '#6B7280'}>
+               iconBg={facts.errors ? 'var(--danger)' : 'var(--text-muted)'}>
                <span className='text-[14px] text-[var(--text-muted)] tabular-nums'>
                   {facts.errors ?? 0}
                </span>
@@ -468,7 +468,7 @@ export default function DiagnosticsSection() {
                      <WifiSlash className='w-[14px] h-[14px]' />
                   )
                }
-               iconBg={online ? '#22C55E' : '#EF4444'}
+               iconBg={online ? 'var(--success)' : 'var(--danger)'}
             />
             <SettingsRow
                label='Platform'

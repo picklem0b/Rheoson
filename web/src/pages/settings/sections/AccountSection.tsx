@@ -170,7 +170,7 @@ export default function AccountSection() {
           danger
           onClick={() => setConfirmClear(true)}
           icon={<Trash className="w-[14px] h-[14px]" />}
-          iconBg="#EF4444"
+          iconBg="var(--danger)"
         />
       </SettingsGroup>
 

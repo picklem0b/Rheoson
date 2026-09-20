@@ -442,7 +442,7 @@ export default function LibraryDoctor() {
                                                 className={cn(
                                                    'flex-1 px-3 py-2 rounded-full text-[12.5px] font-bold flex items-center justify-center gap-1.5',
                                                    group.danger
-                                                      ? 'bg-red-500/90 text-white'
+                                                      ? 'bg-[var(--danger)] text-white'
                                                       : 'bg-[var(--accent)] text-white'
                                                 )}>
                                                 {sweepState[group.id] === 'loading' ? (

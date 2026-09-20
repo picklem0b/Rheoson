@@ -36,7 +36,7 @@ export default function NotificationsSection() {
                label='Sound effects'
                description='Play a chime for feedback and download completion'
                icon={<Lightning className='w-[14px] h-[14px]' />}
-               iconBg='#EAB308'>
+               iconBg='var(--warning)'>
                <Toggle value={sound} onChange={setSound} />
             </SettingsRow>
             <RadioGroup
@@ -52,7 +52,7 @@ export default function NotificationsSection() {
                label={testing ? 'Playing…' : 'Test sound effect'}
                description='Preview the chime at the chosen volume'
                icon={testing ? <ArrowClockwise className='w-[14px] h-[14px] animate-spin' /> : <Lightning className='w-[14px] h-[14px]' />}
-               iconBg='#A3A3A3'
+               iconBg='var(--text-muted)'
                onClick={() => {
                   setTesting(true);
                   playChime(volume, true);
@@ -69,7 +69,7 @@ export default function NotificationsSection() {
                label='DownloadSimple complete chime'
                description='Play the chime when a track finishes downloading'
                icon={<DownloadSimple className='w-[14px] h-[14px]' />}
-               iconBg='#22C55E'>
+               iconBg='var(--success)'>
                <Toggle value={dlDone} onChange={setDlDone} />
             </SettingsRow>
          </SettingsGroup>

@@ -49,7 +49,7 @@ const GROUPS: { label: string; rows: { key: string; action: string }[] }[] = [
       label: "Navigation",
       rows: [
          { key: "Ctrl + F", action: "Focus search bar" },
-         { key: "Ctrl + D", action: "DownloadSimple current track" },
+         { key: "Ctrl + D", action: "Download current track" },
          { key: "Ctrl + K", action: "Command palette" }
       ]
    }
