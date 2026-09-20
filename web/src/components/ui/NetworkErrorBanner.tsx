@@ -47,17 +47,17 @@ export function NetworkErrorBanner({
       exit={{ opacity: 0, y: -10 }}
       className={cn(
         'fixed z-[150] flex items-center gap-3 px-4 py-3 rounded-2xl border',
-        'bg-yellow-500/10 border-yellow-500/20',
+        'bg-[var(--warning-bg)] border-[var(--warning)]/20',
         'bottom-[calc(var(--player-height,72px)+var(--nav-height,64px)+12px)] inset-x-4',
         'mx-4 mb-2 max-w-xl sm:bottom-5 sm:right-5 sm:left-auto sm:mx-0 sm:mb-0',
         'pointer-events-auto'
       )}
     >
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--warning)]/20 flex items-center justify-center">
         {wasOnline ? (
-          <HardDrives className="w-4 h-4 text-yellow-400" />
+          <HardDrives className="w-4 h-4 text-[var(--warning-text)]" />
         ) : (
-          <WifiSlash className="w-4 h-4 text-yellow-400" />
+          <WifiSlash className="w-4 h-4 text-[var(--warning-text)]" />
         )}
       </div>
       <div className="flex-1 min-w-0">

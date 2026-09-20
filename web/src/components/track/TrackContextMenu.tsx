@@ -204,8 +204,8 @@ function MenuRow({ label, icon, danger, onRun }: MenuRowProps) {
       onClick={onRun}
       className={cnRow(danger)}
     >
-      <span className={danger ? 'text-red-400' : 'text-[var(--text-secondary)]'}>{icon}</span>
-      <span className={danger ? 'text-red-400' : 'text-[var(--text-primary)]'}>{label}</span>
+      <span className={danger ? 'text-[var(--danger-text)]' : 'text-[var(--text-secondary)]'}>{icon}</span>
+      <span className={danger ? 'text-[var(--danger-text)]' : 'text-[var(--text-primary)]'}>{label}</span>
     </button>
   )
 }
@@ -214,7 +214,7 @@ function cnRow(danger?: boolean) {
   return [
     'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-semibold transition-colors',
     danger
-      ? 'text-red-400 hover:bg-red-500/10'
+      ? 'text-[var(--danger-text)] hover:bg-[var(--danger-bg)]'
       : 'hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)]',
   ].join(' ')
 }

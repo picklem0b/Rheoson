@@ -123,8 +123,8 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
           </div>
         </div>
 
-        <div className="px-4 py-6 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-center">
-          <p className="text-sm font-medium text-yellow-400">
+        <div className="px-4 py-6 rounded-2xl bg-[var(--warning-bg)] border border-[var(--warning)]/20 text-center">
+          <p className="text-sm font-medium text-[var(--warning-text)]">
             Authentication not configured
           </p>
           <p className="text-xs text-[var(--text-muted)] mt-2">

@@ -57,7 +57,6 @@ export default function AppearanceSection() {
                                  className='absolute inset-0 flex items-center justify-center'>
                                  <Check
                                     className='w-[18px] h-[18px] text-white drop-shadow'
-                                    strokeWidth={3}
                                  />
                               </motion.div>
                            )}

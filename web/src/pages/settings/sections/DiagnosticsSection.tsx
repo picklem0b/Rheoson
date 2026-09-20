@@ -69,16 +69,16 @@ const SEVERITY: Record<
    warn: {
       label: 'Degraded',
       Icon: Warning,
-      color: 'text-amber-400',
-      bg: 'bg-amber-400/12',
-      ring: 'border-amber-400/25'
+      color: 'text-[var(--warning-text)]',
+      bg: 'bg-[var(--warning-bg)]',
+      ring: 'border-[var(--warning)]/25'
    },
    bad: {
       label: 'Problem',
       Icon: Warning,
-      color: 'text-red-400',
+      color: 'text-[var(--danger-text)]',
       bg: 'bg-red-400/12',
-      ring: 'border-red-400/25'
+      ring: 'border-[var(--danger)]/25'
    },
    unknown: {
       label: 'Skipped',
@@ -149,7 +149,7 @@ function FindingRow({
                         state === 'ok'
                            ? 'border-emerald-400/30 text-emerald-400'
                            : state === 'err'
-                             ? 'border-red-400/30 text-red-400'
+                             ? 'border-[var(--danger)]/25 text-[var(--danger-text)]'
                              : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-primary)]',
                         state === 'loading' && 'opacity-50'
                      )}>
@@ -370,7 +370,7 @@ export default function DiagnosticsSection() {
                   ) : fixState['__selftest'] === 'ok' ? (
                      <CheckCircle className='w-4 h-4 text-emerald-400' />
                   ) : fixState['__selftest'] === 'err' ? (
-                     <Warning className='w-4 h-4 text-red-400' />
+                     <Warning className='w-4 h-4 text-[var(--danger-text)]' />
                   ) : null}
                </SettingsRow>
                {selftest?.checks.map(c => {

@@ -134,12 +134,15 @@
   /* Status — semantic feedback hues, fixed across themes and accents
      (status must stay recognizable regardless of the accent in use).
      Light theme re-maps the text/bg pair below. */
+  --danger: rgb(255 69 58);
   --danger-rgb: 255 69 58;
   --danger-text: rgb(255 105 97);
   --danger-bg: rgb(var(--danger-rgb) / 0.12);
+  --success: rgb(48 209 88);
   --success-rgb: 48 209 88;
   --success-text: rgb(48 209 88);
   --success-bg: rgb(var(--success-rgb) / 0.12);
+  --warning: rgb(255 159 10);
   --warning-rgb: 255 159 10;
   --warning-text: rgb(255 159 10);
   --warning-bg: rgb(var(--warning-rgb) / 0.12);
@@ -190,12 +193,15 @@
   --glass-border: rgb(var(--gray-950) / 0.08);
   --glass-highlight: rgb(var(--gray-0) / 0.5);
 
+  --danger: rgb(215 40 50);
   --danger-rgb: 215 40 50;
   --danger-text: rgb(190 30 40);
   --danger-bg: rgb(var(--danger-rgb) / 0.1);
+  --success: rgb(40 167 69);
   --success-rgb: 40 167 69;
   --success-text: rgb(32 142 59);
   --success-bg: rgb(var(--success-rgb) / 0.1);
+  --warning: rgb(204 122 0);
   --warning-rgb: 204 122 0;
   --warning-text: rgb(150 90 0);
   --warning-bg: rgb(var(--warning-rgb) / 0.1);

@@ -79,8 +79,8 @@ export default function AccountSection() {
               {user?.email ?? "View profile"}
             </p>
             <div className="flex items-center gap-1.5 mt-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              <span className="text-[12px] text-green-400 font-semibold">
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
+              <span className="text-[12px] text-[var(--success-text)] font-semibold">
                 Self-hosted · Local
               </span>
             </div>
@@ -99,7 +99,7 @@ export default function AccountSection() {
           className={cn(
             "flex items-center gap-2.5 px-4 py-3 text-[13px] font-medium border-b border-[var(--border)]/50",
             spotifyOk
-              ? "text-green-400 bg-green-500/5"
+              ? "text-[var(--success-text)] bg-[var(--success-bg)]"
               : "text-orange-400 bg-orange-500/5"
           )}
         >
@@ -157,7 +157,7 @@ export default function AccountSection() {
             label="How it's used"
             description="Metadata, artwork, and link resolution only — audio never comes from Spotify"
           >
-            <Check className="w-4 h-4 text-green-400" />
+            <Check className="w-4 h-4 text-[var(--success-text)]" />
           </SettingsRow>
         )}
       </SettingsGroup>

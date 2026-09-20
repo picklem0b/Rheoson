@@ -102,12 +102,12 @@ export function DownloadProgressBar() {
           exit={{ opacity: 0 }}
           className={cn(
             'fixed z-[140] flex items-center gap-2 px-3.5 py-2 rounded-full',
-            'bg-red-500/10 border border-red-500/20',
+            'bg-[var(--danger-bg)] border border-[var(--danger)]/25',
             'bottom-[calc(var(--player-height,72px)+10px)] left-1/2 -translate-x-1/2',
             'sm:left-auto sm:right-5 sm:translate-x-0'
           )}
         >
-          <WarningCircle className="w-4 h-4 text-red-400" />
+          <WarningCircle className="w-4 h-4 text-[var(--danger-text)]" />
           <span className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[240px]">
             {lastError.title} failed — {lastError.error || 'tap to retry in Downloads'}
           </span>

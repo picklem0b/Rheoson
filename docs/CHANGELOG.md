@@ -6,6 +6,17 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.18.7
+
+Redesign phase 7/7 — motion governance and the status-token close-out.
+
+- feat(a11y): reduce-motion now honors the OS-level `prefers-reduced-motion` setting in addition to the in-app toggle — framer-motion animations jump to their end state and the CSS layer collapses non-framer motion when either signal is active, tracked live so changing the system setting takes effect without a reload.
+- feat(tokens): every raw status color is gone — 76 sites across 16 files (badges, toasts, error displays, download failures, doctor diagnostics, profile chips, quality badges) now read the semantic `--danger`/`--success`/`--warning` families, which stay legible in both themes and track the palette.
+- fix(tokens): the base `--danger`/`--success`/`--warning` variables were missing (only the `-rgb`/`-text`/`-bg` variants existed); the base tokens now back every status reference.
+- feat(tokens): a `--warning` pair joins the status family in both themes with AA-contrast text colors.
+- fix(ui): Button's danger variant, Badge's success/warning variants, Toast icons, and ErrorDisplay all read tokens instead of hard-coded Tailwind palette colors.
+- chore(docs): CLAUDE.md documents the two-shell layout system and the status-token rule.
+
 ## v2.18.6
 
 Redesign phase 6/7 — settings, auth, landing.

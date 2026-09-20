@@ -1,15 +1,15 @@
 # CLAUDE.md — Rheoson Codebase Context
 
-> Version: 2.17.11 · Long-form docs: [docs/README.md](docs/README.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
+> Version: 2.18.7 · Long-form docs: [docs/README.md](docs/README.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)(GIT_WORKFLOW.md)
 
 Rheoson is a self-hosted music streaming + download app (Termux/Android APK first, Render cloud second). FastAPI + Socket.IO backend, React 18 + Vite + Capacitor frontend, MongoDB (Motor) for accounts/recommendations/analytics, JSON/SQLite sidecars for library state.
 
 ## Version sync (all 5, always together)
 
-- `api/pyproject.toml` → `version = "2.17.11"` (then run `uv lock` — `uv.lock` carries it too)
-- `web/package.json` → `"version": "2.17.11"`
-- `web/src/lib/constants.ts` → `APP_VERSION = "2.17.11"`
-- `api/app/main.py` → `VERSION = "2.17.11"`
+- `api/pyproject.toml` → `version = "2.18.7"` (then run `uv lock` — `uv.lock` carries it too)
+- `web/package.json` → `"version": "2.18.7"`
+- `web/src/lib/constants.ts` → `APP_VERSION = "2.18.7"`
+- `api/app/main.py` → `VERSION = "2.18.7"`
 
 ## Non-negotiables
 
@@ -37,6 +37,7 @@ Rheoson is a self-hosted music streaming + download app (Termux/Android APK firs
 
 ## Frontend layout (web/src/)
 
+- **Two-shell layout** — `hooks/useDeviceClass.ts` classifies the device from pointer modality + viewport width (+ Capacitor native override, `display-mode: standalone`); `RootLayout` renders the desktop sidebar or the mobile bottom nav from it. The APK always renders the mobile shell, even on tablets. Design tokens live in `index.css` (primitive → semantic → component layers); status colors are semantic tokens (`--danger`, `--success`, `--warning` families) — never raw Tailwind palette colors.
 - **Stores** (`store/`, Zustand): `player`, `queue`, `auth` (persisted token; `ready` flips after session validation), `ui` (nav style/position/font), `theme`, `download`. Read them, don't mirror them into component state.
 - **Audio chain**: `hooks/player.hook.ts` (Howler singleton, `html5: true`, local-cache-first loading) → `lib/audioCache.ts` (IndexedDB byte cache) → `lib/audioEffects.ts` (shared Web Audio graph: EQ, bass boost, mono, pre-amp, normalisation — reads `rheoson-*` keys via `applyFromStorage()`).
 - **`hooks/preferenceSync.hook.ts`** — server wins on sign-in, local edits mirror up while signed in. Whitelist lives server-side (`services/preferences.py DEFAULTS`).

@@ -187,7 +187,7 @@ export default function LibraryDoctor() {
             id: 'corrupt' as const,
             title: 'Corrupt files',
             icon: WarningCircle,
-            tint: 'text-red-400',
+            tint: 'text-[var(--danger-text)]',
             items: scan.corrupt,
             freed: scan.corrupt.reduce((a, f) => a + f.size, 0),
             sweepKind: 'corrupt' as const,
@@ -197,7 +197,7 @@ export default function LibraryDoctor() {
             id: 'duplicates' as const,
             title: 'Duplicate tracks',
             icon: Copy,
-            tint: 'text-amber-400',
+            tint: 'text-[var(--warning-text)]',
             items: scan.duplicates,
             freed: scan.duplicates.reduce((a, f) => a + f.size, 0),
             sweepKind: 'duplicates' as const,
@@ -273,8 +273,8 @@ export default function LibraryDoctor() {
             {phase === 'error' && (
                <button
                   onClick={() => void runScan()}
-                  className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-red-400/25 bg-red-400/10 text-left'>
-                  <Warning className='w-[18px] h-[18px] text-red-400 flex-shrink-0' />
+                  className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-[var(--danger)]/25 bg-[var(--danger-bg)] text-left'>
+                  <Warning className='w-[18px] h-[18px] text-[var(--danger-text)] flex-shrink-0' />
                   <div className='min-w-0 flex-1'>
                      <p className='text-[14px] font-semibold text-[var(--text-primary)]'>
                         Scan failed
@@ -409,8 +409,8 @@ export default function LibraryDoctor() {
                                                       st === 'ok'
                                                          ? 'border-emerald-400/30 text-emerald-400'
                                                          : st === 'err'
-                                                           ? 'border-red-400/30 text-red-400'
-                                                           : 'border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-400/30'
+                                                           ? 'border-[var(--danger)]/25 text-[var(--danger-text)]'
+                                                           : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--danger-text)] hover:border-[var(--danger)]/25'
                                                    )}>
                                                    {st === 'loading' ? (
                                                       <SpinnerGap className='w-3.5 h-3.5 animate-spin' />
@@ -468,7 +468,7 @@ export default function LibraryDoctor() {
                                                 </>
                                              ) : sweepState[group.id] === 'err' ? (
                                                 <>
-                                                   <Warning className='w-3.5 h-3.5 text-red-400' />
+                                                   <Warning className='w-3.5 h-3.5 text-[var(--danger-text)]' />
                                                    Failed — try again
                                                 </>
                                              ) : (

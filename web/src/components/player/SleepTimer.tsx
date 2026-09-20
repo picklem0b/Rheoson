@@ -141,7 +141,7 @@ export default function SleepTimer({ open, onClose }: SleepTimerProps) {
                   <p className="text-xs text-[var(--text-muted)] mt-1">remaining</p>
                   <button
                     onClick={cancelTimer}
-                    className="mt-3 px-4 py-2 rounded-full bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors"
+                    className="mt-3 px-4 py-2 rounded-full bg-[var(--danger-bg)] text-[var(--danger-text)] text-xs font-bold hover:bg-[var(--danger)]/20 transition-colors"
                   >
                     Cancel Timer
                   </button>
