@@ -9,8 +9,9 @@ shipping them as an untracked patch line.
 Phases ship one per commit and are annotated-tagged `v2.19.N`, per
 `GIT_WORKFLOW.md`. Shipped: **v2.19.1** (playback/download reliability),
 **v2.19.2** (auth and API trust boundary), **v2.19.3** (username identity),
-**v2.19.4** (instant state), **v2.19.5** (browse and discovery) and
-**v2.19.6** (library information architecture).
+**v2.19.4** (instant state), **v2.19.5** (browse and discovery),
+**v2.19.6** (library information architecture) and **v2.19.7** (creator
+surfaces).
 
 ---
 
@@ -102,10 +103,15 @@ reappear.
 - All four sections query through the shared key registry, so a like or a
   playlist change refreshes the library like every other surface.
 
-## v2.19.7 — Creator surfaces
+## v2.19.7 — Creator surfaces (shipped)
 
-- The creator tab becomes a professional artist destination: identity header,
-  verified discography, and lyrics, with no placeholder scaffolding.
+- The creator tab becomes a professional artist destination: identity header
+  with reach, a Popular chart, a horizontal discography, and a route into the
+  full artist page — no placeholder scaffolding.
+- Lyrics live only in the Lyrics tab; the creator tab carries identity and
+  songs rather than a second copy of the same words.
+- Follow state is optimistic and invalidates the shared follow surfaces, so a
+  follow here is reflected in the following list and artist page immediately.
 
 ## v2.19.8 — Close-out
 
