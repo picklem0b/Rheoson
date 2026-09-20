@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Server, WifiOff, RefreshCw, X } from 'lucide-react';
+import { HardDrives, WifiSlash, ArrowClockwise, X } from '@phosphor-icons/react';
 import { isOnline, checkNow, onStatusChange } from '@/lib/network';
 import { cn } from '@/lib/utils';
 
@@ -55,9 +55,9 @@ export function NetworkErrorBanner({
     >
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
         {wasOnline ? (
-          <Server className="w-4 h-4 text-yellow-400" />
+          <HardDrives className="w-4 h-4 text-yellow-400" />
         ) : (
-          <WifiOff className="w-4 h-4 text-yellow-400" />
+          <WifiSlash className="w-4 h-4 text-yellow-400" />
         )}
       </div>
       <div className="flex-1 min-w-0">
@@ -78,9 +78,9 @@ export function NetworkErrorBanner({
           className="px-3 py-1.5 rounded-full text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center gap-1.5 disabled:opacity-50"
         >
           {isChecking ? (
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            <ArrowClockwise className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            <RefreshCw className="w-3.5 h-3.5" />
+            <ArrowClockwise className="w-3.5 h-3.5" />
           )}
           {isChecking ? 'Checking…' : 'Retry'}
         </motion.button>

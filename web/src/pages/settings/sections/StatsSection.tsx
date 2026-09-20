@@ -1,9 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import {
-  BarChart3, Clock, Heart, Users, Music2, TrendingUp, Calendar,
-  Sparkles, Play, RefreshCw
-} from 'lucide-react'
+import { ChartLineUp, Clock, Heart, Users, MusicNotes, TrendUp, Calendar, Sparkle, Play, ArrowClockwise } from '@phosphor-icons/react'
 import { analyticsApi } from '@/api/analytics.api'
 import { recommendationsApi } from '@/api/recommendations.api'
 import type { TasteProfileInfo, TasteTrack } from '@/api/recommendations.api'
@@ -155,7 +152,7 @@ export default function StatsSection() {
               onClick={() => queryClient.invalidateQueries({ queryKey: ['taste', 'profile'] })}
               className="flex items-center gap-1 px-2.5 py-1 -mr-1 rounded-full text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
             >
-              <RefreshCw className="w-3 h-3" /> Refresh
+              <ArrowClockwise className="w-3 h-3" /> Refresh
             </button>
           )}
         </div>
@@ -169,7 +166,7 @@ export default function StatsSection() {
         ) : !hasTasteData ? (
           <div className="flex flex-col items-center justify-center py-8 px-6 gap-3 text-center">
             <div className="w-12 h-12 rounded-2xl bg-[var(--accent-subtle)] flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-[var(--accent)]" />
+              <Sparkle className="w-5 h-5 text-[var(--accent)]" />
             </div>
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">No taste profile yet</p>
@@ -260,7 +257,7 @@ export default function StatsSection() {
       {/* ── MongoDB-backed analytics ─────────────────────────── */}
       {dbUnavailable ? (
         <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-          <BarChart3 className="w-8 h-8 text-[var(--text-muted)]/30" />
+          <ChartLineUp className="w-8 h-8 text-[var(--text-muted)]/30" />
           <p className="text-sm font-semibold text-[var(--text-primary)]">Detailed analytics need MongoDB</p>
           <p className="text-xs text-[var(--text-muted)] max-w-[260px]">
             Listening charts, hours and daily patterns require MongoDB. Your taste profile above works from local history.
@@ -278,12 +275,12 @@ export default function StatsSection() {
           ) : stats ? (
             <SettingsGroup title="Overview">
               <div className="grid grid-cols-2 gap-3 p-3">
-                <StatCard icon={Music2} label="Total plays" value={formatCount(stats.total_plays)} />
+                <StatCard icon={MusicNotes} label="Total plays" value={formatCount(stats.total_plays)} />
                 <StatCard icon={Clock} label="Listening time" value={`${stats.estimated_listening_hours}h`} />
                 <StatCard icon={Heart} label="Liked tracks" value={stats.total_likes} />
                 <StatCard icon={Users} label="Artists played" value={stats.unique_artists_30d} />
                 <StatCard icon={Calendar} label="Active days" value={stats.active_days_30d} />
-                <StatCard icon={TrendingUp} label="Plays (7d)" value={stats.plays_7d} />
+                <StatCard icon={TrendUp} label="Plays (7d)" value={stats.plays_7d} />
               </div>
             </SettingsGroup>
           ) : null}

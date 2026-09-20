@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Shuffle, MoreHorizontal, Download, ListPlus, Pencil, Plus, Trash2, PenLine } from "lucide-react";
+import { Play, Shuffle, DotsThreeOutline, DownloadSimple, ListPlus, Pencil, Plus, Trash, PencilSimple } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueue } from "@/hooks/queue.hook";
 import { useDownloads } from "@/hooks/downloads.hook";
@@ -225,14 +225,14 @@ export default function Playlist() {
                      <IconButton
                         size='md'
                         variant='ghost'
-                        title='Download all tracks'
+                        title='DownloadSimple all tracks'
                         disabled={!tracks.length}
                         onClick={() => {
                            if (!playlist) return;
                            downloadMany(playlist.tracks);
                            toast(`Downloading ${playlist.tracks.length} track${playlist.tracks.length === 1 ? '' : 's'}…`, "success", 2200);
                         }}>
-                        <Download />
+                        <DownloadSimple />
                      </IconButton>
                      <div className='relative' ref={menuRef}>
                         <IconButton
@@ -240,7 +240,7 @@ export default function Playlist() {
                            variant='ghost'
                            title='More options'
                            onClick={() => setMenuOpen(o => !o)}>
-                           <MoreHorizontal />
+                           <DotsThreeOutline />
                         </IconButton>
                         <AnimatePresence>
                            {menuOpen && (
@@ -259,7 +259,7 @@ export default function Playlist() {
                                     }}
                                     className='w-full flex items-center gap-3 px-4 py-3 text-left
                                        hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)] transition-colors'>
-                                    <PenLine className='w-4 h-4 text-[var(--text-muted)]' />
+                                    <PencilSimple className='w-4 h-4 text-[var(--text-muted)]' />
                                     <span className='text-sm font-medium text-[var(--text-primary)]'>Rename</span>
                                  </button>
                                  <button
@@ -269,7 +269,7 @@ export default function Playlist() {
                                     }}
                                     className='w-full flex items-center gap-3 px-4 py-3 text-left
                                        hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)] transition-colors'>
-                                    <Trash2 className='w-4 h-4 text-red-400' />
+                                    <Trash className='w-4 h-4 text-red-400' />
                                     <span className='text-sm font-medium text-red-400'>Delete playlist</span>
                                  </button>
                               </motion.div>

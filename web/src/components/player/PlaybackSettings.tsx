@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Music2, Moon, X } from 'lucide-react'
+import { MusicNotes, Moon, X } from '@phosphor-icons/react'
 import { useUIStore } from '@/store/ui.store'
 import { IconButton } from '@/components/ui/IconButton'
 import SleepTimer from './SleepTimer'
@@ -41,7 +41,7 @@ export default function PlaybackSettings({ trigger = true }: { trigger?: boolean
           onClick={() => setOpen(true)}
           title="Playback settings"
         >
-          <Music2 className="w-4 h-4" />
+          <MusicNotes className="w-4 h-4" />
         </IconButton>
       )}
 
@@ -67,7 +67,7 @@ export default function PlaybackSettings({ trigger = true }: { trigger?: boolean
               <div className="glass-strong rounded-3xl border border-[var(--border)] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] flex-shrink-0">
-                  <h3 className="font-bold text-[var(--text-primary)]">Playback Settings</h3>
+                  <h3 className="font-bold text-[var(--text-primary)]">Playback GearSix</h3>
                   <IconButton size="sm" variant="ghost" onClick={() => setOpen(false)}>
                     <X className="w-4 h-4" />
                   </IconButton>
@@ -76,7 +76,7 @@ export default function PlaybackSettings({ trigger = true }: { trigger?: boolean
                 {/* Tab bar */}
                 <div className="flex border-b border-[var(--border)] flex-shrink-0">
                   {([
-                    { id: 'equalizer' as Tab, icon: Music2, label: 'Equalizer' },
+                    { id: 'equalizer' as Tab, icon: MusicNotes, label: 'Equalizer' },
                     { id: 'sleep' as Tab, icon: Moon, label: 'Sleep' },
                   ]).map(t => (
                     <button

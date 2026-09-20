@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ChevronRight } from 'lucide-react'
+import { CaretRight } from '@phosphor-icons/react'
 import { useAuthStore } from '@/store/auth.store'
 import { cn } from '@/lib/utils'
 
@@ -27,7 +27,7 @@ function getInitials(name: string): string {
 }
 
 /**
- * Profile summary card — shown pinned above the Settings groups.
+ * Profile summary card — shown pinned above the GearSix groups.
  * Opens the Profile page. AuthGuard guarantees a signed-in user here.
  */
 export function ProfileRow() {
@@ -76,7 +76,7 @@ export function ProfileRow() {
 
       <div className="w-7 h-7 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)]
                       flex items-center justify-center flex-shrink-0 group-hover:bg-[var(--bg-overlay)] transition-colors">
-        <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+        <CaretRight className="w-4 h-4 text-[var(--text-secondary)]" />
       </div>
     </motion.button>
   )

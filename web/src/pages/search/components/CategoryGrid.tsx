@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, ListMusic, Play, RefreshCw, Trophy, X } from 'lucide-react'
+import { CaretRight, Queue, Play, ArrowClockwise, Trophy, X } from '@phosphor-icons/react'
 import { searchApi, type CategoryMeta } from '@/api/search.api'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
@@ -109,7 +109,7 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                      <span className="absolute bottom-2.5 left-3 text-sm font-bold text-white drop-shadow">
                         {cat.label}
                      </span>
-                     <ChevronRight
+                     <CaretRight
                         className={cn(
                            'absolute right-3 bottom-2.5 h-3.5 w-3.5 text-white/70 transition-transform',
                            isOpen && 'rotate-90'
@@ -200,7 +200,7 @@ function CategoryTopSongs({
                aria-label="Refresh this category"
                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
             >
-               <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
+               <ArrowClockwise className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
             </button>
 
             <button
@@ -247,7 +247,7 @@ function CategoryTopSongs({
                   onClick={() => onSearchAll(label)}
                   className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold text-[var(--accent)] transition-colors hover:bg-[var(--bg-elevated)]"
                >
-                  <ListMusic className="h-3.5 w-3.5" />
+                  <Queue className="h-3.5 w-3.5" />
                   See everything in {label}
                </button>
             )}

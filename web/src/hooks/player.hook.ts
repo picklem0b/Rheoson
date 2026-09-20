@@ -388,7 +388,7 @@ export function usePlayer() {
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
-                    // Route audio through the DSP graph (EQ/bass/mono/pre-amp/normalise).
+                    // Path audio through the DSP graph (EQ/bass/mono/pre-amp/normalise).
                     // Wrapped so a graph problem can never skip the play() below.
                     try { ensureEffectsChain(); } catch { /* direct output */ }
                     if (seekTo > 0) {

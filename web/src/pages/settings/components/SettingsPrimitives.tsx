@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight } from 'lucide-react'
+import { CaretRight } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
 const SPRING = { type: 'spring' as const, damping: 22, stiffness: 380, mass: 0.6 }
@@ -97,7 +97,7 @@ export function SettingsRow({
       <div className="flex items-center gap-2 flex-shrink-0">
         {children}
         {!children && clickable && (
-          <ChevronRight className="w-[18px] h-[18px] text-[var(--text-muted)]/40" />
+          <CaretRight className="w-[18px] h-[18px] text-[var(--text-muted)]/40" />
         )}
       </div>
     </motion.div>

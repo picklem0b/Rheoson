@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowDownToLine, CheckCircle2, AlertCircle } from 'lucide-react'
+import { DownloadSimple, CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import { useDownloadStore, selectActiveJobs } from '@/store/download.store'
 import { cn } from '@/lib/utils'
 
@@ -46,7 +46,7 @@ export function DownloadProgressBar() {
             'sm:left-auto sm:right-5 sm:translate-x-0 text-left'
           )}
         >
-          <ArrowDownToLine className="w-4 h-4 text-[var(--accent)] flex-shrink-0 animate-bounce" />
+          <DownloadSimple className="w-4 h-4 text-[var(--accent)] flex-shrink-0 animate-bounce" />
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
@@ -87,7 +87,7 @@ export function DownloadProgressBar() {
             'sm:left-auto sm:right-5 sm:translate-x-0'
           )}
         >
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <CheckCircle className="w-4 h-4 text-emerald-400" />
           <span className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[220px]">
             {lastCompleted.title} downloaded
           </span>
@@ -107,7 +107,7 @@ export function DownloadProgressBar() {
             'sm:left-auto sm:right-5 sm:translate-x-0'
           )}
         >
-          <AlertCircle className="w-4 h-4 text-red-400" />
+          <WarningCircle className="w-4 h-4 text-red-400" />
           <span className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[240px]">
             {lastError.title} failed — {lastError.error || 'tap to retry in Downloads'}
           </span>

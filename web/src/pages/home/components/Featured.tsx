@@ -1,9 +1,9 @@
 /**
  * Featured — full-page grid of curated playlists/albums.
  * Lives under pages/home/components because it's only ever reached
- * from Home's "Featured → See all" button.
+ * from House's "Featured → See all" button.
  *
- * Route: /featured (registered in router.tsx)
+ * Path: /featured (registered in router.tsx)
  * Backend: GET /api/library/featured (currently returns local playlists;
  *          can be expanded server-side to mix in trending albums later)
  */
@@ -11,7 +11,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { Sparkles, Play } from 'lucide-react'
+import { Sparkle, Play } from '@phosphor-icons/react'
 import { libraryApi } from '@/api/library.api'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
@@ -91,7 +91,7 @@ export default function Featured() {
         {!isLoading && !hasItems && (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
             <div className="w-16 h-16 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center">
-              <Sparkles className="w-7 h-7 text-[var(--text-muted)]" />
+              <Sparkle className="w-7 h-7 text-[var(--text-muted)]" />
             </div>
             <div>
               <p className="font-bold text-[var(--text-primary)]">Nothing featured yet</p>

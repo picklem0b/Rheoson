@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { CheckCircle2, XCircle, Loader2, Download, Trash2, RefreshCw, Play, Music2 } from 'lucide-react'
+import { CheckCircle, XCircle, SpinnerGap, DownloadSimple, Trash, ArrowClockwise, Play, MusicNotes } from '@phosphor-icons/react'
 import { IconButton } from '@/components/ui/IconButton'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -12,12 +12,12 @@ import { cn } from '@/lib/utils'
 import type { DownloadJob, DownloadStatus } from '@/types/download.types'
 
 const STATUS_CONFIG: Record<DownloadStatus, { label: string; color: string; icon: React.ReactNode }> = {
-  queued:      { label: 'Queued',      color: 'surface', icon: <Download    className="w-3.5 h-3.5" /> },
-  searching:   { label: 'Searching',   color: 'accent',  icon: <Loader2     className="w-3.5 h-3.5 animate-spin" /> },
-  downloading: { label: 'Downloading', color: 'accent',  icon: <Loader2     className="w-3.5 h-3.5 animate-spin" /> },
-  converting:  { label: 'Converting',  color: 'warning', icon: <Loader2     className="w-3.5 h-3.5 animate-spin" /> },
-  tagging:     { label: 'Tagging',     color: 'warning', icon: <Loader2     className="w-3.5 h-3.5 animate-spin" /> },
-  done:        { label: 'Done',        color: 'success', icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  queued:      { label: 'Queued',      color: 'surface', icon: <DownloadSimple    className="w-3.5 h-3.5" /> },
+  searching:   { label: 'Searching',   color: 'accent',  icon: <SpinnerGap     className="w-3.5 h-3.5 animate-spin" /> },
+  downloading: { label: 'Downloading', color: 'accent',  icon: <SpinnerGap     className="w-3.5 h-3.5 animate-spin" /> },
+  converting:  { label: 'Converting',  color: 'warning', icon: <SpinnerGap     className="w-3.5 h-3.5 animate-spin" /> },
+  tagging:     { label: 'Tagging',     color: 'warning', icon: <SpinnerGap     className="w-3.5 h-3.5 animate-spin" /> },
+  done:        { label: 'Done',        color: 'success', icon: <CheckCircle className="w-3.5 h-3.5" /> },
   error:       { label: 'Error',       color: 'danger',  icon: <XCircle     className="w-3.5 h-3.5" /> },
   cancelled:   { label: 'Cancelled',   color: 'surface', icon: <XCircle     className="w-3.5 h-3.5" /> },
 }
@@ -103,7 +103,7 @@ export default function DownloadRow({ job: jobProp, index, onCancel, onRetry, on
             />
           ) : (
             <div className="w-12 h-12 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center">
-              <Music2 className="w-5 h-5 text-[var(--text-muted)]" />
+              <MusicNotes className="w-5 h-5 text-[var(--text-muted)]" />
             </div>
           )}
         </div>
@@ -145,7 +145,7 @@ export default function DownloadRow({ job: jobProp, index, onCancel, onRetry, on
             </IconButton>
           ) : isError && (
             <IconButton size="xs" variant="ghost" onClick={onRetry} title="Retry">
-              <RefreshCw />
+              <ArrowClockwise />
             </IconButton>
           )}
           {active && (
@@ -155,7 +155,7 @@ export default function DownloadRow({ job: jobProp, index, onCancel, onRetry, on
           )}
           {job.status === 'done' && (
             <IconButton size="xs" variant="ghost" onClick={onCancel} title="Remove">
-              <Trash2 />
+              <Trash />
             </IconButton>
           )}
         </div>

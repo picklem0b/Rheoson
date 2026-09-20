@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Music2 } from "lucide-react";
+import { MusicNotes } from '@phosphor-icons/react';
 import { cn } from "@/lib/utils";
 
 interface ArtworkImageProps {
@@ -113,7 +113,7 @@ export function ArtworkImage({
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
                   className='absolute inset-0 flex items-center justify-center bg-[var(--bg-elevated)]'>
-                  <Music2
+                  <MusicNotes
                      className='text-[var(--text-muted)]/40'
                      style={{
                         width: `${iconScale * 100}%`,

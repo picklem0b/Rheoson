@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Palette, Volume2, Download, Keyboard, Info,
-  ChevronRight, ChevronLeft, User, Bell, Shield,
-  HardDrive, Layout, BarChart3, Stethoscope,
-} from 'lucide-react'
+import { Palette, SpeakerHigh, DownloadSimple, Keyboard, Info, CaretRight, CaretLeft, User, Bell, Shield, HardDrives, Layout, ChartLineUp, Stethoscope } from '@phosphor-icons/react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { ProfileRow } from '@/components/ui/ProfileRow'
 import { APP_VERSION } from '@/lib/constants'
@@ -49,9 +45,9 @@ const GROUPS: { label: string; items: SectionMeta[] }[] = [
     items: [
       { id: 'appearance', label: 'Appearance',    desc: 'Theme, accent, transparency',  Icon: Palette },
       { id: 'layout',     label: 'Layout',        desc: 'Navigation, fonts, sidebar',   Icon: Layout },
-      { id: 'audio',      label: 'Audio',         desc: 'Autoplay, EQ, normalisation',  Icon: Volume2 },
-      { id: 'downloads',  label: 'Downloads',     desc: 'Format, quality, concurrency', Icon: Download },
-      { id: 'storage',    label: 'Storage',       desc: 'Directories, library, cache',  Icon: HardDrive },
+      { id: 'audio',      label: 'Audio',         desc: 'Autoplay, EQ, normalisation',  Icon: SpeakerHigh },
+      { id: 'downloads',  label: 'Downloads',     desc: 'Format, quality, concurrency', Icon: DownloadSimple },
+      { id: 'storage',    label: 'Storage',       desc: 'Directories, library, cache',  Icon: HardDrives },
     ],
   },
   {
@@ -59,13 +55,13 @@ const GROUPS: { label: string; items: SectionMeta[] }[] = [
     items: [
       { id: 'notifications', label: 'Notifications', desc: 'Sound effects & chimes',      Icon: Bell },
       { id: 'account',       label: 'Account',       desc: 'Profile, Spotify credentials', Icon: User },
-      { id: 'privacy',       label: 'Privacy',       desc: 'History, backup, legal',       Icon: Shield },
+      { id: 'privacy',       label: 'Privacy',       desc: 'ClockCounterClockwise, backup, legal',       Icon: Shield },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { id: 'stats', label: 'Stats', desc: 'Listening analytics & charts', Icon: BarChart3 },
+      { id: 'stats', label: 'Stats', desc: 'Listening analytics & charts', Icon: ChartLineUp },
     ],
   },
   {
@@ -98,7 +94,7 @@ function SectionContent({ id }: { id: Section }) {
 
 const DETAIL_SPRING = { type: 'spring' as const, damping: 28, stiffness: 300 }
 
-export default function Settings() {
+export default function GearSix() {
   const [active, setActive] = useState<Section | null>(null)
   const meta = GROUPS.flatMap((g) => g.items).find((s) => s.id === active) ?? null
 
@@ -127,7 +123,7 @@ export default function Settings() {
             bar to clear, so it collapses back to normal padding. */}
         <div className="px-5 pt-12 lg:pt-8 pb-3 flex-shrink-0 space-y-4">
           <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[var(--text-primary)] leading-tight">
-            Settings
+            GearSix
           </h1>
           <ProfileRow />
         </div>
@@ -175,7 +171,7 @@ export default function Settings() {
                         {s.desc}
                       </p>
                     </div>
-                    <ChevronRight className={cn(
+                    <CaretRight className={cn(
                       'w-4 h-4 flex-shrink-0',
                       active === s.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]/35',
                     )} />
@@ -210,8 +206,8 @@ export default function Settings() {
                   onClick={() => setActive(null)}
                   className="lg:hidden flex items-center gap-1 text-[var(--accent)] mr-1"
                 >
-                  <ChevronLeft className="w-5 h-5" />
-                  <span className="text-[17px]">Settings</span>
+                  <CaretLeft className="w-5 h-5" />
+                  <span className="text-[17px]">GearSix</span>
                 </motion.button>
                 <div className="flex-1 flex items-center gap-3 min-w-0">
                 <div className="hidden lg:flex w-9 h-9 rounded-[10px] items-center justify-center flex-shrink-0 bg-brand/15 text-[var(--accent)]">
@@ -239,7 +235,7 @@ export default function Settings() {
               className="hidden lg:flex flex-1 items-center justify-center flex-col gap-4"
             >
               <div className="w-14 h-14 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center">
-                <ChevronRight className="w-6 h-6 text-[var(--text-muted)]/30" />
+                <CaretRight className="w-6 h-6 text-[var(--text-muted)]/30" />
               </div>
               <div className="text-center">
                 <p className="text-[15px] font-semibold text-[var(--text-primary)]">Select a section</p>

@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { Volume, Volume1, Volume2, VolumeX } from 'lucide-react'
+import { SpeakerHigh, SpeakerLow, SpeakerX } from '@phosphor-icons/react'
 import { usePlayerStore } from '@/store/player.store'
 import { Slider } from '@/components/ui/Slider'
 import { IconButton } from '@/components/ui/IconButton'
@@ -11,9 +11,9 @@ export default function VolumeControl() {
   const displayVolume = isMuted ? 0 : volume
 
   const VolumeIcon =
-    displayVolume === 0   ? VolumeX  :
-    displayVolume < 0.35  ? Volume   :
-    displayVolume < 0.70  ? Volume1  : Volume2
+    displayVolume === 0   ? SpeakerX  :
+    displayVolume < 0.35  ? SpeakerHigh   :
+    displayVolume < 0.70  ? SpeakerLow  : SpeakerHigh
 
   const handleScroll = useCallback((e: React.WheelEvent) => {
     const delta = e.deltaY < 0 ? 0.05 : -0.05

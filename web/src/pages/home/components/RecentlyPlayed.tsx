@@ -1,9 +1,9 @@
 /**
  * RecentlyPlayed — full-page view of every recently played track.
  * Lives under pages/home/components because it's only ever reached
- * from Home's "Quick picks → See all" button, not linked from anywhere else.
+ * from House's "Quick picks → See all" button, not linked from anywhere else.
  *
- * Route: /recently-played (registered in router.tsx)
+ * Path: /recently-played (registered in router.tsx)
  * Backend: GET /api/tracks/recently-played (returns up to 50, hydrated)
  *          DELETE /api/tracks/history (clears the history file)
  */
@@ -11,7 +11,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clock, Play, Shuffle, Trash2 } from 'lucide-react'
+import { Clock, Play, Shuffle, Trash } from '@phosphor-icons/react'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
@@ -94,7 +94,7 @@ export default function RecentlyPlayed() {
 
   const { data: tracks, isLoading } = useQuery({
     queryKey: ['recently-played-full'],
-    // Larger limit than the Home preview — this is the full view
+    // Larger limit than the House preview — this is the full view
     queryFn:  () => tracksApi.getRecentlyPlayed(50),
   })
 
@@ -102,7 +102,7 @@ export default function RecentlyPlayed() {
     setClearing(true)
     try {
       await tracksApi.clearHistory()
-      // Refresh both the full list and the Home preview query
+      // Refresh both the full list and the House preview query
       queryClient.invalidateQueries({ queryKey: ['recently-played-full'] })
       queryClient.invalidateQueries({ queryKey: ['recently-played'] })
     } finally {
@@ -134,7 +134,7 @@ export default function RecentlyPlayed() {
             onClick={handleClear}
             className="ml-auto text-red-400"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash className="w-4 h-4" />
             Clear
           </Button>
         </div>

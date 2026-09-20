@@ -2,16 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import {
-  TrendingUp,
-  Clock,
-  Sparkles,
-  Play,
-  ChevronRight,
-  Heart,
-  Compass,
-  Music2,
-} from 'lucide-react'
+import { TrendUp, Clock, Sparkle, Play, CaretRight, Heart, Compass, MusicNotes } from '@phosphor-icons/react'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
@@ -68,7 +59,7 @@ function SectionHeader({ icon: Icon, title, subtitle, onSeeAll }: {
           className="flex items-center gap-0.5 text-xs font-semibold text-[var(--text-muted)] active:text-[var(--accent)] transition-colors px-2 py-1"
         >
           See all
-          <ChevronRight className="w-3.5 h-3.5" />
+          <CaretRight className="w-3.5 h-3.5" />
         </motion.button>
       )}
     </div>
@@ -352,12 +343,12 @@ function EmptyHome() {
         transition={{ type: 'spring', damping: 20 }}
         className="w-24 h-24 rounded-[2rem] bg-[var(--accent-subtle)] border border-[var(--accent-border)] flex items-center justify-center"
       >
-        <Sparkles className="w-10 h-10 text-[var(--accent)]" />
+        <Sparkle className="w-10 h-10 text-[var(--accent)]" />
       </motion.div>
       <div>
         <h2 className="text-xl font-bold text-[var(--text-primary)]">Your music starts here</h2>
         <p className="text-sm text-[var(--text-muted)] mt-2 leading-relaxed">
-          Search for songs, paste a Spotify or YouTube link, or browse your library to get started.
+          MagnifyingGlass for songs, paste a Spotify or YouTube link, or browse your library to get started.
         </p>
       </div>
       <motion.button
@@ -365,7 +356,7 @@ function EmptyHome() {
         onClick={() => navigate('/search')}
         className="px-6 py-3 rounded-2xl bg-[var(--accent)] text-white font-bold text-sm shadow-lg"
       >
-        Search music
+        MagnifyingGlass music
       </motion.button>
     </div>
   )
@@ -408,10 +399,10 @@ function useHydratedTracks(ids: string[] | undefined, max = 10) {
 // ── Page ──────────────────────────────────────────────────────
 
 const SECTION_ICONS: Record<string, React.ElementType> = {
-  for_you:          Sparkles,
+  for_you:          Sparkle,
   recent_favorites: Heart,
   discover:         Compass,
-  trending:         TrendingUp,
+  trending:         TrendUp,
 }
 
 const SECTION_SUBTITLES: Record<string, string> = {
@@ -426,7 +417,7 @@ function isRealTrack(t: Track | undefined | null): t is Track {
   return !!t && !!t.id && !t.id.startsWith('unknown-') && !!t.title && t.title !== 'Unknown Track'
 }
 
-export default function Home() {
+export default function House() {
   const navigate = useNavigate()
 
   const { data: recentRaw, isLoading: loadingRecent } = useQuery({
@@ -444,7 +435,7 @@ export default function Home() {
   })
 
   // Weekly charts (cached server-side per ISO week). Used for the hero, the
-  // top-3 podium and the trending rail, so Home makes one chart request
+  // top-3 podium and the trending rail, so House makes one chart request
   // instead of hitting the live endpoint on every visit.
   const { data: trendingRaw, isLoading: loadingTrending } = useQuery({
     queryKey:  ['trending', 'weekly'],
@@ -531,7 +522,7 @@ export default function Home() {
         {(loadingFeatured || hasFeatured) && (
           <section>
             <SectionHeader
-              icon={Sparkles}
+              icon={Sparkle}
               title="Featured"
               subtitle="From your library"
               onSeeAll={hasFeatured ? () => navigate('/featured') : undefined}
@@ -547,7 +538,7 @@ export default function Home() {
         {!loadingMixes && mixes.length > 0 && (
           <section>
             <SectionHeader
-              icon={Sparkles}
+              icon={Sparkle}
               title="Daily Mixes"
               subtitle="Made for your taste"
             />
@@ -572,7 +563,7 @@ export default function Home() {
         {showTrending && (
           <section>
             <SectionHeader
-              icon={TrendingUp}
+              icon={TrendUp}
               title="Trending this week"
               subtitle="The full weekly chart"
               onSeeAll={
@@ -599,7 +590,7 @@ function SectionRail({ section }: { section: RecommendationSection }) {
   const isPlaying      = usePlayerStore((s) => s.isPlaying)
   const { loading, tracks } = useHydratedTracks(section.track_ids, 10)
 
-  const Icon = SECTION_ICONS[section.section_id] ?? Music2
+  const Icon = SECTION_ICONS[section.section_id] ?? MusicNotes
 
   if (loading) {
     return (

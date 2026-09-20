@@ -1,8 +1,5 @@
 import { motion } from 'framer-motion'
-import {
-  Play, Pause, SkipBack, SkipForward,
-  Shuffle, Repeat, Repeat1,
-} from 'lucide-react'
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, RepeatOnce } from '@phosphor-icons/react'
 import { usePlayerStore } from '@/store/player.store'
 import { usePlayer } from '@/hooks/player.hook'
 import { IconButton } from '@/components/ui/IconButton'
@@ -89,7 +86,7 @@ export default function PlayerControls({
         }
         className={cn(repeatMode === 'off' && 'opacity-50')}
       >
-        {repeatMode === 'one' ? <Repeat1 /> : <Repeat />}
+        {repeatMode === 'one' ? <RepeatOnce /> : <Repeat />}
       </IconButton>
 
     </div>

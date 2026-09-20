@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Play, Pause, Heart, ListPlus, Music2 } from 'lucide-react';
+import { Play, Pause, Heart, ListPlus, MusicNotes } from '@phosphor-icons/react';
 import { useQueue } from '@/hooks/queue.hook';
 import { usePlayer } from '@/hooks/player.hook';
 import { usePlayerStore } from '@/store/player.store';
@@ -82,7 +82,7 @@ export default function LibraryTrackRow({
                     />
                 ) : (
                     <div className='w-12 h-12 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center'>
-                        <Music2 className='w-5 h-5 text-[var(--text-muted)]' />
+                        <MusicNotes className='w-5 h-5 text-[var(--text-muted)]' />
                     </div>
                 )}
 

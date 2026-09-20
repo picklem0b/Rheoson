@@ -125,7 +125,7 @@ export default defineConfig({
                player: ["howler"],
                motion: ["framer-motion"],
                query: ["@tanstack/react-query"],
-               icons: ["lucide-react"],
+               icons: ["@phosphor-icons/react"],
                socket: ["socket.io-client"],
                state: ["zustand"]
             }

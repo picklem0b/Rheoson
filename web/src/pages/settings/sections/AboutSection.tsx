@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ExternalLink, Github, Star, GitFork, Eye, Tag } from "lucide-react";
+import { ArrowSquareOut, GithubLogo, Star, GitFork, Eye, Tag } from '@phosphor-icons/react';
 import AppLogo from "@/components/ui/AppLogo";
 import { APP_VERSION } from "@/lib/constants";
 import { SettingsGroup, SettingsRow } from "../components/SettingsPrimitives";
@@ -142,7 +142,7 @@ export default function AboutSection() {
                   <span className='text-[13px] text-[var(--text-muted)] font-mono'>
                      {d.value}
                   </span>
-                  <ExternalLink className='w-3.5 h-3.5 text-[var(--text-muted)]/35' />
+                  <ArrowSquareOut className='w-3.5 h-3.5 text-[var(--text-muted)]/35' />
                </SettingsRow>
             ))}
          </SettingsGroup>
@@ -153,14 +153,14 @@ export default function AboutSection() {
                label='GitHub'
                description='picklem0b/Rheoson — source, issues, discussions'
                onClick={() => window.open(GITHUB, "_blank")}>
-               <Github className='w-4 h-4 text-[var(--text-muted)]/60' />
+               <GithubLogo className='w-4 h-4 text-[var(--text-muted)]/60' />
             </SettingsRow>
             <SettingsRow
                label='Changelog'
                onClick={() =>
                   window.open(`${GITHUB}/blob/main/docs/CHANGELOG.md`, "_blank")
                }>
-               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+               <ArrowSquareOut className='w-4 h-4 text-[var(--text-muted)]/40' />
             </SettingsRow>
             <SettingsRow
                label='Report a bug'
@@ -170,7 +170,7 @@ export default function AboutSection() {
                      "_blank"
                   )
                }>
-               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+               <ArrowSquareOut className='w-4 h-4 text-[var(--text-muted)]/40' />
             </SettingsRow>
             <SettingsRow
                label='Request a feature'
@@ -180,7 +180,7 @@ export default function AboutSection() {
                      "_blank"
                   )
                }>
-               <ExternalLink className='w-4 h-4 text-[var(--text-muted)]/40' />
+               <ArrowSquareOut className='w-4 h-4 text-[var(--text-muted)]/40' />
             </SettingsRow>
          </SettingsGroup>
       </div>

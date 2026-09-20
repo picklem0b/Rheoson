@@ -1,15 +1,15 @@
 /**
  * Trending — full-page numbered list of trending tracks.
  * Lives under pages/home/components because it's only ever reached
- * from Home's "Trending → See all" button.
+ * from House's "Trending → See all" button.
  *
- * Route: /trending (registered in router.tsx)
+ * Path: /trending (registered in router.tsx)
  * Backend: GET /api/tracks/trending (proxied from YouTube Music charts)
  */
 
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, Play, Shuffle } from "lucide-react";
+import { TrendUp, Play, Shuffle } from '@phosphor-icons/react';
 import { useQueue } from "@/hooks/queue.hook";
 import { usePlayerStore } from "@/store/player.store";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
@@ -163,7 +163,7 @@ export default function Trending() {
             {!isLoading && !hasTracks && (
                <div className='flex flex-col items-center justify-center py-24 gap-4 text-center'>
                   <div className='w-16 h-16 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center'>
-                     <TrendingUp className='w-7 h-7 text-[var(--text-muted)]' />
+                     <TrendUp className='w-7 h-7 text-[var(--text-muted)]' />
                   </div>
                   <div>
                      <p className='font-bold text-[var(--text-primary)]'>

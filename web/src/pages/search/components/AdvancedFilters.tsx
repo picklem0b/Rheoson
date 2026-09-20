@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { SlidersHorizontal, Clock, ArrowUpDown, Library } from 'lucide-react'
+import { SlidersHorizontal, Clock, ArrowsDownUp, Books } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
 export interface SearchFilters {
@@ -93,7 +93,7 @@ export default function AdvancedFilters({ filters, onChange }: AdvancedFiltersPr
               {/* Sort */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <ArrowUpDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  <ArrowsDownUp className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                   <span className="text-xs font-bold text-[var(--text-secondary)]">Sort by</span>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
@@ -114,7 +114,7 @@ export default function AdvancedFilters({ filters, onChange }: AdvancedFiltersPr
                 </div>
               </div>
 
-              {/* Library only */}
+              {/* Books only */}
               <div>
                 <button
                   onClick={() => onChange({ ...filters, libraryOnly: !filters.libraryOnly })}
@@ -125,9 +125,9 @@ export default function AdvancedFilters({ filters, onChange }: AdvancedFiltersPr
                       : 'bg-[var(--bg-surface)] border border-[var(--border)]'
                   )}
                 >
-                  <Library className={cn('w-4 h-4', filters.libraryOnly ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]')} />
+                  <Books className={cn('w-4 h-4', filters.libraryOnly ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]')} />
                   <span className={cn('text-sm font-medium', filters.libraryOnly ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]')}>
-                    Library only
+                    Books only
                   </span>
                 </button>
               </div>

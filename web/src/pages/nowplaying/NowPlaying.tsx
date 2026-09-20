@@ -7,23 +7,7 @@ import {
    useMotionValue,
    useTransform
 } from "framer-motion";
-import {
-   ChevronDown,
-   Heart,
-   MoreHorizontal,
-   Download,
-   Mic2,
-   ListMusic,
-   Plus,
-   Music2,
-   X,
-   WifiOff,
-   User,
-   Users,
-   BadgeCheck,
-   Info,
-   Link as LinkIcon
-} from "lucide-react";
+import { CaretDown, Heart, DotsThreeOutline, DownloadSimple, Microphone, Queue, Plus, MusicNotes, X, WifiSlash, User, Users, SealCheck, Info, Link as LinkIcon } from '@phosphor-icons/react';
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { useQueueStore } from "@/store/queue.store";
@@ -52,11 +36,11 @@ type Tab = "queue" | "lyric" | "creator";
 
 const MENU_ITEMS = [
    { icon: Heart, label: "Like", action: "like" },
-   { icon: Download, label: "Download", action: "download" },
+   { icon: DownloadSimple, label: "DownloadSimple", action: "download" },
    { icon: Plus, label: "Add to queue", action: "queue-add" },
    { icon: LinkIcon, label: "Copy link", action: "copy-link" },
-   { icon: Mic2, label: "View lyrics", action: "lyrics" },
-   { icon: Music2, label: "Song details", action: "details" }
+   { icon: Microphone, label: "View lyrics", action: "lyrics" },
+   { icon: MusicNotes, label: "Song details", action: "details" }
 ];
 
 function ContextSheet({
@@ -192,7 +176,7 @@ function LyricsTab({
    if (lines.length === 0) {
       return (
          <div className='flex flex-col items-center justify-center py-16 gap-3 text-center'>
-            <Mic2 className='w-10 h-10 text-[var(--text-muted)]' />
+            <Microphone className='w-10 h-10 text-[var(--text-muted)]' />
             <p className='text-[var(--text-secondary)] font-semibold'>
                No lyrics found
             </p>
@@ -391,7 +375,7 @@ function CreatorTab({
                         <span className='font-bold text-white truncate'>
                            {artist.name}
                         </span>
-                        <BadgeCheck className='w-4 h-4 text-[var(--accent)] flex-shrink-0' />
+                        <SealCheck className='w-4 h-4 text-[var(--accent)] flex-shrink-0' />
                      </button>
                      <div className='flex items-center gap-2 mt-1 flex-wrap'>
                         {(artist.genres ?? []).slice(0, 3).map(g => (
@@ -471,7 +455,7 @@ function PlaylistTab({ currentTrack }: { currentTrack: Track }) {
    if (all.length === 0) {
       return (
          <div className='flex flex-col items-center justify-center py-16 gap-3 text-center'>
-            <ListMusic className='w-10 h-10 text-[var(--text-muted)]' />
+            <Queue className='w-10 h-10 text-[var(--text-muted)]' />
             <p className='text-[var(--text-secondary)] font-semibold'>
                Queue is empty
             </p>
@@ -537,7 +521,7 @@ function PlaylistTabRow({
             />
             {track.isDownloaded && (
                <div className='absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--accent)] flex items-center justify-center'>
-                  <Download className='w-2 h-2 text-white' />
+                  <DownloadSimple className='w-2 h-2 text-white' />
                </div>
             )}
          </div>
@@ -697,14 +681,14 @@ export default function NowPlaying() {
                   whileTap={{ scale: 0.9 }}
                   onClick={() => navigate(-1)}
                   className='w-9 h-9 rounded-full bg-white/10 flex items-center justify-center'>
-                  <ChevronDown className='w-5 h-5 text-white' />
+                  <CaretDown className='w-5 h-5 text-white' />
                </motion.button>
 
                <div className='flex items-center gap-2'>
                   {/* Offline badge — shown when track is downloaded */}
                   {currentTrack.isDownloaded && (
                      <div className='flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--accent-subtle)] border border-[var(--accent-border)]'>
-                        <WifiOff className='w-3 h-3 text-[var(--accent)]' />
+                        <WifiSlash className='w-3 h-3 text-[var(--accent)]' />
                         <span className='text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider'>
                            Offline
                         </span>
@@ -719,7 +703,7 @@ export default function NowPlaying() {
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setShowMenu(true)}
                   className='w-9 h-9 rounded-full bg-white/10 flex items-center justify-center'>
-                  <MoreHorizontal className='w-5 h-5 text-white' />
+                  <DotsThreeOutline className='w-5 h-5 text-white' />
                </motion.button>
             </div>
 
@@ -802,7 +786,7 @@ export default function NowPlaying() {
                <motion.button
                   whileTap={{ scale: 0.85 }}
                   onClick={() => openDownloadModal(currentTrack.id, currentTrack)}>
-                  <Download
+                  <DownloadSimple
                      className={cn(
                         "w-5 h-5 transition-colors",
                         currentTrack.isDownloaded

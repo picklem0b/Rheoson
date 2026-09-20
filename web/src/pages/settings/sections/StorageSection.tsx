@@ -1,17 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-   FolderOpen,
-   RefreshCw,
-   Download,
-   Trash2,
-   CheckCircle2,
-   AlertCircle,
-   Music2,
-   ChevronDown,
-   ChevronRight,
-   HardDrive
-} from "lucide-react";
+import { FolderOpen, ArrowClockwise, DownloadSimple, Trash, CheckCircle, WarningCircle, MusicNotes, CaretDown, CaretRight, HardDrive } from '@phosphor-icons/react';
 import { api } from "@/api/client.api";
 import {
    getAudioCacheStats,
@@ -43,7 +32,7 @@ interface AudioFile {
 const DEFAULT_DIRS: Dir[] = [
    { path: "/data/data/com.termux/files/home/Rheoson/music", active: true },
    { path: "/storage/emulated/0/Music", active: true },
-   { path: "/storage/emulated/0/Download", active: false }
+   { path: "/storage/emulated/0/DownloadSimple", active: false }
 ];
 
 function fmt(bytes: number) {
@@ -221,9 +210,9 @@ export default function StorageSection() {
                         onClick={() => browseDir(d.path)}
                         className='min-w-0 flex-1 text-left flex items-center gap-2'>
                         {expanded === d.path ? (
-                           <ChevronDown className='w-4 h-4 text-[var(--accent)] flex-shrink-0' />
+                           <CaretDown className='w-4 h-4 text-[var(--accent)] flex-shrink-0' />
                         ) : (
-                           <ChevronRight className='w-4 h-4 text-[var(--text-muted)]/40 flex-shrink-0' />
+                           <CaretRight className='w-4 h-4 text-[var(--text-muted)]/40 flex-shrink-0' />
                         )}
                         <div className='min-w-0'>
                            <p className='text-[15px] font-[440] text-[var(--text-primary)] truncate leading-snug'>
@@ -248,7 +237,7 @@ export default function StorageSection() {
                            whileTap={{ scale: 0.82 }}
                            onClick={() => removeDir(d.path)}
                            className='w-7 h-7 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors'>
-                           <Trash2 className='w-3.5 h-3.5' />
+                           <Trash className='w-3.5 h-3.5' />
                         </motion.button>
                      </div>
                   </div>
@@ -268,7 +257,7 @@ export default function StorageSection() {
                            className='overflow-hidden bg-[var(--bg-elevated)]/50'>
                            {loadingPreview === d.path ? (
                               <div className='px-6 py-4 flex items-center gap-2 text-[13px] text-[var(--text-muted)]'>
-                                 <RefreshCw className='w-3.5 h-3.5 animate-spin' />{" "}
+                                 <ArrowClockwise className='w-3.5 h-3.5 animate-spin' />{" "}
                                  Scanning…
                               </div>
                            ) : (preview[d.path] ?? []).length === 0 ? (
@@ -281,7 +270,7 @@ export default function StorageSection() {
                                     <div
                                        key={f.path}
                                        className='flex items-center gap-3 px-6 py-2 border-t border-[var(--border)]/30'>
-                                       <Music2 className='w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0' />
+                                       <MusicNotes className='w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0' />
                                        <p className='text-[13px] text-[var(--text-primary)] truncate flex-1 font-[440]'>
                                           {f.name}
                                        </p>
@@ -351,28 +340,28 @@ export default function StorageSection() {
             />
          </SettingsGroup>
 
-         {/* Library */}
-         <SettingsGroup title='Library'>
+         {/* Books */}
+         <SettingsGroup title='Books'>
             <StateRow
                state={rescanState}
                idleLabel='Rescan library'
                idleDesc='Re-index all active directories and update track metadata'
-               okLabel='Library rescanned'
+               okLabel='Books rescanned'
                errLabel='Rescan failed'
                onClick={rescanState === "idle" ? rescan : undefined}
                idleIcon={
-                  <RefreshCw className='w-4 h-4 text-[var(--text-muted)]/40' />
+                  <ArrowClockwise className='w-4 h-4 text-[var(--text-muted)]/40' />
                }
             />
             <StateRow
                state={exportState}
                idleLabel='Export library'
-               idleDesc='Download your full track library as a JSON file'
-               okLabel='Library exported'
+               idleDesc='DownloadSimple your full track library as a JSON file'
+               okLabel='Books exported'
                errLabel='Export failed'
                onClick={exportState === "idle" ? exportLib : undefined}
                idleIcon={
-                  <Download className='w-4 h-4 text-[var(--text-muted)]/40' />
+                  <DownloadSimple className='w-4 h-4 text-[var(--text-muted)]/40' />
                }
             />
             <SettingsRow
@@ -381,7 +370,7 @@ export default function StorageSection() {
                onClick={() => {
                   queryClient.invalidateQueries();
                }}
-               icon={<RefreshCw className='w-[14px] h-[14px]' />}
+               icon={<ArrowClockwise className='w-[14px] h-[14px]' />}
                iconBg='#0EA5E9'
             />
          </SettingsGroup>
@@ -408,7 +397,7 @@ export default function StorageSection() {
                okLabel='Stream cache cleared'
                errLabel='Failed to clear'
                onClick={streamState === "idle" ? clearStream : undefined}
-               idleIcon={<Trash2 className='w-4 h-4 text-red-400' />}
+               idleIcon={<Trash className='w-4 h-4 text-red-400' />}
                danger
             />
             <StateRow
@@ -418,7 +407,7 @@ export default function StorageSection() {
                okLabel='Artwork cache cleared'
                errLabel='Failed to clear'
                onClick={artworkState === "idle" ? clearArtwork : undefined}
-               idleIcon={<Trash2 className='w-4 h-4 text-red-400' />}
+               idleIcon={<Trash className='w-4 h-4 text-red-400' />}
                danger
             />
          </SettingsGroup>
@@ -434,7 +423,7 @@ export default function StorageSection() {
                      ? `${audioStats.count} track${audioStats.count === 1 ? '' : 's'} · ${fmt(audioStats.bytes)} of ${fmt(audioStats.limitBytes)}`
                      : 'Measuring…'
                }
-               icon={<Download className='w-[14px] h-[14px]' />}
+               icon={<DownloadSimple className='w-[14px] h-[14px]' />}
                iconBg='#0EA5E9'
             />
 
@@ -471,7 +460,7 @@ export default function StorageSection() {
                okLabel='Offline audio cleared'
                errLabel='Failed to clear'
                onClick={audioState === "idle" ? clearAudio : undefined}
-               idleIcon={<Trash2 className='w-4 h-4 text-red-400' />}
+               idleIcon={<Trash className='w-4 h-4 text-red-400' />}
                danger
             />
          </SettingsGroup>
@@ -511,10 +500,10 @@ function StateRow({
          onClick={onClick}
          loading={state === "loading"}>
          {state === "loading" && (
-            <RefreshCw className='w-4 h-4 text-[var(--accent)] animate-spin' />
+            <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
          )}
-         {state === "ok" && <CheckCircle2 className='w-4 h-4 text-green-400' />}
-         {state === "err" && <AlertCircle className='w-4 h-4 text-red-400' />}
+         {state === "ok" && <CheckCircle className='w-4 h-4 text-green-400' />}
+         {state === "err" && <WarningCircle className='w-4 h-4 text-red-400' />}
          {state === "idle" && idleIcon}
       </SettingsRow>
    );

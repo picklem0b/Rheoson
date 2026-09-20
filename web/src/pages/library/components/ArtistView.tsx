@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { User } from 'lucide-react'
+import { User } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import type { Artist } from '@/types'
 

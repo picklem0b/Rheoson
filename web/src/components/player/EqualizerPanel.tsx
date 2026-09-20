@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Music2, ChevronDown } from 'lucide-react'
+import { MusicNotes, CaretDown } from '@phosphor-icons/react'
 import { useUIStore } from '@/store/ui.store'
 import { IconButton } from '@/components/ui/IconButton'
 import { cn } from '@/lib/utils'
@@ -18,7 +18,7 @@ const EMPTY_GAINS = EQ_BANDS.map(() => 0)
 /**
  * Equalizer panel — drives the persistent effects engine in lib/audioEffects,
  * so adjustments apply immediately, survive closing this panel, and stay in
- * sync with Settings → Audio → "Equaliser preset".
+ * sync with GearSix → Audio → "Equaliser preset".
  */
 export default function EqualizerPanel() {
   const { showEqualizer, toggleEqualizer } = useUIStore()
@@ -60,11 +60,11 @@ export default function EqualizerPanel() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Music2 className="w-5 h-5 text-[var(--accent)]" />
+            <MusicNotes className="w-5 h-5 text-[var(--accent)]" />
             <h3 className="font-bold text-[var(--text-primary)]">Equalizer</h3>
           </div>
           <IconButton size="sm" variant="ghost" onClick={toggleEqualizer}>
-            <ChevronDown className="w-4 h-4" />
+            <CaretDown className="w-4 h-4" />
           </IconButton>
         </div>
 

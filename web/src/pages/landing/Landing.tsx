@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight } from '@phosphor-icons/react'
 import { useAuth } from '@clerk/clerk-react'
 import { useAuthStore } from '@/store/auth.store'
 import { APP_NAME, isClerkEnabled } from '@/lib/constants'
@@ -14,7 +14,7 @@ import AppLogo from '@/components/ui/AppLogo'
  * sign-in / sign-up choice — Clerk's own flow handles both and lets the user
  * switch between them, so mirroring that choice here only added a step.
  *
- * Flow: this screen → /auth (Clerk) → Home.
+ * Flow: this screen → /auth (Clerk) → House.
  */
 export default function Landing() {
   return isClerkEnabled() ? <ClerkGate /> : <GateBody clerkEnabled={false} />

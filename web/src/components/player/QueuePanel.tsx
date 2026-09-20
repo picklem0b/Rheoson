@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ListMusic, Trash2, Plus, Search } from 'lucide-react'
+import { X, Queue, Trash, Plus, MagnifyingGlass } from '@phosphor-icons/react'
 import { useUIStore } from '@/store/ui.store'
 import { useQueueStore } from '@/store/queue.store'
 import { usePlayerStore } from '@/store/player.store'
@@ -56,7 +56,7 @@ export default function QueuePanel() {
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2.5">
-                  <ListMusic className="w-5 h-5 text-[var(--accent)]" />
+                  <Queue className="w-5 h-5 text-[var(--accent)]" />
                   <h2 className="font-bold text-[var(--text-primary)]">Queue</h2>
                   {queue.length > 0 && (
                     <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-elevated)] px-2 py-0.5 rounded-full">
@@ -68,7 +68,7 @@ export default function QueuePanel() {
                   <AddToQueueButton />
                   {queue.length > 0 && (
                     <IconButton size="sm" variant="ghost" onClick={clearQueue} title="Clear queue">
-                      <Trash2 />
+                      <Trash />
                     </IconButton>
                   )}
                   <IconButton size="sm" variant="ghost" onClick={toggleQueue}>
@@ -123,7 +123,7 @@ export default function QueuePanel() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-                    <ListMusic className="w-10 h-10 text-[var(--text-muted)]" />
+                    <Queue className="w-10 h-10 text-[var(--text-muted)]" />
                     <p className="text-sm text-[var(--text-muted)]">Queue is empty</p>
                     <p className="text-xs text-[var(--text-muted)] opacity-60">
                       Tap + to add songs
@@ -203,14 +203,14 @@ function AddToQueueModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal open onClose={onClose} title="Add to queue" className="max-h-[88dvh] overflow-hidden flex flex-col">
-      {/* Search field */}
+      {/* MagnifyingGlass field */}
       <div className="relative mb-4 flex-shrink-0">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+        <MagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
         <input
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search songs to queue…"
+          placeholder="MagnifyingGlass songs to queue…"
           className="w-full h-11 pl-10 pr-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]
                      text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]
                      outline-none focus:border-[var(--accent)] transition-colors"
