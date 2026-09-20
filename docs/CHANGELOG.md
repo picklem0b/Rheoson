@@ -6,6 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.5
+
+Milestone 2.19 phase 5/8 — browse and discovery.
+
+- feat(ui): **category tiles have presence without taking over the screen.** Tiles grow from 92px to 124px (140px from `sm`), the genre label steps up to a readable size, and the chevron matches it — a proper browse target rather than a cramped chip.
+- feat(browse): a category chart now shows **ten** tracks instead of five, in the same row treatment as the library, with room around it on larger screens.
+- fix(ui): removed the implementation copy that sat under every category heading ("Refreshed weekly and cached on the server"). The explanation is real and useful, so it moved behind an info affordance rather than being deleted.
+- feat(ui): new `InfoTooltip` primitive — an info icon that opens a short explanation on click (works on touch), closes on Escape or an outside tap, and announces its expanded state. Explanations no longer have to occupy permanent space in a heading to be available.
+- docs: album, artist and playlist pages were confirmed as complete routed destinations (`/album/:id`, `/artist/:id`, `/playlist/:id`) rather than stubs.
+
 ## v2.19.4
 
 Milestone 2.19 phase 4/8 — instant state.

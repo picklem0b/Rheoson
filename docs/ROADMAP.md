@@ -8,8 +8,8 @@ shipping them as an untracked patch line.
 
 Phases ship one per commit and are annotated-tagged `v2.19.N`, per
 `GIT_WORKFLOW.md`. Shipped: **v2.19.1** (playback/download reliability),
-**v2.19.2** (auth and API trust boundary), **v2.19.3** (username identity) and
-**v2.19.4** (instant state).
+**v2.19.2** (auth and API trust boundary), **v2.19.3** (username identity),
+**v2.19.4** (instant state) and **v2.19.5** (browse and discovery).
 
 ---
 
@@ -83,15 +83,15 @@ reappear.
   `usePersisted` / their Zustand stores, so an edit survives navigating away
   and back.
 
-## v2.19.5 — Browse and discovery
+## v2.19.5 — Browse and discovery (shipped)
 
-- Category profiles get real presence — a proper cover-led feature surface
-  with a heading, a short description and its tracks laid out to breathe,
-  instead of a cramped card. Deliberately moderate in size: generous, not
-  full-screen.
-- Album, artist and playlist pages are complete destinations of their own.
-- Meta copy that describes the implementation ("refreshed weekly and cached
-  on the server") is removed; explanatory hints move behind an info affordance.
+- Category tiles are a proper browse target — 124px (140px from `sm`), with a
+  readable genre label and chevron. Moderate, not full-screen.
+- A category chart shows ten tracks, laid out like the library rather than
+  squeezed into a card.
+- Implementation copy under each heading is gone; the same explanation lives
+  behind a new `InfoTooltip` info affordance.
+- Album, artist and playlist pages confirmed as complete routed destinations.
 
 ## v2.19.6 — Library information architecture
 
