@@ -6,6 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.9
+
+Found by downloading a real track end to end instead of trusting the unit suite.
+
+- fix(websocket): **a download started while no client was connected died immediately.** `ws_manager.emit` logged `log.warning("ws.emit.queued", event=event)`; structlog binds the first positional argument to a reserved `event` key, so the keyword collided and raised `TypeError`. `emit` is called at the top of `_download_task`, so that TypeError propagated straight out of the emit call and killed the job before it fetched a byte — the exact “downloading doesn’t work” symptom. The same collision sat on the failure and queue-full paths, where it replaced the real error with a logging error. All three now use `event_name`, and `emit` is total: a transport or logging failure can no longer fail the caller.
+- fix(downloads): **tagging never ran.** `_tag_and_finish` imported `write_tags` from `metadata_service`, which only had readers, so every download reported `download.tag.failed — cannot import name 'write_tags'` and landed an untagged file with no cover art. Implemented the writer for `mp3` (ID3), `m4a`/`mp4`/`aac` (iTunes atoms), `flac` and `ogg`/`opus` (Vorbis comments), including embedded artwork, lyrics, track number and year. Artwork MIME is sniffed from the bytes rather than guessed from the URL, and zero-length artwork is skipped instead of stored as a broken frame.
+- fix(metadata): `extract_artwork_bytes` returned nothing for `ogg`/`opus`. It looked for a value with a `.data` attribute, but the Vorbis convention stores artwork as a base64-encoded FLAC picture in `metadata_block_picture`, which is a plain string. Now decoded properly, so an embedded cover is served back for those containers.
+- chore(deps): yt-dlp `2026.3.17` → `2026.8.19` through the lockfile.
+- test: the emit helper (buffering, transport failure, bounded queue), a source guard against reintroducing the reserved `event` keyword anywhere in `app/`, and `write_tags` across all five containers round-tripped through the library scanner's own reader (14 new tests).
+
 ## v2.19.8
 
 Milestone 2.19 phase 8/8 — close-out.

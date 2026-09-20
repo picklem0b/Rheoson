@@ -36,18 +36,31 @@ class ConnectionManager:
     # ── Emit helpers ──────────────────────────────────────────
 
     async def emit(self, event: str, data: dict, room: str | None = None) -> None:
-        if self._sio is None:
-            # Buffer instead of silently dropping
-            if len(_pending_events) < _MAX_PENDING:
-                _pending_events.append((event, data, room))
-                log.warning("ws.emit.queued", event=event, pending=len(_pending_events))
-            else:
-                log.warning("ws.emit.dropped_queue_full", event=event)
-            return
+        # `event_name`, not `event`: structlog binds the first positional
+        # argument to a reserved `event` key, so `event=event` is a duplicate
+        # kwarg and raises TypeError. That TypeError escaped into the download
+        # task that called this and killed the job, so the naming here is
+        # load-bearing rather than cosmetic.
         try:
+            if self._sio is None:
+                # Buffer instead of silently dropping
+                if len(_pending_events) < _MAX_PENDING:
+                    _pending_events.append((event, data, room))
+                    log.warning(
+                        "ws.emit.queued", event_name=event, pending=len(_pending_events)
+                    )
+                else:
+                    log.warning("ws.emit.dropped_queue_full", event_name=event)
+                return
             await self._sio.emit(event, data, room=room)
-        except Exception as e:
-            log.error("ws.emit.failed", event=event, error=str(e))
+        except Exception as e:  # noqa: BLE001 — emit is fire-and-forget
+            # A failed broadcast must never be what fails a download. Callers
+            # are background tasks with no way to handle it, so it is logged
+            # and swallowed here.
+            try:
+                log.error("ws.emit.failed", event_name=event, error=str(e))
+            except Exception:  # noqa: BLE001 — logging must not re-raise
+                pass
 
     async def emit_download_progress(self, job_id: str, progress: float, status: str, **extra) -> None:
         await self.emit("download:progress", {
