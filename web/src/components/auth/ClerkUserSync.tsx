@@ -70,7 +70,7 @@ export default function ClerkUserSync() {
       syncClerkUser({
         id: user.id,
         email: user.primaryEmailAddress?.emailAddress,
-        name: user.fullName ?? user.username ?? undefined,
+        username: user.username ?? undefined,
         imageUrl: user.imageUrl,
         createdAt: user.createdAt?.toISOString(),
       });

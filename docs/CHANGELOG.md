@@ -6,6 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.3
+
+Milestone 2.19 phase 3/8 — the account contract.
+
+- feat(auth): **identity is a username, and only a username.** The product has no first or last name, so the Clerk webhook no longer derives one: `user.created`/`user.updated` record `username` (Clerk's field, with the email local part as a fallback for accounts that predate it being required) and drop `name`/`first_name`/`last_name` entirely. The user document, `/auth/me` and the profile screen all speak username.
+- fix(auth): `PATCH /auth/me` validates the username server-side — `3–32` characters from `A–Z a–z 0–9 _ .`. It becomes the display name and the handle a future messaging feature will address people by, so its shape is enforced rather than trusted; Clerk owns uniqueness.
+- feat(ui): the profile editor, settings account row, sidebar profile button and profile card all read `username`; the previous `fullName` fallback is gone so a signed-in account can no longer show a first/last-derived name.
+- docs(auth): the account contract is now written down — username rules, "email or phone, at least one", password minimum, and the Clerk instance configuration it maps to, including the NIST note that 15 characters is the stronger minimum for single-factor sign-in.
+- test(accounts): sign-up payloads that carry a username and no name, the email-local-part fallback, username updates, and the server-side shape validation are all covered.
+
 ## v2.19.2
 
 Milestone 2.19 phase 2/8 — the auth and API trust boundary.

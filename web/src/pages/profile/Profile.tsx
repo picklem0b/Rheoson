@@ -81,8 +81,8 @@ export default function Profile() {
 function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
-  const [editingName, setEditingName] = useState(false)
-  const [nameValue, setNameValue] = useState('')
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [usernameValue, setUsernameValue] = useState('')
   const [saving, setSaving] = useState(false)
 
   // Stats from analytics API
@@ -111,9 +111,9 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
     retry: 0,
   })
 
-  const displayName = user?.name ?? 'Your account'
+  const displayUsername = user?.username ?? 'Your account'
   const email = user?.email ?? ''
-  const initials = getInitials(displayName)
+  const initials = getInitials(displayUsername)
 
   // Format member since date
   const memberSince = useMemo(() => {
@@ -126,29 +126,29 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
     }
   }, [user?.created_at])
 
-  const startEditName = () => {
-    setNameValue(displayName)
-    setEditingName(true)
+  const startEditUsername = () => {
+    setUsernameValue(displayUsername)
+    setEditingUsername(true)
   }
 
   const cancelEdit = () => {
-    setEditingName(false)
-    setNameValue('')
+    setEditingUsername(false)
+    setUsernameValue('')
   }
 
-  const saveName = async () => {
-    if (!nameValue.trim() || nameValue.trim() === displayName) {
-      setEditingName(false)
+  const saveUsername = async () => {
+    if (!usernameValue.trim() || usernameValue.trim() === displayUsername) {
+      setEditingUsername(false)
       return
     }
     setSaving(true)
     try {
       const { authApi } = await import('@/api/auth.api')
-      await authApi.updateProfile({ name: nameValue.trim() })
+      await authApi.updateProfile({ username: usernameValue.trim() })
       useAuthStore.setState((state) => ({
-        user: state.user ? { ...state.user, name: nameValue.trim() } : null,
+        user: state.user ? { ...state.user, username: usernameValue.trim() } : null,
       }))
-      setEditingName(false)
+      setEditingUsername(false)
     } catch {
       // Silently fail
     } finally {
@@ -196,7 +196,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
               {user?.image_url ? (
                 <img
                   src={user.image_url}
-                  alt={displayName}
+                  alt={displayUsername}
                   className="w-[88px] h-[88px] rounded-[22px] object-cover border-4 border-[var(--bg-surface)] shadow-xl"
                 />
               ) : (
@@ -215,7 +215,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
 
             <div className="mt-3">
               <AnimatePresence mode="wait" initial={false}>
-                {editingName ? (
+                {editingUsername ? (
                   <motion.div
                     key="editing"
                     initial={{ opacity: 0, y: 4 }}
@@ -225,17 +225,17 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
                   >
                     <input
                       autoFocus
-                      value={nameValue}
-                      onChange={(e) => setNameValue(e.target.value)}
+                      value={usernameValue}
+                      onChange={(e) => setUsernameValue(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveName()
+                        if (e.key === 'Enter') saveUsername()
                         if (e.key === 'Escape') cancelEdit()
                       }}
                       className="flex-1 h-10 px-3 text-lg font-bold rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)] text-[var(--text-primary)] outline-none"
                     />
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      onClick={saveName}
+                      onClick={saveUsername}
                       disabled={saving}
                       className="w-10 h-10 rounded-xl bg-[var(--success)] flex items-center justify-center"
                     >
@@ -258,11 +258,11 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
                     className="flex items-center gap-2"
                   >
                     <h2 className="text-2xl font-black text-[var(--text-primary)] truncate">
-                      {displayName}
+                      {displayUsername}
                     </h2>
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      onClick={startEditName}
+                      onClick={startEditUsername}
                       className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0"
                     >
                       <Pencil className="w-3.5 h-3.5 text-[var(--text-muted)]" />

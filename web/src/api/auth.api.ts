@@ -3,7 +3,8 @@ import { api } from './client.api';
 export interface AuthUser {
   id: string;
   email: string;
-  name: string;
+  /** The account's single identity — there is no first/last name. */
+  username: string;
   image_url?: string;
   created_at?: string;
 }
@@ -17,7 +18,7 @@ export const authApi = {
     return api.get<AuthUser>('/auth/me');
   },
 
-  updateProfile: async (data: { name?: string }): Promise<void> => {
+  updateProfile: async (data: { username?: string }): Promise<void> => {
     return api.patch('/auth/me', data);
   },
 

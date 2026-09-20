@@ -7,8 +7,8 @@ instantaneous.** It also folds in the API code review findings rather than
 shipping them as an untracked patch line.
 
 Phases ship one per commit and are annotated-tagged `v2.19.N`, per
-`GIT_WORKFLOW.md`. Shipped: **v2.19.1** (playback/download reliability) and
-**v2.19.2** (auth and API trust boundary).
+`GIT_WORKFLOW.md`. Shipped: **v2.19.1** (playback/download reliability),
+**v2.19.2** (auth and API trust boundary) and **v2.19.3** (username identity).
 
 ---
 
@@ -49,19 +49,21 @@ Closes the API review findings (`CRITICAL-1`, `HIGH-1..3`, `MEDIUM-1..4`):
 - Clerk JWT issuer matching is exact rather than substring; webhook replay is
   de-duplicated; job persistence is atomic.
 
-## v2.19.3 — Account creation contract
+## v2.19.3 — Account contract (shipped)
 
-- Fields: **username** (reserved for the future realtime messaging identity),
-  **email and phone number** (either one is sufficient, but a request missing
-  both fails with a clear field error), and **password** of eight characters
-  or more.
-- Because sign-in is Clerk's (no credential proxy — see v2.19.2), this phase
-  configures and documents the Clerk instance to match: identifier set to
-  email *and* phone with username required, and a minimum password length of
-  eight. A first-party credential form is only worth building if the product
-  decides to own auth end to end, and it would need a real credential store.
-- Username is unique and immutable-by-default; it becomes the display name
-  and the messaging handle.
+- Identity is a single **username**: no first name, no last name, anywhere.
+  Stored on the user document, returned by `/auth/me`, editable through
+  `PATCH /auth/me`, and validated server-side (`3–32` chars of
+  `A–Z a–z 0–9 _ .`) because it becomes a messaging handle.
+- **Email or phone** — either is sufficient, neither is a sign-up error — plus
+  a **password of at least 8 characters**.
+- Clerk instance configuration this maps to (Dashboard → User & Authentication):
+  identifier set to *Email address* **and** *Phone number* (both required as
+  attributes, either acceptable as identifier), *Username* required and unique,
+  password minimum length 8. There is no credential form in our code — sign-in
+  is Clerk's, for the reason recorded in v2.19.2.
+- NIST SP 800-63B recommends 15 characters for single-factor authentication;
+  8 is the configured minimum, and 15 is the stronger choice if MFA is off.
 
 ## v2.19.4 — Instant state
 
@@ -79,8 +81,10 @@ reappear.
 
 ## v2.19.5 — Browse and discovery
 
-- Category profiles become full-width feature surfaces rather than small
-  cards, with a dedicated songs view per category.
+- Category profiles get real presence — a proper cover-led feature surface
+  with a heading, a short description and its tracks laid out to breathe,
+  instead of a cramped card. Deliberately moderate in size: generous, not
+  full-screen.
 - Album, artist and playlist pages are complete destinations of their own.
 - Meta copy that describes the implementation ("refreshed weekly and cached
   on the server") is removed; explanatory hints move behind an info affordance.

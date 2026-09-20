@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.auth import clerk_revoke_session
 from app.core.database import get_db, db_available
@@ -31,7 +31,16 @@ router = APIRouter()
 # ── Schemas ───────────────────────────────────────────────────
 
 class UpdateProfileRequest(BaseModel):
-    name: str | None = None
+    """The one editable profile field.
+
+    Identity is a username — there is no first/last name in this product. It is
+    validated server-side rather than trusted: it becomes the display name and
+    the future messaging handle, so it is confined to a URL-free charset and a
+    bounded length. Clerk owns uniqueness; this owns shape.
+    """
+    username: str | None = Field(
+        None, min_length=3, max_length=32, pattern=r"^[A-Za-z0-9_.]+$"
+    )
 
 
 class PreferencesRequest(BaseModel):
@@ -68,7 +77,8 @@ async def get_profile(user: dict = Depends(get_current_user)):
                 return {
                     "id": clerk_id,
                     "email": mongo_user.get("email", user.get("email_address", "")),
-                    "name": mongo_user.get("name", ""),
+                    "username": mongo_user.get("username", ""),
+                    "image_url": mongo_user.get("image_url", ""),
                     "created_at": mongo_user.get("created_at"),
                 }
         except Exception:
@@ -78,7 +88,8 @@ async def get_profile(user: dict = Depends(get_current_user)):
     return {
         "id": clerk_id,
         "email": user.get("email_address", ""),
-        "name": user.get("first_name", ""),
+        "username": user.get("username", ""),
+        "image_url": "",
     }
 
 
@@ -97,8 +108,8 @@ async def update_profile(
     db = _get_db()
 
     updates: dict = {"updated_at": datetime.now(timezone.utc)}
-    if body.name is not None:
-        updates["name"] = body.name
+    if body.username is not None:
+        updates["username"] = body.username
 
     await db.users.update_one({"_id": clerk_id}, {"$set": updates})
     return {"ok": True}

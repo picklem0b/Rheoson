@@ -2513,10 +2513,18 @@ export interface components {
              */
             artworkUrl: string;
         };
-        /** UpdateProfileRequest */
+        /**
+         * UpdateProfileRequest
+         * @description The one editable profile field.
+         *
+         *     Identity is a username — there is no first/last name in this product. It is
+         *     validated server-side rather than trusted: it becomes the display name and
+         *     the future messaging handle, so it is confined to a URL-free charset and a
+         *     bounded length. Clerk owns uniqueness; this owns shape.
+         */
         UpdateProfileRequest: {
-            /** Name */
-            name?: string | null;
+            /** Username */
+            username?: string | null;
         };
         /** ValidationError */
         ValidationError: {

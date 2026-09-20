@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.19.2"
+    "version": "2.19.3"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -5446,20 +5446,24 @@
       },
       "UpdateProfileRequest": {
         "properties": {
-          "name": {
+          "username": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 32,
+                "minLength": 3,
+                "pattern": "^[A-Za-z0-9_.]+$"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Name"
+            "title": "Username"
           }
         },
         "type": "object",
-        "title": "UpdateProfileRequest"
+        "title": "UpdateProfileRequest",
+        "description": "The one editable profile field.\n\nIdentity is a username \u2014 there is no first/last name in this product. It is\nvalidated server-side rather than trusted: it becomes the display name and\nthe future messaging handle, so it is confined to a URL-free charset and a\nbounded length. Clerk owns uniqueness; this owns shape."
       },
       "ValidationError": {
         "properties": {
