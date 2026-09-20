@@ -1,6 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+// Self-hosted variable fonts — no render-blocking Google Fonts request,
+// and the full weight range is available to the type scale.
+import '@fontsource-variable/geist'
+import '@fontsource-variable/geist-mono'
 import App from './App'
 import './index.css'
 

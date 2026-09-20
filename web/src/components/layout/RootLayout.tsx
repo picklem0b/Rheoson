@@ -15,6 +15,7 @@ import UpdateNotification from "@/components/ui/UpdateNotification";
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { usePlayerSync } from "@/hooks/playerSync.hook";
+import { isNativePlatform } from "@/lib/capacitor";
 import OnboardingGate from "@/components/onboarding/OnboardingGate";
 import { cn } from "@/lib/utils";
 
@@ -38,9 +39,17 @@ import { cn } from "@/lib/utils";
 /** Settings → Appearance → Reduce motion. Read per render of the toggle
  *  subscriber; applied by wrapping the shell in MotionConfig with
  *  reducedMotion="always", which makes every framer-motion animation in the
- *  app jump to its end state — a global, accessible motion kill-switch. */
+ *  app jump to its end state — a global, accessible motion kill-switch.
+ *  Mirrored onto [data-reduce-motion] so the CSS layer (index.css media-
+ *  independent block) collapses non-framer CSS animations too. */
 function useReduceMotion(): boolean {
    const reduced = useUIStore(s => s.reduceMotion);
+
+   React.useEffect(() => {
+      document.documentElement.setAttribute('data-reduce-motion', String(reduced));
+      return () => document.documentElement.removeAttribute('data-reduce-motion');
+   }, [reduced]);
+
    return reduced;
 }
 
@@ -52,6 +61,11 @@ export default function RootLayout() {
    const hasTrack = usePlayerStore(s => s.currentTrack !== null);
    const navPosition = useUIStore(s => s.navPosition);
 
+   // Product rule: the native shell always renders the mobile experience,
+   // even on a large tablet in landscape. The desktop column simply never
+   // mounts there instead of being hidden by breakpoint alone.
+   const native = isNativePlatform();
+
    // Nav is always visible — no auto-hide behavior.
    // Position (bottom/top) comes from Settings → Layout → Navigation position.
    const navAtTop = navPosition === 'top';
@@ -61,7 +75,7 @@ export default function RootLayout() {
       <Toaster>
          <div className='flex h-full w-full overflow-hidden bg-[var(--bg-base)]'>
             {/* ── Desktop sidebar ───────────────────────────── */}
-            <aside className='hidden lg:flex flex-shrink-0'>
+            <aside className={native ? 'hidden' : 'hidden lg:flex flex-shrink-0'}>
                <Sidebar />
             </aside>
 
@@ -94,13 +108,13 @@ export default function RootLayout() {
                </main>
 
                {/* Desktop PlayerBar — floating card at bottom */}
-               <div className='hidden lg:block flex-shrink-0'>
+               <div className={native ? 'hidden' : 'hidden lg:block flex-shrink-0'}>
                   <PlayerBar />
                </div>
             </div>
 
             {/* ── Mobile fixed overlay stack ─────────────────── */}
-            <div className='lg:hidden'>
+            <div className={native ? undefined : 'lg:hidden'}>
                {/* PlayerBar — only in DOM when track exists */}
                <AnimatePresence>
                   {hasTrack && (
