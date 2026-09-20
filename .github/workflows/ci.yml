@@ -72,7 +72,7 @@ jobs:
 
          - name: Unit tests
            working-directory: web
-           run: npm test.
+           run: npm test
 
          - name: Build (includes OpenAPI type contract regeneration)
            working-directory: web
