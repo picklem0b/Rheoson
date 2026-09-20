@@ -17,7 +17,7 @@ import type { FileNaming } from '@/types'
 
 // Notification chime — louder than the generic success toast so it's
 // noticeable, gated by Settings → Notifications → "Sound effects" and
-// "Download complete".
+// "DownloadSimple complete".
 
 // ── Advanced options from Settings → Downloads ────────────────
 // Every download (modal, playlist, URL) is sent with the user's saved
@@ -207,7 +207,7 @@ export function useDownloads() {
     } catch (e) {
       updateJob(tempId, {
         status: 'error',
-        error:  e instanceof Error ? e.message : 'Download failed',
+        error:  e instanceof Error ? e.message : 'DownloadSimple failed',
       })
     }
   }, [addJob, updateJob])
@@ -217,7 +217,7 @@ export function useDownloads() {
     removeJob(id)
   }, [removeJob])
 
-  /** Download many tracks at once (playlists, albums). Uses the backend's
+  /** DownloadSimple many tracks at once (playlists, albums). Uses the backend's
    *  batch endpoint in ≤20-track chunks; each job streams its own progress
    *  over the same WebSocket path as a single download. Optimistic stubs
    *  appear immediately so the activity feed reflects the request. */

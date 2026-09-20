@@ -95,7 +95,7 @@ export const healthApi = {
    /** Fresh deep probe. Requires a session. */
    deep: () => api.get<HealthPayload>('/health/diag'),
 
-   /** Route-level self-test: drives real read-only requests through the
+   /** Path-level self-test: drives real read-only requests through the
     *  backend's own stack. Requires a session (runs live upstream calls). */
    selftest: () => api.get<SelftestPayload>('/health/selftest'),
 }

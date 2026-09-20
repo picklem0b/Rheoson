@@ -1,4 +1,4 @@
-import { Download, Zap, RefreshCw } from "lucide-react";
+import { DownloadSimple, Lightning, ArrowClockwise } from '@phosphor-icons/react';
 import { usePersisted } from "@/hooks/persisted.hook";
 import { playChime } from "@/lib/sounds";
 import {
@@ -35,7 +35,7 @@ export default function NotificationsSection() {
             <SettingsRow
                label='Sound effects'
                description='Play a chime for feedback and download completion'
-               icon={<Zap className='w-[14px] h-[14px]' />}
+               icon={<Lightning className='w-[14px] h-[14px]' />}
                iconBg='#EAB308'>
                <Toggle value={sound} onChange={setSound} />
             </SettingsRow>
@@ -51,7 +51,7 @@ export default function NotificationsSection() {
             <SettingsRow
                label={testing ? 'Playing…' : 'Test sound effect'}
                description='Preview the chime at the chosen volume'
-               icon={testing ? <RefreshCw className='w-[14px] h-[14px] animate-spin' /> : <Zap className='w-[14px] h-[14px]' />}
+               icon={testing ? <ArrowClockwise className='w-[14px] h-[14px] animate-spin' /> : <Lightning className='w-[14px] h-[14px]' />}
                iconBg='#A3A3A3'
                onClick={() => {
                   setTesting(true);
@@ -66,9 +66,9 @@ export default function NotificationsSection() {
             title='Downloads'
             footer='Lock-screen playback controls come from the system Media Session — see your device notification shade while playing.'>
             <SettingsRow
-               label='Download complete chime'
+               label='DownloadSimple complete chime'
                description='Play the chime when a track finishes downloading'
-               icon={<Download className='w-[14px] h-[14px]' />}
+               icon={<DownloadSimple className='w-[14px] h-[14px]' />}
                iconBg='#22C55E'>
                <Toggle value={dlDone} onChange={setDlDone} />
             </SettingsRow>

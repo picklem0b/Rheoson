@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Search, X } from 'lucide-react'
+import { Check, MagnifyingGlass, X } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import AppLogo from '@/components/ui/AppLogo'
 import { recommendationsApi } from '@/api/recommendations.api'
@@ -102,7 +102,7 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
 }) {
   const [query, setQuery] = useState('')
   // The live input value; `query` feeds it instantly so typing never lags.
-  // Search requests use the deferred term instead, 250ms behind, so one
+  // MagnifyingGlass requests use the deferred term instead, 250ms behind, so one
   // request fires per pause rather than per keystroke.
   const [deferredTerm, setDeferredTerm] = useState('')
   const [picked, setPicked] = useState<string[]>([])
@@ -164,13 +164,13 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
         </div>
         <h2 className="text-xl font-black leading-tight relative">Make it yours</h2>
         <p className="text-sm text-white/80 mt-1.5 leading-relaxed relative">
-          Pick up to 3 artists you love and we&apos;ll tune your Home, mixes and radio to your taste.
+          Pick up to 3 artists you love and we&apos;ll tune your House, mixes and radio to your taste.
         </p>
       </div>
 
-      {/* Search box */}
+      {/* MagnifyingGlass box */}
       <div className="flex items-center gap-2 px-3 h-11 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-        <Search className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+        <MagnifyingGlass className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
         <input
           autoFocus
           value={query}
@@ -188,7 +188,7 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
               setQuery('')
             }
           }}
-          placeholder="Search an artist…"
+          placeholder="MagnifyingGlass an artist…"
           className="flex-1 h-full text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none bg-transparent"
         />
         {isFetching && (
@@ -253,7 +253,7 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
           ))}
           {picked.length === 0 && searchTerm.length < 2 && (
             <span className="text-xs text-[var(--text-muted)] py-1.5">
-              Search above, then tap artists to add them.
+              MagnifyingGlass above, then tap artists to add them.
             </span>
           )}
           {picked.length > 0 && (

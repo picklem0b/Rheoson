@@ -1,19 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-   Search as SearchIcon,
-   X,
-   User,
-   Download,
-   Music2,
-   Disc3,
-   Link2,
-   TrendingUp,
-   History,
-   Trash2,
-   ListPlus
-} from "lucide-react";
+import { MagnifyingGlass as SearchIcon, X, User, DownloadSimple, MusicNotes, VinylRecord, Link, TrendUp, ClockCounterClockwise, Trash, ListPlus } from '@phosphor-icons/react';
 import { useSearch } from "@/hooks/search.hook";
 import { useQueue } from "@/hooks/queue.hook";
 import { useUIStore } from "@/store/ui.store";
@@ -80,7 +68,7 @@ function TrackRow({
                />
             ) : (
                <div className='w-12 h-12 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center'>
-                  <Music2 className='w-5 h-5 text-[var(--text-muted)]' />
+                  <MusicNotes className='w-5 h-5 text-[var(--text-muted)]' />
                </div>
             )}
             {/* Downloaded badge */}
@@ -88,7 +76,7 @@ function TrackRow({
                <div
                   className='absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full
                           bg-[var(--accent)] flex items-center justify-center'>
-                  <Download className='w-2 h-2 text-white' />
+                  <DownloadSimple className='w-2 h-2 text-white' />
                </div>
             )}
          </div>
@@ -126,7 +114,7 @@ function TrackRow({
                      ? "bg-[var(--accent-subtle)] text-[var(--accent)]"
                      : "bg-[var(--bg-elevated)] text-[var(--text-muted)] active:bg-[var(--accent-subtle)] active:text-[var(--accent)]"
                )}>
-               <Download className='w-3.5 h-3.5' />
+               <DownloadSimple className='w-3.5 h-3.5' />
             </motion.button>
          </div>
       </motion.div>
@@ -173,7 +161,7 @@ function AlbumCard({
                <div
                   className='w-full h-full bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]
                             flex items-center justify-center'>
-                  <Disc3 className='w-10 h-10 text-[var(--text-muted)]' />
+                  <VinylRecord className='w-10 h-10 text-[var(--text-muted)]' />
                </div>
             )}
          </div>
@@ -230,7 +218,7 @@ function ArtistPill({
    );
 }
 
-// ── Search history row ────────────────────────────────────────
+// ── MagnifyingGlass history row ────────────────────────────────────────
 // Recent searches show the song the user actually listened to from
 // each query (tapping it replays that song); queries without a played
 // song fall back to re-running the search.
@@ -314,7 +302,7 @@ function HistoryRow({
 
 // ── Main page ─────────────────────────────────────────────────
 
-export default function Search() {
+export default function MagnifyingGlass() {
    const {
       query,
       setQuery,
@@ -409,7 +397,7 @@ export default function Search() {
          <div className='px-4 pt-6 pb-3 space-y-3 flex-shrink-0'>
             <div className='flex items-center justify-between'>
                <h1 className='text-2xl font-bold text-[var(--text-primary)]'>
-                  Search
+                  MagnifyingGlass
                </h1>
                {/* Link type indicator in header */}
                {(inputType === "spotify" || inputType === "youtube") && (
@@ -418,7 +406,7 @@ export default function Search() {
                      animate={{ opacity: 1, scale: 1 }}
                      className='flex items-center gap-1.5 px-3 py-1 rounded-full
                          bg-[var(--accent-subtle)] border border-[var(--accent-border)]'>
-                     <Link2 className='w-3 h-3 text-[var(--accent)]' />
+                     <Link className='w-3 h-3 text-[var(--accent)]' />
                      <span className='text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider'>
                         {inputType === "spotify" ? "Spotify" : "YouTube"}
                      </span>
@@ -438,7 +426,7 @@ export default function Search() {
                onSelectSuggestion={selectSuggestion}
             />
 
-            {/* Filter pills — only when there are results */}
+            {/* Funnel pills — only when there are results */}
             <AnimatePresence>
                {query && results && (
                   <motion.div
@@ -482,7 +470,7 @@ export default function Search() {
                         <div className='mb-7'>
                            <div className='flex items-center justify-between mb-2'>
                               <div className='flex items-center gap-2'>
-                                 <History className='w-4 h-4 text-[var(--accent)]' />
+                                 <ClockCounterClockwise className='w-4 h-4 text-[var(--accent)]' />
                                  <p className='text-sm font-bold text-[var(--text-primary)]'>
                                     Recent searches
                                  </p>
@@ -495,7 +483,7 @@ export default function Search() {
                                  className='flex items-center gap-1 px-2.5 py-1 -mr-1 rounded-full text-xs font-semibold
                                     text-[var(--text-muted)] hover:text-[var(--text-primary)]
                                     hover:bg-[var(--bg-elevated)] transition-colors'>
-                                 <Trash2 className='w-3.5 h-3.5' />
+                                 <Trash className='w-3.5 h-3.5' />
                                  Clear all
                               </button>
                            </div>
@@ -514,7 +502,7 @@ export default function Search() {
                      )}
 
                      <div className='flex items-center gap-2 mb-4 mt-2'>
-                        <TrendingUp className='w-4 h-4 text-[var(--accent)]' />
+                        <TrendUp className='w-4 h-4 text-[var(--accent)]' />
                         <p className='text-sm font-bold text-[var(--text-primary)]'>
                            Browse categories
                         </p>
@@ -557,7 +545,7 @@ export default function Search() {
                      </div>
                      <div>
                         <p className='font-semibold text-[var(--text-primary)]'>
-                           Search failed
+                           MagnifyingGlass failed
                         </p>
                         <p className='text-sm text-[var(--text-secondary)] mt-1'>
                            {error}
@@ -586,7 +574,7 @@ export default function Search() {
                         <ResultSection
                            title='Tracks'
                            count={results.tracks.length}
-                           icon={<Music2 className='w-4 h-4' />}>
+                           icon={<MusicNotes className='w-4 h-4' />}>
                            <div className='space-y-0.5'>
                               {results.tracks.map((track, i) => (
                                  <TrackRow
@@ -640,7 +628,7 @@ export default function Search() {
                         <ResultSection
                            title='Albums'
                            count={results.albums.length}
-                           icon={<Disc3 className='w-4 h-4' />}>
+                           icon={<VinylRecord className='w-4 h-4' />}>
                            <div className='flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1'>
                               {results.albums.map((album, i) => (
                                  <AlbumCard

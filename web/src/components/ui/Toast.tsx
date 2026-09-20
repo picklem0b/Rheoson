@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { CheckCircle, XCircle, Info, AlertTriangle, X } from 'lucide-react'
+import { CheckCircle, XCircle, Info, Warning, X } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning'
@@ -19,7 +19,7 @@ const icons = {
   success: <CheckCircle className="w-4 h-4 text-green-400" />,
   error:   <XCircle     className="w-4 h-4 text-red-400" />,
   info:    <Info        className="w-4 h-4 text-blue-400" />,
-  warning: <AlertTriangle className="w-4 h-4 text-yellow-400" />,
+  warning: <Warning className="w-4 h-4 text-yellow-400" />,
 }
 
 const styles = {

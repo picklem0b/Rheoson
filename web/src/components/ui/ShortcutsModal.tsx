@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Keyboard } from 'lucide-react'
+import { X, Keyboard } from '@phosphor-icons/react'
 import { IconButton } from './IconButton'
 
 const SHORTCUTS = [
   { keys: ['Space'], description: 'Play / Pause' },
   { keys: ['←'], description: 'Seek backward 10s' },
   { keys: ['→'], description: 'Seek forward 10s' },
-  { keys: ['↑'], description: 'Volume up' },
-  { keys: ['↓'], description: 'Volume down' },
+  { keys: ['↑'], description: 'SpeakerHigh up' },
+  { keys: ['↓'], description: 'SpeakerHigh down' },
   { keys: ['N'], description: 'Next track' },
   { keys: ['P'], description: 'Previous track' },
   { keys: ['R'], description: 'Cycle repeat mode' },

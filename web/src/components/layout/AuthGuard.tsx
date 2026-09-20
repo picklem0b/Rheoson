@@ -3,7 +3,7 @@ import { useAuth } from '@clerk/clerk-react'
 import { isClerkEnabled } from '@/lib/constants'
 
 /**
- * Route guard.
+ * Path guard.
  *
  * When Clerk is configured (VITE_CLERK_PUBLISHABLE_KEY set):
  *   - While Clerk is still loading we render a branded loader instead of

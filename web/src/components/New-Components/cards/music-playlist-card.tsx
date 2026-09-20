@@ -6,7 +6,7 @@ import {
 
 import { cn } from '@/lib/utils';
 
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play } from '@phosphor-icons/react';
 
 export type PlaylistTrack = {
   title: string;

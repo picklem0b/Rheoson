@@ -35,7 +35,7 @@ export function localSuggest(query: string, limit = 6): string[] {
       }
    }
 
-   // 1. History-derived candidates (most recently used first).
+   // 1. ClockCounterClockwise-derived candidates (most recently used first).
    for (const entry of readHistory()) {
       push(entry.query)
       if (entry.track?.artistName) push(entry.track.artistName)

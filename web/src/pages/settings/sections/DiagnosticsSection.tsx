@@ -1,18 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import {
-   AlertTriangle,
-   CheckCircle2,
-   CircleDashed,
-   RefreshCw,
-   Route,
-   Server,
-   ShieldCheck,
-   Stethoscope,
-   Wifi,
-   WifiOff
-} from 'lucide-react'
+import { Warning, CheckCircle, CircleDashed, ArrowClockwise, Path, HardDrives, ShieldCheck, Stethoscope, WifiHigh, WifiSlash } from '@phosphor-icons/react'
 import type { ApiTargetSource } from '@/lib/constants'
 import { healthApi, type HealthPayload, type SelftestPayload } from '@/api/health.api'
 import { api } from '@/api/client.api'
@@ -72,21 +61,21 @@ const SEVERITY: Record<
 > = {
    ok: {
       label: 'Working',
-      Icon: CheckCircle2,
+      Icon: CheckCircle,
       color: 'text-emerald-400',
       bg: 'bg-emerald-400/12',
       ring: 'border-emerald-400/25'
    },
    warn: {
       label: 'Degraded',
-      Icon: AlertTriangle,
+      Icon: Warning,
       color: 'text-amber-400',
       bg: 'bg-amber-400/12',
       ring: 'border-amber-400/25'
    },
    bad: {
       label: 'Problem',
-      Icon: AlertTriangle,
+      Icon: Warning,
       color: 'text-red-400',
       bg: 'bg-red-400/12',
       ring: 'border-red-400/25'
@@ -165,10 +154,10 @@ function FindingRow({
                         state === 'loading' && 'opacity-50'
                      )}>
                      {state === 'loading' && (
-                        <RefreshCw className='w-3.5 h-3.5 animate-spin' />
+                        <ArrowClockwise className='w-3.5 h-3.5 animate-spin' />
                      )}
-                     {state === 'ok' && <CheckCircle2 className='w-3.5 h-3.5' />}
-                     {state === 'err' && <AlertTriangle className='w-3.5 h-3.5' />}
+                     {state === 'ok' && <CheckCircle className='w-3.5 h-3.5' />}
+                     {state === 'err' && <Warning className='w-3.5 h-3.5' />}
                      {state === 'ok'
                         ? 'Done'
                         : state === 'err'
@@ -301,7 +290,7 @@ export default function DiagnosticsSection() {
                   refetch()
                }}
                className='w-9 h-9 rounded-full bg-black/20 flex items-center justify-center flex-shrink-0'>
-               <RefreshCw
+               <ArrowClockwise
                   className={cn(
                      'w-4 h-4 text-[var(--text-primary)]',
                      (isFetching || isLoading) && 'animate-spin'
@@ -331,7 +320,7 @@ export default function DiagnosticsSection() {
                <SettingsRow
                   label='No checks reported'
                   description='The server answered without a diagnostics payload.'
-                  icon={<AlertTriangle className='w-[14px] h-[14px]' />}
+                  icon={<Warning className='w-[14px] h-[14px]' />}
                   iconBg='#6B7280'
                />
             ) : (
@@ -353,18 +342,18 @@ export default function DiagnosticsSection() {
                   icon={<ShieldCheck className='w-[14px] h-[14px]' />}
                   iconBg='#8B5CF6'>
                   {fixState['__deep'] === 'loading' ? (
-                     <RefreshCw className='w-4 h-4 text-[var(--text-muted)] animate-spin' />
+                     <ArrowClockwise className='w-4 h-4 text-[var(--text-muted)] animate-spin' />
                   ) : fixState['__deep'] === 'ok' ? (
-                     <CheckCircle2 className='w-4 h-4 text-emerald-400' />
+                     <CheckCircle className='w-4 h-4 text-emerald-400' />
                   ) : null}
                </SettingsRow>
             )}
          </SettingsGroup>
 
-         {/* ── Route self-test ────────────────────────────── */}
+         {/* ── Path self-test ────────────────────────────── */}
          {isAuthenticated && (
             <SettingsGroup
-               title='Route self-test'
+               title='Path self-test'
                footer='Drives real, read-only requests through the server — search, library, streaming, downloads — so broken routes show up here instead of in your ears.'>
                <SettingsRow
                   label='Test the routes'
@@ -374,14 +363,14 @@ export default function DiagnosticsSection() {
                         : 'Send live probe requests through every major route'
                   }
                   onClick={() => runFix('__selftest', { label: 'Test routes', kind: 'selftest' })}
-                  icon={<Route className='w-[14px] h-[14px]' />}
+                  icon={<Path className='w-[14px] h-[14px]' />}
                   iconBg='#0EA5E9'>
                   {fixState['__selftest'] === 'loading' ? (
-                     <RefreshCw className='w-4 h-4 text-[var(--text-muted)] animate-spin' />
+                     <ArrowClockwise className='w-4 h-4 text-[var(--text-muted)] animate-spin' />
                   ) : fixState['__selftest'] === 'ok' ? (
-                     <CheckCircle2 className='w-4 h-4 text-emerald-400' />
+                     <CheckCircle className='w-4 h-4 text-emerald-400' />
                   ) : fixState['__selftest'] === 'err' ? (
-                     <AlertTriangle className='w-4 h-4 text-red-400' />
+                     <Warning className='w-4 h-4 text-red-400' />
                   ) : null}
                </SettingsRow>
                {selftest?.checks.map(c => {
@@ -414,14 +403,14 @@ export default function DiagnosticsSection() {
             </SettingsGroup>
          )}
 
-         {/* ── Server runtime ─────────────────────────────── */}
+         {/* ── HardDrive runtime ─────────────────────────────── */}
          <SettingsGroup
-            title='Server'
+            title='HardDrive'
             footer='Request metrics for the last 60 seconds, as the server sees them.'>
             <SettingsRow
                label='API address'
                description={API_SOURCE_LABELS[facts.apiSource]}
-               icon={<Server className='w-[14px] h-[14px]' />}
+               icon={<HardDrives className='w-[14px] h-[14px]' />}
                iconBg='#8B5CF6'>
                <span
                   className='max-w-[190px] truncate text-[13px] font-mono text-[var(--text-muted)]'
@@ -432,7 +421,7 @@ export default function DiagnosticsSection() {
             <SettingsRow
                label='Uptime'
                description='Since the API process last started'
-               icon={<RefreshCw className='w-[14px] h-[14px]' />}
+               icon={<ArrowClockwise className='w-[14px] h-[14px]' />}
                iconBg='#0EA5E9'>
                <span className='text-[14px] text-[var(--text-muted)] tabular-nums'>
                   {facts.uptime ?? '—'}
@@ -450,7 +439,7 @@ export default function DiagnosticsSection() {
             <SettingsRow
                label='Recent errors'
                description='Failed requests kept by the server'
-               icon={<AlertTriangle className='w-[14px] h-[14px]' />}
+               icon={<Warning className='w-[14px] h-[14px]' />}
                iconBg={facts.errors ? '#EF4444' : '#6B7280'}>
                <span className='text-[14px] text-[var(--text-muted)] tabular-nums'>
                   {facts.errors ?? 0}
@@ -458,7 +447,7 @@ export default function DiagnosticsSection() {
             </SettingsRow>
          </SettingsGroup>
 
-         {/* ── Library doctor ─────────────────────────────── */}
+         {/* ── Books doctor ─────────────────────────────── */}
          <LibraryDoctor />
 
          {/* ── This device ────────────────────────────────── */}
@@ -474,9 +463,9 @@ export default function DiagnosticsSection() {
                }
                icon={
                   online ? (
-                     <Wifi className='w-[14px] h-[14px]' />
+                     <WifiHigh className='w-[14px] h-[14px]' />
                   ) : (
-                     <WifiOff className='w-[14px] h-[14px]' />
+                     <WifiSlash className='w-[14px] h-[14px]' />
                   )
                }
                iconBg={online ? '#22C55E' : '#EF4444'}
@@ -490,7 +479,7 @@ export default function DiagnosticsSection() {
                         : 'Native app'
                      : 'Web browser'
                }
-               icon={<CheckCircle2 className='w-[14px] h-[14px]' />}
+               icon={<CheckCircle className='w-[14px] h-[14px]' />}
                iconBg='#14B8A6'
             />
          </SettingsGroup>

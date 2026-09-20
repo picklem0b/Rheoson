@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Download, WifiOff } from 'lucide-react'
+import { DownloadSimple, WifiSlash } from '@phosphor-icons/react'
 import { Modal } from './Modal'
 import { Button } from './Button'
 import { Skeleton } from './Skeleton'
@@ -28,7 +28,7 @@ const FORMAT_OPTIONS: { value: AudioFormat; label: string; lossless: boolean }[]
 
 const QUALITY_OPTIONS: AudioQuality[] = ['128', '192', '256', '320', 'best']
 
-// Read a preference persisted by the Settings → Downloads section.
+// Read a preference persisted by the GearSix → Downloads section.
 // Keys are stored as JSON under a "rheoson-" prefix (see persisted.hook).
 function readPref<T>(key: string, fallback: T): T {
   try {
@@ -69,10 +69,10 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
 // ── Modal ──────────────────────────────────────────────────────
 
 /**
- * Download options modal — opened from the PlayerBar menu, Now Playing,
+ * DownloadSimple options modal — opened from the PlayerBar menu, Now Playing,
  * and search results via uiStore.openDownloadModal(trackId).
  *
- * Lets the user pick format/quality (defaults come from Settings →
+ * Lets the user pick format/quality (defaults come from GearSix →
  * Downloads) and queues the job through the same optimistic download
  * store used by the rest of the app.
  */
@@ -140,7 +140,7 @@ export function DownloadModal() {
       closeDownloadModal()
     } catch (e) {
       // e.g. Wi-Fi-only mode on mobile data
-      toast(e instanceof Error ? e.message : 'Download failed', 'error', 4000)
+      toast(e instanceof Error ? e.message : 'DownloadSimple failed', 'error', 4000)
     }
   }
 
@@ -148,7 +148,7 @@ export function DownloadModal() {
     <Modal
       open={!!trackId}
       onClose={closeDownloadModal}
-      title="Download"
+      title="DownloadSimple"
       size="md"
       className="max-h-[88dvh] overflow-y-auto"
     >
@@ -184,7 +184,7 @@ export function DownloadModal() {
             </div>
             {track.isDownloaded && (
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--accent-subtle)] border border-[var(--accent-border)] text-[var(--accent)] text-[11px] font-bold flex-shrink-0">
-                <WifiOff className="w-3 h-3" />
+                <WifiSlash className="w-3 h-3" />
                 On device
               </span>
             )}
@@ -281,8 +281,8 @@ export function DownloadModal() {
 
           {/* ── Action ───────────────────────────────────── */}
           <Button fullWidth size="md" onClick={handleDownload} disabled={!track}>
-            <Download className="w-4 h-4" />
-            {lossless ? 'Download lossless' : `Download ${format.toUpperCase()}`}
+            <DownloadSimple className="w-4 h-4" />
+            {lossless ? 'DownloadSimple lossless' : `DownloadSimple ${format.toUpperCase()}`}
           </Button>
           <p className="text-center text-[11px] text-[var(--text-muted)] mt-3">
             Queued downloads appear at the top of My Music

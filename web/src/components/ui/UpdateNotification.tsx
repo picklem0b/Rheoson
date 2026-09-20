@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, X } from 'lucide-react'
+import { DownloadSimple, X } from '@phosphor-icons/react'
 import { Capacitor } from '@capacitor/core'
 import { checkForUpdate, type VersionInfo } from '@/lib/versionCheck'
 
@@ -68,7 +68,7 @@ export default function UpdateNotification() {
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         className="fixed top-0 inset-x-0 z-[70] flex items-center gap-3 px-4 py-2.5 bg-brand/10 backdrop-blur-md border-b border-brand/20"
       >
-        <Download className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />
+        <DownloadSimple className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />
         <span className="text-xs font-semibold text-[var(--accent)] flex-1">
           New version {updateInfo.version} available
         </span>

@@ -1,16 +1,19 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Search, Library, Download, Settings } from 'lucide-react'
+import { House, MagnifyingGlass, Books, DownloadSimple, GearSix } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui.store'
 
 const NAV_ITEMS = [
-  { to: '/',          icon: Home,       label: 'Home'      },
-  { to: '/search',    icon: Search,     label: 'Search'    },
-  { to: '/library',   icon: Library,    label: 'Library'   },
-  { to: '/downloads', icon: Download,   label: 'My Music'  },
-  { to: '/settings',  icon: Settings,   label: 'Settings'  },
+  { to: '/', icon: House, label: 'House' },
+  { to: '/search', icon: MagnifyingGlass, label: 'MagnifyingGlass' },
+  { to: '/library', icon: Books, label: 'Books' },
+  { to: '/downloads', icon: DownloadSimple, label: 'My Music' },
+  { to: '/settings', icon: GearSix, label: 'Settings' },
 ]
+
+/** Icon size tokens — one rhythm across the shell (Phosphor uses px numbers). */
+const ICON_SIZE = 22
 
 /**
  * Mobile navigation bar — style comes from Settings → Layout → Navigation style:
@@ -22,6 +25,9 @@ const NAV_ITEMS = [
  * The active tab gets an animated pill that slides between items
  * (shared layoutId), tinted with the accent colour. Position
  * (bottom / top) is handled by RootLayout.
+ *
+ * Touch targets stay ≥44px tall regardless of style; the visible icon
+ * is smaller than the hit area.
  */
 export default function BottomNav() {
   const navStyle = useUIStore((s) => s.navStyle)
@@ -33,11 +39,11 @@ export default function BottomNav() {
         className={cn(
           'flex items-center transition-all duration-300',
           navStyle === 'pill' &&
-            'w-full my-1 rounded-full glass-strong px-1.5 py-1 shadow-[0_8px_32px_rgba(0,0,0,0.35)] ring-1 ring-white/10',
+            'w-full my-1 rounded-full glass-strong px-1.5 py-1 shadow-[var(--shadow-lg)]',
           navStyle === 'flat' &&
             'w-full h-full bg-[var(--bg-surface)] border-t border-[var(--border)] px-1',
           minimal &&
-            'my-1 glass-strong rounded-full px-2 py-1 gap-0.5 shadow-[0_8px_32px_rgba(0,0,0,0.35)] ring-1 ring-white/10'
+            'my-1 glass-strong rounded-full px-2 py-1 gap-0.5 shadow-[var(--shadow-lg)]'
         )}
       >
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
@@ -73,13 +79,13 @@ export default function BottomNav() {
                   )}
                 >
                   <Icon
+                    weight={isActive ? 'fill' : 'regular'}
+                    size={ICON_SIZE}
                     className={cn(
                       'relative z-10 transition-all duration-300',
-                      minimal ? 'w-[22px] h-[22px]' : 'w-5 h-5',
-                      isActive
-                        ? 'text-[var(--accent)] stroke-[2.5]'
-                        : 'text-[var(--text-muted)] stroke-2'
+                      isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
                     )}
+                    aria-hidden
                   />
                   {!minimal && (
                     <span

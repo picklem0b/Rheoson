@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, Play, Plus, Sparkles, User, UserPlus, X } from 'lucide-react'
+import { Check, Play, Plus, Sparkle, User, UserPlus, X } from '@phosphor-icons/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
@@ -228,7 +228,7 @@ export default function Artist() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--accent)]">
-                    <Sparkles className="w-3 h-3" />
+                    <Sparkle className="w-3 h-3" />
                     New {release.type}
                     {release.releaseYear ? ` · ${release.releaseYear}` : ''}
                   </p>

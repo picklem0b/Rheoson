@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, Search, Library, Download, Settings, User } from 'lucide-react'
+import { House, MagnifyingGlass, Books, DownloadSimple, GearSix, UserCircle } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { useUser } from '@clerk/clerk-react'
 import { cn } from '@/lib/utils'
@@ -8,12 +8,15 @@ import { isClerkEnabled } from '@/lib/constants'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
 
 const NAV_ITEMS = [
-  { to: '/',          icon: Home,       label: 'Home'        },
-  { to: '/search',    icon: Search,     label: 'Search'      },
-  { to: '/library',   icon: Library,    label: 'Library'     },
-  { to: '/downloads', icon: Download,   label: 'My Music'    },
-  { to: '/settings',  icon: Settings,   label: 'Settings'    },
+  { to: '/', icon: House, label: 'House' },
+  { to: '/search', icon: MagnifyingGlass, label: 'MagnifyingGlass' },
+  { to: '/library', icon: Books, label: 'Books' },
+  { to: '/downloads', icon: DownloadSimple, label: 'My Music' },
+  { to: '/settings', icon: GearSix, label: 'Settings' },
 ]
+
+/** Sidebar icon size token — matches the BottomNav rhythm. */
+const ICON_SIZE = 20
 
 // ── Profile button ─────────────────────────────────────────────
 
@@ -91,25 +94,31 @@ function ProfileButtonBody({
       {imageUrl ? (
         <img src={imageUrl} alt={name} className="w-8 h-8 rounded-xl object-cover flex-shrink-0" />
       ) : (
-        <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black text-white bg-gradient-to-br flex-shrink-0', gradient)}>
+        <div
+          className={cn(
+            'w-8 h-8 rounded-xl flex items-center justify-center text-xs font-semibold text-white bg-gradient-to-br flex-shrink-0',
+            gradient
+          )}
+        >
           {initials}
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{name}</p>
+        <p className="text-sm font-medium text-[var(--text-primary)] truncate">{name}</p>
         <p className="text-[10px] text-[var(--text-muted)] truncate">View profile</p>
       </div>
-      <User className="w-4 h-4 text-[var(--text-muted)]/40 flex-shrink-0" />
+      <UserCircle size={16} className="text-[var(--text-muted)] flex-shrink-0" aria-hidden />
     </motion.button>
   )
 }
 
-/** Desktop-only sidebar. Hidden on mobile via RootLayout's `hidden lg:flex`. */
+/** Desktop-only sidebar. Hidden on mobile via RootLayout's breakpoint, and
+ *  never mounted inside the native shell (see RootLayout). */
 export default function Sidebar() {
   return (
     <motion.div
       initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0,   opacity: 1 }}
+      animate={{ x: 0, opacity: 1 }}
       transition={{ type: 'spring', damping: 28, stiffness: 300 }}
       className="flex flex-col w-[var(--sidebar-width)] h-full bg-[var(--bg-surface)] border-r border-[var(--border)] py-6 px-3 gap-1"
     >
@@ -119,10 +128,11 @@ export default function Sidebar() {
           <img
             src="/assets/logo.png"
             alt="Rheoson"
-            className="w-9 h-9 rounded-2xl object-cover shadow-lg"
-            style={{ boxShadow: '0 0 12px var(--accent-subtle)' }}
+            className="w-9 h-9 rounded-2xl object-cover shadow-[var(--shadow-glow)]"
           />
-          <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight">Rheoson</span>
+          <span className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">
+            Rheoson
+          </span>
         </motion.div>
       </NavLink>
 
@@ -133,14 +143,19 @@ export default function Sidebar() {
             <motion.div
               whileTap={{ scale: 0.97 }}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200',
+                'flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors duration-200',
                 isActive
                   ? 'bg-[var(--accent-subtle)] text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]',
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
               )}
             >
-              <Icon className={cn('w-5 h-5 flex-shrink-0', isActive ? 'stroke-[2.5]' : 'stroke-2')} />
-              <span className={cn('text-sm font-semibold', isActive && 'text-[var(--accent)]')}>
+              <Icon
+                size={ICON_SIZE}
+                weight={isActive ? 'fill' : 'regular'}
+                className="flex-shrink-0"
+                aria-hidden
+              />
+              <span className={cn('text-sm font-medium', isActive && 'text-[var(--accent)]')}>
                 {label}
               </span>
               {isActive && (

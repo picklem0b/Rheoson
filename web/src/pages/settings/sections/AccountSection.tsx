@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Check, AlertCircle, ExternalLink, Trash2, ChevronRight, RefreshCw } from "lucide-react";
+import { Check, WarningCircle, ArrowSquareOut, Trash, CaretRight, ArrowClockwise } from '@phosphor-icons/react';
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/api/client.api";
@@ -103,7 +103,7 @@ export default function AccountSection() {
               </span>
             </div>
           </div>
-          <ChevronRight className="w-5 h-5 text-[var(--text-muted)]/40 flex-shrink-0" />
+          <CaretRight className="w-5 h-5 text-[var(--text-muted)]/40 flex-shrink-0" />
         </div>
       </motion.button>
 
@@ -124,7 +124,7 @@ export default function AccountSection() {
           {spotifyOk ? (
             <Check className="w-4 h-4 flex-shrink-0" />
           ) : (
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <WarningCircle className="w-4 h-4 flex-shrink-0" />
           )}
           <span className="flex-1 min-w-0">
             {spotifyOk
@@ -137,7 +137,7 @@ export default function AccountSection() {
             aria-label="Refresh status"
             className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
           >
-            <RefreshCw className={cn("w-4 h-4", checking && "animate-spin")} />
+            <ArrowClockwise className={cn("w-4 h-4", checking && "animate-spin")} />
           </button>
         </div>
 
@@ -165,7 +165,7 @@ export default function AccountSection() {
                 )
               }
             >
-              <ExternalLink className="w-4 h-4 text-[var(--text-muted)]/40" />
+              <ArrowSquareOut className="w-4 h-4 text-[var(--text-muted)]/40" />
             </SettingsRow>
           </div>
         )}
@@ -187,7 +187,7 @@ export default function AccountSection() {
           description="Wipes settings, theme, history, playlists and credentials on this device. Cannot be undone."
           danger
           onClick={() => setConfirmClear(true)}
-          icon={<Trash2 className="w-[14px] h-[14px]" />}
+          icon={<Trash className="w-[14px] h-[14px]" />}
           iconBg="#EF4444"
         />
       </SettingsGroup>

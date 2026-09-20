@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { GripVertical, ListPlus, X } from 'lucide-react'
+import { DotsSixVertical, ListPlus, X } from '@phosphor-icons/react'
 import type { Track } from '@/types/track.types'
 import { usePlayerStore } from '@/store/player.store'
 import { useQueue } from '@/hooks/queue.hook'
@@ -41,7 +41,7 @@ export default function QueueItem({ track, index }: QueueItemProps) {
       {...intent}
     >
       {/* Drag handle */}
-      <GripVertical className="w-4 h-4 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 cursor-grab flex-shrink-0" />
+      <DotsSixVertical className="w-4 h-4 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 cursor-grab flex-shrink-0" />
 
       {/* Artwork */}
       <button

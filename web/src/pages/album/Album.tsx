@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Play, Shuffle, Heart, Download } from 'lucide-react'
+import { Play, Shuffle, Heart, DownloadSimple } from '@phosphor-icons/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
@@ -143,7 +143,7 @@ export default function Album() {
               <IconButton
                 size="md"
                 variant="ghost"
-                title="Download all tracks"
+                title="DownloadSimple all tracks"
                 disabled={!albumTracks.length}
                 onClick={() => {
                   if (!albumTracks.length) return
@@ -151,7 +151,7 @@ export default function Album() {
                   toast(`Downloading ${albumTracks.length} track${albumTracks.length === 1 ? '' : 's'}…`, 'success', 2200)
                 }}
               >
-                <Download />
+                <DownloadSimple />
               </IconButton>
             </div>
           </div>

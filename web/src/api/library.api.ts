@@ -61,7 +61,7 @@ export const libraryApi = {
    },
 
    /**
-    * Featured items for the Home page.
+    * Featured items for the House page.
     * limit must be a plain number — passing an object here caused the
     * URL to contain "limit=%5Bobject+Object%5D" which returned 404.
     */

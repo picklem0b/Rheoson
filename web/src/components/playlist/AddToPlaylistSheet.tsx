@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, ListMusic, Plus, Music2 } from 'lucide-react'
+import { Check, Queue, Plus, MusicNotes } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { useToast } from '@/components/ui/Toaster'
@@ -112,7 +112,7 @@ export function AddToPlaylistSheet() {
                       <ArtworkImage src={pl.artworkUrl} alt={pl.title} size={40} radius="rounded-xl" />
                     ) : (
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-800 to-purple-600 flex items-center justify-center flex-shrink-0">
-                        <Music2 className="w-4 h-4 text-white" />
+                        <MusicNotes className="w-4 h-4 text-white" />
                       </div>
                     )}
                     <span className="flex-1 min-w-0 text-sm font-semibold text-[var(--text-primary)] truncate">
@@ -168,7 +168,7 @@ export function AddToPlaylistSheet() {
 
           {/* Footer hint */}
           <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[var(--border)] flex-shrink-0">
-            <ListMusic className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+            <Queue className="w-3.5 h-3.5 text-[var(--text-muted)]" />
             <p className="text-[11px] text-[var(--text-muted)]">
               Tap a playlist to add or remove this song
             </p>

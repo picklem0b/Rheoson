@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ImagePlus, Camera, X, Check, Music2 } from 'lucide-react'
+import { ImageSquare, Camera, X, Check, MusicNotes } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toaster'
 import { playlistsApi } from '@/api/playlists.api'
@@ -65,7 +65,7 @@ export function PlaylistCover({ url, alt = '', fallbackIndex = 0, className, ico
       )}
       {(!url || isGradientCover(url)) && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <Music2 className={cn('text-white/50', iconClassName ?? 'w-10 h-10')} />
+          <MusicNotes className={cn('text-white/50', iconClassName ?? 'w-10 h-10')} />
         </div>
       )}
     </div>
@@ -132,7 +132,7 @@ export function PlaylistCoverEditor({ open, playlistId, currentUrl, onClose, onS
         disabled={saving}
         className="w-full flex items-center justify-center gap-2 h-11 rounded-2xl bg-[var(--accent)] text-white text-sm font-bold disabled:opacity-50"
       >
-        <ImagePlus className="w-4 h-4" />
+        <ImageSquare className="w-4 h-4" />
         Upload image
       </button>
       <input

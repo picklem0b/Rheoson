@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Play, TrendingUp, Trophy } from 'lucide-react'
+import { Play, TrendUp, Trophy } from '@phosphor-icons/react'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
 import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
@@ -78,7 +78,7 @@ export function WeeklyHero({ track }: { track: Track | undefined }) {
             <TooltipButton
               title={`Play “${track.title}”`}
               description='Starts the week’s biggest track and queues the rest of the top 10 behind it.'
-              badge={<span className='flex items-center gap-1'><TrendingUp className='h-3 w-3' /> Trending now</span>}
+              badge={<span className='flex items-center gap-1'><TrendUp className='h-3 w-3' /> Trending now</span>}
               onClick={() => playTrack(track, [track])}
               {...intent}
             >

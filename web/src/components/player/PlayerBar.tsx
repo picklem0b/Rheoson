@@ -1,15 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-   Heart,
-   MoreHorizontal,
-   ListMusic,
-   Mic2,
-   Download,
-   WifiOff,
-   SlidersHorizontal
-} from "lucide-react";
+import { Heart, DotsThreeOutline, Queue, Microphone, DownloadSimple, WifiSlash, SlidersHorizontal } from '@phosphor-icons/react';
 import { usePlayerStore } from "@/store/player.store";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { useUIStore } from "@/store/ui.store";
@@ -168,7 +160,7 @@ export default function PlayerBar() {
                         {/* Offline badge (downloaded) */}
                         {!isLoading && currentTrack.isDownloaded && (
                            <div className='absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[var(--accent)] flex items-center justify-center'>
-                              <WifiOff className='w-2 h-2 text-white' />
+                              <WifiSlash className='w-2 h-2 text-white' />
                            </div>
                         )}
 
@@ -228,7 +220,7 @@ export default function PlayerBar() {
                         variant='ghost'
                         onClick={openLyrics}
                         title='Lyrics'>
-                        <Mic2 />
+                        <Microphone />
                      </IconButton>
                      <IconButton
                         size='sm'
@@ -236,7 +228,7 @@ export default function PlayerBar() {
                         active={showQueue}
                         onClick={toggleQueue}
                         title='Queue'>
-                        <ListMusic />
+                        <Queue />
                      </IconButton>
                   </div>
 
@@ -249,7 +241,7 @@ export default function PlayerBar() {
                            e.stopPropagation();
                            setMenuOpen(!menuOpen);
                         }}>
-                        <MoreHorizontal />
+                        <DotsThreeOutline />
                      </IconButton>
 
                      <AnimatePresence>
@@ -284,8 +276,8 @@ export default function PlayerBar() {
                                     }
                                  },
                                  {
-                                    label: "Download",
-                                    icon: <Download className='w-4 h-4' />,
+                                    label: "DownloadSimple",
+                                    icon: <DownloadSimple className='w-4 h-4' />,
                                     action: () => {
                                        openDownloadModal(currentTrack.id, currentTrack);
                                        setMenuOpen(false);
@@ -293,7 +285,7 @@ export default function PlayerBar() {
                                  },
                                  {
                                     label: "View lyrics",
-                                    icon: <Mic2 className='w-4 h-4' />,
+                                    icon: <Microphone className='w-4 h-4' />,
                                     action: () => {
                                        openLyrics();
                                        setMenuOpen(false);
@@ -313,7 +305,7 @@ export default function PlayerBar() {
                                     label: showQueue
                                        ? "Hide queue"
                                        : "Show queue",
-                                    icon: <ListMusic className='w-4 h-4' />,
+                                    icon: <Queue className='w-4 h-4' />,
                                     action: () => {
                                        toggleQueue();
                                        setMenuOpen(false);

@@ -1,18 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-   ChevronDown,
-   ChevronRight,
-   FileWarning,
-   CheckCircle2,
-   AlertTriangle,
-   Copy,
-   FolderOpen,
-   RefreshCw,
-   ScanLine,
-   Trash2,
-   Loader2
-} from 'lucide-react'
+import { CaretDown, CaretRight, WarningCircle, CheckCircle, Warning, Copy, FolderOpen, ArrowClockwise, Scan, Trash, SpinnerGap } from '@phosphor-icons/react'
 import { api } from '@/api/client.api'
 import { cn } from '@/lib/utils'
 import {
@@ -21,7 +9,7 @@ import {
 } from '../components/SettingsPrimitives'
 
 /**
- * Interactive Library Doctor.
+ * Interactive Books Doctor.
  *
  * One "Scan library" action drives everything: a progress phase while the
  * server walks every music directory, then grouped findings (corrupt
@@ -198,7 +186,7 @@ export default function LibraryDoctor() {
          {
             id: 'corrupt' as const,
             title: 'Corrupt files',
-            icon: FileWarning,
+            icon: WarningCircle,
             tint: 'text-red-400',
             items: scan.corrupt,
             freed: scan.corrupt.reduce((a, f) => a + f.size, 0),
@@ -243,7 +231,7 @@ export default function LibraryDoctor() {
 
    return (
       <SettingsGroup
-         title='Library doctor'
+         title='Books doctor'
          footer='Scans every music folder for files that cannot play, copies of the same track, and leftover folders. Nothing is touched until you choose a repair.'>
          {/* ── Scan launcher / summary ─────────────────── */}
          <div className='px-4 py-4'>
@@ -252,7 +240,7 @@ export default function LibraryDoctor() {
                   onClick={() => void runScan()}
                   className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-overlay)] transition-colors text-left'>
                   <div className='w-[38px] h-[38px] rounded-[10px] bg-[var(--accent)]/15 flex items-center justify-center flex-shrink-0'>
-                     <ScanLine className='w-[18px] h-[18px] text-[var(--accent)]' />
+                     <Scan className='w-[18px] h-[18px] text-[var(--accent)]' />
                   </div>
                   <div className='min-w-0 flex-1'>
                      <p className='text-[15px] font-semibold text-[var(--text-primary)]'>
@@ -262,14 +250,14 @@ export default function LibraryDoctor() {
                         Find files that cannot play, duplicates and empty folders
                      </p>
                   </div>
-                  <ChevronRight className='w-4 h-4 text-[var(--text-muted)]' />
+                  <CaretRight className='w-4 h-4 text-[var(--text-muted)]' />
                </button>
             )}
 
             {phase === 'scanning' && (
                <div className='flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-[var(--border)] bg-[var(--bg-elevated)]'>
                   <div className='w-[38px] h-[38px] rounded-[10px] bg-[var(--accent)]/15 flex items-center justify-center flex-shrink-0'>
-                     <Loader2 className='w-[18px] h-[18px] text-[var(--accent)] animate-spin' />
+                     <SpinnerGap className='w-[18px] h-[18px] text-[var(--accent)] animate-spin' />
                   </div>
                   <div className='min-w-0 flex-1'>
                      <p className='text-[15px] font-semibold text-[var(--text-primary)]'>
@@ -286,7 +274,7 @@ export default function LibraryDoctor() {
                <button
                   onClick={() => void runScan()}
                   className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-red-400/25 bg-red-400/10 text-left'>
-                  <AlertTriangle className='w-[18px] h-[18px] text-red-400 flex-shrink-0' />
+                  <Warning className='w-[18px] h-[18px] text-red-400 flex-shrink-0' />
                   <div className='min-w-0 flex-1'>
                      <p className='text-[14px] font-semibold text-[var(--text-primary)]'>
                         Scan failed
@@ -295,7 +283,7 @@ export default function LibraryDoctor() {
                         {error} — tap to retry
                      </p>
                   </div>
-                  <RefreshCw className='w-4 h-4 text-[var(--text-muted)]' />
+                  <ArrowClockwise className='w-4 h-4 text-[var(--text-muted)]' />
                </button>
             )}
 
@@ -317,15 +305,15 @@ export default function LibraryDoctor() {
                            totalProblems === 0 ? 'bg-emerald-400/15' : 'bg-[var(--accent)]/15'
                         )}>
                         {totalProblems === 0 ? (
-                           <CheckCircle2 className='w-[18px] h-[18px] text-emerald-400' />
+                           <CheckCircle className='w-[18px] h-[18px] text-emerald-400' />
                         ) : (
-                           <ScanLine className='w-[18px] h-[18px] text-[var(--accent)]' />
+                           <Scan className='w-[18px] h-[18px] text-[var(--accent)]' />
                         )}
                      </div>
                      <div className='min-w-0 flex-1'>
                         <p className='text-[15px] font-semibold text-[var(--text-primary)]'>
                            {totalProblems === 0
-                              ? 'Library is clean'
+                              ? 'Books is clean'
                               : `${totalProblems} thing${totalProblems === 1 ? '' : 's'} found`}
                         </p>
                         <p className='text-[12.5px] text-[var(--text-muted)] mt-0.5'>
@@ -337,7 +325,7 @@ export default function LibraryDoctor() {
                         onClick={() => void runScan()}
                         aria-label='Scan again'
                         className='p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-overlay)] transition-colors'>
-                        <RefreshCw className='w-4 h-4' />
+                        <ArrowClockwise className='w-4 h-4' />
                      </button>
                   </div>
 
@@ -365,9 +353,9 @@ export default function LibraryDoctor() {
                                  </span>
                               )}
                               {isOpen ? (
-                                 <ChevronDown className='w-4 h-4 text-[var(--text-muted)]' />
+                                 <CaretDown className='w-4 h-4 text-[var(--text-muted)]' />
                               ) : (
-                                 <ChevronRight className='w-4 h-4 text-[var(--text-muted)]' />
+                                 <CaretRight className='w-4 h-4 text-[var(--text-muted)]' />
                               )}
                            </button>
 
@@ -425,13 +413,13 @@ export default function LibraryDoctor() {
                                                            : 'border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-400/30'
                                                    )}>
                                                    {st === 'loading' ? (
-                                                      <Loader2 className='w-3.5 h-3.5 animate-spin' />
+                                                      <SpinnerGap className='w-3.5 h-3.5 animate-spin' />
                                                    ) : st === 'ok' ? (
-                                                      <CheckCircle2 className='w-3.5 h-3.5' />
+                                                      <CheckCircle className='w-3.5 h-3.5' />
                                                    ) : st === 'err' ? (
-                                                      <AlertTriangle className='w-3.5 h-3.5' />
+                                                      <Warning className='w-3.5 h-3.5' />
                                                    ) : (
-                                                      <Trash2 className='w-3.5 h-3.5' />
+                                                      <Trash className='w-3.5 h-3.5' />
                                                    )}
                                                 </button>
                                              </div>
@@ -458,7 +446,7 @@ export default function LibraryDoctor() {
                                                       : 'bg-[var(--accent)] text-white'
                                                 )}>
                                                 {sweepState[group.id] === 'loading' ? (
-                                                   <Loader2 className='w-3.5 h-3.5 animate-spin' />
+                                                   <SpinnerGap className='w-3.5 h-3.5 animate-spin' />
                                                 ) : null}
                                                 {group.danger
                                                    ? `Delete ${group.items.length} & free ${fmtBytes(group.freed)}`
@@ -475,12 +463,12 @@ export default function LibraryDoctor() {
                                              className='w-full px-3 py-2 rounded-full text-[12.5px] font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-overlay)] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5'>
                                              {sweepState[group.id] === 'ok' ? (
                                                 <>
-                                                   <CheckCircle2 className='w-3.5 h-3.5 text-emerald-400' />
+                                                   <CheckCircle className='w-3.5 h-3.5 text-emerald-400' />
                                                    Cleared
                                                 </>
                                              ) : sweepState[group.id] === 'err' ? (
                                                 <>
-                                                   <AlertTriangle className='w-3.5 h-3.5 text-red-400' />
+                                                   <Warning className='w-3.5 h-3.5 text-red-400' />
                                                    Failed — try again
                                                 </>
                                              ) : (

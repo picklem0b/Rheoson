@@ -1,14 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import {
-  Play,
-  ListPlus,
-  Download,
-  Heart,
-  Share2,
-  Radio,
-  EyeOff,
-} from 'lucide-react'
+import { Play, ListPlus, DownloadSimple, Heart, ShareNetwork, Radio, EyeSlash } from '@phosphor-icons/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useContextMenuStore } from '@/store/contextMenu.store'
 import { useQueue } from '@/hooks/queue.hook'
@@ -103,8 +95,8 @@ function useMenuActions(track: Track, onClose: () => void) {
     },
     {
       id: 'download',
-      label: 'Download',
-      icon: <Download className="w-4 h-4" />,
+      label: 'DownloadSimple',
+      icon: <DownloadSimple className="w-4 h-4" />,
       run: () => {
         openDownloadModal(track.id, track)
         toast(`"${truncate(track.title, 24)}" added to downloads`, 'info', 2500)
@@ -134,7 +126,7 @@ function useMenuActions(track: Track, onClose: () => void) {
     {
       id: 'share',
       label: 'Share',
-      icon: <Share2 className="w-4 h-4" />,
+      icon: <ShareNetwork className="w-4 h-4" />,
       run: async () => {
         await shareTrack(track)
         onClose()
@@ -158,7 +150,7 @@ function useMenuActions(track: Track, onClose: () => void) {
     {
       id: 'hide',
       label: 'Hide this track',
-      icon: <EyeOff className="w-4 h-4" />,
+      icon: <EyeSlash className="w-4 h-4" />,
       danger: true,
       run: async () => {
         await tracksApi.dislikeTrack(track.id)

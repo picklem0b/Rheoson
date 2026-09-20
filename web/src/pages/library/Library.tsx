@@ -1,20 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-   Plus,
-   Grid3X3,
-   List,
-   Music2,
-   Disc3,
-   User,
-   Heart,
-   ChevronRight,
-   Play,
-   Shuffle,
-   X,
-   Link as LinkIcon
-} from "lucide-react";
+import { Plus, SquaresFour, List, MusicNotes, VinylRecord, User, Heart, CaretRight, Play, Shuffle, X, Link as LinkIcon } from '@phosphor-icons/react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { IconButton } from "@/components/ui/IconButton";
@@ -97,9 +84,9 @@ function GridView({
                   ) : (
                      <div className='w-full h-full flex items-center justify-center'>
                         {"artist" in item ? (
-                           <Disc3 className='w-10 h-10 text-white/40' />
+                           <VinylRecord className='w-10 h-10 text-white/40' />
                         ) : (
-                           <Music2 className='w-10 h-10 text-white/40' />
+                           <MusicNotes className='w-10 h-10 text-white/40' />
                         )}
                      </div>
                   )}
@@ -170,9 +157,9 @@ function ListView({
                         }}
                      />
                   ) : "artist" in item ? (
-                     <Disc3 className='w-6 h-6 text-white/50' />
+                     <VinylRecord className='w-6 h-6 text-white/50' />
                   ) : (
-                     <Music2 className='w-6 h-6 text-white/50' />
+                     <MusicNotes className='w-6 h-6 text-white/50' />
                   )}
                </div>
 
@@ -190,7 +177,7 @@ function ListView({
                   </p>
                </div>
 
-               <ChevronRight
+               <CaretRight
                   className='w-4 h-4 text-[var(--text-muted)] flex-shrink-0
                                    opacity-0 group-hover:opacity-100 group-active:opacity-100
                                    transition-opacity'
@@ -269,12 +256,12 @@ function EmptyState({ tab, onCreate }: { tab: LibTab; onCreate: () => void }) {
          sub: "Tap the heart icon on any song to save it here"
       },
       playlists: {
-         icon: <Music2 className='w-8 h-8 text-[var(--text-muted)]' />,
+         icon: <MusicNotes className='w-8 h-8 text-[var(--text-muted)]' />,
          text: "No playlists yet",
          sub: "Create your first playlist"
       },
       albums: {
-         icon: <Disc3 className='w-8 h-8 text-[var(--text-muted)]' />,
+         icon: <VinylRecord className='w-8 h-8 text-[var(--text-muted)]' />,
          text: "No albums saved",
          sub: "Albums from your downloads appear here"
       },
@@ -323,9 +310,9 @@ const TABS: { id: LibTab; label: string; icon: React.ReactNode }[] = [
    {
       id: "playlists",
       label: "Playlists",
-      icon: <Music2 className='w-3.5 h-3.5' />
+      icon: <MusicNotes className='w-3.5 h-3.5' />
    },
-   { id: "albums", label: "Albums", icon: <Disc3 className='w-3.5 h-3.5' /> },
+   { id: "albums", label: "Albums", icon: <VinylRecord className='w-3.5 h-3.5' /> },
    { id: "artists", label: "Artists", icon: <User className='w-3.5 h-3.5' /> }
 ];
 
@@ -528,7 +515,7 @@ function LikedTrackRow({
             />
          ) : (
             <div className='w-11 h-11 rounded-xl flex-shrink-0 bg-[var(--bg-elevated)] flex items-center justify-center'>
-               <Music2 className='w-4 h-4 text-[var(--text-muted)]' />
+               <MusicNotes className='w-4 h-4 text-[var(--text-muted)]' />
             </div>
          )}
 
@@ -559,7 +546,7 @@ function LikedTrackRow({
    );
 }
 
-export default function Library() {
+export default function Books() {
    const navigate = useNavigate();
    const { toast } = useToast();
 
@@ -639,7 +626,7 @@ export default function Library() {
          <div className='px-4 pt-6 pb-3 flex-shrink-0 space-y-4'>
             <div className='flex items-center justify-between'>
                <h1 className='text-2xl font-bold text-[var(--text-primary)]'>
-                  Library
+                  Books
                </h1>
                <div className='flex items-center gap-1'>
                   {/* Grid/List toggle — only for playlists + albums */}
@@ -649,7 +636,7 @@ export default function Library() {
                         variant='ghost'
                         onClick={() => setGrid(!grid)}
                         title={grid ? "List view" : "Grid view"}>
-                        {grid ? <List /> : <Grid3X3 />}
+                        {grid ? <List /> : <SquaresFour />}
                      </IconButton>
                   )}
                   {tab === "playlists" && (

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Search as SearchIcon, Loader2, Link } from "lucide-react";
+import { MagnifyingGlass as SearchIcon, SpinnerGap, Link } from '@phosphor-icons/react';
 import { cn, detectInputType } from "@/lib/utils";
 
 interface SearchBarProps {
@@ -27,7 +27,7 @@ export function SearchBar({
       <div className='relative'>
          <div className='absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10'>
             {isLoading ? (
-               <Loader2 className='w-4 h-4 text-[var(--accent)] animate-spin' />
+               <SpinnerGap className='w-4 h-4 text-[var(--accent)] animate-spin' />
             ) : inputType === "spotify" || inputType === "youtube" ? (
                <Link className='w-4 h-4 text-[var(--accent)]' />
             ) : (
