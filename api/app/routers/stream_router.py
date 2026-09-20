@@ -4,6 +4,7 @@ import time
 import os
 import structlog
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
@@ -68,10 +69,12 @@ def _artwork_url_allowed(url: str) -> bool:
     if host in _ARTWORK_ALLOWED_HOSTS:
         return True
     return any(host.endswith("." + d) for d in _ARTWORK_ALLOWED_HOSTS)
-# BUG #23: Make chunk size configurable (default 64KB)
+# Stream/read chunk size in bytes; env-overridable so constrained devices
+# can trade throughput for memory.
 CHUNK = int(os.environ.get("STREAM_CHUNK_SIZE", "65536"))
 
-# BUG #7: Failure cache — avoid retry storms for tracks that consistently 502
+# Remember tracks that just failed to stream so one broken video cannot
+# spawn a retry storm — each retry costs a full yt-dlp spawn.
 _failure_cache: dict[str, float] = {}  # track_id -> expiry timestamp
 _FAILURE_TTL = 60.0  # seconds
 _FAILURE_MAX = 200
@@ -86,7 +89,8 @@ _cache_lock   = asyncio.Lock()
 def _build_cache_sync() -> None:
     global _cache_built
     _local_cache.clear()
-    # BUG FIX: Scan ALL configured music dirs, not just MUSIC_DIR
+    # Every configured music directory participates in the index, not just
+    # MUSIC_DIR — EXTRA_MUSIC_DIRS hold files the scanner must also find.
     for d in settings.all_music_dirs:
         base = Path(d)
         if not base.exists():
@@ -102,15 +106,13 @@ def _build_cache_sync() -> None:
 
 
 async def _ensure_cache() -> None:
-    global _cache_built
     if _cache_built:
         return
     async with _cache_lock:
         if _cache_built:
             return
-        # BUG #1: Clear stale entries inside the lock before rebuilding
-        # to prevent race condition where concurrent requests each see
-        # _cache_built=False and all rebuild simultaneously.
+        # Clear inside the lock so concurrent requests that all saw
+        # _cache_built=False cannot rebuild over each other.
         _local_cache.clear()
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, _build_cache_sync)
@@ -127,7 +129,8 @@ def _find_local(track_id: str) -> Optional[Path]:
 
 def invalidate_stream_cache() -> None:
     global _cache_built
-    # BUG #14: Also clear _local_cache so deleted files don't persist
+    # Clear both the flag and the map: leaving stale entries behind would
+    # keep serving paths for files that no longer exist.
     _local_cache.clear()
     _cache_built = False
     log.debug("stream.cache.invalidated")
@@ -449,7 +452,9 @@ def _artwork_cache_set(key: str, data: bytes) -> None:
 # queue behind background fills and leave the first play waiting.
 _REMOTE_FILL_LIMIT = 8
 _SESSION_IDLE_TTL  = 600.0   # finished sessions are swept after 10 min idle
-_buffer_dir = Path("/tmp/Rheoson_stream_buffer")
+# Platform temp dir (TMPDIR-aware) so the buffer works unchanged on Termux,
+# Render and VPS — a hard-coded /tmp does not exist on every Android build.
+_buffer_dir = Path(tempfile.gettempdir()) / "Rheoson_stream_buffer"
 _buffer_dir.mkdir(parents=True, exist_ok=True)
 
 _remote_sessions: dict[str, dict] = {}  # track_id → {"task", "done", "ok", "accessed", "path"}
@@ -628,7 +633,7 @@ async def stream_audio(track_id: str, request: Request):
     # rescans periodically, so a per-request scan buys nothing.
 
     # Check the remote stream cache — serves cached audio instantly
-    # if the track was streamed within the last 30 minutes.
+    # if the track was streamed recently (see _REMOTE_CACHE_TTL).
     cached = _remote_cache_get(track_id)
     if cached:
         log.debug("stream.remote_cache.hit", track_id=track_id)
@@ -738,8 +743,9 @@ async def clear_remote_cache(_user: dict = Depends(get_current_user)):
 @router.post("/artwork/cache/clear")
 async def clear_artwork_cache(_user: dict = Depends(get_current_user)):
     """Clear the in-memory artwork proxy cache."""
+    cleared = len(_artwork_cache)
     _artwork_cache.clear()
-    return {"ok": True, "message": "Artwork cache cleared", "cleared": len(_artwork_cache)}
+    return {"ok": True, "message": "Artwork cache cleared", "cleared": cleared}
 
 
 # ── Helpers ───────────────────────────────────────────────────
@@ -861,8 +867,6 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
         "-o", "-",
     ]
 
-    last_error = None
-
     for attempt in range(3):
         extractor_args = extractor_args_variants[min(attempt, len(extractor_args_variants) - 1)]
         ua = user_agents[attempt % len(user_agents)]
@@ -875,7 +879,7 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
                 *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
         except Exception as e:
-            last_error = str(e)
+            log.warning("stream.buffer.spawn_failed", track_id=track_id, attempt=attempt + 1, error=str(e))
             await asyncio.sleep(0.8 + attempt)
             continue
 
@@ -892,7 +896,6 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
             continue
 
         if not first_chunk:
-            last_error = "yt-dlp produced no output"
             try:
                 proc.kill()
             except Exception:
@@ -904,9 +907,8 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
             await asyncio.sleep(0.8 + attempt * 0.5)
             continue
 
-        # BUG FIX: Write first_chunk to dest and stream the rest.
-        # Previously first_chunk was read but never written, so the
-        # buffer file was always empty and _fill_buffer always raised 502.
+        # The first chunk was already consumed from stdout above, so it must
+        # be written to dest explicitly before streaming the rest.
         try:
             with open(dest, "wb") as f:
                 f.write(first_chunk)
@@ -920,7 +922,6 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
             log.info("stream.buffer.filled", track_id=track_id, size=dest.stat().st_size)
             return
         except Exception as e:
-            last_error = str(e)
             log.warning("stream.buffer.write_error", track_id=track_id, error=str(e))
             if dest.exists():
                 dest.unlink()

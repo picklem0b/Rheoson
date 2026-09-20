@@ -14,10 +14,7 @@ without changing the rest of the application.
 
 from __future__ import annotations
 
-import math
-import random
 from datetime import datetime, timezone
-from typing import Any
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -30,7 +27,6 @@ from app.models.recommendation import (
 from app.services.taste_profiler import (
     build_taste_profile,
     is_cold_start,
-    WEIGHTS,
 )
 
 log = structlog.get_logger()

@@ -21,8 +21,6 @@ already pings/drops dead connections at the protocol level.
 
 import structlog
 
-from app.websocket.ws_manager import ws_manager
-
 log = structlog.get_logger()
 
 # sid → user_id for authenticated sockets

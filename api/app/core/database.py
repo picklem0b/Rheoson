@@ -8,7 +8,6 @@ recommendations, analytics, and visitor counting require the database.
 
 from __future__ import annotations
 
-import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.core.config import settings

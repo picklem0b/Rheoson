@@ -4,7 +4,7 @@ import asyncio
 import structlog
 from pathlib import Path
 from app.core.config import settings
-from app.core.exceptions import SearchError, UnsupportedURLError
+from app.core.exceptions import UnsupportedURLError
 from app.services import ytmusic_service, spotify_service
 from app.services.metadata_service import read_track_metadata
 

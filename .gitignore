@@ -30,6 +30,8 @@ dump.rdb
 # Logs
 *.log
 *.logs
+# Rotated application logs (rheoson.log.1 and friends) don't match *.log
+rheoson.log*
 music/*.json
 # Anchored: an unanchored `downloads/` also matches web/src/pages/downloads/,
 # which is the app's Downloads page source, not a build artefact.

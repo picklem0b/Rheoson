@@ -1291,7 +1291,7 @@
         ],
         "summary": "Health",
         "description": "Full cheap health snapshot with per-subsystem checks.\n\nBacked by the background probe cache \u2014 no expensive work per request.",
-        "operationId": "health_api_health_get",
+        "operationId": "health_api_health",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1309,7 +1309,7 @@
         ],
         "summary": "Health",
         "description": "Full cheap health snapshot with per-subsystem checks.\n\nBacked by the background probe cache \u2014 no expensive work per request.",
-        "operationId": "health_api_health_get_1",
+        "operationId": "health_api_health_1",
         "responses": {
           "200": {
             "description": "Successful Response",

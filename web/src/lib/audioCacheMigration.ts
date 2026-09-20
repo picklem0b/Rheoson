@@ -284,12 +284,6 @@ export async function migrateOfflineAudioMime(
 				res = null;
 			}
 
-			console.log('REFETCH DEBUG: ', {
-				res,
-				ok: res?.ok,
-				status: res?.status,
-				blob: res ? await res.clone().blob() : null
-			});
 			if (res && res.ok) {
 				try {
 					const blob = await res.blob();

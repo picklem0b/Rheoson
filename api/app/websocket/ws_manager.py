@@ -5,7 +5,8 @@ from typing import Any
 
 log = structlog.get_logger()
 
-# BUG #5: Pending event queue — emitted when _sio is None, flushed on init()
+# Events emitted before init() are buffered here (bounded) and flushed once
+# the sio instance is available, so startup-time emits are never lost.
 _pending_events: list[tuple[str, dict, str | None]] = []
 _MAX_PENDING = 50
 
@@ -23,7 +24,9 @@ class ConnectionManager:
 
     def init(self, sio: Any) -> None:
         self._sio = sio
-        # BUG #5: Flush any events queued before sio was ready
+        # Events emitted before the ASGI server handed us the sio instance
+        # are queued here and flushed on init — emitting into a None sio
+        # would drop them silently.
         if _pending_events:
             log.info("ws.emit.flushing_pending", count=len(_pending_events))
             for event, data, room in _pending_events:
@@ -34,7 +37,7 @@ class ConnectionManager:
 
     async def emit(self, event: str, data: dict, room: str | None = None) -> None:
         if self._sio is None:
-            # BUG #5: Queue instead of silently dropping
+            # Buffer instead of silently dropping
             if len(_pending_events) < _MAX_PENDING:
                 _pending_events.append((event, data, room))
                 log.warning("ws.emit.queued", event=event, pending=len(_pending_events))

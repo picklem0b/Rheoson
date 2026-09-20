@@ -11,8 +11,6 @@ This module only verifies Clerk session JWTs on the backend.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import time
 from base64 import urlsafe_b64decode

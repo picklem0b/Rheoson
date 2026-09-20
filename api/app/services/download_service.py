@@ -19,8 +19,9 @@ from app.websocket.ws_manager import ws_manager
 log = structlog.get_logger()
 
 # ── Job store ─────────────────────────────────────────────────
-# BUG #21: Jobs are persisted to a JSON file so active downloads survive
-# a server restart. Downloaded files themselves always survive (they're on disk).
+# Jobs are persisted to a JSON file so the job list (and each job's resume
+# state) survives a server restart. Downloaded files themselves always
+# survive — they live on disk.
 _JOBS_FILE = Path(settings.DOWNLOADS_DIR) / ".download_jobs.json"
 
 _jobs:  dict[str, dict]          = {}
@@ -174,7 +175,8 @@ def _new_job(
 def _update(job_id: str, **kwargs) -> None:
     if job_id in _jobs:
         _jobs[job_id].update(kwargs)
-        _persist_jobs()  # BUG #21: persist after every update
+        # Persist after every mutation so a crash loses at most the current tick.
+        _persist_jobs()
 
 
 def _with_resume_fields(job: dict) -> dict:
@@ -691,10 +693,9 @@ async def _download_task(
             log.warning('download.identity.record.failed', job_id=job_id, error=str(e))
 
         # Invalidate the stream cache so the new file is found on the very
-        # next play request without requiring a server restart.
-        # NOTE: module is stream_router (not stream) — the wrong import below
-        # used to fail silently, so newly downloaded files stayed invisible to
-        # /stream and /tracks until the 30-minute cron rescanned.
+        # next play request without waiting for the periodic rescan. The
+        # import targets stream_router — the stream_service module does not
+        # export this and a wrong import would fail silently inside the try.
         try:
             from app.routers.stream_router import invalidate_stream_cache
             invalidate_stream_cache()
@@ -710,8 +711,8 @@ async def _download_task(
             log.warning('download.track_index.invalidate.failed', error=str(e))
 
     except asyncio.CancelledError:
-        # BUG #16: Use 'cancelled' status instead of generic 'error' so the
-        # frontend can distinguish user-initiated cancellation from failures.
+        # 'cancelled' (not 'error') so the frontend can distinguish
+        # user-initiated cancellation from failures.
         _kill_job_process(job_id)
         _update(job_id, status='cancelled', error='Cancelled by user')
         # Keep partial .part data — the point of cancel-and-resume is to
@@ -731,7 +732,7 @@ async def _download_task(
             shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
         else:
             _update(job_id, resumable=True, stagedBytes=staged)
-        # BUG #16: Set the correct intermediate status based on where it failed
+        # Name the stage that failed so the error message is actionable.
         current = _jobs.get(job_id, {}).get('status', 'error')
         if current == 'downloading':
             _update(job_id, status='error', error=f'Download failed: {e}')
@@ -767,7 +768,8 @@ async def enqueue_download(
     resume:          bool          = False,
 ) -> dict:
     global _jobs_loaded
-    # BUG #21: Load persisted jobs on first use
+    # Lazy-load persisted jobs on first use — import-time loading would run
+    # before settings/MUSIC_DIR are usable in some entry paths.
     if not _jobs_loaded:
         _load_jobs()
         _jobs_loaded = True
@@ -811,7 +813,8 @@ async def cancel_job(job_id: str) -> bool:
     task = _tasks.pop(job_id, None)
     if task and not task.done():
         task.cancel()
-        # BUG #6: Wait with explicit timeout, then force-kill if needed
+        # Bounded wait so a wedged subprocess cannot hang the cancel request;
+        # the process group is force-killed below regardless.
         try:
             await asyncio.wait_for(asyncio.shield(task), timeout=3.0)
         except asyncio.TimeoutError:
@@ -841,7 +844,8 @@ async def retry_job(job_id: str, resume: Optional[bool] = None) -> Optional[dict
     job = _jobs.get(job_id)
     if not job:
         return None
-    # BUG #6: Ensure old task is fully stopped before retrying
+    # A still-running previous attempt must be fully stopped before a new
+    # one starts, or two yt-dlp processes would write the same staging dir.
     old_task = _tasks.pop(job_id, None)
     if old_task and not old_task.done():
         old_task.cancel()
