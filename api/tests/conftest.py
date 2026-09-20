@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
 import tempfile
 import pytest
 import pytest_asyncio
@@ -11,6 +13,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 # ── Isolate every test run from the dev machine's real music library ──
 _test_base = tempfile.mkdtemp(prefix="rheoson-api-test-")
+# The base is created once per session and holds a whole music tree, a stream
+# cache and the download staging area. Without this it is never removed, so a
+# machine that runs the suite repeatedly accumulates one directory per run.
+# Registered at import so it still fires when a run aborts mid-session.
+atexit.register(shutil.rmtree, _test_base, ignore_errors=True)
 os.environ["MUSIC_DIR"] = os.path.join(_test_base, "music")
 os.environ["DOWNLOADS_DIR"] = os.path.join(_test_base, "downloads")
 os.environ["EXTRA_MUSIC_DIRS"] = "[]"
