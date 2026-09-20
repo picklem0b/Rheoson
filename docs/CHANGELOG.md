@@ -6,6 +6,19 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.18.4
+
+Redesign phase 4/7 — the player surfaces.
+
+- fix(player): **PlayerBar works in light theme.** The card was a hard-coded dark gradient with a raw crimson glow; it now renders the shared glass material (theme-aware, solid fallback under `prefers-reduced-transparency`) with token-driven elevation, and the playing-state glow is expressed through `--accent-subtle` instead of a hard-coded rgba literal.
+- feat(nowplaying): desktop gets a centered player column and a centered segmented tab control. The full-screen backdrop keys off the neutral ramp instead of pure black.
+- fix(player): volume icon mapping was inverted between breakpoints (low volume showed the loud speaker); now `SpeakerX` below mute, `SpeakerLow` under half, `SpeakerHigh` above.
+- fix(ui): codemod-corrupted menu labels repaired — the overflow and context menus read "Download", not "DownloadSimple".
+- feat(a11y): the PlayerBar like button carries an accessible name and a 40px hit area.
+- chore(release): version 2.18.4 across all five sync points.
+
+---
+
 ## v2.18.3
 
 Redesign phase 3/7 — Home, Search and Library.

@@ -36,7 +36,7 @@ type Tab = "queue" | "lyric" | "creator";
 
 const MENU_ITEMS = [
    { icon: Heart, label: "Like", action: "like" },
-   { icon: DownloadSimple, label: "DownloadSimple", action: "download" },
+   { icon: DownloadSimple, label: "Download", action: "download" },
    { icon: Plus, label: "Add to queue", action: "queue-add" },
    { icon: LinkIcon, label: "Copy link", action: "copy-link" },
    { icon: Microphone, label: "View lyrics", action: "lyrics" },
@@ -647,7 +647,7 @@ export default function NowPlaying() {
    return (
       <motion.div
          style={{ opacity, scale }}
-         className='fixed inset-0 z-50 flex flex-col bg-black overflow-hidden'>
+         className='fixed inset-0 z-50 flex flex-col bg-[rgb(var(--gray-950))] overflow-hidden'>
          {/* Blurred artwork background */}
          <div className='absolute inset-0 pointer-events-none'>
             <img
@@ -673,8 +673,8 @@ export default function NowPlaying() {
             <div className='w-10 h-1 rounded-full bg-white/25' />
          </motion.div>
 
-         {/* Scrollable main content */}
-         <div className='relative z-10 flex flex-col h-full overflow-y-auto no-scrollbar'>
+         {/* Scrollable main content — desktop centers the player column */}
+         <div className='relative z-10 flex flex-col h-full overflow-y-auto no-scrollbar lg:max-w-2xl lg:mx-auto lg:w-full'>
             {/* Top bar */}
             <div className='flex items-center justify-between px-5 pt-10 pb-2 flex-shrink-0'>
                <motion.button
@@ -808,7 +808,7 @@ export default function NowPlaying() {
             </div>
 
             {/* Tabs — segmented pill control, active tab filled */}
-            <div className='flex-shrink-0 px-6 mt-4'>
+            <div className='flex-shrink-0 px-6 mt-4 flex justify-center'>
                <div className='inline-flex gap-1 rounded-full bg-white/5 p-1'>
                   {(["queue", "lyric", "creator"] as Tab[]).map(t => (
                      <button
