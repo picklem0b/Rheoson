@@ -71,7 +71,7 @@ describe('normalizeTrack', () => {
 })
 
 describe('weekly trending contract', () => {
-   // The exact drift that blanked the House page: YouTube Music removed the
+   // The exact drift that blanked the Home page: YouTube Music removed the
    // charts `songs` section, the backend returned `{week, tracks: []}`, and
    // every section fed from it (hero, top-3, trending rail) vanished. This
    // pins the weekly payload shape the frontend relies on.

@@ -447,7 +447,7 @@ export default function DiagnosticsSection() {
             </SettingsRow>
          </SettingsGroup>
 
-         {/* ── Books doctor ─────────────────────────────── */}
+         {/* ── Library doctor ─────────────────────────────── */}
          <LibraryDoctor />
 
          {/* ── This device ────────────────────────────────── */}

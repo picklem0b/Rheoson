@@ -41,7 +41,7 @@ export default function NotFound() {
                className='flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[var(--accent)]
             text-sm font-bold text-white shadow-lg'>
                <House className='w-4 h-4' />
-               House
+               Home
             </motion.button>
          </div>
 
@@ -51,7 +51,7 @@ export default function NotFound() {
             className='flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)]
           hover:text-[var(--accent)] transition-colors mt-2'>
             <MagnifyingGlass className='w-3 h-3' />
-            MagnifyingGlass for music
+            Search for music
          </motion.button>
       </div>
    );

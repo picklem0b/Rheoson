@@ -140,7 +140,7 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
   const isPlaying      = usePlayerStore((s) => s.isPlaying)
 
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
       {tracks.slice(0, 8).map((track, i) => (
         <QuickPickTile
           key={track.id}
@@ -156,14 +156,6 @@ function QuickPicks({ tracks }: { tracks: Track[] }) {
 }
 
 // ── Featured carousel ─────────────────────────────────────────
-
-const GRADIENTS = [
-  'from-violet-900 to-purple-700',
-  'from-rose-900 to-pink-700',
-  'from-cyan-900 to-blue-700',
-  'from-amber-900 to-orange-700',
-  'from-emerald-900 to-green-700',
-]
 
 function FeaturedCarousel({ items }: {
   items: { id: string; title: string; subtitle?: string; artworkUrl?: string; type: 'playlist' | 'album' }[]
@@ -184,7 +176,7 @@ function FeaturedCarousel({ items }: {
           <div className="relative w-44 h-44 rounded-3xl overflow-hidden mb-2.5 shadow-lg">
             {item.artworkUrl
               ? <img src={item.artworkUrl} alt={item.title} className="w-full h-full object-cover" />
-              : <div className={cn('w-full h-full bg-gradient-to-br', GRADIENTS[i % GRADIENTS.length])} />
+              : <div className='w-full h-full bg-[var(--bg-overlay)] flex items-center justify-center'><MusicNotes className='w-8 h-8 text-[var(--text-muted)]' /></div>
             }
             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
               <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg ml-auto">
@@ -294,7 +286,7 @@ function DailyMixesRow({ mixes }: { mixes: DailyMix[] }) {
           <div className="relative w-36 h-36 rounded-3xl overflow-hidden mb-2.5 shadow-lg bg-[var(--bg-surface)] border border-[var(--border)]">
             {mix.artworkUrl
               ? <img src={mix.artworkUrl} alt={mix.title} className="w-full h-full object-cover" />
-              : <div className={cn('w-full h-full bg-gradient-to-br', GRADIENTS[i % GRADIENTS.length])} />
+              : <div className='w-full h-full bg-[var(--bg-overlay)] flex items-center justify-center'><MusicNotes className='w-8 h-8 text-[var(--text-muted)]' /></div>
             }
             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
               <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg ml-auto">
@@ -348,7 +340,7 @@ function EmptyHome() {
       <div>
         <h2 className="text-xl font-bold text-[var(--text-primary)]">Your music starts here</h2>
         <p className="text-sm text-[var(--text-muted)] mt-2 leading-relaxed">
-          MagnifyingGlass for songs, paste a Spotify or YouTube link, or browse your library to get started.
+          Search for songs, paste a Spotify or YouTube link, or browse your library to get started.
         </p>
       </div>
       <motion.button
@@ -356,7 +348,7 @@ function EmptyHome() {
         onClick={() => navigate('/search')}
         className="px-6 py-3 rounded-2xl bg-[var(--accent)] text-white font-bold text-sm shadow-lg"
       >
-        MagnifyingGlass music
+        Search music
       </motion.button>
     </div>
   )
@@ -417,7 +409,7 @@ function isRealTrack(t: Track | undefined | null): t is Track {
   return !!t && !!t.id && !t.id.startsWith('unknown-') && !!t.title && t.title !== 'Unknown Track'
 }
 
-export default function House() {
+export default function Home() {
   const navigate = useNavigate()
 
   const { data: recentRaw, isLoading: loadingRecent } = useQuery({
@@ -435,7 +427,7 @@ export default function House() {
   })
 
   // Weekly charts (cached server-side per ISO week). Used for the hero, the
-  // top-3 podium and the trending rail, so House makes one chart request
+  // top-3 podium and the trending rail, so Home makes one chart request
   // instead of hitting the live endpoint on every visit.
   const { data: trendingRaw, isLoading: loadingTrending } = useQuery({
     queryKey:  ['trending', 'weekly'],
@@ -492,7 +484,7 @@ export default function House() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="px-4 lg:px-8 pt-6 pb-10 space-y-8">
+      <div className="px-4 lg:px-8 pt-6 pb-10 space-y-8 lg:max-w-6xl lg:mx-auto">
 
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">{greeting()}</h1>
@@ -513,7 +505,7 @@ export default function House() {
               onSeeAll={hasRecent ? () => navigate('/recently-played') : undefined}
             />
             {loadingRecent
-              ? <div className="grid grid-cols-2 gap-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
+              ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
               : <QuickPicks tracks={recent} />
             }
           </section>

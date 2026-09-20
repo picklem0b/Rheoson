@@ -6,6 +6,19 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.18.3
+
+Redesign phase 3/7 — Home, Search and Library.
+
+- feat(home): token-driven placeholder surfaces replace the multi-hue gradient pools on artwork-less items — a muted Phosphor glyph on `--bg-overlay` instead of eight saturated gradients competing with the accent. Desktop gets a max-width content column; QuickPicks and its skeleton share the same responsive grid so loading and loaded states align pixel-for-pixel.
+- feat(search): desktop max-width column, 40px minimum touch targets on history rows and suggestion rows, and the text-corruption sweep across user-facing copy introduced by the Phase 2 icon codemod ("MagnifyingGlass for songs" → "Search for songs").
+- feat(library): same placeholder treatment across grid, list and artist views; 1px hairline borders replace 2px on avatars; raw reds replaced with the semantic `--danger` token pair (liked hearts, remove buttons).
+- feat(tokens): semantic `--danger-rgb` / `--danger-text` / `--danger-bg` added to the token layer with light-theme re-mapping — status hues stay recognizable regardless of the active accent.
+- fix(tests): page-component names restored (`Home`, `Search`, `Library`) after the icon codemod collided with page identifiers.
+- chore(release): version 2.18.3 across all five sync points.
+
+---
+
 ## v2.18.2
 
 Redesign phase 2/7 — app shells and the icon system.

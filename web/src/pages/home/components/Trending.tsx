@@ -1,7 +1,7 @@
 /**
  * Trending — full-page numbered list of trending tracks.
  * Lives under pages/home/components because it's only ever reached
- * from House's "Trending → See all" button.
+ * from Home's "Trending → See all" button.
  *
  * Path: /trending (registered in router.tsx)
  * Backend: GET /api/tracks/trending (proxied from YouTube Music charts)

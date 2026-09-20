@@ -89,7 +89,7 @@ export default function PrivacySection() {
    const clearSearch = actionRunner(setClearSearchState, async () => {
       sessionStorage.removeItem("rheoson-last-search");
       localStorage.removeItem("rheoson-search-history");
-      // The MagnifyingGlass page also keeps its recent-queries dropdown here; clear it
+      // The Search page also keeps its recent-queries dropdown here; clear it
       // too so "clear search history" is unambiguous.
       sessionStorage.removeItem("rheoson-recent-searches");
    });
@@ -108,7 +108,7 @@ export default function PrivacySection() {
       <div className='pb-4'>
          <SettingsGroup
             title='ClockCounterClockwise'
-            footer='Play history is stored on the server. MagnifyingGlass history is stored only on this device.'>
+            footer='Play history is stored on the server. Search history is stored only on this device.'>
             <SettingsRow
                label='Save play history'
                description='Off stops recording new recently-played entries (existing history stays until you clear it)'>
@@ -133,7 +133,7 @@ export default function PrivacySection() {
                state={clearSearchState}
                idleLabel='Clear search history'
                idleDesc='Remove saved search queries from this device'
-               okLabel='MagnifyingGlass history cleared'
+               okLabel='Search history cleared'
                onClick={clearSearchState === "idle" ? clearSearch : undefined}
             />
          </SettingsGroup>

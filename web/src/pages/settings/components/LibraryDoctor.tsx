@@ -9,7 +9,7 @@ import {
 } from '../components/SettingsPrimitives'
 
 /**
- * Interactive Books Doctor.
+ * Interactive Library Doctor.
  *
  * One "Scan library" action drives everything: a progress phase while the
  * server walks every music directory, then grouped findings (corrupt
@@ -231,7 +231,7 @@ export default function LibraryDoctor() {
 
    return (
       <SettingsGroup
-         title='Books doctor'
+         title='Library doctor'
          footer='Scans every music folder for files that cannot play, copies of the same track, and leftover folders. Nothing is touched until you choose a repair.'>
          {/* ── Scan launcher / summary ─────────────────── */}
          <div className='px-4 py-4'>
@@ -313,7 +313,7 @@ export default function LibraryDoctor() {
                      <div className='min-w-0 flex-1'>
                         <p className='text-[15px] font-semibold text-[var(--text-primary)]'>
                            {totalProblems === 0
-                              ? 'Books is clean'
+                              ? 'Library is clean'
                               : `${totalProblems} thing${totalProblems === 1 ? '' : 's'} found`}
                         </p>
                         <p className='text-[12.5px] text-[var(--text-muted)] mt-0.5'>

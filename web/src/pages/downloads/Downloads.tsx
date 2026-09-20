@@ -76,7 +76,7 @@ export default function Downloads() {
           )}
         </div>
 
-        {/* MagnifyingGlass — filters the library */}
+        {/* Search — filters the library */}
         <div className="relative">
           <MagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
           <input
@@ -149,7 +149,7 @@ export default function Downloads() {
           </motion.section>
         )}
 
-        {/* ── Books ───────────────────────────────────────── */}
+        {/* ── Library ───────────────────────────────────────── */}
         <section>
           <div className="flex items-center gap-2 mb-2.5">
             <HardDrives className="w-4 h-4 text-[var(--text-muted)]" />

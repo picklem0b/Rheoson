@@ -1,15 +1,7 @@
 import { motion } from 'framer-motion'
+import { MusicNotes } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import type { Album, Playlist } from '@/types'
-
-const GRADIENTS = [
-  'from-violet-900 to-purple-700',
-  'from-rose-900 to-red-700',
-  'from-cyan-900 to-blue-700',
-  'from-amber-900 to-orange-700',
-  'from-emerald-900 to-green-700',
-  'from-pink-900 to-rose-700',
-]
 
 // ── GridView ──────────────────────────────────────────────────
 
@@ -34,16 +26,13 @@ export function GridView({ items, onSelect }: GridViewProps) {
         >
           <div className={cn(
             'w-full aspect-square rounded-3xl mb-3 relative overflow-hidden',
-            'bg-gradient-to-br border border-[var(--border)] shadow-md',
-            item.artworkUrl ? '' : GRADIENTS[i % GRADIENTS.length],
+            'bg-[var(--bg-overlay)] border border-[var(--border)] shadow-md',
           )}>
             {item.artworkUrl
               ? <img src={item.artworkUrl} alt={item.title} className="w-full h-full object-cover" />
               : (
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                  <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-xl">
-                    <motion.div whileTap={{ scale: 0.9 }}>▶</motion.div>
-                  </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <MusicNotes className="w-8 h-8 text-[var(--text-muted)]" weight="duotone" />
                 </div>
               )
             }
@@ -82,10 +71,9 @@ export function ListView({ items, onSelect }: ListViewProps) {
           {item.artworkUrl
             ? <img src={item.artworkUrl} alt={item.title} className="w-12 h-12 rounded-2xl object-cover flex-shrink-0" />
             : (
-              <div className={cn(
-                'w-12 h-12 rounded-2xl flex-shrink-0 bg-gradient-to-br',
-                GRADIENTS[i % GRADIENTS.length],
-              )} />
+              <div className="w-12 h-12 rounded-2xl flex-shrink-0 bg-[var(--bg-overlay)] border border-[var(--border)] flex items-center justify-center">
+                <MusicNotes className="w-5 h-5 text-[var(--text-muted)]" weight="duotone" />
+              </div>
             )
           }
           <div className="flex-1 text-left">

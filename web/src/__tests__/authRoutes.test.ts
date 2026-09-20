@@ -7,7 +7,7 @@
  * exact '/auth' route, so those steps fell through to the catch-all — a
  * user who had just authenticated (or was mid-verification) was bounced
  * back to the landing/marketing screen instead of completing sign-in and
- * reaching House.
+ * reaching Home.
  *
  * These tests pin the route table: every URL Clerk can navigate to during
  * auth must match the AuthPage route, and nothing structural about the

@@ -9,7 +9,7 @@ export interface HeroBackdropProps {
 }
 
 /**
- * Full-width hero picture used at the top of the House page.
+ * Full-width hero picture used at the top of the Home page.
  *
  * The chromatic treatment is the shared UI kit's signature effect, so this is
  * the canonical place to see it at full size.

@@ -51,7 +51,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.18.1"
+VERSION = "2.18.3"
 
 # ── CORS ──────────────────────────────────────────────────────
 
