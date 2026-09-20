@@ -6,6 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.7
+
+Milestone 2.19 phase 7/8 — creator surfaces.
+
+- feat(nowplaying): **the creator tab is a real artist destination.** It carries the artist's identity header with reach (monthly listeners, or subscribers), a **Popular** chart of their top tracks that plays in place, and a horizontal **Releases** rail that mixes albums ahead of singles so the row reads as a discography. A route into the full artist page closes it off.
+- fix(nowplaying): the tab previously duplicated the lyrics that the Lyrics tab already owns, so a track with lyrics showed the same words twice. Lyrics now live only where they are labelled, and the creator tab spends its space on who the artist is and what they have made.
+- feat(nowplaying): the profile-unavailable state names the situation plainly ("No profile available for this artist") and offers an **Open** action instead of dead-ending.
+- fix(state): the follow button used ad-hoc query keys and invalidated nothing, so a follow made here was invisible to the following list and artist page until reload. It now reads and writes through the shared registry and calls `invalidateArtistFollowSurfaces`.
+- chore(types): added `qk.artistContent` and refreshed the generated OpenAPI contract.
+
 ## v2.19.6
 
 Milestone 2.19 phase 6/8 — library information architecture.

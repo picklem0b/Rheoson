@@ -43,6 +43,7 @@ export const qk = {
   // ── Artists ────────────────────────────────────────────────
   following: () => ['following'] as const,
   artistFollow: (id: string) => ['artist-follow', id] as const,
+  artistContent: (id: string) => ['artist-content', id] as const,
 
   // ── Track detail ───────────────────────────────────────────
   trackDownload: (trackId: string) => ['track', 'download', trackId] as const,
