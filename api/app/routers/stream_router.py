@@ -391,11 +391,11 @@ async def _download_direct(url: str, dest: Path, on_mime=None) -> str:
 
 
 async def _fill_buffer(track_id: str, dest: Path, on_mime=None) -> str:
-    """Fill the buffer file, preferring the untranscoded direct stream.
+    """Fill the buffer file, preferring the CDN's own bytes.
 
-    Returns the mime type of the bytes written. Falls back to the transcoding
-    yt-dlp path when no direct URL can be resolved, so a track the CDN refuses
-    still plays — just more slowly.
+    Returns the mime type of the bytes written. Falls back to the yt-dlp path
+    when no direct URL can be resolved, so a track the CDN refuses still
+    plays — just more slowly.
 
     `on_mime` is called as soon as the container is known, which is always
     before any audio is written. The type differs per branch (the CDN's own
@@ -424,7 +424,7 @@ async def _fill_buffer(track_id: str, dest: Path, on_mime=None) -> str:
             except OSError:
                 pass
 
-    return await _fill_buffer_transcode(track_id, dest, on_mime=on_mime)
+    return await _fill_buffer_ytdlp(track_id, dest, on_mime=on_mime)
 
 
 # ── Artwork cache ─────────────────────────────────────────────
@@ -912,16 +912,23 @@ def _sniff_audio_mime(data: bytes) -> str:
     return "audio/mpeg"
 
 
-async def _fill_buffer_transcode(track_id: str, dest: Path, on_mime=None) -> str:
+async def _fill_buffer_ytdlp(track_id: str, dest: Path, on_mime=None) -> str:
     """Fill the buffer with yt-dlp and report the container it actually wrote.
 
-    yt-dlp is piped to stdout, so the post-processing flags select the raw
-    audio-only stream rather than re-encoding it: a post-processor needs a real
-    file to work on, and there is none when the output is a pipe. The bytes are
-    therefore whatever YouTube served (m4a in practice) on every host, and the
-    true container is sniffed from the first chunk instead of inferred from the
-    presence of ffmpeg — inferring it made the response announce
-    ``audio/mpeg`` while the body was an MP4.
+    Streaming deliberately relays the native audio stream instead of
+    transcoding it. ``AUDIO_FORMAT`` describes what a *download* produces — a
+    real file, which a post-processor can re-encode — while this path pipes
+    yt-dlp to stdout, where post-processing cannot run. Transcoding here would
+    also degrade quality (lossy→lossy), burn CPU on the phone for nothing the
+    player needs (browsers decode the native m4a directly), and poison the
+    warm cache with a re-encoded copy when the native stream is the best
+    version to keep.
+
+    The audio-only selector is requested explicitly rather than implied by the
+    ``-x`` shorthand: yt-dlp's default format is video+audio, and the
+    post-processing flags that used to sit here do nothing on a pipe. Bytes
+    are sniffed for the true container — m4a in practice, but the selector can
+    fall through to webm/opus on tracks without an m4a stream.
     """
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
 
@@ -934,23 +941,11 @@ async def _fill_buffer_transcode(track_id: str, dest: Path, on_mime=None) -> str
         "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     ]
-    can_postprocess = toolchain.has_ffmpeg()
-    audio_fmt  = settings.AUDIO_FORMAT or "mp3"
-    audio_qual = "0" if settings.AUDIO_QUALITY == "best" else (settings.AUDIO_QUALITY or "192")
-    if can_postprocess:
-        base_cmd = [
-            toolchain.ytdlp_bin(), "--quiet", "--no-warnings", "--no-playlist",
-            "-x", "--audio-format", audio_fmt, "--audio-quality", f"{audio_qual}K",
-            *toolchain.ffmpeg_location_args(),
-            "-o", "-",
-        ]
-    else:
-        # No ffmpeg: relay the raw audio-only container rather than failing.
-        log.warning("stream.transcode.no_ffmpeg", track_id=track_id)
-        base_cmd = [
-            toolchain.ytdlp_bin(), "--quiet", "--no-warnings", "--no-playlist",
-            "--format", stream_service.RAW_AUDIO_SELECTOR, "-o", "-",
-        ]
+    # Audio-only, m4a first — identical on every host, with or without ffmpeg.
+    base_cmd = [
+        toolchain.ytdlp_bin(), "--quiet", "--no-warnings", "--no-playlist",
+        "--format", stream_service.RAW_AUDIO_SELECTOR, "-o", "-",
+    ]
 
     for attempt in range(3):
         extractor_args = extractor_args_variants[min(attempt, len(extractor_args_variants) - 1)]

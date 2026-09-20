@@ -6,6 +6,15 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.11
+
+Follow-up to the container/type fix: resolving what the inert streaming flags were actually for.
+
+- refactor(streaming): **streaming now states its real intent — relay the native audio stream, never transcode.** The yt-dlp invocation carried `-x --audio-format mp3 --audio-quality …`, which do nothing when the output is a pipe (a post-processor needs a real file to re-encode) and whose only real effect was to imply audio-only format selection. Streaming is deliberately left untranscoded: browsers decode YouTube's native m4a directly, re-encoding lossy→lossy would only degrade quality, and the warm cache would end up holding a re-encoded copy when the native stream is the best version to keep. The audio-only selector is now requested explicitly via `--format`, which is also what removes the ffmpeg/host fork — one identical command everywhere, no `has_ffmpeg()` branch on the streaming path. `AUDIO_FORMAT` keeps governing downloads, where it genuinely applies.
+- chore(streaming): `_fill_buffer_transcode` renamed to `_fill_buffer_ytdlp` — the old name described a thing the function never did, and it was that mismatch which hid the wrong-Content-Type bug in the first place.
+- test: the container-mime suite asserts the spawned command requests `bestaudio…` explicitly and carries no `-x`, so a regression here would pipe video into an audio buffer rather than fail a sniff.
+- test(helper): the test suite's temp base is removed at exit (registered at import, so an aborted run still cleans up).
+
 ## v2.19.10
 
 Found by playing a real track end to end with the CDN fast path forced out.
