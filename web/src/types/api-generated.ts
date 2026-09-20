@@ -1272,6 +1272,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tool Status
+         * @description What this host can actually do, for the diagnostics screen.
+         */
+        get: operations["tool_status_api_settings_tools_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/tools/install-ffmpeg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Install Ffmpeg
+         * @description Provide the audio post-processor downloads and fallback playback need.
+         *
+         *     Audio extraction, format conversion and thumbnail embedding all run
+         *     through ffmpeg, and the transcoding fallback cannot exist without it. On
+         *     the Android build the Termux package manager installs it without any
+         *     privilege escalation, which is the one case the server can repair itself;
+         *     elsewhere the response carries the command for the operator to run.
+         */
+        post: operations["install_ffmpeg_api_settings_tools_install_ffmpeg_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/tools/update": {
         parameters: {
             query?: never;
@@ -4585,6 +4631,46 @@ export interface operations {
         };
     };
     spotify_status_api_settings_spotify_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    tool_status_api_settings_tools_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    install_ffmpeg_api_settings_tools_install_ffmpeg_post: {
         parameters: {
             query?: never;
             header?: never;

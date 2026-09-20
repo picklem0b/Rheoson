@@ -6,6 +6,20 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.1
+
+Milestone 2.19 phase 1/8 — playback and download reliability.
+
+- fix(downloads): **ffmpeg is resolved, not assumed.** Audio extraction (`-x`), format conversion and thumbnail embedding all shell out to ffmpeg, so a host without it failed every download with a raw subprocess tail. `app/core/toolchain.py` locates both binaries (explicit `YTDLP_BIN`/`FFMPEG_BIN` override → `PATH` → Termux `$PREFIX/bin` → system directories), caches the result, and reports it; every yt-dlp invocation now passes `--ffmpeg-location` so post-processing works outside an interactive shell.
+- fix(downloads): **a download no longer dies without ffmpeg.** When no ffmpeg is resolvable the job switches to the audio-only `bestaudio` ladder (`m4a`/`mp4`/`webm`, all library extensions now) and skips the post-processors, so the track still lands instead of failing.
+- fix(streaming): the transcoding fallback relays the raw audio-only container when ffmpeg is absent, instead of refusing to play; the buffer's mime type is sniffed from its first bytes rather than assumed to be MP3.
+- feat(tooling): the Doctor gains an **Install ffmpeg** repair beside the existing yt-dlp update. Termux installs it through its own package manager with no privilege escalation; other hosts are handed the exact command. A tool change re-probes health immediately so the result is visible at once.
+- feat(tooling): `GET /settings/tools` reports what the host can actually do (downloader present, transcoder present, install hint); the daily yt-dlp cron runs through the resolved binary and logs tool readiness, so a missing ffmpeg shows up in the log rather than only in a failed download.
+- fix(downloads): **failure copy is user-safe.** The raw `yt-dlp exited with code 1 (…)` tail no longer reaches the UI — the log keeps the diagnostic, the user gets an actionable sentence — and the failed-download pill no longer leads with a video id when metadata resolution failed.
+- fix(ui): removed the last `DownloadSimple` text corruption from the earlier icon migration (`DownloadSimple failed`, menu labels, section titles, download buttons and adding-to-library copy) and the module comments that described it.
+- fix(library): `mp4`/`webm` audio containers are indexed and served; extension matching is case-insensitive everywhere.
+- test(toolchain): resolution order, the ffmpeg-absent download and stream fallbacks, and the no-leak failure copy are covered by a new suite; the download ladder tests pin the post-processor so the host's own ffmpeg cannot change what they measure.
+
 ## v2.18.7
 
 Redesign phase 7/7 — motion governance and the status-token close-out.

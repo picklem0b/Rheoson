@@ -36,6 +36,8 @@ from datetime import datetime, timezone
 
 import structlog
 
+from app.core import toolchain
+
 log = structlog.get_logger()
 
 # ── Status vocabulary ─────────────────────────────────────────
@@ -73,30 +75,6 @@ def _now_s() -> float:
 
 
 # ── Bounded subprocess version probe ──────────────────────────
-
-async def _probe_command(args: list[str], timeout: float = 8.0) -> tuple[bool, str]:
-    """Run `args`, return (present, first-line-or-error). Never raises."""
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *args,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-    except FileNotFoundError:
-        return False, "not installed"
-    except Exception as e:
-        return False, str(e)[:120]
-    try:
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        out = (stdout or b"").decode(errors="ignore").strip().splitlines()
-        return proc.returncode == 0, (out[0][:120] if out else "ok")
-    except asyncio.TimeoutError:
-        try:
-            proc.kill()
-        except Exception:
-            pass
-        return False, "timed out"
-
 
 # ── Background dependency probe ───────────────────────────────
 
@@ -137,7 +115,7 @@ async def _check_storage() -> dict:
         if os.path.isdir(base):
             for _root, _dirs, files in os.walk(base):
                 audio += sum(1 for f in files if f.lower().endswith(
-                    (".mp3", ".flac", ".m4a", ".ogg", ".opus", ".wav")
+                    (".mp3", ".flac", ".m4a", ".mp4", ".webm", ".ogg", ".opus", ".wav")
                 ))
     except Exception:
         pass
@@ -182,21 +160,42 @@ async def _check_mongodb() -> dict:
 
 
 async def _check_binaries() -> dict:
-    ytdlp, ffmpeg = await asyncio.gather(
-        _probe_command(["yt-dlp", "--version"]),
-        _probe_command(["ffmpeg", "-version"]),
+    """Report the resolved toolchain, not a PATH guess.
+
+    The probe runs in a thread because resolution shells out for version
+    strings; the paths it reports are the ones downloads and playback will
+    actually use.
+    """
+    caps = await asyncio.to_thread(toolchain.capabilities)
+    versions = await asyncio.gather(
+        asyncio.to_thread(lambda: toolchain.ytdlp().version),
+        asyncio.to_thread(lambda: toolchain.ffmpeg().version),
     )
-    sub = {
-        "ytdlp": {"present": ytdlp[0], "version": ytdlp[1] if ytdlp[0] else None},
-        "ffmpeg": {"present": ffmpeg[0], "version": ffmpeg[1] if ffmpeg[0] else None},
-    }
-    status = PASSING if (ytdlp[0] and ffmpeg[0]) else DEGRADED
+
+    if not caps["canDownload"]:
+        status = FAILING
+    elif not caps["canTranscode"]:
+        status = DEGRADED
+    else:
+        status = PASSING
+
     entry = _check_entry(
         status,
-        "yt-dlp: " + (ytdlp[1] if ytdlp[0] else "missing") +
-        "; ffmpeg: " + (ffmpeg[1] if ffmpeg[0] else "missing"),
+        "yt-dlp: " + (versions[0] or "missing") +
+        "; ffmpeg: " + (versions[1] or "missing") +
+        ("" if caps["canTranscode"] else " (audio conversion unavailable)"),
     )
-    entry["binaries"] = sub
+    entry["binaries"] = {
+        "ytdlp": {"present": caps["ytdlp"]["present"], "version": versions[0], "path": None},
+        "ffmpeg": {"present": caps["ffmpeg"]["present"], "version": versions[1], "path": None},
+    }
+    # Never expose a server filesystem path on a public endpoint; the install
+    # hint is deliberately included because it is the user's next action.
+    entry["capabilities"] = {
+        "canDownload": caps["canDownload"],
+        "canTranscode": caps["canTranscode"],
+        "ffmpegInstallHint": caps["ffmpeg"]["installHint"],
+    }
     return entry
 
 

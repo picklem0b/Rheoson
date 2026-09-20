@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse, Response
+from app.core import toolchain
 from app.core.config import settings
 from app.core.deps import get_current_user, get_optional_user
 from app.services.artwork_service import extract_artwork, fetch_remote_artwork
@@ -26,11 +27,16 @@ from app.services import stream_service
 log    = structlog.get_logger()
 router = APIRouter()
 
-AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
+#: Containers the library serves. ``mp4``/``webm`` carry audio-only streams
+#: (``bestaudio``) and are what a download produces on a host without ffmpeg,
+#: where audio cannot be extracted into a dedicated container.
+AUDIO_EXTS = {"mp3", "flac", "m4a", "mp4", "webm", "ogg", "opus", "wav"}
 MIME_MAP   = {
     ".mp3":  "audio/mpeg",
     ".flac": "audio/flac",
     ".m4a":  "audio/mp4",
+    ".mp4":  "audio/mp4",
+    ".webm": "audio/webm",
     ".ogg":  "audio/ogg",
     ".opus": "audio/ogg; codecs=opus",
     ".wav":  "audio/wav",
@@ -407,8 +413,7 @@ async def _fill_buffer(track_id: str, dest: Path) -> str:
             except OSError:
                 pass
 
-    await _fill_buffer_transcode(track_id, dest)
-    return "audio/mpeg"
+    return await _fill_buffer_transcode(track_id, dest)
 
 
 # ── Artwork cache ─────────────────────────────────────────────
@@ -846,8 +851,24 @@ def _serve_local(path: Path, request: Request, mime: Optional[str] = None) -> Re
 # of a background session task (see _ensure_remote_session) so it is
 # decoupled from any single HTTP response.
 
-async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
-    """Spawn yt-dlp and write the re-encoded audio stream to dest."""
+def _sniff_audio_mime(data: bytes) -> str:
+    """Best-effort container sniff for a raw, untranscoded audio buffer."""
+    if len(data) >= 12 and data[4:8] == b"ftyp":
+        return "audio/mp4"
+    if data[:4] == b"\x1a\x45\xdf\xa3":
+        return "audio/webm"
+    if data[:4] == b"OggS":
+        return "audio/ogg"
+    return "audio/mpeg"
+
+
+async def _fill_buffer_transcode(track_id: str, dest: Path) -> str:
+    """Fill the buffer with yt-dlp, re-encoding only when ffmpeg is present.
+
+    Returns the mime type of the bytes written. With ffmpeg the output is a
+    normalised audio file; without it the raw audio-only container is relayed
+    instead, because the alternative is refusing to play the track at all.
+    """
     yt_url = f"https://www.youtube.com/watch?v={track_id}"
 
     extractor_args_variants = [
@@ -859,13 +880,23 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
         "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     ]
+    can_postprocess = toolchain.has_ffmpeg()
     audio_fmt  = settings.AUDIO_FORMAT or "mp3"
     audio_qual = "0" if settings.AUDIO_QUALITY == "best" else (settings.AUDIO_QUALITY or "192")
-    base_cmd = [
-        "yt-dlp", "--quiet", "--no-warnings", "--no-playlist",
-        "-x", "--audio-format", audio_fmt, "--audio-quality", f"{audio_qual}K",
-        "-o", "-",
-    ]
+    if can_postprocess:
+        base_cmd = [
+            toolchain.ytdlp_bin(), "--quiet", "--no-warnings", "--no-playlist",
+            "-x", "--audio-format", audio_fmt, "--audio-quality", f"{audio_qual}K",
+            *toolchain.ffmpeg_location_args(),
+            "-o", "-",
+        ]
+    else:
+        # No ffmpeg: relay the raw audio-only container rather than failing.
+        log.warning("stream.transcode.no_ffmpeg", track_id=track_id)
+        base_cmd = [
+            toolchain.ytdlp_bin(), "--quiet", "--no-warnings", "--no-playlist",
+            "--format", stream_service.RAW_AUDIO_SELECTOR, "-o", "-",
+        ]
 
     for attempt in range(3):
         extractor_args = extractor_args_variants[min(attempt, len(extractor_args_variants) - 1)]
@@ -909,6 +940,7 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
 
         # The first chunk was already consumed from stdout above, so it must
         # be written to dest explicitly before streaming the rest.
+        mime = "audio/mpeg" if can_postprocess else _sniff_audio_mime(first_chunk)
         try:
             with open(dest, "wb") as f:
                 f.write(first_chunk)
@@ -919,8 +951,13 @@ async def _fill_buffer_transcode(track_id: str, dest: Path) -> None:
                         break
                     f.write(chunk)
             await proc.wait()
-            log.info("stream.buffer.filled", track_id=track_id, size=dest.stat().st_size)
-            return
+            log.info(
+                "stream.buffer.filled",
+                track_id=track_id,
+                size=dest.stat().st_size,
+                mime=mime,
+            )
+            return mime
         except Exception as e:
             log.warning("stream.buffer.write_error", track_id=track_id, error=str(e))
             if dest.exists():

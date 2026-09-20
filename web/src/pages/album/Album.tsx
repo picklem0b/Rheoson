@@ -134,7 +134,7 @@ export default function Album() {
               <IconButton
                 size="md"
                 variant="ghost"
-                title="DownloadSimple all tracks"
+                title="Download all tracks"
                 disabled={!albumTracks.length}
                 onClick={() => {
                   if (!albumTracks.length) return

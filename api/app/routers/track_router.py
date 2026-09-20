@@ -37,7 +37,7 @@ from app.schemas.track_schema import TrackSchema
 log = structlog.get_logger()
 router = APIRouter()
 
-AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
+AUDIO_EXTS = {"mp3", "flac", "m4a", "mp4", "webm", "ogg", "opus", "wav"}
 
 # ── Track index cache ─────────────────────────────────────────
 # Built lazily on first request and invalidated after a download completes.
@@ -81,7 +81,7 @@ async def _build_index() -> dict[str, dict]:
             if not music_dir.exists():
                 continue
             for path in music_dir.rglob("*"):
-                if path.suffix.lstrip(".") in AUDIO_EXTS:
+                if path.suffix.lstrip(".").lower() in AUDIO_EXTS:
                     try:
                         t = read_track_metadata(path)
                         result[t["id"]] = t

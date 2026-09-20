@@ -109,7 +109,9 @@ export function DownloadProgressBar() {
         >
           <WarningCircle className="w-4 h-4 text-[var(--danger-text)]" />
           <span className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[240px]">
-            {lastError.title} failed — {lastError.error || 'tap to retry in Downloads'}
+            {lastError.error
+              ? `Download failed — ${lastError.error}`
+              : 'A download failed — tap to retry in Downloads'}
           </span>
         </motion.div>
       )}

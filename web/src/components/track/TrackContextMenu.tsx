@@ -95,7 +95,7 @@ function useMenuActions(track: Track, onClose: () => void) {
     },
     {
       id: 'download',
-      label: 'DownloadSimple',
+      label: 'Download',
       icon: <DownloadSimple className="w-4 h-4" />,
       run: () => {
         openDownloadModal(track.id, track)

@@ -28,7 +28,7 @@ from app.core.config import settings
 
 log = structlog.get_logger()
 
-AUDIO_EXTS = {"mp3", "flac", "m4a", "ogg", "opus", "wav"}
+AUDIO_EXTS = {"mp3", "flac", "m4a", "mp4", "webm", "ogg", "opus", "wav"}
 
 # Files below this size are treated as corrupt regardless of parseability —
 # a real audio file is never a few hundred bytes.

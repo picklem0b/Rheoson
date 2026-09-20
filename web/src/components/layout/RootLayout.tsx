@@ -184,7 +184,7 @@ export default function RootLayout() {
             {/* ── Queue Panel (slide-in drawer) ─────────────── */}
             <QueuePanel />
 
-            {/* ── DownloadSimple options modal ─────────────────────── */}
+            {/* ── Download options modal ─────────────────────── */}
             <DownloadModal />
 
             {/* ── Add-to-playlist sheet (global) ──────────────── */}
