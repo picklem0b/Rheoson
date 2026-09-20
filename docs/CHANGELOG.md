@@ -6,6 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.4
+
+Milestone 2.19 phase 4/8 — instant state.
+
+- fix(state): **a like now refreshes every surface that shows it.** Query keys were written inline at each call site, and two surfaces asking the same question spelled them differently — the profile read a count under `['tracks','liked','count']` while the tray invalidated `['liked-count']`. Liking a track from the player therefore invalidated nothing and the count sat stale on pages the user was not looking at. Keys now live in one registry (`lib/queryKeys.ts`) and mutations call surface-wide helpers (`lib/queryInvalidation.ts`): likes refresh the count, the liked list, library rows, history and recommendation shelves; playlists refresh the list and any open playlist; follows refresh the artist and the following list; plays refresh history and stats.
+- fix(state): the like toggles in PlayerBar and NowPlaying did not invalidate anything at all; they now do, so a heart tapped on the player updates the profile counter without a reload.
+- feat(state): **remembered answers paint instantly.** A small, whitelisted localStorage snapshot (`lib/querySnapshot.ts`) restores the like count, playlist list, recently-played and following list on the next visit, so a page shows a known number immediately instead of a spinner. Nothing large is stored (no library listings, no search results), entries older than 24 hours are ignored, and every restored value is stamped as already-stale so the server's answer still replaces it.
+- fix(privacy): the snapshot is namespaced per account and wiped on sign-out, so a shared device cannot show the next person the previous account's counts. Storage being unavailable degrades to a no-op rather than an error.
+- test(state): the registry's whitelist, each invalidation group, and the snapshot's restore/staleness/per-account/sign-out behaviour are covered (9 new tests).
+
 ## v2.19.3
 
 Milestone 2.19 phase 3/8 — the account contract.

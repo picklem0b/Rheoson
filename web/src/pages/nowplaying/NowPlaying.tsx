@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
    motion,
    AnimatePresence,
@@ -17,6 +17,7 @@ import { usePlayer } from "@/hooks/player.hook";
 import { useLyrics } from "@/hooks/lyrics.hook";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { tracksApi } from "@/api/tracks.api";
+import { invalidateLikeSurfaces } from "@/lib/queryInvalidation";
 import {
    getArtist,
    getFollowStatus,
@@ -568,6 +569,7 @@ function PlaylistTabRow({
 // ── Main page ─────────────────────────────────────────────────
 
 export default function NowPlaying() {
+   const queryClient = useQueryClient();
    const navigate = useNavigate();
 
    const currentTrack = usePlayerStore(s => s.currentTrack);
@@ -609,6 +611,8 @@ export default function NowPlaying() {
          next
             ? await tracksApi.likeTrack(currentTrack.id)
             : await tracksApi.unlikeTrack(currentTrack.id);
+         // Keep the count on every other page honest without a reload.
+         invalidateLikeSurfaces(queryClient);
       } catch {
          setLiked(!next);
       }

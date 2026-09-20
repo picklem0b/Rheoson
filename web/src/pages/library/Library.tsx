@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, SquaresFour, List, MusicNotes, VinylRecord, User, Heart, CaretRight, Play, Shuffle, X, Link as LinkIcon } from '@phosphor-icons/react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+   invalidateLikeSurfaces,
+   invalidatePlaylistSurfaces
+} from "@/lib/queryInvalidation";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
@@ -316,7 +320,7 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
             description: description.trim() || undefined
          }),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ["playlists"] });
+         invalidatePlaylistSurfaces(queryClient);
          toast("Playlist created!", "success");
          onClose();
       },
@@ -326,7 +330,7 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
    const importMutation = useMutation({
       mutationFn: () => playlistsApi.importSpotify(importUrl.trim()),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ["playlists"] });
+         invalidatePlaylistSurfaces(queryClient);
          toast("Playlist imported!", "success");
          onClose();
       },
@@ -596,8 +600,7 @@ export default function Library() {
       e.stopPropagation();
       try {
          await tracksApi.unlikeTrack(trackId);
-         queryClient.invalidateQueries({ queryKey: ["liked-tracks"] });
-         queryClient.invalidateQueries({ queryKey: ["liked-count"] });
+         invalidateLikeSurfaces(queryClient);
       } catch {
          // revert silently
       }

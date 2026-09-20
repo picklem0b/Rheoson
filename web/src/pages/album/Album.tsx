@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { MusicNotes, Play, Shuffle, Heart, DownloadSimple } from '@phosphor-icons/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateLikeSurfaces } from '@/lib/queryInvalidation'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { getAlbum } from '@/api/library.api'
@@ -62,7 +63,7 @@ export default function Album() {
         await tracksApi.unlikeTrack(firstId)
         await likedStore.remove(firstId)
       }
-      queryClient.invalidateQueries({ queryKey: ['liked'] })
+      invalidateLikeSurfaces(queryClient)
     } catch {
       setLiked(!next)
       toast('Could not update liked tracks', 'error')

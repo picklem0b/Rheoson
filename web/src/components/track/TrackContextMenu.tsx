@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, ListPlus, DownloadSimple, Heart, ShareNetwork, Radio, EyeSlash } from '@phosphor-icons/react'
 import { useQueryClient } from '@tanstack/react-query'
+import { invalidateLikeSurfaces } from '@/lib/queryInvalidation'
 import { useContextMenuStore } from '@/store/contextMenu.store'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayer } from '@/hooks/player.hook'
@@ -53,10 +54,7 @@ function useMenuActions(track: Track, onClose: () => void) {
   const { toast } = useToast()
 
   const refreshLikes = () => {
-    queryClient.invalidateQueries({ queryKey: ['liked-tracks'] })
-    queryClient.invalidateQueries({ queryKey: ['liked-count'] })
-    queryClient.invalidateQueries({ queryKey: ['tracks'] })
-    queryClient.invalidateQueries({ queryKey: ['recommendations'] })
+    invalidateLikeSurfaces(queryClient)
   }
 
   const actions = [

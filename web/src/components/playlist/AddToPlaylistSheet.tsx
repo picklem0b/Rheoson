@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidatePlaylistSurfaces } from '@/lib/queryInvalidation'
 import { Check, Queue, Plus, MusicNotes } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
@@ -34,8 +35,7 @@ export function AddToPlaylistSheet() {
   const open = !!track
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['playlists'] })
-    queryClient.invalidateQueries({ queryKey: ['playlist'] })
+    invalidatePlaylistSurfaces(queryClient)
   }
 
   const handleToggle = async (playlistId: string, alreadyIn: boolean) => {

@@ -9,6 +9,7 @@ import { analyticsApi } from '@/api/analytics.api'
 import { tracksApi } from '@/api/tracks.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { formatCount } from '@/lib/formatters'
+import { qk } from '@/lib/queryKeys'
 import { cn } from '@/lib/utils'
 import { isClerkEnabled } from '@/lib/constants'
 
@@ -105,7 +106,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
 
   // Liked count
   const { data: likedCount } = useQuery({
-    queryKey: ['tracks', 'liked', 'count'],
+    queryKey: qk.likedCount(),
     queryFn: tracksApi.getLikedCount,
     staleTime: 60_000,
     retry: 0,

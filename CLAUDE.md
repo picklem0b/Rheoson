@@ -1,15 +1,15 @@
 # CLAUDE.md — Rheoson Codebase Context
 
-> Version: 2.19.3 · Long-form docs: [docs/README.md](docs/README.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
+> Version: 2.19.4 · Long-form docs: [docs/README.md](docs/README.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
 
 Rheoson is a self-hosted music streaming + download app (Termux/Android APK first, Render cloud second). FastAPI + Socket.IO backend, React 18 + Vite + Capacitor frontend, MongoDB (Motor) for accounts/recommendations/analytics, JSON/SQLite sidecars for library state.
 
 ## Version sync (all 5, always together)
 
-- `api/pyproject.toml` → `version = "2.19.3"` (then run `uv lock` — `uv.lock` carries it too)
-- `web/package.json` → `"version": "2.19.3"`
-- `web/src/lib/constants.ts` → `APP_VERSION = "2.19.3"`
-- `api/app/main.py` → `VERSION = "2.19.3"`
+- `api/pyproject.toml` → `version = "2.19.4"` (then run `uv lock` — `uv.lock` carries it too)
+- `web/package.json` → `"version": "2.19.4"`
+- `web/src/lib/constants.ts` → `APP_VERSION = "2.19.4"`
+- `api/app/main.py` → `VERSION = "2.19.4"`
 
 ## Non-negotiables
 
@@ -42,6 +42,8 @@ Rheoson is a self-hosted music streaming + download app (Termux/Android APK firs
 
 - **Two-shell layout** — `hooks/useDeviceClass.ts` classifies the device from pointer modality + viewport width (+ Capacitor native override, `display-mode: standalone`); `RootLayout` renders the desktop sidebar or the mobile bottom nav from it. The APK always renders the mobile shell, even on tablets. Design tokens live in `index.css` (primitive → semantic → component layers); status colors are semantic tokens (`--danger`, `--success`, `--warning` families) — never raw Tailwind palette colors.
 - **Stores** (`store/`, Zustand): `player`, `queue`, `auth` (persisted token; `ready` flips after session validation), `ui` (nav style/position/font), `theme`, `download`. Read them, don't mirror them into component state.
+- **Query keys** live in `lib/queryKeys.ts` — never write a key inline. `lib/queryInvalidation.ts` refreshes whole surfaces (likes, playlists, history, follows) so a mutation reaches every mounted consumer without a reload; invalidating one ad-hoc key is how a like count went stale on the profile.
+- **`lib/querySnapshot.ts`** keeps a whitelisted localStorage snapshot of small account summaries for instant first paint. Per-account, wiped on sign-out, 24 h ceiling, always revalidated. Adding a key to `SNAPSHOT_KEYS` means it must be small and safe to leave on the device.
 - **Audio chain**: `hooks/player.hook.ts` (Howler singleton, `html5: true`, local-cache-first loading) → `lib/audioCache.ts` (IndexedDB byte cache) → `lib/audioEffects.ts` (shared Web Audio graph: EQ, bass boost, mono, pre-amp, normalisation — reads `rheoson-*` keys via `applyFromStorage()`).
 - **`hooks/preferenceSync.hook.ts`** — server wins on sign-in, local edits mirror up while signed in. Whitelist lives server-side (`services/preferences.py DEFAULTS`).
 - **`lib/prefetch.ts` + `hooks/prefetchIntent.hook.ts`** — stream warming: search results, visible rows, and upcoming queue tracks buffer before play.
@@ -58,7 +60,7 @@ cd web && npx tsc --noEmit && npm run lint && npm test && npm run build
 cd api && uv run python -m pytest -q
 ```
 
-Current baseline: 100 frontend + 281 backend tests, lint/tsc/pyflakes clean. Backend tests patch `app.core.database.get_db` as a FastAPI dependency; a mock-DB round trip in a test means the fixture resets `_shared_mock_db` state (see `tests/conftest.py::_clean_state`).
+Current baseline: 109 frontend + 281 backend tests, lint/tsc/pyflakes clean. Backend tests patch `app.core.database.get_db` as a FastAPI dependency; a mock-DB round trip in a test means the fixture resets `_shared_mock_db` state (see `tests/conftest.py::_clean_state`).
 
 ## Data map
 

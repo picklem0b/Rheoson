@@ -8,7 +8,8 @@ shipping them as an untracked patch line.
 
 Phases ship one per commit and are annotated-tagged `v2.19.N`, per
 `GIT_WORKFLOW.md`. Shipped: **v2.19.1** (playback/download reliability),
-**v2.19.2** (auth and API trust boundary) and **v2.19.3** (username identity).
+**v2.19.2** (auth and API trust boundary), **v2.19.3** (username identity) and
+**v2.19.4** (instant state).
 
 ---
 
@@ -65,19 +66,22 @@ Closes the API review findings (`CRITICAL-1`, `HIGH-1..3`, `MEDIUM-1..4`):
 - NIST SP 800-63B recommends 15 characters for single-factor authentication;
   8 is the configured minimum, and 15 is the stronger choice if MFA is off.
 
-## v2.19.4 — Instant state
+## v2.19.4 — Instant state (shipped)
 
 Nothing the user already knows should require a network round trip to
 reappear.
 
-- Server-derived counts (likes, playlists, history) are persisted locally and
-  rendered immediately on return visits; the fresh value replaces it when it
-  arrives.
-- Settings changes persist and are visible from every page, not only inside
-  Settings.
-- A change to one surface updates that surface live (single-track broadcast),
-  without reloading the page or the whole app.
-- Skeletal loading is only ever shown for data that has never been seen.
+- One query-key registry plus surface-wide invalidation helpers: a like
+  refreshes the count, the liked list, library rows, history and shelves
+  wherever they are mounted; playlists, follows and plays do the same for
+  theirs. Same-account pages stay in step without a reload.
+- A whitelisted localStorage snapshot restores the small account summaries
+  (like count, playlists, recently-played, following) immediately on a return
+  visit. Per-account, wiped on sign-out, ignored past 24 hours, and always
+  revalidated.
+- Settings persistence was audited: sections already write through
+  `usePersisted` / their Zustand stores, so an edit survives navigating away
+  and back.
 
 ## v2.19.5 — Browse and discovery
 

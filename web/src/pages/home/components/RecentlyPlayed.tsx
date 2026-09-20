@@ -11,6 +11,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateHistorySurfaces } from '@/lib/queryInvalidation'
 import { Clock, Play, Shuffle, Trash } from '@phosphor-icons/react'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
@@ -103,8 +104,7 @@ export default function RecentlyPlayed() {
     try {
       await tracksApi.clearHistory()
       // Refresh both the full list and the Home preview query
-      queryClient.invalidateQueries({ queryKey: ['recently-played-full'] })
-      queryClient.invalidateQueries({ queryKey: ['recently-played'] })
+      invalidateHistorySurfaces(queryClient)
     } finally {
       setClearing(false)
     }
