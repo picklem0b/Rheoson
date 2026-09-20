@@ -126,6 +126,19 @@ reappear.
   line. Focus is a single app-wide ring and motion honours the OS setting, so
   the new surfaces inherit both rather than re-declaring them.
 
+## v2.19.9 – v2.19.13 — Verified-media and user-safety hardening (shipped)
+
+- A real end-to-end download through the app's own pipeline surfaced and fixed
+  the two defects that made downloads "just not work": a structlog keyword
+  collision that killed the job on its first emit, and a missing tag writer.
+- The streaming fallback was exercised end to end; its response type is now
+  sniffed from the bytes rather than predicted, and the path deliberately
+  relays the native audio instead of pretending to transcode.
+- Every remaining path that could put raw extractor, URL or OS text on screen
+  is mapped to user-safe copy, with tests pinning the contract.
+- Playlist authoring is one flow: name-only creation, an add-songs sheet with
+  suggestions and search, and an empty state that leads somewhere.
+
 ---
 
 **Guardrails for every phase:** `tsc`, `eslint`, the full vitest and pytest

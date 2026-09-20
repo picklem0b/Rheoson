@@ -1101,7 +1101,7 @@ wheels = [
 
 [[package]]
 name = "rheoson-api"
-version = "2.19.11"
+version = "2.19.14"
 source = { virtual = "." }
 dependencies = [
     { name = "aiofiles" },

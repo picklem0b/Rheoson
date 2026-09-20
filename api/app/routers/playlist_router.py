@@ -23,6 +23,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+import structlog
 
 from app.core.config import settings
 from app.core.database import db_available, get_db
@@ -30,6 +31,27 @@ from app.core.deps import get_current_user
 from app.schemas.playlist_schema import PlaylistSchema, CreatePlaylistSchema, UpdatePlaylistSchema
 
 router = APIRouter()
+log = structlog.get_logger()
+
+
+def _friendly_url_error(e: Exception) -> str:
+    """Map a resolve failure to copy safe to show in the UI.
+
+    The underlying exception can quote signed URLs and extractor internals;
+    the log keeps the diagnostic, the response carries an actionable line.
+    Netguard rejections are already user-safe and pass through.
+    Shared with the search resolve route, which wraps the same service call.
+    """
+    from app.services import stream_service
+    if isinstance(e, ValueError):
+        return str(e)
+    text = str(e)
+    low = text.lower()
+    if 'timed out' in low or 'timeout' in low:
+        return 'Reading that link took too long. Check the connection and retry.'
+    if stream_service.is_extractor_failure(text):
+        return 'That link could not be read right now. Try again in a moment.'
+    return 'That link could not be imported. Double-check it and try again.'
 
 # ── Per-user file storage ─────────────────────────────────────
 
@@ -178,7 +200,8 @@ async def import_playlist_url(
         from app.services.search_service import resolve_url
         result = await resolve_url(url)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not resolve URL: {e}") from e
+        log.warning("playlist.import_url.failed", url=url, error=str(e))
+        raise HTTPException(status_code=400, detail=_friendly_url_error(e)) from e
 
     tracks = result.get("tracks", [])
     if not tracks:
@@ -393,7 +416,8 @@ async def import_into_playlist(
     try:
         result = await resolve_url(url)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not resolve URL: {e}") from e
+        log.warning("playlist.import_tracks.failed", url=url, error=str(e))
+        raise HTTPException(status_code=400, detail=_friendly_url_error(e)) from e
 
     tracks = result.get("tracks", [])
     user_id = user["sub"]

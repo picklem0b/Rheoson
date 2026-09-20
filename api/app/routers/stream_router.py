@@ -325,10 +325,12 @@ def _warm_mime(track_id: str) -> Optional[str]:
 
 # ── Fast path: stream the resolved CDN URL ────────────────────
 # The slow part of streaming a remote track was never the network — it was
-# asking yt-dlp to download the whole audio and re-encode it to MP3 before a
-# single byte reached the client. `-x --audio-format mp3` buffers an entire
-# track through ffmpeg, which on Termux is the difference between "instant"
-# and "seven to thirty seconds".
+# asking yt-dlp to download the whole audio and re-encode it through a
+# post-processor before a single byte reached the client. `-x --audio-format
+# mp3` buffers an entire track through ffmpeg, which on Termux is the
+# difference between "instant" and "seven to thirty seconds". Streaming
+# therefore never transcodes: it relays either the CDN's own bytes or the
+# audio-only stream yt-dlp emits.
 #
 # Asking yt-dlp only for the resolved CDN URL (`-g`) costs one metadata
 # extraction and no bytes, and YouTube's CDN is a byte-range capable origin,
@@ -902,7 +904,7 @@ def _serve_local(path: Path, request: Request, mime: Optional[str] = None) -> Re
 # decoupled from any single HTTP response.
 
 def _sniff_audio_mime(data: bytes) -> str:
-    """Best-effort container sniff for a raw, untranscoded audio buffer."""
+    """Best-effort container sniff for the raw, untranscoded audio buffer."""
     if len(data) >= 12 and data[4:8] == b"ftyp":
         return "audio/mp4"
     if data[:4] == b"\x1a\x45\xdf\xa3":
@@ -956,7 +958,12 @@ async def _fill_buffer_ytdlp(track_id: str, dest: Path, on_mime=None) -> str:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                *cmd, stdout=asyncio.subprocess.PIPE,
+                # Never read; PIPE here would fill its 64 KB OS buffer on a
+                # chatty run (client-ladder retries are exactly that) and
+                # stall yt-dlp mid-write. Warnings are of no use while the
+                # bytes are already flowing.
+                stderr=asyncio.subprocess.DEVNULL,
             )
         except Exception as e:
             log.warning("stream.buffer.spawn_failed", track_id=track_id, attempt=attempt + 1, error=str(e))
@@ -1166,8 +1173,8 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
 # The fastest possible path for a remote track: proxy YouTube's own bytes.
 #
 # Streaming the resolved CDN URL rather than a locally produced file is what
-# removes the wait entirely — nothing has to be downloaded, transcoded or
-# buffered before the first byte is relayed. Two properties make it the right
+# removes the wait entirely — nothing has to be downloaded or buffered
+# before the first byte is relayed. Two properties make it the right
 # design rather than a shortcut:
 #
 #   Startup  the player hears audio as soon as the CDN responds; with a warm
@@ -1180,9 +1187,9 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
 #            old path made the player sit silently until the whole track had
 #            been fetched.
 #
-# Bytes are teed into the durable cache as they pass, so only the first
-# listener of a track pays for the network and every later play (including
-# offline) comes straight off local disk.
+# Bytes are teed into the durable cache as they pass — whole-file responses
+# only — so only the first listener of a track pays for the network and every
+# later play (including offline) comes straight off local disk.
 
 
 class _CacheTee:
@@ -1192,12 +1199,21 @@ class _CacheTee:
     can never interleave into one file, and only publishes the result once the
     full body has actually arrived — a partially-relayed file promoted to the
     cache would serve a truncated track forever after.
+
+    The caller only creates a tee for a response that covers the whole file
+    (`upstream.covers_whole_file`); `expect` records that promised size so a
+    body that ends short — a dropped connection the CDN closed without an
+    exception, a truncated 200 — is recognised as incomplete and discarded
+    rather than promoted. When the size is unknowable (no Content-Length,
+    no Content-Range total) `expect` is None and the body is published as
+    complete, matching the old behaviour for genuinely unbounded streams.
     """
 
-    def __init__(self, track_id: str, mime: Optional[str]) -> None:
+    def __init__(self, track_id: str, mime: Optional[str], expect: Optional[int]) -> None:
         self.track_id = track_id
         self.mime = mime or "audio/mpeg"
         self.path = _buffer_dir / f"{track_id}.{os.urandom(6).hex()}.relay"
+        self._expect = expect
         self._bytes = 0
         self._fh = None
         try:
@@ -1217,8 +1233,12 @@ class _CacheTee:
     async def finish(self) -> None:
         """Publish the relayed file once the CDN body ended cleanly."""
         self._close()
-        # Under 1 KB means the relay produced no usable audio.
-        if self._bytes < 1024 or not self.path.exists():
+        # Under 1 KB means the relay produced no usable audio, and a body
+        # that ended short of its promised size is truncated — either way
+        # the bytes must not enter the cache.
+        if self._bytes < 1024 or not self.path.exists() or (
+            self._expect is not None and self._bytes < self._expect
+        ):
             await self.abort()
             return
         _remote_cache_set(self.track_id, self.path, self.mime)
@@ -1275,8 +1295,24 @@ async def _serve_direct_relay(track_id: str, request: Request) -> Optional[Respo
         if value:
             headers["Content-Length" if name == "content-length" else "Content-Range"] = value
 
+    # Cache only when this response actually covers the whole track. A
+    # bounded seek (`bytes=100000-`) also comes through here, and teeing it
+    # would promote a partial file as if it were complete — a 128 KB
+    # "track" that then answers every later play and breaks each seek
+    # beyond its end with 416. `covers_whole_file` is true for a plain 200
+    # and for the 206 a CDN returns to a media element's opening
+    # `bytes=0-` request, which together are every play; seeks are skipped.
     already_cached = _remote_cache_get(track_id) is not None or _warm_lookup(track_id) is not None
-    tee = None if already_cached else _CacheTee(track_id, upstream.mime)
+    # The promised body size: Content-Length for a plain 200, the total from
+    # Content-Range for a whole-file 206. Both are cross-checked again at
+    # publish time, so a body that ends short never reaches the cache.
+    if upstream.status_code == 206:
+        _expect = upstream.content_range[2]
+    else:
+        _expect = upstream.content_length
+    tee = None if (already_cached or not upstream.covers_whole_file) else _CacheTee(
+        track_id, upstream.mime, _expect
+    )
 
     async def _relay():
         try:

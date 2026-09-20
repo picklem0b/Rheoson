@@ -2,6 +2,7 @@ from __future__ import annotations
 import re
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
+import structlog
 from app.core.deps import get_optional_user
 from app.services.search_service import search, resolve_url
 from app.services.ytmusic_service import CATEGORIES, category_meta
@@ -9,6 +10,7 @@ from app.services import weekly_cache
 from app.schemas.search_schema import SearchResultsSchema, ResolveResponseSchema
 
 router = APIRouter()
+log = structlog.get_logger()
 
 # Maximum query length to prevent abuse
 _MAX_QUERY_LEN = 200
@@ -98,4 +100,11 @@ async def resolve_endpoint(
         ensure_safe_media_url(url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return await resolve_url(url)
+    try:
+        return await resolve_url(url)
+    except Exception as e:
+        # The raw failure quotes extractor internals; the log keeps it and
+        # the response carries an actionable line instead.
+        log.warning("search.resolve.failed", url=url, error=str(e))
+        from app.routers.playlist_router import _friendly_url_error
+        raise HTTPException(status_code=400, detail=_friendly_url_error(e)) from e

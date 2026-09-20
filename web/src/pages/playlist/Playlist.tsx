@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Shuffle, DotsThreeOutline, DownloadSimple, ListPlus, Pencil, Plus, Trash, PencilSimple } from '@phosphor-icons/react';
+import { Play, Shuffle, DotsThreeOutline, DownloadSimple, ListPlus, Pencil, Plus, Trash, PencilSimple, MusicNotes } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/queryKeys";
 import { invalidatePlaylistSurfaces } from "@/lib/queryInvalidation";
@@ -18,6 +18,7 @@ import { TrackRowSkeleton } from "@/components/ui/Skeleton";
 import { ArtworkImage } from "@/components/ui/ArtworkImage";
 import { useToast } from "@/components/ui/Toaster";
 import { PlaylistCover, PlaylistCoverEditor } from "@/components/playlist/PlaylistCover";
+import { AddSongsSheet } from "@/components/playlist/AddSongsSheet";
 import { Modal } from "@/components/ui/Modal";
 import { Button as UiButton } from "@/components/ui/Button";
 import { usePlaylistMenuStore } from "@/store/playlistMenu.store";
@@ -39,6 +40,7 @@ export default function Playlist() {
    const [menuOpen, setMenuOpen] = useState(false);
    const [showRename, setShowRename] = useState(false);
    const [showDelete, setShowDelete] = useState(false);
+   const [showAddSongs, setShowAddSongs] = useState(false);
    const [newTitle, setNewTitle] = useState("");
    const [busy, setBusy] = useState(false);
    const menuRef = useRef<HTMLDivElement>(null);
@@ -234,6 +236,13 @@ export default function Playlist() {
                         }}>
                         <DownloadSimple />
                      </IconButton>
+                     <IconButton
+                        size='md'
+                        variant='ghost'
+                        title='Add songs'
+                        onClick={() => setShowAddSongs(true)}>
+                        <Plus />
+                     </IconButton>
                      <div className='relative' ref={menuRef}>
                         <IconButton
                            size='md'
@@ -280,12 +289,34 @@ export default function Playlist() {
                </div>
             </div>
 
-            {/* ── Tracks ────────────────────────────────────────── */}
+            {/* ── Tracks ────────────────────────────────────── */}
             <div className='px-4 lg:px-8 pb-8 space-y-1'>
                {isLoading &&
                   Array.from({ length: 8 }).map((_, i) => (
                      <TrackRowSkeleton key={i} />
                   ))}
+               {!isLoading && tracks.length === 0 && (
+                  <div className='py-14 flex flex-col items-center text-center'>
+                     <div className='w-16 h-16 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center mb-4'>
+                        <MusicNotes className='w-7 h-7 text-[var(--text-muted)]' />
+                     </div>
+                     <p className='text-base font-bold text-[var(--text-primary)]'>
+                        Let&rsquo;s fill this one up
+                     </p>
+                     <p className='text-sm text-[var(--text-secondary)] mt-1 max-w-xs'>
+                        Search for songs or add suggestions — your picks are saved
+                        automatically.
+                     </p>
+                     <Button
+                        variant='primary'
+                        size='md'
+                        className='mt-5'
+                        onClick={() => setShowAddSongs(true)}>
+                        <Plus className='w-4 h-4' />
+                        Add songs
+                     </Button>
+                  </div>
+               )}
                {tracks.map((track: Track, i: number) => (
                   <PlaylistTrackRow
                      key={track.id}
@@ -366,6 +397,17 @@ export default function Playlist() {
                currentUrl={playlist.artworkUrl}
                onClose={() => setShowCoverEditor(false)}
                onSaved={refreshCover}
+            />
+         )}
+
+         {/* Add-songs sheet — search + suggestions, dupe-aware */}
+         {playlist && (
+            <AddSongsSheet
+               open={showAddSongs}
+               playlistId={playlist.id}
+               seedTrackId={tracks[0]?.id}
+               existingIds={tracks.map((t: Track) => t.id)}
+               onClose={() => setShowAddSongs(false)}
             />
          )}
 
