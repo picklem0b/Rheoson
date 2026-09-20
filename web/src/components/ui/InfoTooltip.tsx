@@ -12,8 +12,11 @@ import { cn } from '@/lib/utils'
  * it.
  *
  * Opens on click (not hover) so it works on touch, closes on Escape, an
- * outside click, or a second tap, and is announced as a disclosure so screen
- * readers get the state.
+ * outside click, or a second tap. It is a disclosure rather than a hover
+ * tooltip — the trigger carries `aria-expanded` and points at the panel with
+ * `aria-controls`, which is what a screen reader expects for content that only
+ * appears on request. A `role="tooltip"` would be wrong here: tooltips are
+ * announced on hover/focus, not on activation.
  */
 export function InfoTooltip({
    label,
@@ -69,7 +72,6 @@ export function InfoTooltip({
          {open && (
             <span
                id={panelId}
-               role="tooltip"
                className={cn(
                   'absolute left-1/2 z-50 w-60 -translate-x-1/2 rounded-xl border px-3 py-2',
                   'bg-[var(--bg-elevated)] border-[var(--border)] shadow-lg',

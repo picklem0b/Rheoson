@@ -6,6 +6,17 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.8
+
+Milestone 2.19 phase 8/8 — close-out.
+
+- fix(state): **a like made anywhere refreshes the surfaces that render track rows.** The registry from v2.19.4 covered the count, the liked list, library rows and shelves, but album, artist, artist-content, trending, category charts and open playlists all render their own `isLiked` rows and were left out — a heart tapped on the player could sit stale on an album or chart the user was looking at. Those keys now live in `lib/queryKeys.ts` and `invalidateLikeSurfaces` covers them.
+- fix(album): the album's like button read IndexedDB exactly once on mount and never subscribed, so it could not follow a like made elsewhere. It now reads the shared liked set (a cheap IDs query) and keeps a short optimistic override until that set catches up.
+- fix(playlist): the playlist page and the add-to-playlist sheet invalidated their keys inline; they now call the shared helpers, so a rename or an add refreshes the list and any open playlist in one place.
+- refactor(state): Trending, CategoryGrid, Artist and Album queries go through the shared registry rather than spelling their keys inline.
+- fix(a11y): `InfoTooltip` is a click disclosure, not a hover tooltip, so its panel no longer carries `role="tooltip"` (which is announced on hover/focus, not activation). The trigger keeps `aria-expanded` / `aria-controls`, which is what a disclosure should expose.
+- docs: feature status, roadmap and README brought current with the 2.19 line.
+
 ## v2.19.7
 
 Milestone 2.19 phase 7/8 — creator surfaces.

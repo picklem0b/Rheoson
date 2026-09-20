@@ -18,6 +18,8 @@ export const qk = {
   // ── Likes ──────────────────────────────────────────────────
   likedCount: () => ['liked-count'] as const,
   likedTracks: () => ['liked-tracks'] as const,
+  /** Just the liked IDs — cheap to read and cheap to refresh. */
+  likedIds: () => ['liked-ids'] as const,
 
   // ── Library ────────────────────────────────────────────────
   libraryTracks: () => ['tracks'] as const,
@@ -44,6 +46,21 @@ export const qk = {
   following: () => ['following'] as const,
   artistFollow: (id: string) => ['artist-follow', id] as const,
   artistContent: (id: string) => ['artist-content', id] as const,
+  /** Prefix for every artist-content query. */
+  artistContentAll: () => ['artist-content'] as const,
+  artist: (id: string) => ['artist', id] as const,
+  /** Prefix for every artist detail query. */
+  artistAll: () => ['artist'] as const,
+
+  // ── Albums and charts ─────────────────────────────────────
+  album: (id: string) => ['album', id] as const,
+  /** Prefix for every album detail query. */
+  albumAll: () => ['album'] as const,
+  trendingFull: () => ['trending-full'] as const,
+  searchCategories: () => ['search', 'categories'] as const,
+  categoryTop: (slug: string) => ['category-top', slug] as const,
+  /** Prefix for every category chart. */
+  categoryTopAll: () => ['category-top'] as const,
 
   // ── Track detail ───────────────────────────────────────────
   trackDownload: (trackId: string) => ['track', 'download', trackId] as const,

@@ -18,6 +18,7 @@ import TopBar from "@/components/layout/TopBar";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { qk } from "@/lib/queryKeys";
 import { formatDuration } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { Track } from "@/types/track.types";
@@ -121,7 +122,7 @@ export default function Trending() {
    const { playAll, playTrack } = useQueue();
 
    const { data: tracks, isLoading } = useQuery({
-      queryKey: ["trending-full"],
+      queryKey: qk.trendingFull(),
       queryFn: () => tracksApi.getTrending(50),
       staleTime: 5 * 60_000
    });

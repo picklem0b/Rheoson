@@ -7,6 +7,7 @@ import { useQueue } from '@/hooks/queue.hook'
 import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
 import { usePlayerStore } from '@/store/player.store'
 import { InfoTooltip } from '@/components/ui/InfoTooltip'
+import { qk } from '@/lib/queryKeys'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -50,7 +51,7 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
    const [expanded, setExpanded] = useState<string | null>(null)
 
    const { data } = useQuery({
-      queryKey: ['search', 'categories'],
+      queryKey: qk.searchCategories(),
       queryFn: () => searchApi.getCategories(),
       staleTime: 60 * 60_000,
       retry: 1,
@@ -158,7 +159,7 @@ function CategoryTopSongs({
    const { playTrack, playAll } = useQueue()
 
    const { data, isLoading, isError, refetch, isFetching } = useQuery({
-      queryKey: ['category-top', slug],
+      queryKey: qk.categoryTop(slug),
       queryFn: () => searchApi.getCategoryTop(slug, CATEGORY_TRACKS),
       staleTime: 6 * 60 * 60_000,
       retry: 1,

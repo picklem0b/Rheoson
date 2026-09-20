@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { MusicNotes, Play, Shuffle, Heart, DownloadSimple } from '@phosphor-icons/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidateLikeSurfaces } from '@/lib/queryInvalidation'
+import { qk } from '@/lib/queryKeys'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { getAlbum } from '@/api/library.api'
@@ -26,35 +27,38 @@ export default function Album() {
   const { downloadMany } = useDownloads()
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const [liked, setLiked] = useState(false)
 
   const { data: album, isLoading } = useQuery({
-    queryKey: ['album', id],
+    queryKey: qk.album(id!),
     queryFn:  () => getAlbum(id!),
     enabled:  !!id,
   })
 
   const albumTracks = album?.tracks ?? []
+  const firstId = albumTracks[0]?.id
 
-  // Like state follows the first track of the album being liked
-  useEffect(() => {
-    let cancelled = false
-    const firstId = albumTracks[0]?.id
-    if (!firstId) {
-      setLiked(false)
-      return
-    }
-    likedStore.has(firstId).then(v => {
-      if (!cancelled) setLiked(v)
-    })
-    return () => { cancelled = true }
-  }, [albumTracks.length, albumTracks[0]?.id]) // eslint-disable-line react-hooks/exhaustive-deps -- first track id only
+  // Like state follows the first track of the album. It is read from the shared
+  // liked set rather than a one-off IndexedDB lookup, so a like made anywhere
+  // else in the app is reflected here the moment that set is refreshed.
+  const { data: likedIds } = useQuery({
+    queryKey: qk.likedIds(),
+    queryFn:  () => likedStore.getAll(),
+    enabled:  !!firstId,
+  })
+
+  const likedFromSet = useMemo(
+    () => (firstId ? (likedIds ?? []).includes(firstId) : false),
+    [likedIds, firstId]
+  )
+
+  // Optimistic overrides, cleared once the shared set catches up.
+  const [override, setOverride] = useState<boolean | null>(null)
+  const liked = override ?? likedFromSet
 
   const toggleLike = async () => {
-    const firstId = albumTracks[0]?.id
     if (!firstId) return
     const next = !liked
-    setLiked(next)
+    setOverride(next)
     try {
       if (next) {
         await tracksApi.likeTrack(firstId)
@@ -64,8 +68,9 @@ export default function Album() {
         await likedStore.remove(firstId)
       }
       invalidateLikeSurfaces(queryClient)
+      setOverride(null)
     } catch {
-      setLiked(!next)
+      setOverride(null)
       toast('Could not update liked tracks', 'error')
     }
   }

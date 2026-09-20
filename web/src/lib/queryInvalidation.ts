@@ -21,12 +21,22 @@ function invalidate(client: QueryClient, key: readonly unknown[]): void {
 export function invalidateLikeSurfaces(client: QueryClient): void {
   invalidate(client, qk.likedCount())
   invalidate(client, qk.likedTracks())
+  invalidate(client, qk.likedIds())
   // Track rows embed isLiked, so every list that renders a heart is affected.
   invalidate(client, qk.libraryTracks())
+  invalidate(client, qk.localTracks())
   invalidate(client, qk.recentlyPlayed())
   invalidate(client, qk.recentlyPlayedFull())
   invalidate(client, qk.recommendations())
   invalidate(client, qk.tasteProfile())
+  // Detail and chart surfaces render their own rows, so their hearts go stale
+  // too unless they re-read.
+  invalidate(client, qk.albumAll())
+  invalidate(client, qk.artistAll())
+  invalidate(client, qk.artistContentAll())
+  invalidate(client, qk.trendingFull())
+  invalidate(client, qk.categoryTopAll())
+  invalidate(client, qk.playlistAll())
 }
 
 /** Call after creating, renaming, deleting or re-ordering a playlist. */

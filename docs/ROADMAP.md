@@ -10,8 +10,8 @@ Phases ship one per commit and are annotated-tagged `v2.19.N`, per
 `GIT_WORKFLOW.md`. Shipped: **v2.19.1** (playback/download reliability),
 **v2.19.2** (auth and API trust boundary), **v2.19.3** (username identity),
 **v2.19.4** (instant state), **v2.19.5** (browse and discovery),
-**v2.19.6** (library information architecture) and **v2.19.7** (creator
-surfaces).
+**v2.19.6** (library information architecture), **v2.19.7** (creator
+surfaces) and **v2.19.8** (close-out). Milestone complete.
 
 ---
 
@@ -113,10 +113,18 @@ reappear.
 - Follow state is optimistic and invalidates the shared follow surfaces, so a
   follow here is reflected in the following list and artist page immediately.
 
-## v2.19.8 — Close-out
+## v2.19.8 — Close-out (shipped)
 
-- Motion, focus, and contrast verification across the new surfaces.
-- Documentation, changelog and status tables brought current; Lighthouse pass.
+- The like-invalidation contract now covers every surface that renders a track
+  row — album, artist, artist-content, trending, category charts and open
+  playlists — not just the count and the library.
+- The album like button reads the shared liked set and follows a like made
+  anywhere, instead of a single IndexedDB read on mount.
+- `InfoTooltip` is a disclosure, not a hover tooltip; its panel no longer
+  carries the wrong ARIA role.
+- Feature status, roadmap, changelog and README brought current with the 2.19
+  line. Focus is a single app-wide ring and motion honours the OS setting, so
+  the new surfaces inherit both rather than re-declaring them.
 
 ---
 

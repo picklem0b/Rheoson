@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Check, MusicNotes, Play, Plus, Sparkle, User, UserPlus, X } from '@phosphor-icons/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidateArtistFollowSurfaces } from '@/lib/queryInvalidation'
+import { qk } from '@/lib/queryKeys'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
@@ -33,7 +34,7 @@ export default function Artist() {
   const queryClient = useQueryClient()
 
   const { data: artist, isLoading, isError } = useQuery({
-    queryKey: ['artist', id],
+    queryKey: qk.artist(id!),
     queryFn:  () => getArtist(id!),
     enabled:  !!id,
     retry:    1,
@@ -41,7 +42,7 @@ export default function Artist() {
 
   // Follow state (server-side, per user)
   const { data: followStatus } = useQuery({
-    queryKey: ['artist-follow', id],
+    queryKey: qk.artistFollow(id!),
     queryFn:  () => getFollowStatus(id!),
     enabled:  !!id,
     retry:    false,
