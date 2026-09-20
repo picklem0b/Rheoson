@@ -209,11 +209,19 @@ describe('migrateOfflineAudioMime', () => {
 		const entries = seedEntries();
 		openDBMock.mockResolvedValue(fakeDb(entries));
 
+		// A duck-typed Response, not `new Response(jsdomBlob)`: in CI the
+		// fetch Response constructor is undici's, and feeding it a jsdom Blob
+		// produces a body undici cannot re-read — the migration then saw an
+		// empty blob, stored nothing, and the entry was deleted. The pass
+		// only relies on .ok, .headers.get and .blob(), so stub exactly that.
 		const refetch = vi.fn(async (trackId: string) => {
 			if (trackId !== 'mystery') return null;
-			return new Response(fakeBlob(M4A_HEAD, 'audio/mp4'), {
-				headers: { 'content-type': 'audio/mp4' }
-			});
+			const blob = fakeBlob(M4A_HEAD, 'audio/mp4');
+			return {
+				ok: true,
+				headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'audio/mp4' : null) },
+				blob: async () => blob
+			};
 		});
 
 		const report = await migrateOfflineAudioMime({ refetch });

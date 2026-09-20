@@ -208,12 +208,26 @@ export function _defaultRefetch(trackId: string): Promise<Response> {
 }
 
 /**
+ * The slice of a fetch Response the refetch path actually consumes: `ok`,
+ * `headers.get('content-type')` and `blob()`. Structural on purpose — a real
+ * `Response` satisfies it, and so can a stub, without cross-realm Blob
+ * interop (a jsdom Blob handed to undici's Response constructor yields a
+ * body that cannot be re-read, which is exactly the CI failure this
+ * contract avoids).
+ */
+interface RefetchResponse {
+	ok: boolean;
+	headers: { get(name: string): string | null };
+	blob(): Promise<Blob>;
+}
+
+/**
  * Run the migration if it has not run for this schema generation yet.
  * Fire-and-forget safe: never throws, reports through `onDone` if given.
  */
 export async function migrateOfflineAudioMime(
 	opts: {
-		refetch?: (trackId: string) => Promise<Response | null>;
+		refetch?: (trackId: string) => Promise<RefetchResponse | null>;
 		maxRefetches?: number;
 		onDone?: (report: MigrationReport) => void;
 	} = {}
@@ -276,7 +290,7 @@ export async function migrateOfflineAudioMime(
 			if (refetches >= maxRefetches) continue;
 			refetches += 1;
 
-			let res: Response | null = null;
+			let res: RefetchResponse | null = null;
 			try {
 				const result = (opts.refetch ?? _defaultRefetch)(entry.id);
 				res = result instanceof Promise ? await result : result;

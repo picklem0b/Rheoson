@@ -62,3 +62,4 @@ graphify-out/.graphify_*
 # Agent tooling (skills, prompts) is developer-local, like reference/ and notes.txt.
 .claude/
 .agent/
+ci-err.file.txt
