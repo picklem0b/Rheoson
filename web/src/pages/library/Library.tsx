@@ -398,22 +398,17 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
    const queryClient = useQueryClient();
    const { toast } = useToast();
    const [title, setTitle] = useState("");
-   const [description, setDescription] = useState("");
    const [importUrl, setImportUrl] = useState("");
    const [mode, setMode] = useState<"create" | "import">("create");
 
    const createMutation = useMutation({
-      mutationFn: () =>
-         playlistsApi.createPlaylist({
-            title: title.trim(),
-            description: description.trim() || undefined
-         }),
+      mutationFn: () => playlistsApi.createPlaylist({ title: title.trim() }),
       onSuccess: () => {
          invalidatePlaylistSurfaces(queryClient);
-         toast("Playlist created!", "success");
+         toast("Playlist created", "success");
          onClose();
       },
-      onError: () => toast("Failed to create playlist", "error")
+      onError: () => toast("Could not create playlist", "error")
    });
 
    const importMutation = useMutation({
@@ -423,7 +418,7 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
          toast("Playlist imported!", "success");
          onClose();
       },
-      onError: () => toast("Failed to import playlist", "error")
+      onError: () => toast("Could not import playlist", "error")
    });
 
    const handleSubmit = () => {
@@ -490,32 +485,17 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
             {/* Form */}
             <div className='px-6 py-4 space-y-3'>
                {mode === "create" ? (
-                  <>
-                     <div>
-                        <label className='text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider'>
-                           Title
-                        </label>
-                        <input
-                           autoFocus
-                           value={title}
-                           onChange={e => setTitle(e.target.value)}
-                           onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                           placeholder='My awesome playlist'
-                           className='w-full mt-1.5 px-4 py-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)]'
-                        />
-                     </div>
-                     <div>
-                        <label className='text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider'>
-                           Description (optional)
-                        </label>
-                        <input
-                           value={description}
-                           onChange={e => setDescription(e.target.value)}
-                           placeholder='A short description...'
-                           className='w-full mt-1.5 px-4 py-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)]'
-                        />
-                     </div>
-                  </>
+                  <div>
+                     <input
+                        autoFocus
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                        placeholder='Playlist name'
+                        maxLength={80}
+                        className='w-full px-4 py-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] placeholder:font-normal outline-none focus:border-[var(--accent)] transition-colors'
+                     />
+                  </div>
                ) : (
                   <div>
                      <label className='text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider'>

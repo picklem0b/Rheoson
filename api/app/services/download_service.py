@@ -43,6 +43,33 @@ def _friendly_download_error(tail: str) -> str:
         return 'The music folder is not writable.'
     return 'The download did not complete. Retry to resume it.'
 
+
+def _friendly_resolve_error(error: Exception) -> str:
+    """Map a metadata-resolution failure to copy safe to show a user.
+
+    The resolve stage can quote signed URL fragments, video ids, bot-check
+    wording and validation regexes; none of that belongs in the UI. The full
+    exception stays in the server log. Netguard validation failures are
+    already user-safe and pass through.
+    """
+    text = str(error or '')
+    low = text.lower()
+    if 'timed out' in low or 'timeout' in low:
+        return 'Looking up this track took too long. Check the connection and retry.'
+    if 'name resolution' in low or 'unable to resolve host' in low or (
+        'connection' in low
+    ):
+        return 'The track could not be looked up. Check the connection and retry.'
+    if stream_service.is_extractor_failure(text):
+        return (
+            'The download engine could not read this track right now. '
+            'Update it from Settings → Doctor, then retry.'
+        )
+    if isinstance(error, ValueError) and len(text) <= 120:
+        # Our own validation and netguard rejections are written to be shown.
+        return text
+    return 'This track could not be added to your downloads. Try again shortly.'
+
 # ── Job store ─────────────────────────────────────────────────
 # Jobs are persisted to a JSON file so the job list (and each job's resume
 # state) survives a server restart. Downloaded files themselves always
@@ -419,7 +446,11 @@ async def _run_ytdlp_attempt(
         )
     except Exception as e:
         await _release_slot()
-        raise RuntimeError(f'Could not start yt-dlp: {e}') from e
+        log.error('download.spawn.failed', error=str(e))
+        raise RuntimeError(
+            'The download could not start on this server. Retry, and if it '
+            'keeps failing check the server logs.'
+        ) from e
 
     _procs[job_id] = proc
     try:
@@ -839,9 +870,9 @@ async def _download_task(
         if current == 'downloading':
             _update(job_id, status='error', error=f'Download failed: {e}')
         elif current == 'converting':
-            _update(job_id, status='error', error=f'Conversion failed: {e}')
+            _update(job_id, status='error', error='The audio could not be converted. Try a different format.')
         elif current == 'tagging':
-            _update(job_id, status='error', error=f'Tagging failed: {e}')
+            _update(job_id, status='error', error='The file was saved, but its details could not be written.')
         else:
             _update(job_id, status='error', error=str(e))
         await ws_manager.emit_download_error(job_id, str(e))
@@ -887,7 +918,9 @@ async def enqueue_download(
             speed_limit=speed_limit, concurrency=concurrency, owner=owner,
         )
         job['status']    = 'error'
-        job['error']     = str(e)
+        # The raw exception can quote signed URLs and extractor internals;
+        # the log keeps the diagnostic, the job carries user-safe copy.
+        job['error']     = _friendly_resolve_error(e)
         _jobs[job['id']] = job
         log.error('download.resolve.failed', error=str(e))
         return job

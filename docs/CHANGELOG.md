@@ -6,6 +6,25 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.13
+
+The user-safety and playlist-authoring pass.
+
+**No infrastructure text reaches the UI.** Every remaining path that put a raw exception on screen is closed:
+
+- fix(downloads): **resolve-stage failures are user-safe.** A track whose metadata lookup fails (bot-check pages, signed URL fragments, extractor wording, OS errors with filesystem paths) stored the raw exception text on the job record, which the downloads list renders verbatim. `_friendly_resolve_error` now maps each failure class to an actionable sentence; the log keeps the diagnostic.
+- fix(downloads): **a failed subprocess spawn no longer quotes the OS.** `Could not start yt-dlp: {e}` leaked binary paths and errno text; it now carries a neutral line while the exception goes to the log with the job id.
+- fix(downloads): the convert/tag stage failures say what happened in product language ("The audio could not be converted…", "The file was saved, but its details could not be written.") instead of `{Stage} failed: {exception}`.
+- fix(api): **URL import resolves with user-safe errors.** `POST /playlists/import`, `POST /playlists/{id}/import` and `POST /search/resolve` returned `Could not resolve URL: {raw exception}`; each now logs the real cause and returns an actionable line (`_friendly_url_error`), with netguard's own user-safe validation text passing through unchanged.
+- test: a dedicated contract suite pins that video ids, signatures, `ERROR:` prefixes and long internals can never reach a job error, and that the enqueue path stores the mapped copy.
+
+**Playlist authoring is one clear flow.** No one writes a playlist description, and an empty playlist had no way in:
+
+- feat(playlist): **the create dialog is name-only.** The description field — present in the modal, absent from every consumer — is gone; the input is the whole form, `maxLength` enforced, Enter submits.
+- feat(playlist): **an Add-songs sheet, opened from the playlist header or the empty state.** One surface with two ways in: recommendations seeded from the playlist's first track load instantly (one tap adds a fitting song before typing anything), and typing searches the catalog with debounce and abort. Songs already in the playlist show "In playlist" with a disabled control instead of failing at tap time, a counter summarises what was added, and each add invalidates the playlist surfaces so the page behind the sheet stays current.
+- feat(playlist): the empty playlist state explains the playlist is yours to fill and hands the user straight to the sheet.
+- copy: create/import toasts use the product's "Could not …" voice consistently.
+
 ## v2.19.12
 
 A full accounting of what streaming and downloading do not need.

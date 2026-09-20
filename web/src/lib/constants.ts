@@ -133,7 +133,7 @@ export const STORAGE_KEYS = {
 
 export const APP_NAME = "Rheoson";
 export const APP_SLOGAN = "Feel the Beat";
-export const APP_VERSION = "2.19.12";
+export const APP_VERSION = "2.19.13";
 
 // ── Clerk ────────────────────────────────────────────────────
 // Publishable key for Clerk auth. Must be set in .env (VITE_CLERK_PUBLISHABLE_KEY).
