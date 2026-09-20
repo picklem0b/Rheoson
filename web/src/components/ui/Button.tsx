@@ -24,7 +24,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
     primary:   'bg-[var(--accent)] hover:bg-[var(--accent-bright)] text-white shadow-lg hover:shadow-[var(--accent-subtle)] hover:shadow-xl',
     secondary: 'bg-[var(--bg-elevated)] hover:bg-[var(--bg-overlay)] text-[var(--text-primary)] border border-[var(--border)]',
     ghost:     'bg-transparent hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-    danger:    'bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30',
+    danger:    'bg-[var(--danger-bg)] hover:bg-[var(--danger)]/25 text-[var(--danger-text)] border border-[var(--danger)]/25',
     glass:     'glass hover:bg-[var(--bg-elevated)] text-[var(--text-primary)]',
   }
 

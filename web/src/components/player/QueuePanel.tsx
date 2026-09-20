@@ -223,7 +223,7 @@ function AddToQueueModal({ onClose }: { onClose: () => void }) {
           <p className="text-center text-[13px] text-[var(--text-muted)] py-8">Searching…</p>
         )}
         {error && (
-          <p className="text-center text-[13px] text-red-400 py-8">{error}</p>
+          <p className="text-center text-[13px] text-[var(--danger-text)] py-8">{error}</p>
         )}
         {!loading && query.trim().length >= 2 && searched && tracks.length === 0 && (
           <p className="text-center text-[13px] text-[var(--text-muted)] py-8">

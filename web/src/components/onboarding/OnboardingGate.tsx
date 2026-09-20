@@ -265,7 +265,7 @@ function ArtistPicker({ open, seeding, failed, onCancel, onSubmit }: {
       </div>
 
       {failed && (
-        <p className="mt-3 text-xs font-medium text-red-400">
+        <p className="mt-3 text-xs font-medium text-[var(--danger-text)]">
           Couldn&apos;t save your picks — check your connection and try again.
         </p>
       )}

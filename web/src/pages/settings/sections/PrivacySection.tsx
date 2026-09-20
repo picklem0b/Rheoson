@@ -159,7 +159,7 @@ export default function PrivacySection() {
                   <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />
                )}
                {backupState === "err" && (
-                  <WarningCircle className='w-4 h-4 text-red-400' />
+                  <WarningCircle className='w-4 h-4 text-[var(--danger-text)]' />
                )}
                {backupState === "idle" && (
                   <DownloadSimple className='w-4 h-4 text-[var(--text-muted)]/50' />
@@ -189,7 +189,7 @@ export default function PrivacySection() {
                   <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />
                )}
                {restoreState === "err" && (
-                  <WarningCircle className='w-4 h-4 text-red-400' />
+                  <WarningCircle className='w-4 h-4 text-[var(--danger-text)]' />
                )}
                {restoreState === "idle" && (
                   <Upload className='w-4 h-4 text-[var(--text-muted)]/50' />
@@ -294,8 +294,8 @@ function HistoryRow({
             <ArrowClockwise className='w-4 h-4 text-[var(--accent)] animate-spin' />
          )}
          {state === "ok" && <CheckCircle className='w-4 h-4 text-[var(--success-text)]' />}
-         {state === "err" && <WarningCircle className='w-4 h-4 text-red-400' />}
-         {state === "idle" && <Trash className='w-4 h-4 text-red-400' />}
+         {state === "err" && <WarningCircle className='w-4 h-4 text-[var(--danger-text)]' />}
+         {state === "idle" && <Trash className='w-4 h-4 text-[var(--danger-text)]' />}
       </SettingsRow>
    );
 }

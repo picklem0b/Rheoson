@@ -17,14 +17,14 @@ export interface ErrorDisplayProps {
 }
 
 const icons = {
-  error: <Warning className="w-5 h-5 text-red-400" />,
-  warning: <WarningCircle className="w-5 h-5 text-yellow-400" />,
+  error: <Warning className="w-5 h-5 text-[var(--danger-text)]" />,
+  warning: <WarningCircle className="w-5 h-5 text-[var(--warning-text)]" />,
   info: <HardDrives className="w-5 h-5 text-blue-400" />,
 };
 
 const styles = {
-  error: 'border-red-500/20 bg-red-500/5',
-  warning: 'border-yellow-500/20 bg-yellow-500/5',
+  error: 'border-[var(--danger)]/20 bg-[var(--danger-bg)]',
+  warning: 'border-[var(--warning)]/20 bg-[var(--warning-bg)]',
   info: 'border-blue-500/20 bg-blue-500/5',
 };
 
@@ -124,8 +124,8 @@ export function EmptyStateError({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center justify-center py-20 gap-4 text-center"
     >
-      <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center">
-        <Warning className="w-7 h-7 text-red-400" />
+      <div className="w-16 h-16 rounded-3xl bg-[var(--danger-bg)] flex items-center justify-center">
+        <Warning className="w-7 h-7 text-[var(--danger-text)]" />
       </div>
       <div>
         <p className="font-semibold text-[var(--text-primary)]">{message}</p>

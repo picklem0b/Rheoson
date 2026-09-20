@@ -36,21 +36,37 @@ import { cn } from "@/lib/utils";
  *  Sidebar on left, no BottomNav, PlayerBar pinned at bottom of content column.
  */
 
-/** Settings → Appearance → Reduce motion. Read per render of the toggle
- *  subscriber; applied by wrapping the shell in MotionConfig with
- *  reducedMotion="always", which makes every framer-motion animation in the
- *  app jump to its end state — a global, accessible motion kill-switch.
- *  Mirrored onto [data-reduce-motion] so the CSS layer (index.css media-
+/** Settings → Appearance → Reduce motion, OR the OS-level
+ *  prefers-reduced-motion setting — either signal disables motion.
+ *  Applied by wrapping the shell in MotionConfig with reducedMotion="always",
+ *  which makes every framer-motion animation in the app jump to its end
+ *  state — a global, accessible motion kill-switch. Mirrored onto
+ *  [data-reduce-motion] so the CSS layer (index.css media-
  *  independent block) collapses non-framer CSS animations too. */
 function useReduceMotion(): boolean {
    const reduced = useUIStore(s => s.reduceMotion);
 
-   React.useEffect(() => {
-      document.documentElement.setAttribute('data-reduce-motion', String(reduced));
-      return () => document.documentElement.removeAttribute('data-reduce-motion');
-   }, [reduced]);
+   // The OS preference is tracked live so changing it in system settings
+   // takes effect without a reload.
+   const [osReduced, setOsReduced] = React.useState(
+      () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+   );
 
-   return reduced;
+   React.useEffect(() => {
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const onChange = (e: MediaQueryListEvent) => setOsReduced(e.matches);
+      mq.addEventListener('change', onChange);
+      return () => mq.removeEventListener('change', onChange);
+   }, []);
+
+   const effective = reduced || osReduced;
+
+   React.useEffect(() => {
+      document.documentElement.setAttribute('data-reduce-motion', String(effective));
+      return () => document.documentElement.removeAttribute('data-reduce-motion');
+   }, [effective]);
+
+   return effective;
 }
 
 export default function RootLayout() {
