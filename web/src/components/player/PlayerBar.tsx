@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, DotsThreeOutline, Queue, Microphone, DownloadSimple, WifiSlash, SlidersHorizontal } from '@phosphor-icons/react';
 import { usePlayerStore } from "@/store/player.store";
@@ -13,9 +14,11 @@ import { IconButton } from "@/components/ui/IconButton";
 import { useToast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/utils";
 import { truncate } from "@/lib/formatters";
+import { invalidateLikeSurfaces } from "@/lib/queryInvalidation";
 
 export default function PlayerBar() {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const currentTrack = usePlayerStore(s => s.currentTrack);
    const isPlaying = usePlayerStore(s => s.isPlaying);
    const isLoading = usePlayerStore(s => s.isLoading);
@@ -63,6 +66,8 @@ export default function PlayerBar() {
             next
                ? await tracksApi.likeTrack(currentTrack.id)
                : await tracksApi.unlikeTrack(currentTrack.id);
+            // Every surface showing this track's like state, not just this one.
+            invalidateLikeSurfaces(queryClient);
          } catch {
             setLiked(!next); // revert on failure
          }

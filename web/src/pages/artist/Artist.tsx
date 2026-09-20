@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, MusicNotes, Play, Plus, Sparkle, User, UserPlus, X } from '@phosphor-icons/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateArtistFollowSurfaces } from '@/lib/queryInvalidation'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
@@ -59,8 +60,7 @@ export default function Artist() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['artist-follow', id] })
-      queryClient.invalidateQueries({ queryKey: ['following'] })
+      if (id) invalidateArtistFollowSurfaces(queryClient, id)
       toast(
         following ? `Unfollowed ${artist?.name ?? 'artist'}` : `Following ${artist?.name ?? 'artist'} — you'll be told about new releases`,
         following ? 'info' : 'success'

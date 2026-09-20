@@ -7,6 +7,7 @@ import { usePlaylistMenuStore } from '@/store/playlistMenu.store';
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu';
 import { tracksApi } from '@/api/tracks.api';
 import { useQueryClient } from '@tanstack/react-query';
+import { invalidateLikeSurfaces } from '@/lib/queryInvalidation';
 import { formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Track } from '@/types/track.types';
@@ -49,7 +50,7 @@ export default function LibraryTrackRow({
         } else {
             await tracksApi.likeTrack(track.id);
         }
-        queryClient.invalidateQueries({ queryKey: ['tracks'] });
+        invalidateLikeSurfaces(queryClient);
     };
 
     return (
