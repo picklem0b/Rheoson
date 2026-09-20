@@ -497,8 +497,9 @@ async def _run_download(
     job = _jobs.get(job_id, {})
     fmt            = job.get('format', 'mp3')
     quality        = job.get('quality', '320')
-    embed_artwork  = job.get('embedArtwork', True)
-    embed_metadata = job.get('embedMetadata', True)
+    # embedArtwork/embedMetadata/embedLyrics are applied in `_tag_and_finish`,
+    # not here — the yt-dlp CLI embedders only cover MP3 properly, while the
+    # mutagen pass handles every container the format ladder can produce.
     retries        = max(0, int(job.get('retries', 3)))
     speed_limit    = max(0, int(job.get('speedLimit', 0)))
     file_naming    = job.get('fileNaming', 'artist-title')
@@ -546,8 +547,10 @@ async def _run_download(
             shutil.rmtree(staging, ignore_errors=True)
             staging.mkdir(parents=True, exist_ok=True)
 
-        # Maps 1:1 to the postprocessors the library path used before the
-        # cancellable-subprocess rewrite: extract audio, embed tags, embed art.
+        # Maps to the pipeline the library path applies after download: pick
+        # the audio stream, then our own mutagen pass writes tags and artwork
+        # with proper multi-container support (the CLI embedders are MP3-only
+        # and would duplicate the work).
         cmd = [
             toolchain.ytdlp_bin(), '--no-playlist', '--quiet', '--no-warnings', '--newline',
             '--retries', str(retries), '--fragment-retries', str(retries),
@@ -556,7 +559,7 @@ async def _run_download(
             '-o', out_tmpl,
         ]
         if can_postprocess:
-            # Extraction, conversion and tag embedding all shell out to ffmpeg.
+            # Extraction and conversion shell out to ffmpeg.
             cmd += ['-x', '--audio-format', fmt, '--audio-quality', quality_q]
             cmd += toolchain.ffmpeg_location_args()
         for arg in extractor_args:
@@ -565,10 +568,10 @@ async def _run_download(
             # Resume partially downloaded .part files left by an earlier
             # attempt (crash, cancel, network loss). No-op when starting fresh.
             cmd.append('--continue')
-        if embed_metadata and can_postprocess:
-            cmd += ['--add-metadata']
-        if embed_artwork and can_postprocess:
-            cmd += ['--write-thumbnail', '--embed-thumbnail']
+        # Tagging and artwork are handled by our own mutagen pass in
+        # `_tag_and_finish`, which covers every container the ladder can
+        # produce. yt-dlp's CLI embedders are redundant with it (and the
+        # thumbnail one is MP3-only anyway), so they are not requested.
         if speed_limit > 0:
             cmd += ['--limit-rate', f'{speed_limit}K']
         cmd.append(yt_url)
@@ -702,13 +705,23 @@ async def _tag_and_finish(
     artist:       str,
     artwork_url:  str,
     embed_lyrics: bool,
+    *,
+    embed_metadata: bool = True,
+    embed_artwork:  bool = True,
 ) -> None:
+    """Write the job's metadata choices into the finished file.
+
+    The per-download toggles (metadata, artwork, lyrics) are honoured here
+    rather than in the yt-dlp command, so they behave identically on every
+    container the format ladder can produce.
+    """
     _update(job_id, status='tagging', progress=90.0)
     await ws_manager.emit_download_progress(job_id, 90.0, 'tagging')
     try:
-        from app.services.artwork_service import fetch_remote_artwork
-        from app.services.metadata_service import write_tags
-        artwork     = await fetch_remote_artwork(artwork_url) if artwork_url else b''
+        artwork = b''
+        if embed_artwork and artwork_url:
+            from app.services.artwork_service import fetch_remote_artwork
+            artwork = await fetch_remote_artwork(artwork_url)
         lyrics_text = ''
         if embed_lyrics:
             try:
@@ -718,7 +731,14 @@ async def _tag_and_finish(
                 )
             except Exception as e:
                 log.warning('download.lyrics.failed', job_id=job_id, error=str(e))
-        write_tags(file_path, title=title, artist=artist, album='', artwork=artwork, lyrics=lyrics_text)
+        from app.services.metadata_service import write_tags
+        write_tags(
+            file_path,
+            title=title if embed_metadata else None,
+            artist=artist if embed_metadata else None,
+            artwork=artwork,
+            lyrics=lyrics_text,
+        )
     except Exception as e:
         log.warning('download.tag.failed', job_id=job_id, error=str(e))
 
@@ -750,6 +770,8 @@ async def _download_task(
             job_id, file_path,
             job.get('title', ''), job.get('artist', ''),
             job.get('artworkUrl', ''), job.get('embedLyrics', True),
+            embed_metadata=job.get('embedMetadata', True),
+            embed_artwork=job.get('embedArtwork', True),
         )
 
         _update(job_id, status='done', progress=100.0, filePath=str(file_path))

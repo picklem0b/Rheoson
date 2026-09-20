@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.19.11"
+    "version": "2.19.12"
   },
   "paths": {
     "/api/analytics/listening-by-day": {

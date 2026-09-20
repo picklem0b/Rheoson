@@ -325,10 +325,12 @@ def _warm_mime(track_id: str) -> Optional[str]:
 
 # ── Fast path: stream the resolved CDN URL ────────────────────
 # The slow part of streaming a remote track was never the network — it was
-# asking yt-dlp to download the whole audio and re-encode it to MP3 before a
-# single byte reached the client. `-x --audio-format mp3` buffers an entire
-# track through ffmpeg, which on Termux is the difference between "instant"
-# and "seven to thirty seconds".
+# asking yt-dlp to download the whole audio and re-encode it through a
+# post-processor before a single byte reached the client. `-x --audio-format
+# mp3` buffers an entire track through ffmpeg, which on Termux is the
+# difference between "instant" and "seven to thirty seconds". Streaming
+# therefore never transcodes: it relays either the CDN's own bytes or the
+# audio-only stream yt-dlp emits.
 #
 # Asking yt-dlp only for the resolved CDN URL (`-g`) costs one metadata
 # extraction and no bytes, and YouTube's CDN is a byte-range capable origin,
@@ -902,7 +904,7 @@ def _serve_local(path: Path, request: Request, mime: Optional[str] = None) -> Re
 # decoupled from any single HTTP response.
 
 def _sniff_audio_mime(data: bytes) -> str:
-    """Best-effort container sniff for a raw, untranscoded audio buffer."""
+    """Best-effort container sniff for the raw, untranscoded audio buffer."""
     if len(data) >= 12 and data[4:8] == b"ftyp":
         return "audio/mp4"
     if data[:4] == b"\x1a\x45\xdf\xa3":
@@ -956,7 +958,12 @@ async def _fill_buffer_ytdlp(track_id: str, dest: Path, on_mime=None) -> str:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                *cmd, stdout=asyncio.subprocess.PIPE,
+                # Never read; PIPE here would fill its 64 KB OS buffer on a
+                # chatty run (client-ladder retries are exactly that) and
+                # stall yt-dlp mid-write. Warnings are of no use while the
+                # bytes are already flowing.
+                stderr=asyncio.subprocess.DEVNULL,
             )
         except Exception as e:
             log.warning("stream.buffer.spawn_failed", track_id=track_id, attempt=attempt + 1, error=str(e))
@@ -1166,8 +1173,8 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
 # The fastest possible path for a remote track: proxy YouTube's own bytes.
 #
 # Streaming the resolved CDN URL rather than a locally produced file is what
-# removes the wait entirely — nothing has to be downloaded, transcoded or
-# buffered before the first byte is relayed. Two properties make it the right
+# removes the wait entirely — nothing has to be downloaded or buffered
+# before the first byte is relayed. Two properties make it the right
 # design rather than a shortcut:
 #
 #   Startup  the player hears audio as soon as the CDN responds; with a warm

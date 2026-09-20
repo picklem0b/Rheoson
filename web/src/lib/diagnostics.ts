@@ -184,7 +184,7 @@ function binariesFinding(check: HealthCheck): Finding {
          severity: 'warn',
          detail: check.detail ?? 'ffmpeg is missing',
          impact:
-            'Downloads keep the original audio container instead of your chosen format, and artwork is not embedded. Playback falls back to the untranscoded stream.',
+            'Only downloads are affected: they keep the original audio container instead of your chosen format, and artwork is not embedded. Playback is unaffected.',
          fix: { label: 'Install ffmpeg', kind: 'install-ffmpeg' },
       }
    }

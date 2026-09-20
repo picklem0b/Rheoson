@@ -6,6 +6,20 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.12
+
+A full accounting of what streaming and downloading do not need.
+
+**Streaming has no transcode anywhere** (verified by grep: no executable ffmpeg reference remains on the path), so it costs no latency. The audit of "what isn't needed" found these instead:
+
+- fix(streaming): **the yt-dlp fill could stall mid-track on a chatty run.** Its stderr was `PIPE`d and never read, so once a run wrote more than the OS pipe buffer (64 KB) — exactly what the client-ladder retries produce — yt-dlp blocked on stderr and the audio flow stopped with it. Now `DEVNULL`: those bytes were never used.
+- fix(downloads): **the format ladder duplicated embedding work.** The command carried `--add-metadata` and `--write-thumbnail --embed-thumbnail`, but the pipeline's own mutagen pass (`_tag_and_finish`, added in v2.19.9) already writes tags and artwork with proper support for every container the ladder can produce — yt-dlp's CLI embedders are MP3-only, so on anything else they did nothing, and on MP3 they did the job twice. Dropped; the mutagen pass is the single owner of tagging.
+- fix(downloads): the **embed-metadata / embed-artwork toggles are now honoured.** They were forwarded to yt-dlp's embedders and nowhere else, so turning them off disabled only the CLI path (which itself no longer ran). The choices now reach `_tag_and_finish`: metadata off leaves the source tags untouched, artwork off skips the cover fetch.
+- fix(metadata): `write_tags` accepts `title=None`/`artist=None` to leave a field untouched, which is how "no metadata" is expressed without stripping what the source already carried. Artwork remains independent of the metadata toggle.
+- fix(doctor): the missing-ffmpeg impact copy claimed playback "falls back to the untranscoded stream" as if that were a degradation. Playback always streams the native audio and is unaffected; only downloads change behaviour. Copy corrected.
+- docs: removed the remaining "transcode" wording from the streaming modules — the fast-path comment, the sniff docstring, and `stream_service`'s module and selector docstrings now describe the relay for what it is.
+- test: `write_tags` partial-field behaviour across containers; download command assertions pin that no CLI embedder flags return.
+
 ## v2.19.11
 
 Follow-up to the container/type fix: resolving what the inert streaming flags were actually for.

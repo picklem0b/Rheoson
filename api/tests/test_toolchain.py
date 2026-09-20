@@ -144,6 +144,7 @@ async def test_download_without_ffmpeg_stays_in_an_audio_container(
     assert stream_service.RAW_AUDIO_SELECTOR in cmd
     assert "-x" not in cmd
     assert "--embed-thumbnail" not in cmd
+    assert "--add-metadata" not in cmd
 
 
 @pytest.mark.asyncio
@@ -165,6 +166,10 @@ async def test_download_with_ffmpeg_asks_for_the_full_ladder(download_job, monke
     cmd = seen[0]
     assert stream_service.FORMAT_SELECTOR in cmd
     assert "-x" in cmd and "--audio-format" in cmd
+    # Tagging and artwork belong to our own mutagen pass, which covers every
+    # container; yt-dlp's CLI embedders are MP3-only and redundant with it.
+    assert "--add-metadata" not in cmd
+    assert "--embed-thumbnail" not in cmd and "--write-thumbnail" not in cmd
 
 
 @pytest.mark.asyncio

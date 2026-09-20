@@ -181,8 +181,8 @@ def _image_mime(data: bytes) -> str:
 def write_tags(
     path: Path,
     *,
-    title: str,
-    artist: str,
+    title: str | None = None,
+    artist: str | None = None,
     album: str = "",
     artwork: bytes | None = None,
     lyrics: str = "",
@@ -193,10 +193,12 @@ def write_tags(
 
     Handles the containers this app downloads: ``mp3`` (ID3), ``m4a``/``mp4``/
     ``aac`` (iTunes atoms), ``flac`` and ``ogg``/``opus`` (Vorbis comments).
-    Only the fields actually supplied are written, and empty artwork or lyrics
-    are skipped rather than stored as zero-length frames — a placeholder cover
-    is worse than none, because readers show a broken image instead of falling
-    back to the album-less default.
+    Only the fields actually supplied are written — ``title=None`` or
+    ``artist=None`` leaves that field untouched, which is how the download
+    pipeline expresses "the user asked for no metadata embedding". Empty
+    artwork or lyrics are skipped rather than stored as zero-length frames — a
+    placeholder cover is worse than none, because readers show a broken image
+    instead of falling back to the album-less default.
 
     Raises for an unsupported container or a genuine write failure; the caller
     treats tagging as best-effort and records the reason.
@@ -216,15 +218,19 @@ def write_tags(
             # A file with no existing ID3 tag raises rather than returning
             # empty — start a fresh tag block in that case.
             tags = ID3()
-        tags.delall("TIT2")
-        tags.delall("TPE1")
+        if title is not None:
+            tags.delall("TIT2")
+        if artist is not None:
+            tags.delall("TPE1")
         tags.delall("TALB")
         tags.delall("TRCK")
         tags.delall("TDRC")
         tags.delall("APIC")
         tags.delall("USLT")
-        tags.add(TIT2(encoding=3, text=title))
-        tags.add(TPE1(encoding=3, text=artist))
+        if title is not None:
+            tags.add(TIT2(encoding=3, text=title))
+        if artist is not None:
+            tags.add(TPE1(encoding=3, text=artist))
         if album:
             tags.add(TALB(encoding=3, text=album))
         if track_number:
@@ -251,8 +257,10 @@ def write_tags(
             audio.add_tags()
         if not audio.tags:
             raise RuntimeError("could not create an MP4 tag block")
-        audio.tags["\xa9nam"] = [title]
-        audio.tags["\xa9ART"] = [artist]
+        if title is not None:
+            audio.tags["\xa9nam"] = [title]
+        if artist is not None:
+            audio.tags["\xa9ART"] = [artist]
         if album:
             audio.tags["\xa9alb"] = [album]
         if date:
@@ -272,8 +280,10 @@ def write_tags(
 
     elif suffix == ".flac":
         audio = FLAC(path)
-        audio["title"] = [title]
-        audio["artist"] = [artist]
+        if title is not None:
+            audio["title"] = [title]
+        if artist is not None:
+            audio["artist"] = [artist]
         if album:
             audio["album"] = [album]
         if date:
@@ -294,8 +304,10 @@ def write_tags(
 
     elif suffix in (".ogg", ".opus"):
         audio = OggOpus(path) if suffix == ".opus" else OggVorbis(path)
-        audio["title"] = [title]
-        audio["artist"] = [artist]
+        if title is not None:
+            audio["title"] = [title]
+        if artist is not None:
+            audio["artist"] = [artist]
         if album:
             audio["album"] = [album]
         if date:

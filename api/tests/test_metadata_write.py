@@ -117,3 +117,21 @@ def test_unsupported_container_raises(tmp_path):
 def test_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         write_tags(tmp_path / "absent.mp3", title="T", artist="A")
+
+
+@pytest.mark.parametrize("suffix", [".mp3", ".m4a", ".flac"])
+def test_none_title_or_artist_leaves_existing_tags_alone(tmp_path, suffix):
+    """`None` means 'leave this field untouched' — the download pipeline's
+    way of honouring an 'embed metadata: off' choice without stripping what
+    yt-dlp or the source already carried."""
+    path = tmp_path / f"track{suffix}"
+    _silence(path)
+    write_tags(path, title="Keep Me", artist="Original Artist")
+
+    # Artwork still applies — the toggles are independent.
+    write_tags(path, title=None, artist=None, artwork=PNG_1X1)
+
+    meta = read_track_metadata(path)
+    assert meta["title"] == "Keep Me"
+    assert meta["artist"]["name"] == "Original Artist"
+    assert extract_artwork_bytes(path) == PNG_1X1

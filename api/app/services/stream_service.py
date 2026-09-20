@@ -4,12 +4,13 @@ This module answers one question: *where do the bytes for a remote track come
 from, and how do we get them as fast as possible?*
 
 The answer is almost always YouTube's own CDN. Asking yt-dlp to download a
-track and re-encode it to MP3 buffers the entire song through ffmpeg before a
-single byte reaches the player — on Termux that is the difference between
+track and re-encode it buffers the entire song through a post-processor before
+a single byte reaches the player — on Termux that is the difference between
 "press play and hear it" and a seven-to-thirty second wait. Asking yt-dlp for
 the resolved CDN URL instead (`-g`) costs one metadata extraction and no
 bytes, and the CDN is byte-range capable, so a player can start on the first
-few kilobytes and seek wherever it likes.
+few kilobytes and seek wherever it likes. Streaming never transcodes; it
+relays.
 
 Everything here is transport-level and framework-free: URL resolution, mime
 inference and a range-aware upstream reader. The HTTP route that glues it to
@@ -61,10 +62,12 @@ FORMAT_SELECTOR = os.environ.get(
     "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio/best[ext=mp4]/best",
 )
 
-#: Audio-only selector for hosts with no ffmpeg. The ladder above ends in a
-#: muxed ``best``, which only yields audio after the extractor runs it through
-#: ffmpeg — so on those hosts the download must stay inside containers that
-#: hold audio on their own and are already valid library extensions.
+#: Audio-only selector used when nothing may require a post-processor: the
+#: download path on a host without ffmpeg, and streaming always. The download
+#: ladder above ends in a muxed ``best``, which only yields audio after the
+#: extractor runs it through ffmpeg — so without ffmpeg the download must stay
+#: inside containers that hold audio on their own and are already valid
+#: library extensions.
 RAW_AUDIO_SELECTOR = os.environ.get(
     "STREAM_YTDLP_RAW_FORMAT",
     "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio",
@@ -126,7 +129,7 @@ def client_attempts() -> list[list[str]]:
 DIRECT_URL_TTL = 4 * 60 * 60
 
 #: How long a single `yt-dlp -g` extraction may take before we give up on the
-#: fast path and let the transcoding fallback handle the track.
+#: fast path and let the yt-dlp buffer fallback handle the track.
 RESOLVE_TIMEOUT = 25.0
 
 UA_ANDROID = (
@@ -227,7 +230,7 @@ async def resolve_direct_url(track_id: str) -> Optional[str]:
     """Resolve a track's CDN URL with `yt-dlp -g`, downloading no bytes.
 
     Returns None when every player-client variant fails, in which case the
-    caller falls back to the transcoding path.
+    caller falls back to the buffered yt-dlp path.
     """
     cached = cached_direct_url(track_id)
     if cached:
