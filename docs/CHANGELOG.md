@@ -6,6 +6,15 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.19.10
+
+Found by playing a real track end to end with the CDN fast path forced out.
+
+- fix(streaming): **the fallback served audio under a Content-Type that did not describe it.** A remote session was created with a hardcoded `audio/mp4`, and the growing-buffer response built its headers from that value *before* the fill had a chance to correct it — so on the transcoding fallback the server announced one container while streaming another. The response sets `X-Content-Type-Options: nosniff`, so nothing downstream could repair it. Sessions now wait (bounded, and normally free) for the fill's report of the container it is actually producing.
+- fix(streaming): **the fill inferred its container from `has_ffmpeg()` instead of reading the bytes.** The rule was “ffmpeg is installed, therefore the output is mp3”. That is false: yt-dlp is piped to stdout and a post-processor needs a real file to run against, so the bytes are the stream YouTube served (m4a) on every host. Verified directly — the same command writing to a file yields a genuine `MP3 ADTS`, while writing to stdout yields `ftypmp42`. The container is now sniffed from the first chunk, which the existing `_sniff_audio_mime` already detected correctly and nothing called on that path.
+- fix(streaming): the bounded-wait fallback no longer consults `AUDIO_FORMAT` for the same reason; it reports `audio/mp4`, the honest expectation for a piped stream.
+- test: the streaming fill is driven with a stubbed yt-dlp process and asserted to report the container from the bytes with ffmpeg both present and absent, so the inference cannot come back (4 new tests), plus two session-level tests that the growing-buffer response carries the fill's type and that a failed fill still releases the wait (6 new tests).
+
 ## v2.19.9
 
 Found by downloading a real track end to end instead of trusting the unit suite.
