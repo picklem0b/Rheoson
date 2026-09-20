@@ -7,8 +7,8 @@ Three structural guarantees (no live external calls, deterministic):
      from implementation.
   2. Every mutating route (POST/PUT/PATCH/DELETE) requires authentication
      via get_current_user, with an explicit small allowlist of public
-     entry points (Clerk webhook, register/login) that have their own
-     protection.
+     entry points (the signature-verified Clerk webhook) that have their
+     own protection.
   3. No public GET route returns a 500 when exercised with missing data.
 
 A failing route here means the API surface changed without the
@@ -23,17 +23,13 @@ from fastapi.routing import APIRoute
 from app.main import app
 
 # Mutating routes that are intentionally public. Two kinds:
-#   - entry points with their own protection (Svix signature, Clerk rate
-#     limits, credential checks)
+#   - entry points with their own protection (Svix signature on the Clerk
+#     webhook; credential handling lives in Clerk's hosted components, not in
+#     a server proxy)
 #   - guest-first actions, pinned as guest-accessible in test_guest_policy.py
 PUBLIC_MUTATING = {
     ("POST", "/api/webhooks/clerk"),
-    ("POST", "/api/auth/register"),
-    ("POST", "/api/auth/login"),
     ("POST", "/api/search/resolve"),
-    ("POST", "/api/downloads"),
-    ("POST", "/api/downloads/"),
-    ("POST", "/api/downloads/batch"),
     ("POST", "/api/stream/{track_id}/warm"),
 }
 

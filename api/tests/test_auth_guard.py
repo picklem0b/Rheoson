@@ -30,17 +30,26 @@ async def test_public_routes_are_reachable_without_auth(client_anon):
     assert r.status_code == 200
     assert "text/html" in r.headers.get("content-type", "")
 
-    # Validation rejects malformed login payloads (422).
-    r = await client_anon.post(
-        "/api/auth/login", json={"email": "not-an-email", "password": "x"}
-    )
-    assert r.status_code == 422
+    # The visitor counter is public — the landing page renders it for guests.
+    r = await client_anon.get("/api/auth/visitor-count")
+    assert r.status_code == 200
 
-    # Schema-valid login with unknown credentials fails closed (401), not 422.
-    r = await client_anon.post(
-        "/api/auth/login", json={"email": "a@b.c", "password": "x"}
-    )
-    assert r.status_code == 401
+
+@pytest.mark.asyncio
+async def test_credential_proxy_routes_do_not_exist(client_anon):
+    """No server route may exchange an email address for a session.
+
+    Clerk's Backend API creates a session for a user id without verifying a
+    password, so a login proxy that looks a user up by email and calls it is
+    an account-takeover primitive: knowing an address would be enough.
+    Credentials are handled by Clerk's hosted components; these routes must
+    stay gone.
+    """
+    for path in ("/api/auth/login", "/api/auth/register"):
+        r = await client_anon.post(
+            path, json={"email": "victim@example.com", "password": "whatever"}
+        )
+        assert r.status_code in (404, 405), f"{path} responded {r.status_code}"
 
 
 # ── Everything else must 401 without a session ────────────────

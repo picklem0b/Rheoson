@@ -507,3 +507,33 @@ async def test_clerk_webhook_signature_validation(client, monkeypatch):
         },
     )
     assert stale.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_visitor_counter_counts_accounts_not_logins(monkeypatch):
+    """The landing counter must move once per account, not once per sign-in.
+
+    Counting used to live on the removed login proxy, so every sign-in
+    inflated it. It now moves only when ``user.created`` genuinely inserts a
+    new document — which also means a replayed event cannot double-count.
+    """
+    from app.core.database import get_db
+    import app.routers.clerk_webhook_router as wh
+
+    monkeypatch.setattr(wh, "db_available", lambda: True)
+    db = get_db()
+
+    payload = {
+        "id": "user_counter_1",
+        "email_addresses": [{"id": "e1", "email_address": "c@d.e"}],
+        "primary_email_address_id": "e1",
+    }
+
+    await wh._handle_user_created(payload)
+    counter = await db.visitors.find_one({"_id": "counter"})
+    assert counter is not None and counter["total"] == 1
+
+    # Replaying the same account creation must not count a second visitor.
+    await wh._handle_user_created(payload)
+    counter = await db.visitors.find_one({"_id": "counter"})
+    assert counter["total"] == 1, "a replayed event double-counted the account"

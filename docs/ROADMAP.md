@@ -7,7 +7,8 @@ instantaneous.** It also folds in the API code review findings rather than
 shipping them as an untracked patch line.
 
 Phases ship one per commit and are annotated-tagged `v2.19.N`, per
-`GIT_WORKFLOW.md`.
+`GIT_WORKFLOW.md`. Shipped: **v2.19.1** (playback/download reliability) and
+**v2.19.2** (auth and API trust boundary).
 
 ---
 
@@ -54,8 +55,11 @@ Closes the API review findings (`CRITICAL-1`, `HIGH-1..3`, `MEDIUM-1..4`):
   **email and phone number** (either one is sufficient, but a request missing
   both fails with a clear field error), and **password** of eight characters
   or more.
-- Validation is enforced server-side in the request schema and mirrored in
-  the form, so the API contract is the source of truth.
+- Because sign-in is Clerk's (no credential proxy — see v2.19.2), this phase
+  configures and documents the Clerk instance to match: identifier set to
+  email *and* phone with username required, and a minimum password length of
+  eight. A first-party credential form is only worth building if the product
+  decides to own auth end to end, and it would need a real credential store.
 - Username is unique and immutable-by-default; it becomes the display name
   and the messaging handle.
 

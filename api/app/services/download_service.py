@@ -127,10 +127,20 @@ def _load_jobs() -> None:
 
 
 def _persist_jobs() -> None:
-    """Persist jobs to disk (called after every mutation)."""
+    """Persist jobs to disk atomically (called after every mutation).
+
+    A direct write truncates the file first, so a crash or a SIGKILL mid-write
+    leaves a half-written document — and the loader treats unparseable JSON as
+    "no jobs", discarding every job's resume state exactly when the staged
+    bytes on disk are the only copy left. Writing a sibling temp file and
+    renaming is atomic on POSIX, so a reader sees either the old document or
+    the new one, never a partial one.
+    """
     try:
         _JOBS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _JOBS_FILE.write_text(json.dumps(_jobs, default=str))
+        tmp = _JOBS_FILE.with_name(_JOBS_FILE.name + ".tmp")
+        tmp.write_text(json.dumps(_jobs, default=str))
+        os.replace(tmp, _JOBS_FILE)
     except Exception as e:
         log.warning("download.jobs.persist_failed", error=str(e))
 
@@ -166,9 +176,14 @@ def _new_job(
     retries:      int   = 3,
     speed_limit:  int   = 0,
     concurrency:  int   = 3,
+    owner:        str | None = None,
 ) -> dict:
     return {
         'id':           job_id or str(uuid.uuid4()),
+        # Who this job belongs to. Jobs are process-global state, so without
+        # an owner every signed-in account sees and can cancel everyone
+        # else's downloads.
+        'owner':        owner,
         'trackId':      track_id,
         'title':        title,
         'artist':       artist,
@@ -218,16 +233,33 @@ def _with_resume_fields(job: dict) -> dict:
     return job
 
 
-def get_all_jobs() -> list[dict]:
+def _may_access(job: dict | None, owner: str | None) -> bool:
+    """True when `owner` is allowed to see or act on `job`.
+
+    A job with no recorded owner stays accessible: it was created before
+    ownership existed (or by an internal caller), and hiding it would strand
+    downloads that are still running.
+    """
+    if job is None:
+        return False
+    recorded = job.get('owner')
+    return recorded is None or recorded == owner
+
+
+def get_all_jobs(owner: str | None = None) -> list[dict]:
+    """Jobs visible to `owner`, newest first."""
     return [
         _with_resume_fields(dict(j))
         for j in reversed(list(_jobs.values()))
+        if _may_access(j, owner)
     ]
 
 
-def get_job(job_id: str) -> dict | None:
+def get_job(job_id: str, owner: str | None = None) -> dict | None:
     job = _jobs.get(job_id)
-    return _with_resume_fields(dict(job)) if job else None
+    if not _may_access(job, owner):
+        return None
+    return _with_resume_fields(dict(job))
 
 # ── URL resolution ────────────────────────────────────────────
 
@@ -814,6 +846,7 @@ async def enqueue_download(
     job_id:          Optional[str] = None,
     playlist_name:   Optional[str] = None,
     resume:          bool          = False,
+    owner:           Optional[str] = None,
 ) -> dict:
     global _jobs_loaded
     # Lazy-load persisted jobs on first use — import-time loading would run
@@ -829,7 +862,7 @@ async def enqueue_download(
             embed_metadata=embed_metadata, embed_artwork=embed_artwork,
             embed_lyrics=embed_lyrics, file_naming=file_naming,
             custom_path=custom_path, retries=retries,
-            speed_limit=speed_limit, concurrency=concurrency,
+            speed_limit=speed_limit, concurrency=concurrency, owner=owner,
         )
         job['status']    = 'error'
         job['error']     = str(e)
@@ -842,7 +875,7 @@ async def enqueue_download(
         embed_metadata=embed_metadata, embed_artwork=embed_artwork,
         embed_lyrics=embed_lyrics, file_naming=file_naming,
         custom_path=custom_path, retries=retries,
-        speed_limit=speed_limit, concurrency=concurrency,
+        speed_limit=speed_limit, concurrency=concurrency, owner=owner,
     )
     _jobs[job['id']] = job
 
@@ -855,8 +888,9 @@ async def enqueue_download(
     return job
 
 
-async def cancel_job(job_id: str) -> bool:
-    if job_id not in _jobs:
+async def cancel_job(job_id: str, owner: str | None = None) -> bool:
+    job = _jobs.get(job_id)
+    if not _may_access(job, owner):
         return False
     task = _tasks.pop(job_id, None)
     if task and not task.done():
@@ -878,7 +912,11 @@ async def cancel_job(job_id: str) -> bool:
     return True
 
 
-async def retry_job(job_id: str, resume: Optional[bool] = None) -> Optional[dict]:
+async def retry_job(
+    job_id: str,
+    resume: Optional[bool] = None,
+    owner: str | None = None,
+) -> Optional[dict]:
     """Re-run a failed or cancelled job.
 
     resume semantics (default: auto):
@@ -890,7 +928,7 @@ async def retry_job(job_id: str, resume: Optional[bool] = None) -> Optional[dict
       - None  → resume when partial data exists, fresh otherwise.
     """
     job = _jobs.get(job_id)
-    if not job:
+    if not _may_access(job, owner):
         return None
     # A still-running previous attempt must be fully stopped before a new
     # one starts, or two yt-dlp processes would write the same staging dir.
@@ -928,4 +966,22 @@ async def retry_job(job_id: str, resume: Optional[bool] = None) -> Optional[dict
         concurrency=int(job.get('concurrency', settings.MAX_CONCURRENT_DOWNLOADS)),
         job_id=job_id,
         resume=resume,
+        owner=job.get('owner'),
     )
+
+
+async def delete_job(job_id: str, owner: str | None = None) -> bool:
+    """Forget a job, keeping staged data for one that is still running.
+
+    A running job (downloading/converting/tagging) keeps its process and its
+    partial transfer, so dropping the record must not delete the staging
+    directory out from under it.
+    """
+    job = _jobs.get(job_id)
+    if not _may_access(job, owner):
+        return False
+    if job.get('status') not in ('downloading', 'converting', 'tagging'):
+        shutil.rmtree(_staging_dir(job_id), ignore_errors=True)
+    del _jobs[job_id]
+    _persist_jobs()
+    return True

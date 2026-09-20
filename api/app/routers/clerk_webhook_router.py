@@ -101,7 +101,59 @@ def _check_timestamp(svix_timestamp: str, max_age_seconds: int = 300) -> bool:
         return False
 
 
+# ── Replay protection ──────────────────────────────────────────
+
+async def _claim_event(svix_id: str) -> bool:
+    """Reserve a delivery id; False when this event was already handled.
+
+    Svix retries any delivery it believes failed, so the same event can arrive
+    more than once — and a verified signature does not make a replay harmless.
+    Recording the delivery id and relying on `_id` uniqueness makes the second
+    arrival a no-op instead of a second `user.created` running the handler.
+
+    When the database is unreachable the event is accepted rather than dropped:
+    every handler here is written to be idempotent, so a duplicate is far less
+    harmful than losing the event entirely.
+    """
+    try:
+        from app.core.database import get_db, db_available
+        if not db_available():
+            return True
+        await get_db().webhook_events.insert_one(
+            {"_id": svix_id, "received_at": datetime.now(timezone.utc)}
+        )
+        return True
+    except Exception as e:  # noqa: BLE001 — the claim must not 500 the webhook
+        message = str(e)
+        if "E11000" in message or "duplicate key" in message.lower():
+            log.info("webhook.clerk.replay_ignored", svix_id=svix_id)
+            return False
+        log.warning("webhook.clerk.claim_failed", svix_id=svix_id, error=message[:200])
+        return True
+
+
 # ── Event handlers ─────────────────────────────────────────────
+
+
+async def _count_new_account(db) -> None:
+    """Increment the public account counter for one newly created user.
+
+    The landing page renders this counter, and it is only meaningful if it
+    moves once per account. It is incremented here — inside the
+    ``user.created`` handler, gated on the upsert actually inserting — rather
+    than on a sign-in, which would count every login as a new visitor.
+    """
+    try:
+        await db.visitors.update_one(
+            {"_id": "counter"},
+            {
+                "$inc": {"authed": 1, "total": 1},
+                "$set": {"updated_at": datetime.now(timezone.utc)},
+            },
+            upsert=True,
+        )
+    except Exception:
+        pass  # Non-critical: the counter must never fail account creation
 
 
 async def _handle_user_created(data: dict) -> None:
@@ -137,7 +189,7 @@ async def _handle_user_created(data: dict) -> None:
         from app.core.database import get_db
         db = get_db()
 
-        await db.users.update_one(
+        result = await db.users.update_one(
             {"_id": clerk_id},
             {
                 "$set": {
@@ -166,6 +218,8 @@ async def _handle_user_created(data: dict) -> None:
             },
             upsert=True,
         )
+        if getattr(result, "upserted_id", None) is not None:
+            await _count_new_account(db)
         log.info("webhook.clerk.user_created", clerk_id=clerk_id, email=primary_email)
     except Exception as e:
         log.error("webhook.clerk.user_created.failed", clerk_id=clerk_id, error=str(e))
@@ -338,6 +392,9 @@ async def clerk_webhook(request: Request):
 
     event_type = event.get("type", "")
     data = event.get("data", {})
+
+    if not await _claim_event(svix_id):
+        return {"ok": True}
 
     log.info("webhook.clerk.received", event_type=event_type, user_id=data.get("id", ""))
 
