@@ -9,7 +9,8 @@ shipping them as an untracked patch line.
 Phases ship one per commit and are annotated-tagged `v2.19.N`, per
 `GIT_WORKFLOW.md`. Shipped: **v2.19.1** (playback/download reliability),
 **v2.19.2** (auth and API trust boundary), **v2.19.3** (username identity),
-**v2.19.4** (instant state) and **v2.19.5** (browse and discovery).
+**v2.19.4** (instant state), **v2.19.5** (browse and discovery) and
+**v2.19.6** (library information architecture).
 
 ---
 
@@ -93,12 +94,13 @@ reappear.
   behind a new `InfoTooltip` info affordance.
 - Album, artist and playlist pages confirmed as complete routed destinations.
 
-## v2.19.6 — Library information architecture
+## v2.19.6 — Library information architecture (shipped)
 
-- Liked songs, playlists and the rest become stacked sections with real
-  headings and hairline section rules, instead of a row of tabs above the
-  content.
+- Liked songs, playlists and the rest are stacked sections with real headings
+  and hairline section rules, instead of a row of tabs above the content.
 - Zero-state counts render immediately from the persisted cache.
+- All four sections query through the shared key registry, so a like or a
+  playlist change refreshes the library like every other surface.
 
 ## v2.19.7 — Creator surfaces
 
