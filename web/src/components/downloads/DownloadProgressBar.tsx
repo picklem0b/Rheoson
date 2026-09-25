@@ -1,7 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { DownloadSimple, CheckCircle, WarningCircle } from '@phosphor-icons/react'
-import { useDownloadStore, selectActiveJobs } from '@/store/download.store'
+import { DownloadSimple, CheckCircle, WarningCircle, X } from '@phosphor-icons/react'
+import {
+  useDownloadStore,
+  selectActiveJobs,
+  selectVisibleError,
+} from '@/store/download.store'
 import { cn } from '@/lib/utils'
 
 /**
@@ -19,9 +23,10 @@ export function DownloadProgressBar() {
   const lastCompleted = useDownloadStore(
     (s) => s.jobs.find((j) => j.status === 'done') ?? null
   )
-  const lastError = useDownloadStore(
-    (s) => s.jobs.find((j) => j.status === 'error') ?? null
-  )
+  // Only an unacknowledged failure is announced; a dismissed one stays in
+  // the Downloads list without nagging on every page load.
+  const lastError = useDownloadStore(selectVisibleError)
+  const dismissError = useDownloadStore((s) => s.dismissError)
 
   const count = activeJobs.length
   const headline = activeJobs[0]
@@ -99,20 +104,41 @@ export function DownloadProgressBar() {
           key="error"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: 0, y: 12 }}
           className={cn(
-            'fixed z-[140] flex items-center gap-2 px-3.5 py-2 rounded-full',
-            'bg-[var(--danger-bg)] border border-[var(--danger)]/25',
+            'fixed z-[140] flex items-start gap-2 pl-3.5 pr-1.5 py-2 rounded-2xl',
+            'w-[calc(100%-2rem)] max-w-sm sm:max-w-md',
+            'bg-[var(--danger-bg)] border border-[var(--danger)]/25 shadow-lg',
             'bottom-[calc(var(--player-height,72px)+10px)] left-1/2 -translate-x-1/2',
             'sm:left-auto sm:right-5 sm:translate-x-0'
           )}
         >
-          <WarningCircle className="w-4 h-4 text-[var(--danger-text)]" />
-          <span className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[240px]">
-            {lastError.error
-              ? `Download failed — ${lastError.error}`
-              : 'A download failed — tap to retry in Downloads'}
-          </span>
+          <WarningCircle className="w-4 h-4 mt-px text-[var(--danger-text)] flex-shrink-0" />
+          {/* The message wraps — the action it names is at the end of the
+              sentence, so an ellipsis was hiding the only useful part. */}
+          <button
+            type="button"
+            onClick={() => navigate('/downloads')}
+            title={lastError.error ?? 'Open Downloads'}
+            className="flex-1 min-w-0 text-left"
+          >
+            <span className="text-xs font-semibold text-[var(--text-primary)] leading-snug">
+              {lastError.error
+                ? `Download failed — ${lastError.error}`
+                : 'A download failed — tap to view it in Downloads'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => dismissError(lastError.id)}
+            aria-label="Dismiss download error"
+            className={cn(
+              'p-1.5 rounded-lg flex-shrink-0 text-[var(--text-muted)]',
+              'hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors'
+            )}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </motion.div>
       )}
     </AnimatePresence>

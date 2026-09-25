@@ -1,6 +1,6 @@
 [project]
 name = "rheoson-api"
-version = "2.19.14"
+version = "2.20.0"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 dependencies = [

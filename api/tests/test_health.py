@@ -116,6 +116,92 @@ async def test_mongodb_failure_degrades_but_does_not_kill_health(client, monkeyp
     assert data["status"] in ("degraded", "failing")
 
 
+def test_skipped_probes_never_mask_a_real_failure():
+    """One unconfigured optional dependency must not hide a failing subsystem.
+
+    `skipped`/`not_tested` are informational — they mean a probe did not run,
+    not that a subsystem is unhealthy — but they were ranked *above* `failing`,
+    so an instance with Clerk (or Redis) unconfigured reported its overall
+    status as `skipped` while the database check in the same payload said
+    `degraded`. The module docstring promises a failing subsystem degrades the
+    overall status, so pin it.
+    """
+    import app.core.health as h
+
+    assert h._worst(["skipped", "degraded"]) == "degraded"
+    assert h._worst(["skipped", "failing"]) == "failing"
+    assert h._worst(["not_tested", "passing"]) == "passing"
+    assert h._worst(["not_tested", "failing", "skipped"]) == "failing"
+    # Every probe skipped: admit nothing ran rather than claiming health.
+    assert h._worst(["skipped", "skipped"]) == "skipped"
+    assert h._worst([]) == "passing"
+
+
+@pytest.mark.asyncio
+async def test_redis_is_not_reported_working_just_because_a_url_is_set(monkeypatch):
+    """A set REDIS_URL must not be reported as a live service.
+
+    `settings.has_redis` is `bool(REDIS_URL)` — a string check — and no code
+    path imported a Redis client, so /api/health asserted a working cache that
+    did not exist. An unconfigured Redis is skipped, not "passing".
+    """
+    import app.core.health as h
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "REDIS_URL", "")
+
+    entry = await h._check_redis()
+
+    assert entry["status"] == "skipped"
+
+
+@pytest.mark.asyncio
+async def test_redis_unreachable_is_degraded_without_leaking_credentials(monkeypatch):
+    """A Redis URL carries its password, and client errors quote the URL.
+
+    Health output is served unauthenticated, so the failure detail must name
+    neither — a configured-but-unreachable Redis is a degraded subsystem, not
+    a credential disclosure.
+    """
+    import redis.asyncio as aioredis
+
+    import app.core.health as h
+    from app.core.config import settings
+
+    url = "redis://:sup3rs3cret@redis.invalid:6379/0"
+    monkeypatch.setattr(settings, "REDIS_URL", url)
+
+    def boom(*_args, **_kwargs):
+        raise ConnectionError(f"Error connecting to {url}")
+
+    monkeypatch.setattr(aioredis, "from_url", boom)
+
+    entry = await h._check_redis()
+
+    assert entry["status"] == "degraded"
+    assert "sup3rs3cret" not in str(entry)
+    assert "redis.invalid" not in str(entry)
+
+
+@pytest.mark.asyncio
+async def test_health_separates_redis_configuration_from_reachability(client, monkeypatch):
+    """The services block reports both facts instead of one misleading bool."""
+    import app.core.health as h
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "REDIS_URL", "")
+    monkeypatch.setattr(h, "_PROBE_TTL", -1.0)
+    monkeypatch.setattr(h, "_probe_cache", {"ts": 0.0, "checks": {}})
+
+    resp = await client.get("/api/health")
+
+    assert resp.status_code == 200
+    assert resp.json()["services"]["redis"] == {
+        "configured": False,
+        "reachable": False,
+    }
+
+
 @pytest.mark.asyncio
 async def test_config_check_flags_missing_webhook_secret(monkeypatch):
     """A Clerk-enabled production instance without CLERK_WEBHOOK_SECRET

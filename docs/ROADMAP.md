@@ -1,4 +1,82 @@
-# Roadmap — Milestone 2.19
+# Roadmap — Milestone 2.20
+
+Milestone 2.19 made playback and downloads work on a bare host. Milestone 2.20
+is about the **failure surface**: what the product says, and stops saying, when
+something upstream breaks.
+
+The trigger was a real report — a download failing with *"YouTube refused this
+track on every client we tried"* on a host whose `yt-dlp` was already the newest
+release. The engine was current, the track was fine, and the sentence was false
+on both counts. Tracing it found six defects behind that one message, none of
+them about `yt-dlp`: the failure was misattributed, progress was never reported,
+and the sentence explaining it was truncated on every surface that could have
+shown it. A product that cannot explain its own failures cannot be operated,
+and this milestone treats that as a defect class rather than a copy problem.
+
+Phases ship one per commit and are annotated-tagged `v2.20.N`, per
+`GIT_WORKFLOW.md`.
+
+---
+
+## v2.20.0 — Download and failure-surface correctness
+
+**Progress that is reported.** `yt-dlp` writes progress to *stdout* and
+diagnostics to *stderr*. The download read only stderr **and** passed `--quiet`,
+which suppresses the progress lines outright — two independent causes with one
+symptom, so every download sat at 0% until it finished. Both pipes are now
+drained concurrently and progress is parsed from the stream that carries it.
+
+**Failures that say what happened.** `_friendly_download_error` had a single
+extractor branch, so a transient CDN 403, a bot check, a deleted video and a
+genuinely refused track all produced the same sentence — one that advised
+updating an engine already at the latest release. There are now four branches,
+each naming the action that actually helps.
+
+**A message the user can read.** The activity pill clipped the error at 240px
+and the Downloads row clipped it again, so no surface showed the full sentence —
+including the action at its end. Both wrap now, the pill carries the message in
+its `title` and leads to Downloads, where retry lives.
+
+**A failure that stays dismissed.** Failed jobs persist so the Downloads list
+stays a durable record, but the pill re-announced an older failure on every
+launch and had no dismiss handler. Acknowledgements now persist alongside them,
+so a dismissal sticks without deleting the record.
+
+**An update path that can update.** `yt-dlp -U` refuses a pip/wheel install —
+`is_non_updateable()` returns *"You installed yt-dlp with pip or using the wheel
+from PyPi"* — and on Termux every install is one, so the daily update cron had
+never updated anything. It falls back to pip through the interpreter named in
+the binary's own shebang, with a PEP 668 retry.
+
+**A ladder without dead rungs.** `ios`, `mweb` and `web` failed on every attempt
+against every track measured (6/6) with "Requested format is not available",
+because those clients now answer with SABR formats that no `-f` selector can
+pick. Each one cost a subprocess spawn and a full extraction while never
+producing a format.
+
+**Health that does not lie.** `/api/health` reported `services.redis` as
+`bool(REDIS_URL)` — a string check — while no module imported a Redis client, so
+setting the variable asserted a working cache that did not exist. Configuration
+and reachability are now separate, reachability from a bounded PING that never
+echoes the URL: a Redis URL carries its password in the authority, and health is
+served unauthenticated.
+
+**A schema codegen can consume.** `api_route(methods=["GET", "HEAD"], …)` emits
+one operationId per registered route, so `stream_audio` and `health_api_health`
+each appeared twice and the generated schema broke OpenAPI's uniqueness rule.
+
+**Deployment that serves what it claims.** The Search Console verification file
+sat at the repository root, outside `web/public/` — the only directory Vite
+copies into the build — so it was never in `dist/` and the verification could
+not have succeeded.
+
+- Seven silent dual-store fallbacks (liked count, history clear, playlist
+  mirror and delete, profile hydrate) now trace the primary-path failure at
+debug level. They still fall back.
+
+---
+
+## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the
 things a user actually notices when they break: **playback and downloads that

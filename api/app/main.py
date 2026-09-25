@@ -51,7 +51,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.19.14"
+VERSION = "2.20.0"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -545,7 +545,12 @@ async def health_ready(request: Request):
     return await healthmod.ready(request.headers.get("x-request-id", ""))
 
 
-@app.api_route("/api/health", methods=["GET", "HEAD"], tags=["health"], operation_id="health_api_health")
+# Two decorators rather than `api_route(methods=["GET", "HEAD"])`: FastAPI
+# derives one operationId per registered route, so the multi-method form with
+# an explicit `operation_id` emitted the same id twice and made the generated
+# schema violate OpenAPI's operationId uniqueness rule.
+@app.get("/api/health", tags=["health"], operation_id="health_api_health")
+@app.head("/api/health", tags=["health"], operation_id="health_api_health_head")
 async def health(request: Request):
     """Full cheap health snapshot with per-subsystem checks.
 
@@ -562,7 +567,15 @@ async def health(request: Request):
         "services": {
             "mongodb": db_available(),
             "clerk":   settings.has_clerk,
-            "redis":   settings.has_redis,
+            # Split configuration from reachability. The old flat boolean was
+            # `bool(REDIS_URL)` — a string check — so setting the variable made
+            # this endpoint assert a working cache that did not exist (no code
+            # path imported a Redis client). `reachable` now comes from the
+            # bounded PING in core.health.
+            "redis": {
+                "configured": settings.has_redis,
+                "reachable":  payload.get("checks", {}).get("redis", {}).get("status") == "passing",
+            },
             "spotify": settings.has_spotify,
         },
         "spotify": {

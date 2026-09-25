@@ -645,7 +645,12 @@ async def warm_stream(track_id: str, _user: dict | None = Depends(get_optional_u
 
 # ── Routes ────────────────────────────────────────────────────
 
-@router.api_route("/{track_id}/audio", methods=["GET", "HEAD"], operation_id="stream_audio")
+# One route per method, not `api_route(methods=[...])`: FastAPI derives one
+# operationId per registered route, so a single multi-method declaration with
+# an explicit `operation_id` emits the same id twice and produces a schema that
+# violates OpenAPI's uniqueness requirement — codegen silently keeps only one.
+@router.get("/{track_id}/audio", operation_id="stream_audio")
+@router.head("/{track_id}/audio", operation_id="stream_audio_head")
 async def stream_audio(track_id: str, request: Request):
     await _ensure_cache()
     local = _find_local(track_id)

@@ -28,6 +28,47 @@ def test_friendly_error_never_quotes_stderr_tail():
     assert 'Sign in' not in msg
 
 
+def test_media_server_refusal_is_reported_as_transient():
+    """A CDN 403 is a refused transfer, not a refused track.
+
+    The extractor resolved the track fine; the media server refused the bytes,
+    usually because the signed URL expired. That is worth a retry, so the copy
+    must say so instead of blaming the player clients.
+    """
+    for tail in (
+        "ERROR: unable to download video data: HTTP Error 403: Forbidden",
+        "ERROR: unable to download video data: HTTP Error 429: Too Many Requests",
+    ):
+        msg = ds._friendly_download_error(tail)
+        assert 'retry' in msg.lower(), msg
+        assert 'every client' not in msg.lower(), msg
+
+
+def test_permanently_unavailable_track_does_not_imply_a_retry_fixes_it():
+    """A deleted or region-blocked video is not an engine problem."""
+    for tail in (
+        "ERROR: [youtube] abc: Video unavailable",
+        "ERROR: [youtube] abc: This video is not available",
+        "ERROR: [youtube] abc: The uploader has not made this video available in your country",
+    ):
+        msg = ds._friendly_download_error(tail)
+        assert 'no longer available' in msg, msg
+        assert 'engine' not in msg.lower(), msg
+
+
+def test_bot_check_names_cookies_not_just_the_engine():
+    """YouTube's bot check is answered with credentials, not a new client.
+
+    The engine may genuinely need updating too, but a bot check follows the
+    network, so promising a retry alone would be dishonest.
+    """
+    msg = ds._friendly_download_error(
+        "ERROR: [youtube] abc: Sign in to confirm you're not a bot."
+    )
+    assert 'cookies' in msg
+    assert 'tried' in msg
+
+
 def test_friendly_error_is_actionable_per_case():
     assert 'Doctor' in ds._friendly_download_error('ffmpeg not found')
     assert 'timed out' in ds._friendly_download_error('giving up after 1 attempt').lower() or \
@@ -101,6 +142,19 @@ async def test_enqueue_resolve_failure_stores_user_safe_error(monkeypatch):
 
 
 # ── subprocess spawn failures don't leak OS paths ────────────────────
+
+def test_job_record_does_not_double_prefix_the_failure():
+    """The stored error is one sentence, not "Download failed: Download failed".
+
+    _friendly_download_error already returns a complete user-facing sentence,
+    and the WS error event sends it unprefixed. Prefixing it again in the job
+    record made the activity pill read
+    "Download failed — Download failed: The media server cut the transfer".
+    """
+    import inspect
+    src = inspect.getsource(ds._download_task)
+    assert "error=f'Download failed: {e}'" not in src
+
 
 def test_spawn_failure_copy_is_user_safe():
     # The message _run_ytdlp_attempt raises on a failed subprocess spawn.
