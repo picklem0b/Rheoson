@@ -494,7 +494,7 @@ export interface paths {
          *
          *     Backed by the background probe cache — no expensive work per request.
          */
-        head: operations["health_api_health_1"];
+        head: operations["health_api_health_head"];
         patch?: never;
         trace?: never;
     };
@@ -1555,7 +1555,7 @@ export interface paths {
         delete?: never;
         options?: never;
         /** Stream Audio */
-        head: operations["stream_audio_1"];
+        head: operations["stream_audio_head"];
         patch?: never;
         trace?: never;
     };
@@ -3366,7 +3366,7 @@ export interface operations {
             };
         };
     };
-    health_api_health_1: {
+    health_api_health_head: {
         parameters: {
             query?: never;
             header?: never;
@@ -4930,7 +4930,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_1: {
+    stream_audio_head: {
         parameters: {
             query?: never;
             header?: never;

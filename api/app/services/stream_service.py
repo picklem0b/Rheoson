@@ -78,14 +78,19 @@ RAW_AUDIO_SELECTOR = os.environ.get(
 #: dropping. `android` and `android_vr` follow because they avoid the JS
 #: challenge entirely, so they keep working on hosts (and datacentre IPs)
 #: where the web challenge is refused.
+#:
+#: `ios`, `mweb` and `web` were removed after measuring them against two
+#: tracks: all three failed every attempt with "Requested format is not
+#: available" (6/6), because those clients now answer with SABR / PO-token
+#: gated formats that no `-f` selector can pick. Keeping them cost three
+#: subprocess spawns plus a full extraction each on every failure path while
+#: never producing a format — pure latency added to the worst case. A client
+#: that can serve a track the others cannot can be re-added with evidence.
 CLIENT_LADDER: tuple[str, ...] = (
     "default",
     "android",
     "android_vr",
     "tv_embedded",
-    "ios",
-    "mweb",
-    "web",
 )
 
 #: Playback mime per preferred container, used when a client's answer has to

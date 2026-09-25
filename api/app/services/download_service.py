@@ -26,13 +26,73 @@ log = structlog.get_logger()
 # case below is something the user can act on. The untouched tail is still
 # logged, so nothing is lost for debugging.
 
+#: The extractor resolved the track, but the media server refused the bytes
+#: partway through. This is almost always a signed URL that expired or is
+#: bound to the IP it was minted for, so it is transient and a retry that
+#: re-resolves genuinely helps.
+_MEDIA_REFUSED_MARKERS = (
+    'unable to download video data',
+    'http error 403',
+    'http error 429',
+    'http error 503',
+)
+
+#: The video itself is gone, private, or region-blocked. No player client and
+#: no engine update changes that, so the copy must not imply a retry will work.
+_PERMANENT_UNAVAILABLE_MARKERS = (
+    'this video is not available',
+    'video unavailable',
+    'content is not available',
+    'this video has been removed',
+    'removed by the uploader',
+    'private video',
+    'members-only',
+    'not available in your country',
+    'has not made this video available',
+)
+
+#: YouTube wants proof this network is a human. No player client can answer
+#: that — it needs cookies or a PO token on the host — so naming the engine as
+#: the fix is only half true, and the user needs to know retrying alone is not
+#: guaranteed to work.
+_BOT_CHECK_MARKERS = (
+    'sign in to confirm',
+    'confirm you\u2019re not a bot',
+    "confirm you're not a bot",
+    'confirm you are not a bot',
+    'sign in to confirm your age',
+    'this video is age-restricted',
+)
+
+
 def _friendly_download_error(tail: str) -> str:
-    """Map a yt-dlp stderr tail to a message safe to show a user."""
+    """Map a yt-dlp stderr tail to a message safe to show a user.
+
+    Each branch exists because the underlying cause needs a *different*
+    action from the user. Collapsing them into one "refused on every client"
+    sentence — as this did before — told someone to update an engine that was
+    already current and hid whether retrying was worth their time.
+    """
     low = (tail or '').lower()
     if 'ffmpeg' in low:
         return 'Audio conversion is unavailable on this server. Run the Doctor repair, then retry.'
+    if any(marker in low for marker in _PERMANENT_UNAVAILABLE_MARKERS):
+        return 'This track is no longer available from the source.'
+    if any(marker in low for marker in _BOT_CHECK_MARKERS):
+        return (
+            'YouTube asked every client we tried to verify this is not a bot. '
+            'Add account cookies on the server, or retry from another network.'
+        )
+    if any(marker in low for marker in _MEDIA_REFUSED_MARKERS):
+        return (
+            'The media server cut the transfer short. Retry to resume from '
+            'where it stopped.'
+        )
     if stream_service.is_extractor_failure(tail):
-        return 'YouTube refused this track on every client we tried. Update the download engine or retry shortly.'
+        return (
+            'YouTube refused this track on every client we tried. Retry to '
+            'resume, and update the download engine if it keeps happening.'
+        )
     if 'timed out' in low or 'timeout' in low:
         return 'The download timed out. Retry to resume from where it stopped.'
     if 'no space left' in low:
@@ -359,8 +419,11 @@ async def _resolve_to_yt_url(
 
 _AUDIO_EXTS = {'.mp3', '.m4a', '.flac', '.opus', '.wav', '.ogg'}
 
-# yt-dlp prints `[download]  12.3%` progress lines to stderr when --newline
-# is passed; used for live 0-80% job progress.
+# yt-dlp prints `[download]  12.3%` progress lines to **stdout** when --newline
+# and --progress are passed, and its diagnostics to stderr. The two streams
+# carry different things and are read separately (see _run_ytdlp_attempt):
+# progress drives the job, the stderr tail explains a failure.
+#
 # yt-dlp prints one of these per progress tick, e.g.
 #   [download]  45.2% of    3.85MiB at    1.23MiB/s ETA 00:02
 #   [download]  12.0% of ~  120.4MiB at  Unknown B/s ETA Unknown
@@ -440,7 +503,7 @@ async def _run_ytdlp_attempt(
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
-            stdout=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             start_new_session=True,  # own process group → killpg works
         )
@@ -454,45 +517,64 @@ async def _run_ytdlp_attempt(
 
     _procs[job_id] = proc
     try:
-        # Stream stderr: keep a bounded error tail and emit live progress.
+        # yt-dlp splits its output: progress on stdout, diagnostics on stderr.
+        # Both pipes must be drained *concurrently* — a full pipe buffer would
+        # block the child, so reading them in sequence deadlocks the download.
         stderr_tail: list[str] = []
-        last_pct = -1.0
-        while True:
-            raw_line = await proc.stderr.readline()
-            if not raw_line:
-                break
-            text = raw_line.decode(errors='ignore').strip()
-            if text:
-                stderr_tail.append(text)
-                if len(stderr_tail) > 50:
-                    stderr_tail.pop(0)
-            m = _PROGRESS_RE.search(text)
-            if m:
+
+        async def _pump_progress() -> None:
+            """Turn stdout progress lines into job progress + WS updates."""
+            last_pct = -1.0
+            while True:
+                raw_line = await proc.stdout.readline()
+                if not raw_line:
+                    return
+                text = raw_line.decode(errors='ignore').strip()
+                if not text:
+                    continue
+                m = _PROGRESS_RE.search(text)
+                if not m:
+                    continue
                 pct = float(m.group('pct'))
-                if pct != last_pct:
-                    last_pct = pct
-                    scaled = round(min(80.0, pct * 0.8), 1)
-                    total_bytes = _parse_size(m.group('size'))
-                    speed_bps = _parse_size(m.group('speed'))
-                    eta_s = _parse_eta(m.group('eta'))
-                    _update(
-                        job_id,
-                        status='downloading',
-                        progress=scaled,
+                if pct == last_pct:
+                    continue
+                last_pct = pct
+                scaled = round(min(80.0, pct * 0.8), 1)
+                total_bytes = _parse_size(m.group('size'))
+                speed_bps = _parse_size(m.group('speed'))
+                eta_s = _parse_eta(m.group('eta'))
+                _update(
+                    job_id,
+                    status='downloading',
+                    progress=scaled,
+                    totalBytes=total_bytes,
+                    speedBps=speed_bps,
+                    etaSeconds=eta_s,
+                )
+                # Emit throttled WS updates (each ~5% bucket) — avoids
+                # flooding the socket with every 0.1% tick.
+                if int(pct) % 5 == 0 or pct >= 99.0:
+                    await ws_manager.emit_download_progress(
+                        job_id, scaled, 'downloading',
+                        title=job.get('title'),
                         totalBytes=total_bytes,
                         speedBps=speed_bps,
                         etaSeconds=eta_s,
                     )
-                    # Emit throttled WS updates (each ~5% bucket) — avoids
-                    # flooding the socket with every 0.1% tick.
-                    if int(pct) % 5 == 0 or pct >= 99.0:
-                        await ws_manager.emit_download_progress(
-                            job_id, scaled, 'downloading',
-                            title=job.get('title'),
-                            totalBytes=total_bytes,
-                            speedBps=speed_bps,
-                            etaSeconds=eta_s,
-                        )
+
+        async def _pump_stderr() -> None:
+            """Keep a bounded tail of stderr, the stream that explains failures."""
+            while True:
+                raw_line = await proc.stderr.readline()
+                if not raw_line:
+                    return
+                text = raw_line.decode(errors='ignore').strip()
+                if text:
+                    stderr_tail.append(text)
+                    if len(stderr_tail) > 50:
+                        stderr_tail.pop(0)
+
+        await asyncio.gather(_pump_progress(), _pump_stderr())
         rc = await proc.wait()
     except asyncio.CancelledError:
         # Job cancelled mid-download — kill the whole process group so
@@ -582,8 +664,13 @@ async def _run_download(
         # the audio stream, then our own mutagen pass writes tags and artwork
         # with proper multi-container support (the CLI embedders are MP3-only
         # and would duplicate the work).
+        # `--quiet` is deliberately absent: it suppresses the progress lines
+        # this job reports on, which left every download pinned at 0% until it
+        # finished. Warnings are still silenced; the reporting is done by
+        # _run_ytdlp_attempt, which filters the stream down to progress.
         cmd = [
-            toolchain.ytdlp_bin(), '--no-playlist', '--quiet', '--no-warnings', '--newline',
+            toolchain.ytdlp_bin(), '--no-playlist', '--no-warnings', '--newline',
+            '--progress',
             '--retries', str(retries), '--fragment-retries', str(retries),
             '--format',
             stream_service.FORMAT_SELECTOR if can_postprocess else stream_service.RAW_AUDIO_SELECTOR,
@@ -868,7 +955,10 @@ async def _download_task(
         # Name the stage that failed so the error message is actionable.
         current = _jobs.get(job_id, {}).get('status', 'error')
         if current == 'downloading':
-            _update(job_id, status='error', error=f'Download failed: {e}')
+            # No 'Download failed: ' prefix — `e` is already a full user-facing
+            # sentence here, and prefixing it produced the stuttering
+            # "Download failed — Download failed: …" the activity pill showed.
+            _update(job_id, status='error', error=str(e))
         elif current == 'converting':
             _update(job_id, status='error', error='The audio could not be converted. Try a different format.')
         elif current == 'tagging':

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.19.14"
+    "version": "2.20.0"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -1225,7 +1225,7 @@
         ],
         "summary": "Health",
         "description": "Full cheap health snapshot with per-subsystem checks.\n\nBacked by the background probe cache \u2014 no expensive work per request.",
-        "operationId": "health_api_health_1",
+        "operationId": "health_api_health_head",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3576,7 +3576,7 @@
           "stream"
         ],
         "summary": "Stream Audio",
-        "operationId": "stream_audio_1",
+        "operationId": "stream_audio_head",
         "parameters": [
           {
             "name": "track_id",

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
@@ -24,6 +25,8 @@ from pydantic import BaseModel, Field
 from app.core.auth import clerk_revoke_session
 from app.core.database import get_db, db_available
 from app.core.deps import get_current_user, get_optional_user
+
+log = structlog.get_logger()
 
 router = APIRouter()
 
@@ -81,8 +84,11 @@ async def get_profile(user: dict = Depends(get_current_user)):
                     "image_url": mongo_user.get("image_url", ""),
                     "created_at": mongo_user.get("created_at"),
                 }
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 — Clerk claims are the fallback
+            # The profile silently degrades to token claims here, which drop
+            # the stored username and image. Worth a trace so "my username
+            # vanished" has a diagnosable cause instead of being mysterious.
+            log.debug("auth.me.mongo_profile_failed", error=str(e))
 
     # Fallback to Clerk claims
     return {

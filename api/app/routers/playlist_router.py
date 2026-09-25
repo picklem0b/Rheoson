@@ -148,8 +148,8 @@ async def _sync_mongo(pl: dict) -> None:
         mongo_pl["trackIds"] = _stored_ids(pl)
         mongo_pl["trackCount"] = len(_stored_ids(pl))
         await db.playlists.update_one({"_id": pl["id"]}, {"$set": mongo_pl}, upsert=True)
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — the file store is primary
+        log.debug("playlists.mongo_sync_failed", playlist_id=pl.get("id"), error=str(e))
 
 
 async def _remove_mongo(playlist_id: str) -> None:
@@ -157,8 +157,10 @@ async def _remove_mongo(playlist_id: str) -> None:
         return
     try:
         await get_db().playlists.delete_one({"_id": playlist_id})
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — the file store is primary
+        # A failed mirror delete leaves the playlist readable from Mongo after
+        # the user deleted it, so record which one drifted.
+        log.debug("playlists.mongo_delete_failed", playlist_id=playlist_id, error=str(e))
 
 
 # ── Routes ─────────────────────────────────────────────────────

@@ -187,8 +187,10 @@ async def get_liked_count(user: dict = Depends(get_current_user)):
     try:
         if db_available():
             return {"count": len(await _liked_ids_mongo(get_db(), user_id))}
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — the local sidecar is the fallback
+        # The fallback can disagree with the database, so a wrong pinned count
+        # needs a trace rather than looking like the truth.
+        log.debug("tracks.liked.count.mongo_failed", user_id=user_id, error=str(e))
     return {"count": len(await read_liked_local(user_id))}
 
 
@@ -279,8 +281,10 @@ async def clear_history(user: dict = Depends(get_current_user)):
     try:
         if db_available():
             await get_db().listening_history.delete_one({"user_id": user_id})
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — local history is cleared regardless
+        # The endpoint still reports success, so an un-cleared server-side
+        # history would otherwise return on the next sync with no explanation.
+        log.debug("tracks.history.clear.mongo_failed", user_id=user_id, error=str(e))
     return {"ok": True}
 
 

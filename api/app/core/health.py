@@ -49,21 +49,30 @@ NOT_TESTED = "not_tested"
 
 SCHEMA_VERSION = "1.0"
 
-_ORDER = {PASSING: 0, DEGRADED: 1, FAILING: 2, SKIPPED: 3, NOT_TESTED: 4}
+#: Severity order used to aggregate checks into one status.
+#:
+#: `skipped` and `not_tested` are informational — they record that a probe did
+#: not run, not that a subsystem is unhealthy — so they must never outrank a
+#: real status. They previously sat at the *top* of this ordering, which meant
+#: a single unconfigured optional dependency (Clerk in development, or Redis
+#: with no URL) reported the whole instance as `skipped` while a `degraded` or
+#: `failing` database sat in the very same payload. The module docstring has
+#: always promised "a failure in one subsystem degrades the overall status";
+#: this is the ordering that makes that true.
+_SEVERITY = {SKIPPED: 0, NOT_TESTED: 1, PASSING: 2, DEGRADED: 3, FAILING: 4}
 
 
 def _worst(statuses: list[str]) -> str:
-    """Worst of the given statuses (failing > degraded > passing)."""
-    if not statuses:
-        return PASSING
-    ranked = [_ORDER[s] for s in statuses if s in _ORDER]
-    if not ranked:
-        return NOT_TESTED
-    best = max(ranked)
-    for s, rank in _ORDER.items():
-        if rank == best:
-            return s
-    return PASSING  # unreachable
+    """Worst of the given statuses (failing > degraded > passing).
+
+    A real status always wins over an informational one. Only when every
+    probe was skipped/not tested does the aggregate admit that, and it never
+    reports `passing` on the strength of probes that did not run.
+    """
+    known = [s for s in statuses if s in _SEVERITY]
+    if not known:
+        return NOT_TESTED if statuses else PASSING
+    return max(known, key=lambda s: _SEVERITY[s])
 
 
 def _iso() -> str:
@@ -231,6 +240,48 @@ async def _check_config() -> dict:
     return entry
 
 
+async def _check_redis() -> dict:
+    """Probe Redis — but only when there is something to probe.
+
+    `settings.has_redis` is a *string* check (is `REDIS_URL` non-empty), so a
+    URL in the environment was being reported by /api/health as a working
+    service while nothing in the codebase imported a Redis client at all. This
+    probe is what makes the answer true: a real PING under a bounded timeout,
+    or an explicit "not configured" when there is nothing to reach.
+    """
+    from app.core.config import settings
+
+    if not settings.has_redis:
+        return _check_entry(SKIPPED, "not configured")
+
+    t0 = _now_s()
+    client = None
+    try:
+        import redis.asyncio as aioredis
+
+        client = aioredis.from_url(
+            settings.REDIS_URL, socket_connect_timeout=2.5, socket_timeout=2.5
+        )
+        await asyncio.wait_for(client.ping(), timeout=2.5)
+        entry = _check_entry(PASSING, "connected", (_now_s() - t0) * 1000)
+        entry["latencyMs"] = round((_now_s() - t0) * 1000, 1)
+        return entry
+    except ImportError:
+        return _check_entry(DEGRADED, "redis client library is not installed")
+    except Exception as e:  # noqa: BLE001 — any failure is "not reachable"
+        # Deliberately no `str(e)`: a Redis URL normally carries its password
+        # in the authority, and connection errors quote the URL they could not
+        # reach. Health output is served unauthenticated, so it must not be the
+        # thing that leaks the credential.
+        return _check_entry(DEGRADED, f"unreachable ({type(e).__name__})")
+    finally:
+        if client is not None:
+            try:
+                await client.aclose()
+            except Exception:  # noqa: BLE001 — closing a dead client is not an error
+                pass
+
+
 async def run_all_checks() -> dict[str, dict]:
     """Run every dependency probe with bounded concurrency.
 
@@ -243,8 +294,9 @@ async def run_all_checks() -> dict[str, dict]:
         _check_binaries(),
         _check_auth(),
         _check_config(),
+        _check_redis(),
     )
-    names = ["storage", "mongodb", "binaries", "auth", "config"]
+    names = ["storage", "mongodb", "binaries", "auth", "config", "redis"]
     return dict(zip(names, checks))
 
 

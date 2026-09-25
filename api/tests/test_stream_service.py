@@ -114,6 +114,26 @@ def test_client_ladder_starts_with_default_and_avoids_the_js_challenge():
     assert "youtube:player_client=android_vr" in flat
 
 
+def test_ladder_drops_clients_that_can_no_longer_return_a_format():
+    """Clients that only answer with SABR/PO-token formats are dead weight.
+
+    Measured against two tracks, `ios`, `mweb` and `web` failed every attempt
+    with "Requested format is not available" — no `-f` selector can pick a
+    SABR-only answer. Each one still cost a subprocess spawn and a full
+    extraction before the ladder moved on, so they only made the failure path
+    slower. Pin their absence so they cannot creep back without evidence.
+    """
+    flat = [a[0] for a in ss.client_attempts() if a]
+    for dead in ("youtube:player_client=ios", "youtube:player_client=mweb",
+                 "youtube:player_client=web"):
+        assert dead not in flat, f"{dead} cannot return a selectable format"
+
+
+def test_ladder_stays_bounded():
+    """Every rung is a subprocess; the ladder must not grow without limit."""
+    assert len(ss.client_attempts()) <= 5
+
+
 @pytest.mark.parametrize(
     "text,expected",
     [
