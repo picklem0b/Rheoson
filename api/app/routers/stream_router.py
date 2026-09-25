@@ -227,7 +227,7 @@ def _remote_cache_clear() -> None:
 # ── Durable warm cache ────────────────────────────────────────
 # The in-memory remote cache dies with the process; a restart throws away
 # every warmed track. When STREAM_CACHE_DIR is set, completed buffers are
-# also hard-linked/copied into that directory and reused across restarts —
+# also copied into that directory and reused across restarts —
 # a track played once this week starts instantly next week.
 
 
@@ -250,9 +250,16 @@ def _warm_enforce_limit() -> None:
         return
     max_bytes = max(0, settings.STREAM_CACHE_MAX_MB) * 1024 * 1024
     try:
+        # Evict oldest-first, with the name as a tiebreak. Timestamps are only
+        # as fine-grained as the filesystem makes them, so two entries can
+        # compare equal; sorting on the stamp alone then inherits directory
+        # order, which differs between filesystems — the eviction assertions in
+        # tests/test_stream_warm_cache.py passed on this device and failed on the
+        # CI runner from the same commit. In-flight temp files are skipped: they
+        # are not entries yet.
         files = sorted(
-            (f for f in d.iterdir() if f.is_file()),
-            key=lambda f: f.stat().st_mtime,
+            (f for f in d.iterdir() if f.is_file() and not f.name.startswith(".")),
+            key=lambda f: (f.stat().st_mtime, f.name),
         )
         total = sum(f.stat().st_size for f in files)
         for f in files:
@@ -274,28 +281,34 @@ def _warm_promote(track_id: str, src: Path, mime: Optional[str]) -> None:
     if d is None:
         return
     dest = d / f"{track_id}.audio"
+    tmp = d / f".{track_id}.audio.tmp"
     try:
-        # A hard link is instant and copies nothing, but `os.link` is not
-        # available on every POSIX platform this runs on (Termux/Android, for
-        # one), so probe for it instead of trusting the os.name check — the
-        # AttributeError that produced is swallowed below and silently left the
-        # durable cache empty.
-        _link = getattr(os, "link", None)
-        linked = False
-        if _link is not None:
-            try:
-                _link(src, dest)
-                linked = True
-            except OSError:
-                linked = False
-        if not linked:
-            shutil.copyfile(src, dest)
+        # Copy rather than hard-link. Both this directory and the session
+        # buffer directory sit under the system temp dir, so `os.link`
+        # *succeeded* on the default configuration and the cache entry shared
+        # an inode with the buffer it was promoted from. That cost three
+        # things: the entry's mtime was the buffer's, so every entry promoted
+        # from one buffer tied in the LRU sort and eviction order fell back to
+        # directory order; the `os.utime` LRU touch in `_warm_lookup` rewrote
+        # the buffer's stamp; and refilling that buffer truncated the cached
+        # copy. The comment above this section already promises "exact copies".
+        #
+        # Staged under a temp name and moved into place so a concurrent reader
+        # can never open a half-copied entry, and so re-promoting an
+        # already-cached track replaces it — with a hard link, destination and
+        # source were the same inode, `copyfile` raised SameFileError and the
+        # swallowed error left the entry untouched.
+        shutil.copyfile(src, tmp)
+        os.replace(tmp, dest)
         if mime:
             (d / f"{track_id}.mime").write_text(mime)
         _warm_enforce_limit()
         log.info("stream.warm.promoted", track_id=track_id)
     except OSError:
-        pass
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _warm_lookup(track_id: str) -> Optional[Path]:
