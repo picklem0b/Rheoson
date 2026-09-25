@@ -93,6 +93,63 @@ async def test_extractor_failure_moves_to_the_next_client(job, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_transient_refusal_retries_the_same_client(job, monkeypatch):
+    """A refused transfer must be retried, not answered with another client.
+
+    `unable to download video data: HTTP Error 403` means extraction succeeded
+    and the CDN refused the bytes — a stale signature. Switching player client
+    cannot fix it, and it is also matched by is_extractor_failure(), so this is
+    the case that used to burn every rung and end on "refused this track on
+    every client we tried".
+    """
+    seen: list[list[str]] = []
+
+    async def fake_attempt(job_id, job_dict, cmd, concurrency):
+        seen.append(cmd)
+        if len(seen) == 1:
+            return 1, (
+                "ERROR: unable to download video data: HTTP Error 403: Forbidden"
+            )
+        _write_result(job_id)
+        return 0, ""
+
+    monkeypatch.setattr(ds, "_run_ytdlp_attempt", fake_attempt)
+    monkeypatch.setattr(ds, "_TRANSIENT_RETRY_DELAYS", (0.0, 0.0))
+
+    path = await ds._run_download(job["id"], URL, "Artist")
+
+    assert path is not None and path.read_bytes() == b"AUDIO"
+    assert len(seen) == 2, "one retry, and it must not be a client switch"
+    assert seen[0] == seen[1], "the retry repeats the same client and command"
+
+
+@pytest.mark.asyncio
+async def test_stale_refusal_still_walks_the_ladder_when_retries_run_out(job, monkeypatch):
+    """Retrying is bounded: a client that keeps refusing gives way to the next."""
+    clients: list[str] = []
+
+    async def fake_attempt(job_id, job_dict, cmd, concurrency):
+        if "--extractor-args" in cmd:
+            clients.append(cmd[cmd.index("--extractor-args") + 1])
+        else:
+            clients.append("default")
+        return 1, "ERROR: unable to download video data: HTTP Error 403: Forbidden"
+
+    monkeypatch.setattr(ds, "_run_ytdlp_attempt", fake_attempt)
+    monkeypatch.setattr(ds, "_TRANSIENT_RETRY_DELAYS", (0.0, 0.0))
+
+    with pytest.raises(RuntimeError) as err:
+        await ds._run_download(job["id"], URL, "Artist")
+
+    assert clients.count("default") == 3, "first failure plus two retries"
+    assert len(clients) == len(stream_service.client_attempts()) * 3
+    # The user is told the transfer was cut short — not that every client
+    # refused the track, which is what this failure used to say.
+    assert "cut the transfer short" in str(err.value)
+    assert "every client" not in str(err.value)
+
+
+@pytest.mark.asyncio
 async def test_attempts_do_not_share_a_staging_directory(job, monkeypatch):
     """Leftovers from a failed client must not be mistaken for the result.
 

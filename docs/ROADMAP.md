@@ -76,6 +76,31 @@ debug level. They still fall back.
 
 ---
 
+## v2.20.1 — Transient refusal recovery
+
+**A refused transfer is retried, not answered with another client.**
+`unable to download video data: HTTP Error 403` means extraction *succeeded* and
+the CDN then refused the bytes — typically a signature that expired or is bound
+to the IP it was minted for. It was also listed in `_EXTRACTOR_FAILURE_MARKERS`,
+so the ladder read the one failure a retry fixes as a reason to switch player
+client: it spent every rung and only then reported *"refused this track on every
+client we tried"*. Nothing anywhere retried. Measured on a track failing this
+way, an immediate re-run succeeded 5/5 — re-running re-extracts, which mints a
+fresh URL, which is the actual remedy.
+
+The ladder now checks a refused transfer first and retries the **same** client
+with a bounded backoff (two tries, 1s then 3s) before any client switch, so the
+worst case stays bounded and a cancelled job still aborts between attempts.
+
+**One marker list, not two.** `download_service` carried its own
+`_MEDIA_REFUSED_MARKERS` alongside `stream_service._EXTRACTOR_FAILURE_MARKERS` —
+the same four strings in two places, disagreeing about what `http error 403`
+means. The list now lives once, in `stream_service`, beside
+`is_transient_media_refusal()`, with a test pinning the deliberate overlap so
+the ordering that resolves it cannot silently become dead code.
+
+---
+
 ## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the

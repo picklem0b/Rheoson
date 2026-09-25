@@ -26,16 +26,12 @@ log = structlog.get_logger()
 # case below is something the user can act on. The untouched tail is still
 # logged, so nothing is lost for debugging.
 
-#: The extractor resolved the track, but the media server refused the bytes
-#: partway through. This is almost always a signed URL that expired or is
-#: bound to the IP it was minted for, so it is transient and a retry that
-#: re-resolves genuinely helps.
-_MEDIA_REFUSED_MARKERS = (
-    'unable to download video data',
-    'http error 403',
-    'http error 429',
-    'http error 503',
-)
+#: The bytes were refused after a successful extraction — a signed URL that
+#: expired, or an edge rate-limit — so a retry that re-resolves genuinely
+#: helps. The marker list lives in stream_service next to is_extractor_failure
+#: so the two readings of the same tail cannot drift apart: `http error 403`
+#: appears in both, and which is consulted first decides whether a failure is
+#: retried or answered by switching player client.
 
 #: The video itself is gone, private, or region-blocked. No player client and
 #: no engine update changes that, so the copy must not imply a retry will work.
@@ -83,7 +79,7 @@ def _friendly_download_error(tail: str) -> str:
             'YouTube asked every client we tried to verify this is not a bot. '
             'Add account cookies on the server, or retry from another network.'
         )
-    if any(marker in low for marker in _MEDIA_REFUSED_MARKERS):
+    if stream_service.is_transient_media_refusal(tail):
         return (
             'The media server cut the transfer short. Retry to resume from '
             'where it stopped.'
@@ -588,6 +584,13 @@ async def _run_ytdlp_attempt(
     return rc, ' | '.join(stderr_tail[-6:])
 
 
+#: Backoff before re-running an attempt whose bytes the media server refused.
+#: Two retries, because one is normally enough and the second covers an edge
+#: rate-limit that needs a moment to lift. Bounded on purpose: the sleep is
+#: awaited, so a cancelled job still aborts between attempts.
+_TRANSIENT_RETRY_DELAYS = (1.0, 3.0)
+
+
 async def _run_download(
     job_id:        str,
     yt_url:        str,
@@ -696,6 +699,26 @@ async def _run_download(
 
         used_client = extractor_args[0] if extractor_args else 'default'
         rc, tail = await _run_ytdlp_attempt(job_id, job, cmd, concurrency)
+
+        # A refused transfer is retried on the *same* client before the ladder
+        # moves on. Extraction already succeeded — only the bytes were refused —
+        # so another client has nothing to contribute, while re-running mints a
+        # fresh URL. `http error 403` also matches is_extractor_failure(), so
+        # without this the one failure a retry fixes was read as a reason to
+        # switch clients: the ladder spent every rung and finished on "refused
+        # this track on every client we tried" for a purely transient refusal.
+        for delay in _TRANSIENT_RETRY_DELAYS:
+            if rc == 0 or not stream_service.is_transient_media_refusal(tail):
+                break
+            log.warning(
+                'download.transient_retry',
+                job_id=job_id,
+                client=used_client,
+                delay=delay,
+            )
+            await asyncio.sleep(delay)
+            rc, tail = await _run_ytdlp_attempt(job_id, job, cmd, concurrency)
+
         if rc == 0:
             break
 
