@@ -101,6 +101,30 @@ the ordering that resolves it cannot silently become dead code.
 
 ---
 
+## v2.20.2 — A test run that tells the truth
+
+**Zero warnings.** On Python 3.14 the suite emitted 17,909 warnings — every
+one from third-party code calling `asyncio` APIs deprecated in 3.14
+(`pytest-asyncio` 0.23 drove the loop through `get/set_event_loop_policy`; FastAPI and
+Starlette called `asyncio.iscoroutinefunction`). Nothing came from `app/` or
+`tests/`, and Python 3.16 will remove the calls outright. Upgraded
+`pytest-asyncio` 0.23.7 → 1.4.0 (needs pytest ≥ 8.4, so pytest 8.2.2 → 9.1.1)
+and FastAPI 0.111 → 0.141 / Starlette 0.37 → 1.7, whose floors stopped calling
+the deprecated APIs. The suite now prints **343 passed** and nothing else.
+
+**A guard rail that had gone blind.** The upgrade failed
+`test_route_count_sane_and_health_exported`, and for a good reason: FastAPI
+0.141 no longer flattens `include_router` children into `app.routes` — it adds
+a lazy wrapper holding the handlers and the mount prefix. The endpoint
+inventory's `_routes()` filtered `app.routes` for `APIRoute` instances and had
+been iterating **13 of the 108 registered routes**, so `test_openapi_covers_registered_routes`,
+`test_every_mutating_route_requires_auth` and `test_public_get_routes_never_500`
+were passing while checking almost nothing. `_routes()` now walks the wrappers
+(`original_router` + `include_context.prefix`), re-attaches the effective path,
+and the auth/OpenAPI guards see the full surface again.
+
+---
+
 ## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the
