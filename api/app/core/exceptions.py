@@ -1,5 +1,5 @@
 import structlog
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 log = structlog.get_logger()
@@ -55,6 +55,25 @@ async def Rheoson_exception_handler(request: Request, exc: RheosonException):
         status_code=exc.code,
         content={"detail": exc.message, "type": type(exc).__name__},
     )
+
+
+async def http_exception_handler(request: Request, exc: "HTTPException"):
+    """Emit the error-code envelope on every HTTPException-shaped failure.
+
+    Exceptions built by ``error_codes.fail()`` carry their registry code in
+    the detail (``… [ERR 40006]``) and on ``exc.error_code``; those become the
+    structured ``code`` field. Any other HTTPException keeps its detail and
+    gets no code — the frontend falls back to the status code. Registered in
+    app.main so plain ``raise HTTPException(...)`` still produces one
+    consistent response shape.
+    """
+    code = getattr(exc, "error_code", None)
+    detail = exc.detail if isinstance(exc.detail, str) else "Request failed"
+    content: dict = {"detail": detail}
+    if code is not None:
+        content["code"] = code
+    headers = getattr(exc, "headers", None)
+    return JSONResponse(status_code=exc.status_code, content=content, headers=headers)
 
 
 async def generic_exception_handler(request: Request, exc: Exception):

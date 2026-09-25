@@ -13,7 +13,7 @@ import re
 import structlog
 from datetime import datetime, timezone
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.config import settings
 from app.core.database import db_available, get_db
@@ -33,6 +33,7 @@ from app.services.ytmusic_service import get_track as yt_get_track
 from app.services.signal_service import record_signal
 from app.models.recommendation import SignalType
 from app.schemas.track_schema import TrackSchema
+from app.core import error_codes
 
 log = structlog.get_logger()
 router = APIRouter()
@@ -306,7 +307,7 @@ async def report_signal(
     try:
         signal_type = SignalType(signal_str)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Unknown signal: {signal_str}")
+        raise error_codes.fail(error_codes.TRACK.SIGNAL_UNKNOWN, 400, append=f": {signal_str}")
 
     artist = body.get("artist")
     if not artist and body.get("track_id"):
@@ -371,7 +372,7 @@ async def get_track_stats(
 async def get_track(track_id: str, _user: dict = Depends(get_current_user)):
     t = await _hydrate_track(track_id)
     if not t:
-        raise HTTPException(status_code=404, detail=f"Track not found: {track_id}")
+        raise error_codes.fail(error_codes.TRACK.NOT_FOUND, 404, append=f": {track_id}")
     return t
 
 

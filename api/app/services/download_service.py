@@ -750,7 +750,9 @@ async def _run_download(
             client=used_client,
             tail=tail[:500],
         )
-        raise RuntimeError(_friendly_download_error(tail))
+        from app.core.error_codes import fail, DOWNLOAD
+        exc = fail(DOWNLOAD.FAILED, 500, append=f" — {_friendly_download_error(tail)}")
+        raise RuntimeError(exc.detail) from None
 
     files = [
         p for p in staging.iterdir()

@@ -101,7 +101,10 @@ async def test_invalid_token_is_rejected_not_downgraded():
             headers={"Authorization": "Bearer not-a-real-token"},
         )
     assert res.status_code == 401
-    assert "Invalid or expired" in res.text
+    # Registry code 10002 — a presented-but-invalid token is rejected, and
+    # the code field lets the client tell this apart from "not signed in".
+    assert res.json().get("code") == "ASE02"
+    assert "expired or invalid" in res.text.lower()
 
 
 @pytest.mark.asyncio
@@ -114,7 +117,10 @@ async def test_invalid_token_on_strict_endpoint_still_401s():
             headers={"Authorization": "Bearer not-a-real-token"},
         )
     assert res.status_code == 401
-    assert "Invalid or expired" in res.text
+    # Registry code 10002 — a presented-but-invalid token is rejected, and
+    # the code field lets the client tell this apart from "not signed in".
+    assert res.json().get("code") == "ASE02"
+    assert "expired or invalid" in res.text.lower()
 
 
 @pytest.mark.asyncio

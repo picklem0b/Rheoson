@@ -125,6 +125,22 @@ and the auth/OpenAPI guards see the full surface again.
 
 ---
 
+## v2.20.3 — DCCNN error codes
+
+**A code on every failure.** Users reporting a problem now have something to
+quote: `Download failed [ERR DEX01]`. Codes are five characters — domain
+letter, two-letter category, two-digit sequence — so the code itself carries
+meaning: D=downloads, A=auth, P=playlists…; VA=validation, NF=not-found,
+EX=execution failed. One registry owns every code (`app/core/error_codes.py`),
+`fail()` refuses to raise an unregistered code, and a contract test pins
+uniqueness, domain-letter consistency, DCCNN shape and the sync of
+`docs/ERROR_CODES.md`. Every `HTTPException` in the routers now goes through
+the registry, and the response handler emits a structured `code` field so the
+frontend never parses it out of the message text. The download failure path
+attaches its registry code to the job's error message.
+
+---
+
 ## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the

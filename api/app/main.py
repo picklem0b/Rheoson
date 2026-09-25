@@ -14,7 +14,7 @@ from pathlib import Path
 import httpx
 import socketio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
@@ -28,6 +28,7 @@ from app.core.exceptions import (
     RheosonException,
     Rheoson_exception_handler,
     generic_exception_handler,
+    http_exception_handler,
 )
 from app.websocket.ws_manager import ws_manager
 from app.websocket.ws_events import register_events
@@ -51,7 +52,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.20.2"
+VERSION = "2.20.3"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -458,6 +459,9 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 app.add_middleware(MetricsMiddleware)
 
 app.add_exception_handler(RheosonException, Rheoson_exception_handler)
+# HTTPException needs its own registration: Starlette's built-in handler would
+# otherwise render these without the ``code`` field the frontend reads.
+app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(Exception,        generic_exception_handler)
 
 

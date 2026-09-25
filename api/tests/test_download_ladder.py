@@ -13,7 +13,6 @@ error the user needs to see.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import pytest
 
@@ -144,7 +143,11 @@ async def test_stale_refusal_still_walks_the_ladder_when_retries_run_out(job, mo
     assert clients.count("default") == 3, "first failure plus two retries"
     assert len(clients) == len(stream_service.client_attempts()) * 3
     # The user is told the transfer was cut short — not that every client
-    # refused the track, which is what this failure used to say.
+    # refused the track, which is what this failure used to say. The DCCNN
+    # code travels with the message so support can trace the raise site.
+    # The DCCNN code travels with the message so support can trace the
+    # raise site: 'Download failed — <advice> [ERR DEX01]'.
+    assert str(err.value).endswith("[ERR DEX01]")
     assert "cut the transfer short" in str(err.value)
     assert "every client" not in str(err.value)
 
