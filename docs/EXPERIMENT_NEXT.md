@@ -12,7 +12,7 @@ Rheoson/
 │   ├── client/        Next.js FULL WEBSITE + PWA (installable, no APK)
 │   ├── server/        Node/TS: API core, Clerk auth, Postgres/Drizzle
 │   └── services/
-│       ├── go/        STREAM RELAY — bytes, range, cache-tee (the user writes this)
+│       ├── go/        STREAM RELAY — bytes, range, cache-tee (agent-written, Phase 1)
 │       ├── py/        yt-dlp · ffmpeg · mutagen tagging · .part resume
 │       ├── node/      realtime gateway (WS/SSE) + BullMQ workers
 │       ├── search/    Meilisearch (Rust, off-the-shelf — configure, don't write)
@@ -60,7 +60,15 @@ Rheoson/
 | PHP | Skipped — no natural slot |
 | Java analyze | Reserved slot, later phase |
 | APK | Replaced by PWA (Media Session, offline shell, install prompt) |
-| Go relay | **The user writes the Go**; agent integrates it as `services/go` |
+| Go relay | **Agent writes the Go relay in Phase 1**; user reviews. Contract below.
+
+## Deployment posture (locked)
+
+Termux is no longer a design constraint. The experiment targets:
+
+- **Dev/prod parity via Docker** — `infra/docker-compose.yml` runs postgres, redis, meilisearch, caddy; services and apps get their own compose blocks.
+- **CI via GitHub Actions** — build/test matrix across Node, Go, and Python; container images published on main.
+- **Scale path** — any Docker host (VPS, Fly.io, Railway, or bigger) with zero code changes; the services-optional design is retained for *resilience*, not device limits.
 
 ## Phases — each ends with something visible
 
