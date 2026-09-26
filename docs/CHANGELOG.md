@@ -6,6 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.20.6 — The website, findable
+
+- feat(seo): **robots.txt, sitemap.xml, canonical URL, og:url/site_name, Twitter card, JSON-LD WebApplication and a descriptive title/description/keywords** — the site was absent from Google entirely (zero results); every discovery primitive now ships in the build.
+- feat(seo): per-route head updates (title/canonical/og:url) via `lib/seo.ts`, wired into the router subscription with deep-link coverage; six tests pin mapping and idempotency.
+
+## v2.20.5 — Server failures take the page
+
+- feat(errors): **unhandled ≥500 API failures navigate to the error page** with status, message and DCCNN code in router state (replace, deduplicated); the error page's ⓘ panel renders the `[ERR …]` chip.
+- feat(errors): gateway responses (502/503/504) get one silent wake-up retry first; probe callers (health endpoints, Doctor, version poller, downloads list) opt out via `_noFatalRedirect` and keep presenting failures inline.
+
 ## v2.20.4 — One error surface, everywhere
 
 Errors now have one visual treatment across the whole app.

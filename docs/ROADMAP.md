@@ -179,6 +179,62 @@ deterministic at **15 files / 141 tests**, every file every time.
 
 ---
 
+## v2.20.5 — Server failures take the page
+
+**An unhandled 5xx now navigates to the error page instead of evaporating in a
+toast.** The API client funnels every call, so it is the one place that can
+route a server failure to the `/error` surface built in v2.20.4: the failure's
+status, message and DCCNN code travel in router state, the navigation replaces
+(not pushes — the failed screen is not a destination), and repeated failures
+collapse into one navigation. The error page's ⓘ panel now also renders the
+`[ERR …]` chip.
+
+**Failures that are somebody's job stay somebody's job.** Gateway-class
+responses (502/503/504) get one silent retry after 1.5 s before anything is
+declared fatal — Render free-tier instances wake slowly, and one probe round
+absorbs most of them. Probe callers opt out entirely via `_noFatalRedirect`:
+the health endpoints and the Doctor present a failing backend as findings
+(that is their whole purpose), the version poller is background best-effort,
+and download failures stay in the Downloads list where retry lives — the same
+reason v2.20.0 kept failed job records durable. Status 0 (unreachable) still
+belongs to the NetworkErrorBanner, whose polling makes recovery visible.
+
+---
+
+## v2.20.6 — The website, findable
+
+**Google had never heard of us.** A site search returned zero results — not
+low ranking, *absent*. The cause was structural: the repo had no robots.txt,
+no sitemap, no canonical URL, no og:url, no structured data, and a bare
+`<title>Rheoson</title>` that gave crawlers one word to work with. The
+verification file deployed in v2.20.0 only proves ownership to Search
+Console; nothing since told any crawler the site exists or what it is.
+
+The whole discovery layer now ships:
+
+- **robots.txt** — public routes crawlable; session/personal surfaces
+  (settings, profile, stats, wrapped, auth) disallowed; sitemap declared.
+- **sitemap.xml** — the SPA's public routes with priorities that reflect
+  reality (home 1.0, landing 0.7, session-gated app pages low).
+- **Head overhaul** — descriptive title and meta description, keywords,
+  canonical URL, `og:url`/`og:site_name`/`og:image:alt`, Twitter summary
+  card, `robots` meta, and JSON-LD `WebApplication` structured data so the
+  results page can render what the product is.
+- **Per-route head updates** (`lib/seo.ts`) — every navigation rewrites
+  title/canonical/og:url ("Search — Rheoson", "Your Library — Rheoson", …),
+  wired via the router's subscription so no page imports anything; deep
+  links are covered by an immediate first call. Six tests pin the mapping
+  and idempotency.
+
+Honest expectation: this makes the site *crawlable and describable*, which
+is the precondition for ranking — not ranking itself. Indexing a new domain
+takes days-to-weeks after Search Console sees the sitemap, and a one-page
+SPA with no public catalog has thin content to rank. The follow-up that
+actually earns traffic is public, signed-out catalog pages (artists,
+albums) — that is when this layer starts paying.
+
+---
+
 ## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the
