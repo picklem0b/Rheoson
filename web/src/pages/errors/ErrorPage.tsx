@@ -30,12 +30,15 @@ import { cn } from '@/lib/utils'
 export default function ErrorPage({
   status,
   message,
+  code,
   onRetry,
   actions,
 }: {
   status: number
   /** Raw detail from an API failure, if one exists. */
   message?: string
+  /** Backend DCCNN registry code (e.g. "DEX01") — rendered as a chip in the panel. */
+  code?: string
   /** Optional retry action — rendered as the primary button in the panel. */
   onRetry?: () => void
   /** Callers supply the action row (Go back / Home, Reload app, …). */
@@ -144,6 +147,15 @@ export default function ErrorPage({
               <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)] break-words
                             border-t border-[var(--border)]/40 pt-3">
                 {message}
+              </p>
+            )}
+            {code && (
+              <p className="mt-3 pt-3 border-t border-[var(--border)]/40 text-xs
+                            text-[var(--text-muted)]">
+                Error code{' '}
+                <span className="ml-1 font-mono font-semibold text-[var(--text-primary)]">
+                  [ERR {code}]
+                </span>
               </p>
             )}
             {onRetry && (

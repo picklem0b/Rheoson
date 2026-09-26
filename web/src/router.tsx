@@ -86,3 +86,16 @@ export const routes = [
 ]
 
 export const router = createBrowserRouter(routes)
+
+// Expose the live router for navigation from outside React — the API
+// client's fatal-5xx path (lib/fatalApiError.ts) navigates to /error from
+// an interceptor with no component in sight. Optional and checked, so the
+// module stays a no-op in tests and non-browser contexts.
+declare global {
+  interface Window {
+    __rheosonRouter?: typeof router
+  }
+}
+if (typeof window !== 'undefined') {
+  window.__rheosonRouter = router
+}

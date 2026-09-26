@@ -90,14 +90,18 @@ export interface SelftestPayload {
 
 export const healthApi = {
    /** Cheap, unauthenticated snapshot. */
-   snapshot: () => api.get<HealthPayload>('/health'),
+   snapshot: () => api.get<HealthPayload>('/health', PROBE),
 
    /** Fresh deep probe. Requires a session. */
-   deep: () => api.get<HealthPayload>('/health/diag'),
+   deep: () => api.get<HealthPayload>('/health/diag', PROBE),
 
    /** Path-level self-test: drives real read-only requests through the
     *  backend's own stack. Requires a session (runs live upstream calls). */
-   selftest: () => api.get<SelftestPayload>('/health/selftest'),
+   selftest: () => api.get<SelftestPayload>('/health/selftest', PROBE),
 }
+
+/** Health endpoints *diagnose* a possibly-dead backend — a 5xx is a finding
+ *  to render inline (Doctor), never a reason to sweep the user onto /error. */
+const PROBE = { _noFatalRedirect: true } as const
 
 export const { snapshot: healthSnapshot, deep: healthDeep } = healthApi

@@ -32,7 +32,8 @@ export async function checkForUpdate(): Promise<VersionInfo | null> {
   _lastCheck = now;
 
   try {
-    const info = await api.get<VersionInfo>('/version');
+    // Background poller: a 5xx here must never yank the user onto /error.
+    const info = await api.get<VersionInfo>('/version', { _noFatalRedirect: true });
     if (info?.version && semverGt(info.version, APP_VERSION)) {
       return info;
     }

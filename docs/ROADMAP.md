@@ -179,6 +179,28 @@ deterministic at **15 files / 141 tests**, every file every time.
 
 ---
 
+## v2.20.5 — Server failures take the page
+
+**An unhandled 5xx now navigates to the error page instead of evaporating in a
+toast.** The API client funnels every call, so it is the one place that can
+route a server failure to the `/error` surface built in v2.20.4: the failure's
+status, message and DCCNN code travel in router state, the navigation replaces
+(not pushes — the failed screen is not a destination), and repeated failures
+collapse into one navigation. The error page's ⓘ panel now also renders the
+`[ERR …]` chip.
+
+**Failures that are somebody's job stay somebody's job.** Gateway-class
+responses (502/503/504) get one silent retry after 1.5 s before anything is
+declared fatal — Render free-tier instances wake slowly, and one probe round
+absorbs most of them. Probe callers opt out entirely via `_noFatalRedirect`:
+the health endpoints and the Doctor present a failing backend as findings
+(that is their whole purpose), the version poller is background best-effort,
+and download failures stay in the Downloads list where retry lives — the same
+reason v2.20.0 kept failed job records durable. Status 0 (unreachable) still
+belongs to the NetworkErrorBanner, whose polling makes recovery visible.
+
+---
+
 ## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the

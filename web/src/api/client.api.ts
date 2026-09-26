@@ -1,6 +1,7 @@
 import { API_BASE, isClerkEnabled } from "@/lib/constants";
 import { isOnline } from "@/lib/network";
 import { queueMutation, initAutoSync } from "@/lib/offlineQueue";
+import { reportFatalApiError } from "@/lib/fatalApiError";
 
 export interface ApiError extends Error {
    status: number;
@@ -17,6 +18,12 @@ interface RequestOptions extends RequestInit {
    _skipTokenCache?: boolean;
    /** If true, this request will be queued locally when offline instead of throwing. */
    _offlineQueue?: boolean;
+   /**
+    * Opt out of the fatal-5xx redirect to /error. For callers whose job is
+    * probing a possibly-dead backend (Doctor, health checks): they present
+    * the failure inline instead of being swept off their own page.
+    */
+   _noFatalRedirect?: boolean;
 }
 
 const BODY_FREE = new Set(["GET", "HEAD", "DELETE"]);
@@ -142,7 +149,7 @@ async function request<T>(
    endpoint: string,
    options: RequestOptions = {}
 ): Promise<T> {
-   const { params, signal, _retryCount = 0, _offlineQueue = false, _skipTokenCache = false, ...init } = options;
+   const { params, signal, _retryCount = 0, _offlineQueue = false, _skipTokenCache = false, _noFatalRedirect = false, ...init } = options;
    const method = (init.method ?? "GET").toUpperCase();
 
    const headers: Record<string, string> = {
@@ -202,15 +209,31 @@ async function request<T>(
       // WebView), or a host whose catch-all route answers every path with
       // index.html. Both are configuration, not outages, so the message
       // names the base that was actually used instead of blaming the server.
-      throw makeError(
+      // A 5xx status here is a gateway error page — same fatal semantics
+      // as a JSON 5xx below.
+      const err = makeError(
          res.status,
          res.ok
             ? `The API base is misconfigured — ${API_BASE} served a web page, not JSON. Check Settings → Doctor → Diagnosis.`
             : `Backend offline (${res.status}) — nothing reachable at ${API_BASE}`
       );
+      if (res.status >= 500 && !_noFatalRedirect) reportFatalApiError(err);
+      throw err;
    }
 
    if (!res.ok) {
+      // Gateway-class failures (502/503/504) usually mean the backend is
+      // still waking up. One quiet retry after a short wait before treating
+      // the failure as fatal — probe callers opt out via _noFatalRedirect.
+      if (
+         (res.status === 502 || res.status === 503 || res.status === 504) &&
+         !_noFatalRedirect &&
+         method === "GET" &&
+         _retryCount < 1
+      ) {
+         await new Promise((r) => setTimeout(r, 1500));
+         return request<T>(endpoint, { ...options, _retryCount: _retryCount + 1 });
+      }
       // 401 handling — auth endpoints must surface 401s to the form, never
       // redirect. Everything else depends on the auth mode:
       //
@@ -259,7 +282,11 @@ async function request<T>(
       // Older backends embed the code in the detail text; prefer the
       // structured field, fall back to the suffix.
       const parsed = splitErrorCode(detail);
-      throw makeError(res.status, parsed.message, code ?? parsed.code);
+      const err = makeError(res.status, parsed.message, code ?? parsed.code);
+      // An unhandled server failure takes the error page, not a toast —
+      // unless the caller is a probe that handles failures itself.
+      if (res.status >= 500 && !_noFatalRedirect) reportFatalApiError(err);
+      throw err;
    }
 
    if (res.status === 204 || res.headers.get("content-length") === "0") {
