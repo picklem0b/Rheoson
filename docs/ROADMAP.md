@@ -201,6 +201,40 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.20.6 — The website, findable
+
+**Google had never heard of us.** A site search returned zero results — not
+low ranking, *absent*. The cause was structural: the repo had no robots.txt,
+no sitemap, no canonical URL, no og:url, no structured data, and a bare
+`<title>Rheoson</title>` that gave crawlers one word to work with. The
+verification file deployed in v2.20.0 only proves ownership to Search
+Console; nothing since told any crawler the site exists or what it is.
+
+The whole discovery layer now ships:
+
+- **robots.txt** — public routes crawlable; session/personal surfaces
+  (settings, profile, stats, wrapped, auth) disallowed; sitemap declared.
+- **sitemap.xml** — the SPA's public routes with priorities that reflect
+  reality (home 1.0, landing 0.7, session-gated app pages low).
+- **Head overhaul** — descriptive title and meta description, keywords,
+  canonical URL, `og:url`/`og:site_name`/`og:image:alt`, Twitter summary
+  card, `robots` meta, and JSON-LD `WebApplication` structured data so the
+  results page can render what the product is.
+- **Per-route head updates** (`lib/seo.ts`) — every navigation rewrites
+  title/canonical/og:url ("Search — Rheoson", "Your Library — Rheoson", …),
+  wired via the router's subscription so no page imports anything; deep
+  links are covered by an immediate first call. Six tests pin the mapping
+  and idempotency.
+
+Honest expectation: this makes the site *crawlable and describable*, which
+is the precondition for ranking — not ranking itself. Indexing a new domain
+takes days-to-weeks after Search Console sees the sitemap, and a one-page
+SPA with no public catalog has thin content to rank. The follow-up that
+actually earns traffic is public, signed-out catalog pages (artists,
+albums) — that is when this layer starts paying.
+
+---
+
 ## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the

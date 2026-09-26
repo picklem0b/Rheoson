@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { applyRouteSeo } from '@/lib/seo'
 import RootLayout from '@/components/layout/RootLayout'
 import AuthGuard from '@/components/layout/AuthGuard'
 import Home from '@/pages/home/Home'
@@ -86,6 +87,17 @@ export const routes = [
 ]
 
 export const router = createBrowserRouter(routes)
+
+// Per-route head updates (title / canonical / og:url) on every navigation —
+// the SPA's SEO surface without any page importing anything. The immediate
+// call covers deep links (direct /landing hits), where no navigation event
+// ever fires.
+if (typeof window !== 'undefined') {
+  applyRouteSeo(router.state.location.pathname)
+  router.subscribe((state) => {
+    applyRouteSeo(state.location.pathname)
+  })
+}
 
 // Expose the live router for navigation from outside React — the API
 // client's fatal-5xx path (lib/fatalApiError.ts) navigates to /error from

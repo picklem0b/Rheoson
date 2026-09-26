@@ -18,15 +18,69 @@
 			content="black-translucent"
 		/>
 		<meta name="apple-mobile-web-app-title" content="Rheoson" />
-		<meta name="description" content="Feel the Beat. Self-hosted music streaming and downloads." />
+
+		<!-- ── SEO ────────────────────────────────────────────────
+		     Static defaults for the app shell. Per-route values are set at
+		     runtime by lib/seo.ts (document.title + meta[cannonical] swaps).
+		     Google renders JS, but the static defaults are what every
+		     non-JS consumer (IM scrapers, some engines) will ever see. -->
+		<title>Rheoson — Feel the Beat. Self-hosted music streaming.</title>
+		<meta
+			name="description"
+			content="Rheoson is a self-hosted music streaming app: stream and download your music on Android, Termux and the web. Your library, your server, offline downloads, lyrics and recommendations."
+		/>
+		<meta
+			name="keywords"
+			content="rheoson, rheoson app, spotify, rhoson repo, spotify clone, free spotify, rheoson by picklem0b, rheoson by lethabo khedama, self-hosted music streaming, music downloader, offline music app, android music player, termux music server, open source spotify alternative, mp3 downloader, personal music server"
+		/>
+		<link rel="canonical" href="https://rheoson.onrender.com/" />
+		<meta name="robots" content="index, follow" />
 
 		<!-- Open Graph -->
 		<meta property="og:title" content="Rheoson — Feel the Beat" />
-		<meta property="og:description" content="Self-hosted music streaming and downloads." />
-		<meta property="og:image" content="/assets/logo.png" />
+		<meta
+			property="og:description"
+			content="Self-hosted music streaming and downloads. Your library, your server — on Android and the web."
+		/>
+		<meta
+			property="og:image"
+			content="https://rheoson.onrender.com/assets/logo.png"
+		/>
+		<meta property="og:image:alt" content="Rheoson logo" />
 		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Rheoson" />
+		<meta property="og:url" content="https://rheoson.onrender.com/" />
+		<meta property="og:locale" content="en_US" />
 
-		<title>Rheoson</title>
+		<!-- Twitter/X -->
+		<meta name="twitter:card" content="summary" />
+		<meta name="twitter:title" content="Rheoson — Feel the Beat" />
+		<meta
+			name="twitter:description"
+			content="Self-hosted music streaming and downloads. Your library, your server."
+		/>
+		<meta
+			name="twitter:image"
+			content="https://rheoson.onrender.com/assets/logo.png"
+		/>
+
+		<!-- Structured data — what the results page can render about us -->
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "WebApplication",
+				"name": "Rheoson",
+				"url": "https://rheoson.onrender.com/",
+				"applicationCategory": "MultimediaApplication",
+				"operatingSystem": "Android, Web",
+				"description": "Self-hosted music streaming and downloads. Your library, your server — on Android and the web.",
+				"offers": {
+					"@type": "Offer",
+					"price": "0",
+					"priceCurrency": "USD"
+				}
+			}
+		</script>
 
 		<!-- Fonts -->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -39,7 +93,7 @@
 	<body class="bg-base text-primary antialiased overflow-hidden">
 		<div id="root"></div>
 		<script>
-			if (import.meta.env.DEV) {
+			if (import.meta.env.development) {
 			    const script = document.createElement("script");
 			    script.src = "https://cdn.jsdelivr.net/npm/eruda";
 			    script.onload = () => eruda.init();
