@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Palette, SpeakerHigh, DownloadSimple, Keyboard, Info, CaretRight, CaretLeft, User, Bell, Shield, HardDrives, Layout, ChartLineUp, Stethoscope } from '@phosphor-icons/react'
+import { Palette, SpeakerHigh, DownloadSimple, Keyboard, Info, CaretRight, CaretLeft, Bell, HardDrives, Layout, ChartLineUp, Stethoscope, SlidersHorizontal, WifiHigh } from '@phosphor-icons/react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { ProfileRow } from '@/components/ui/ProfileRow'
 import { APP_VERSION } from '@/lib/constants'
@@ -9,8 +9,11 @@ import { cn } from '@/lib/utils'
 import AppearanceSection    from './sections/AppearanceSection'
 import LayoutSection        from './sections/LayoutSection'
 import AudioSection         from './sections/AudioSection'
+import PlaybackSection      from './sections/PlaybackSection'
 import DownloadsSection     from './sections/DownloadsSection'
 import StorageSection       from './sections/StorageSection'
+import StreamingSection     from './sections/StreamingSection'
+import DataOfflineSection   from './sections/DataOfflineSection'
 import AccountSection       from './sections/AccountSection'
 import PrivacySection       from './sections/PrivacySection'
 import NotificationsSection from './sections/NotificationsSection'
@@ -20,10 +23,10 @@ import StatsSection         from './sections/StatsSection'
 import DiagnosticsSection   from './sections/DiagnosticsSection'
 
 type Section =
-  | 'appearance' | 'layout'  | 'audio'
+  | 'appearance' | 'layout'  | 'audio' | 'playback'
   | 'downloads'  | 'storage' | 'notifications'
   | 'account'    | 'privacy' | 'shortcuts' | 'about'
-  | 'stats'      | 'diagnostics'
+  | 'stats'      | 'diagnostics' | 'streaming' | 'data-offline'
 
 interface SectionMeta {
   id:    Section
@@ -41,21 +44,22 @@ interface SectionMeta {
 // clearer "where am I" signal.
 const GROUPS: { label: string; items: SectionMeta[] }[] = [
   {
-    label: 'Personalisation',
+    label: 'Sound & playback',
     items: [
-      { id: 'appearance', label: 'Appearance',    desc: 'Theme, accent, transparency',  Icon: Palette },
-      { id: 'layout',     label: 'Layout',        desc: 'Navigation, fonts, sidebar',   Icon: Layout },
-      { id: 'audio',      label: 'Audio',         desc: 'Autoplay, EQ, normalisation',  Icon: SpeakerHigh },
-      { id: 'downloads',  label: 'Downloads',     desc: 'Format, quality, concurrency', Icon: DownloadSimple },
-      { id: 'storage',    label: 'Storage',       desc: 'Directories, library, cache',  Icon: HardDrives },
+      { id: 'notifications', label: 'Notifications', desc: 'Sound effects & chimes',       Icon: Bell },
+      { id: 'audio',         label: 'Audio quality', desc: 'EQ, normalisation, output',    Icon: SpeakerHigh },
+      { id: 'playback',      label: 'Playback',      desc: 'Speed, gapless, seek, haptics', Icon: SlidersHorizontal },
     ],
   },
   {
-    label: 'Account & privacy',
+    label: 'App & data',
     items: [
-      { id: 'notifications', label: 'Notifications', desc: 'Sound effects & chimes',      Icon: Bell },
-      { id: 'account',       label: 'Account',       desc: 'Profile, Spotify credentials', Icon: User },
-      { id: 'privacy',       label: 'Privacy',       desc: 'ClockCounterClockwise, backup, legal',       Icon: Shield },
+      { id: 'appearance',    label: 'Layout',             desc: 'Theme, accent, navigation',  Icon: Palette },
+      { id: 'layout',        label: 'Navigation & fonts', desc: 'Nav style, fonts, sidebar',  Icon: Layout },
+      { id: 'streaming',     label: 'Streaming',          desc: 'Autoplay, warm-ahead',       Icon: WifiHigh },
+      { id: 'data-offline',  label: 'Data-saving & offline', desc: 'Offline cache & limits',  Icon: HardDrives },
+      { id: 'downloads',     label: 'Downloads',          desc: 'Format, quality, concurrency', Icon: DownloadSimple },
+      { id: 'storage',       label: 'Storage',            desc: 'Directories, library, caches', Icon: HardDrives },
     ],
   },
   {
@@ -79,8 +83,11 @@ function SectionContent({ id }: { id: Section }) {
     case 'appearance':    return <AppearanceSection />
     case 'layout':        return <LayoutSection />
     case 'audio':         return <AudioSection />
+    case 'playback':      return <PlaybackSection />
     case 'downloads':     return <DownloadsSection />
     case 'storage':       return <StorageSection />
+    case 'streaming':     return <StreamingSection />
+    case 'data-offline':  return <DataOfflineSection />
     case 'account':       return <AccountSection />
     case 'privacy':       return <PrivacySection />
     case 'notifications': return <NotificationsSection />
@@ -95,7 +102,14 @@ function SectionContent({ id }: { id: Section }) {
 const DETAIL_SPRING = { type: 'spring' as const, damping: 28, stiffness: 300 }
 
 export default function GearSix() {
-  const [active, setActive] = useState<Section | null>(null)
+  const [active, setActive] = useState<Section | null>(() => {
+    // Deep link: /settings?section=privacy opens that section directly —
+    // the profile sheet's Privacy and Account entries land here.
+    const p = new URLSearchParams(window.location.search).get('section')
+    return p && GROUPS.some((g) => g.items.some((s) => s.id === p))
+      ? (p as Section)
+      : null
+  })
   const meta = GROUPS.flatMap((g) => g.items).find((s) => s.id === active) ?? null
 
   // Lets a section send the user to another one — the Doctor's storage finding

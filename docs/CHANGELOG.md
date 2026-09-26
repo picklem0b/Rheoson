@@ -6,6 +6,13 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.21.3 — Everything personal behind your face
+
+- feat(nav): **the profile picture replaces the gear icon** in both navs, opening a sheet with Settings, Listening stats, About, Privacy and Account (the last three deep-link into their settings sections).
+- feat(settings): regrouped — Notifications, **Audio quality**, **Playback** (speed, gapless, seek step, haptics), Layout, Navigation & fonts, **Streaming** (autoplay, warm-ahead), **Data-saving & offline** (offline cache), Downloads, Storage.
+- feat(about): a real **changelog reader** replaces the release tag chips; **Contributing** button added beside the GitHub star button.
+- feat(privacy): **the full privacy documentation renders in the app** — what data exists, where it lives, who receives it, how to remove it.
+
 ## v2.21.2 — The library answers back
 
 - feat(library): a **library-wide search field** filters favourites, playlists, albums and artists live, with per-section no-matches states.

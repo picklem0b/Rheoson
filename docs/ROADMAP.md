@@ -201,6 +201,24 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.21.3 — Everything personal behind your face
+
+The gear icon left the navigation; the profile picture opens a sheet
+that carries **Settings, Listening stats, About, Privacy and Account**.
+Settings regrouped to match how listeners think: Sound & playback
+(Notifications, Audio quality, Playback — with the real speed control,
+gapless, seek step and haptics), App & data (Layout, Navigation &
+fonts, **Streaming** for autoplay and warm-ahead, **Data-saving &
+offline** for the offline cache, Downloads, Storage). About replaced
+the tag-chip strip with a real changelog reader and gained a
+**Contributing** button beside the stars. The Privacy section now
+contains the full documentation in-app — what data exists, where it
+lives, who receives it, and how to remove each kind — not just a link.
+Every section keeps a live consumer; nothing decorative survived the
+move.
+
+---
+
 ## v2.21.2 — The library answers back
 
 A library-wide search field filters favourites, playlists, albums and

@@ -7,68 +7,29 @@ import {
 } from "../components/SettingsPrimitives";
 import {
    EQ_PRESETS,
-   setEQPreset,
-   applyFromStorage
+   applyFromStorage,
+   setEQPreset
 } from "@/lib/audioEffects";
-import { useToast } from "@/components/ui/Toaster";
-import { haptic } from "@/lib/haptics";
 
 /**
- * Audio settings — every control here is read live by the audio engine
- * (lib/audioEffects.ts) or the queue controller. Controls whose only
- * effect was writing an unread localStorage key were removed: a toggle
- * that does nothing is worse than no toggle.
+ * Audio — sound quality and output shaping only.
+ *
+ * Transport behaviour (speed, gapless, seek step, haptics) moved to the
+ * Playback section; autoplay moved to Streaming. What stays here is the
+ * signal chain: normalisation, pre-amp, bass boost, mono and the EQ.
  */
 export default function AudioSection() {
-   const [autoplay, setAutoplay] = usePersisted("autoplay", true);
    const [normalize, setNormalize] = usePersisted("normalize", true);
    const [eqPreset, setEqPreset] = usePersisted<string>("eq-preset", "Flat");
    const [bassBoost, setBassBoost] = usePersisted("bass-boost", false);
    const [mono, setMono] = usePersisted("mono", false);
    const [preAmpGain, setPreAmpGain] = usePersisted("pre-amp-gain", 0);
-   const [gapless, setGapless] = usePersisted("gapless", true);
-   const [seekStep, setSeekStep] = usePersisted("seek-step", 10);
-   const [hapticsOn, setHapticsOn] = usePersisted("haptics-enabled", true);
-   const { toast } = useToast();
 
    return (
       <div className='pb-4'>
-         {/* Playback */}
-         <SettingsGroup title='Playback'>
-            <SettingsRow
-               label='Autoplay'
-               description='When your queue ends, keep playing similar music'>
-               <Toggle value={autoplay} onChange={setAutoplay} />
-            </SettingsRow>
-            <SettingsRow
-               label='Gapless queue'
-               description='Warm upcoming tracks while you listen so skipping never waits'>
-               <Toggle value={gapless} onChange={setGapless} />
-            </SettingsRow>
-            <Slider
-               value={seekStep}
-               onChange={setSeekStep}
-               min={5}
-               max={60}
-               step={5}
-               label='Seek step'
-               formatValue={v => `${v} s`}
-            />
-            <SettingsRow
-               label='Haptic feedback'
-               description='Vibrate on play, pause, and skip on supported devices'
-               onClick={() => {
-                  setHapticsOn(true);
-                  haptic('success');
-                  toast('Haptics working', 'success', 1600);
-               }}>
-               <Toggle value={hapticsOn} onChange={setHapticsOn} />
-            </SettingsRow>
-         </SettingsGroup>
-
          {/* Volume — all four wired through applyFromStorage() */}
          <SettingsGroup
-            title='Volume'
+            title='Quality'
             footer='Normalisation and EQ apply to playback instantly.'>
             <SettingsRow
                label='Volume normalisation'
