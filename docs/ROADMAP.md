@@ -201,6 +201,47 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.21.1 — The player tells the truth about speed, source and favourites
+
+The playback surface caught up with its own engine. The ••• menu's
+playback settings became a real sheet: speed (0.75× to 2×, persisted,
+applied to the live Howl and re-applied on every load), repeat, shuffle
+and a playthrough choice — keep going when the queue ends, or stop. The
+full player's header now says **Playing from …** instead of the static
+"Now Playing" label, derived once at play time from wherever the track
+was started (search, trending, a playlist, an album, an artist). The
+fake drag handle is gone; a working dismissal path (back, chevron) was
+already there. The buffering spinner became the app's EQ motif, and the
+queue no longer lists the playing song twice — history's last entry IS
+the current track, and the queue tab now dedupes on id. Lyrics warm the
+cache on mount, so the Lyrics tab never opens cold. Like became
+**Favourite** across the player, context menu, album page, downloads
+rows, profile stat and library section.
+
+---
+
+## v2.21.0 — The home page picks a lane
+
+Home carried eight stacked surfaces; a listener had to parse them all.
+It now renders four, each answering one question: **Last played** as a
+plain list, **Recommended artists** derived from the thirty-day
+listening profile (circular cards, resolved through search so every
+tap routes to the artist page), **Trending this week** as five rows
+that expand to ten in place with a See all route to the full chart,
+and **Made for you** as a grid of daily-mix playlist cards. The hero,
+quick-pick tiles, featured carousel and recommendation rails retired.
+
+---
+
+## v2.20.9 — The preview toast fails honestly
+
+The mini preview only ever showed the happy path. Its downloads tab
+now carries the app's red failure toast with the [ERR DEX01] chip and
+an accessible ⓘ toggle that expands the full plain-language message,
+so the site demonstrates the promise the product makes about errors.
+
+---
+
 ## v2.20.8 — The preview shows the receipts
 
 The landing page's phone preview demonstrated streaming but never the

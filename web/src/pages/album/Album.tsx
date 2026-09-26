@@ -134,7 +134,7 @@ export default function Album() {
                 <Shuffle className="w-4 h-4" />
                 Shuffle
               </Button>
-              <IconButton size="md" variant="ghost" onClick={toggleLike} title={liked ? 'Remove from liked' : 'Like album'}>
+              <IconButton size="md" variant="ghost" onClick={toggleLike} title={liked ? 'Remove from favourites' : 'Favourite album'}>
                 <Heart className={cn('w-5 h-5', liked && 'fill-current text-[var(--accent)]')} />
               </IconButton>
               <IconButton

@@ -691,7 +691,7 @@ export default function Library() {
                <section>
                   <SectionHeading
                      icon={<Heart className='h-4 w-4 fill-current' />}
-                     title='Liked Songs'
+                     title='Favourites'
                      count={likedTracks?.length}
                      actions={
                         <div className='flex items-center gap-2'>
@@ -712,7 +712,7 @@ export default function Library() {
                               onClick={() =>
                                  likedTracks && handlePlayAll(likedTracks, true)
                               }
-                              title='Shuffle liked songs'>
+                              title='Shuffle favourites'>
                               <Shuffle className='h-4 w-4' />
                            </Button>
                         </div>
@@ -739,7 +739,7 @@ export default function Library() {
                               icon={
                                  <Heart className='h-6 w-6 text-[var(--text-muted)]' />
                               }
-                              title='No liked songs yet'
+                              title='No favourites yet'
                               note='Tap the heart on any song to save it here'
                            />
                         )}

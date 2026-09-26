@@ -6,6 +6,21 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.21.1 — The player tells the truth about speed, source and favourites
+
+- feat(player): **playback settings sheet gains speed (0.75×–2×, persisted, applied live), repeat, shuffle and playthrough (keep going / stop)** — controls the engine already had, finally reachable.
+- feat(player): the full-player header reads **"Playing from …"**, set from the route at play time; the fake drag handle is removed; buffering shows the EQ motif; the queue tab dedupes the current track (history's last entry is the current track).
+- feat(library): lyrics preload on mount so the Lyrics tab never opens cold.
+- refactor(naming): **Like → Favourite** across player, context menu, album, downloads rows, profile and library.
+
+## v2.21.0 — The home page picks a lane
+
+- feat(home): Last played renders as a list; Recommended artists derives from real listening (top artists) and resolves to artist pages; Trending this week shows 5 with an in-place expand to 10 plus See all; Made for you is a grid of daily-mix playlist cards. The hero, quick picks, featured carousel and rec rails were retired.
+
+## v2.20.9 — The preview toast fails honestly
+
+- docs(site): the mini preview's downloads tab now shows the red failure toast with the [ERR DEX01] chip and an accessible i toggle that expands the full error message.
+
 ## v2.20.8 — The preview shows the receipts
 
 - feat(site): **the mini preview gains a Downloads tab** showing the completed state — three tracks with logo placeholder art, format/duration lines, green check chips — and the app's green "Download complete" toast above the player bar. The bottom dock is now functional: every item switches tabs, mirroring the tab strip.
