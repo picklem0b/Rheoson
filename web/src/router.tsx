@@ -14,6 +14,7 @@ import Playlist from '@/pages/playlist/Playlist'
 import Album from '@/pages/album/Album'
 import Artist from '@/pages/artist/Artist'
 import NotFound from '@/pages/errors/NotFound'
+import ErrorRedirect from '@/pages/errors/ErrorRedirect'
 import Landing from '@/pages/landing/Landing'
 import AuthPage from '@/pages/auth/AuthPage'
 
@@ -67,6 +68,9 @@ export const routes = [
   { path: '/now-playing', element: <Navigate to="/full-player" replace /> },
   { path: '/login',       element: <AuthPage mode="sign-in" /> },
   { path: '/register',    element: <AuthPage mode="sign-up" /> },
+  // API failures routed here carry { state: { status, message } }. Direct
+  // navigation renders the 500 fallback — see ErrorRedirect.
+  { path: '/error',       element: <ErrorRedirect /> },
   // /auth/* is as important as /auth itself: Clerk's path-routed
   // <SignUp>/<SignIn> navigate their multi-step flows to sub-paths of the
   // mount path (email-code verification, factor-one for MFA, SSO callback).

@@ -136,8 +136,46 @@ EX=execution failed. One registry owns every code (`app/core/error_codes.py`),
 uniqueness, domain-letter consistency, DCCNN shape and the sync of
 `docs/ERROR_CODES.md`. Every `HTTPException` in the routers now goes through
 the registry, and the response handler emits a structured `code` field so the
-frontend never parses it out of the message text. The download failure path
-attaches its registry code to the job's error message.
+frontend never parses it out of the message text.The download failure path attaches its registry code to the job's error message.
+
+---
+
+## v2.20.4 — One error surface, everywhere
+
+**An error page that is an app surface, not a browser default.** Unknown routes
+(404), failed API calls routed through `/error`, auth guards and React render
+crashes all land on the same `ErrorPage`: an "ERROR PAGE" eyebrow, the big
+code, the short label, and an ⓘ control. The long explanation is never shown
+by default — tapping ⓘ opens an accessible panel with the error-specific title
+and subtitle (404 → "Not Found / We couldn't find the page you're looking
+for.", 401 → "Sign in first", 503 → "We'll be back shortly", and so on). The
+config is data-driven (`lib/errorPages.ts`): adding a status is an entry, not
+a component. Mouse, keyboard and touch all work — the ⓘ is a real button with
+`aria-expanded`/`aria-controls`, Escape closes, focus returns to the control
+that opened the panel. Unknown error codes render the 500-shaped fallback.
+
+**The ErrorBoundary stopped having its own visual style.** It used to render a
+private card with its own icon, buttons and typography — a second, worse error
+design. It now renders the same `ErrorPage` (500-shaped — a render crash *is*
+"something broke"), with the underlying exception message behind ⓘ. Because
+the boundary mounts above the router, `ErrorPage` is purely presentational and
+the router-aware action row is a separate export used by the routed wrappers.
+
+**Toasts that carry the code.** Toasts gained success (green, check) and error
+(red, cross) variants — downloads announce "Download complete — “Title”" in
+green and failures in red — plus a code chip and an ⓘ control that expands to
+the full untruncated message. The API client's `ApiError` now carries the
+backend's DCCNN code as a field, parsed from the structured `code` the backend
+emits with a suffix fallback for older servers, so the UI never has to regex a
+code out of a sentence.
+
+**A test run that stops lying about coverage.** Full-suite runs on Termux
+flaked: Vitest's default pool fans out across fork workers, and parallel
+jsdom+React imports outran the worker startup timeout — a worker died, its
+file silently vanished from the run, and the suite reported "passed" over
+fewer files than exist (observed: 14 files → 13 → 12 across consecutive runs
+with zero test failures). The pool is now pinned to one worker: the run is
+deterministic at **15 files / 141 tests**, every file every time.
 
 ---
 

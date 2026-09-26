@@ -5,6 +5,8 @@ import { queueMutation, initAutoSync } from "@/lib/offlineQueue";
 export interface ApiError extends Error {
    status: number;
    detail: string;
+   /** Backend DCCNN error code (e.g. "DEX01") when the response carried one. */
+   code?: string;
 }
 
 interface RequestOptions extends RequestInit {
@@ -30,11 +32,24 @@ function buildUrl(endpoint: string, params?: RequestOptions["params"]): string {
    return s ? `${url}?${s}` : url;
 }
 
-function makeError(status: number, detail: string): ApiError {
+function makeError(status: number, detail: string, code?: string): ApiError {
    const err = new Error(detail) as ApiError;
    err.status = status;
    err.detail = detail;
+   if (code) err.code = code;
    return err;
+}
+
+/**
+ * Split a detail that carries the backend's DCCNN suffix
+ * ("Download failed — … [ERR DEX01]") into message + code. Older backends
+ * and non-API errors have no suffix; `code` stays undefined and the caller
+ * falls back to the HTTP status.
+ */
+export function splitErrorCode(detail: string): { message: string; code?: string } {
+   const m = /\s*\[ERR ([A-Z]{3}\d{2})\]\s*$/.exec(detail ?? "");
+   if (!m) return { message: detail };
+   return { message: detail.slice(0, m.index).trimEnd(), code: m[1] };
 }
 
 let _clerkToken: string | null = null;
@@ -233,13 +248,18 @@ async function request<T>(
          }
       }
       let detail = `HTTP ${res.status}`;
+      let code: string | undefined;
       try {
          const body = await res.json();
          detail = body?.detail ?? body?.message ?? detail;
+         if (typeof body?.code === "string") code = body.code;
       } catch {
          /* ignore */
       }
-      throw makeError(res.status, detail);
+      // Older backends embed the code in the detail text; prefer the
+      // structured field, fall back to the suffix.
+      const parsed = splitErrorCode(detail);
+      throw makeError(res.status, parsed.message, code ?? parsed.code);
    }
 
    if (res.status === 204 || res.headers.get("content-length") === "0") {

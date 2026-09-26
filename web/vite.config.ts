@@ -12,6 +12,14 @@ export default defineConfig({
       environment: "jsdom",
       setupFiles: [],
       include: ["src/**/*.{test,spec}.{ts,tsx}"],
+      // One fork at a time. The default pool fans out across workers, and on
+      // Termux (where dev and CI-equivalent runs both happen on a phone) the
+      // parallel jsdom+React imports outrun the worker startup timeout — a
+      // worker dies, its file silently vanishes from the run, and the suite
+      // reports "N passed" over fewer files than exist. Serial workers make
+      // the run deterministic; total time is dominated by imports anyway.
+      maxWorkers: 1,
+      minWorkers: 1,
    },
    plugins: [
       react(),
