@@ -25,7 +25,7 @@ export default function ErrorRedirect() {
   const navigate = useNavigate()
   const state = (location.state ?? {}) as LocationErrorState
 
-  // State message may still carry the trailing "[ERR …]" suffix (older
+  // State message may still carry the trailing "[ERROR_CODE: …]" chip (older
   // senders embedded it in the text); split so the chip renders once.
   const { message: splitMessage, code: splitCode } = splitErrorCode(
     state.message ?? ''

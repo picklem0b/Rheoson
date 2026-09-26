@@ -17,6 +17,8 @@ like a CDN response.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from app.services import stream_service as ss
@@ -342,10 +344,23 @@ async def test_relay_discards_a_body_that_fails_midway(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_relay_propagates_a_genuine_upstream_failure(monkeypatch):
-    """A real relay error surfaces (so the client retries) and caches nothing."""
-    import app.routers.stream_router as sr
+async def test_relay_diagnoses_a_genuine_upstream_failure(monkeypatch, caplog):
+    """A real relay error is diagnosed, not thrown at the client.
 
+    Updated contract (the traceback.log incident): the old relay let the
+    exception escape, so uvicorn flagged a Content-Length shortfall and the
+    operator got a giant raw traceback (twice) for what is an upstream
+    failure, not an app bug. The guard now logs one structured warning —
+    stream.relay.upstream_died — arms the duplicate-traceback suppression,
+    and ends the response cleanly. The delivered bytes still flow; nothing
+    partial is cached.
+    """
+    import logging
+
+    import app.routers.stream_router as sr
+    from app.core import logging_config as lc
+
+    lc._suppress_until[0] = 0.0
     upstream = _FakeUpstream(
         PAYLOAD,
         status_code=206,
@@ -354,8 +369,15 @@ async def test_relay_propagates_a_genuine_upstream_failure(monkeypatch):
     )
     resp, _ = await _relay(monkeypatch, upstream)
 
-    with pytest.raises(RuntimeError):
-        _ = b"".join([chunk async for chunk in resp.body_iterator])
+    consumed = bytearray()
+    with caplog.at_level(logging.WARNING):
+        _ = b"".join([chunk async for chunk in resp.body_iterator if chunk and (consumed.extend(chunk) or True)])
+
+    assert bytes(consumed) == PAYLOAD[: len(PAYLOAD) // 2], "delivered bytes must still flow before the clean end"
+    assert any(
+        "stream.relay.upstream_died" in r.getMessage() for r in caplog.records
+    ), "the upstream death was never diagnosed in the log"
+    assert lc._suppress_until[0] > time.monotonic(), "duplicate-traceback suppression was not armed"
 
     assert sr._remote_cache_get(ID) is None
     assert list(sr._buffer_dir.glob(f"{ID}.*.relay")) == []

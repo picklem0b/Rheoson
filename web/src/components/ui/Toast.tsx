@@ -16,7 +16,7 @@ export interface ToastData {
   /**
    * The full, untruncated message. When present the toast renders an ⓘ
    * control that reveals it — the one-line `message` stays scannable while
-   * the detail (and its [ERR …] code, when `fullDetail` carries it) is
+   * the detail (and its [ERROR_CODE: …] chip, when `fullDetail` carries it) is
    * always reachable. Also reused as the tooltip title for hover.
    */
   fullDetail?: string
@@ -44,8 +44,7 @@ export function Toast({ id, type, message, code, fullDetail, onDismiss }: ToastP
   const [expanded, setExpanded] = useState(false)
   const panelId = useId()
   const detail = fullDetail ?? message
-  const hasMore = detail !== message || !!code
-  // fullDetail often still carries the trailing "[ERR …]" suffix the backend
+  const hasMore = detail !== message || !!code   // fullDetail often still carries the trailing "[ERROR_CODE: …]" chip the backend
   // appends; the chip below renders it, so strip it there rather than show
   // the same code twice.
   const detailText = fullDetail ? splitErrorCode(fullDetail).message : message
@@ -104,7 +103,7 @@ export function Toast({ id, type, message, code, fullDetail, onDismiss }: ToastP
               <CaretDown className="w-3 h-3 mt-1 rotate-180 text-[var(--text-muted)]" aria-hidden />
               <p className="text-xs leading-relaxed text-[var(--text-muted)] break-words">
                 {detailText}
-                {code && <span className="ml-1 font-mono font-semibold text-[var(--text-primary)]">[ERR {code}]</span>}
+                {code && <span className="ml-1 font-mono font-semibold text-[var(--text-primary)]">[ERROR_CODE: {code}]</span>}
               </p>
             </div>
           </motion.div>

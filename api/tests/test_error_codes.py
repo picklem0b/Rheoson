@@ -1,6 +1,6 @@
 """Error-code contract — the registry is the traceability promise.
 
-A user reporting "Download failed [ERR DEX01]" must land on exactly one raise
+A user reporting "Download failed [ERROR_CODE: DEX01]" must land on exactly one raise
 site. That only holds while: every code is registered, no two codes collide,
 every code is well-formed DCCNN, the wire format is stable, and
 docs/ERROR_CODES.md stays in sync. These tests pin all of them; breaking any
@@ -12,13 +12,13 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from fastapi import HTTPException
+
 
 from app.core import error_codes as ec
 from app.main import app
 from fastapi.routing import APIRoute
 
-_ERR_RE = re.compile(r"\[ERR ([A-Z]{3}\d{2})\]")
+_ERR_RE = re.compile(r"\[ERROR_CODE: ([A-Z]{3}\d{2})\]")
 
 
 # ── Registry integrity ────────────────────────────────────────
@@ -85,7 +85,7 @@ def test_fail_rejects_malformed_codes():
 
 def test_fail_appends_dynamic_values_without_breaking_the_code():
     exc = ec.fail(ec.DOWNLOAD.JOB_NOT_FOUND, 404, append=": abc")
-    assert exc.detail.startswith("Download job not found: abc [ERR DNF01]")
+    assert exc.detail.startswith("Download job not found: abc [ERROR_CODE: DNF01]")
     assert getattr(exc, "error_code") == "DNF01"
 
 
@@ -94,7 +94,7 @@ def test_fail_appends_dynamic_values_without_breaking_the_code():
 
 def test_detail_suffixed_and_code_field_present():
     exc = ec.fail(ec.DOWNLOAD.FAILED, 500)
-    assert exc.detail.endswith("[ERR DEX01]")
+    assert exc.detail.endswith("[ERROR_CODE: DEX01]")
     assert exc.status_code == 500
     assert getattr(exc, "error_code") == "DEX01"
 
@@ -156,7 +156,7 @@ def test_docs_error_codes_md_is_in_sync():
     assert doc.exists(), "docs/ERROR_CODES.md is the traceability map"
     text = doc.read_text()
     for code, message in ec.all_codes().items():
-        assert f"[ERR {code}]" in text, f"{code} missing from ERROR_CODES.md"
+        assert f"[ERROR_CODE: {code}]" in text, f"{code} missing from ERROR_CODES.md"
         assert message.split("—")[0].strip()[:12].lower() in text.lower(), (
             f"message for {code} drifted in ERROR_CODES.md"
         )

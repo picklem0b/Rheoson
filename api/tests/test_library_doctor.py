@@ -46,7 +46,6 @@ def _healthy_mp3(path):
     # these tests — what matters is what mutagen does. Real ID3-headed
     # files are used for the duplicate grouping tests; the "healthy"
     # marker here is simply "mutagen parses it", which _is_corrupt checks.
-    import struct
 
     # Build a tiny valid MP3: ID3v2 header + one MPEG frame.
     # mutagen needs an MPEG sync frame to compute duration.

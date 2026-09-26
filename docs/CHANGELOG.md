@@ -6,6 +6,15 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.21.4 — The console you can read
+
+- feat(logging): **smart logging** — channels (access, stream, download, library, lyrics, lifecycle, core) with per-channel severity floors, profiles (`default` / `quiet` / `debug`), and an access gate that drops the `200 OK` flood while 4xx/5xx still print.
+- feat(logging): **`rheoson.logconfig.json`** debug-config — drop it in `MUSIC_DIR` (or CWD, or `api/`) and the running server applies new floors within ~15 s, no restart; `RHEOSON_LOG_PROFILE` / `RHEOSON_LOG_LEVEL` / `RHEOSON_LOG_CHANNELS` env overrides; `/api/health/diag` now reports the live logging state.
+- fix(stream): **a CDN dying mid-relay is diagnosed, not thrown** — one structured `stream.relay.upstream_died` warning (track, bytes relayed, bytes promised) and a clean end of stream, replacing the raw `Response content shorter than Content-Length` traceback printed twice by the ASGI layer. Suppression is armed so an incident is logged once, where the request id can trace it.
+- fix(errors): **the error-code chip actually renders now** — the backend emitted `[ERR: DEX01]` (colon) while the frontend parser expected `[ERR DEX01]`, so live toasts never extracted the code. Wire format is now **`[ERROR_CODE: DEX01]`** everywhere (backend, chips, docs site); the parser still accepts the legacy renderings across an upgrade.
+- chore(logging): third-party chatter silenced — syncedlyrics gated at WARNING, driver libraries capped as before; duplicate ASGI tracebacks suppressed after the app's own handler has logged the exception.
+- docs: `docs/LOGGING.md` — profiles, channels, the config file, env vars, and the no-restart debug workflow.
+
 ## v2.21.3 — Everything personal behind your face
 
 - feat(nav): **the profile picture replaces the gear icon** in both navs, opening a sheet with Settings, Listening stats, About, Privacy and Account (the last three deep-link into their settings sections).
@@ -32,7 +41,7 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ## v2.20.9 — The preview toast fails honestly
 
-- docs(site): the mini preview's downloads tab now shows the red failure toast with the [ERR DEX01] chip and an accessible i toggle that expands the full error message.
+- docs(site): the mini preview's downloads tab now shows the red failure toast with the [ERROR_CODE: DEX01] chip and an accessible i toggle that expands the full error message.
 
 ## v2.20.8 — The preview shows the receipts
 
@@ -49,7 +58,7 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ## v2.20.5 — Server failures take the page
 
-- feat(errors): **unhandled ≥500 API failures navigate to the error page** with status, message and DCCNN code in router state (replace, deduplicated); the error page's ⓘ panel renders the `[ERR …]` chip.
+- feat(errors): **unhandled ≥500 API failures navigate to the error page** with status, message and DCCNN code in router state (replace, deduplicated); the error page's ⓘ panel renders the `[ERROR_CODE: …]` chip.
 - feat(errors): gateway responses (502/503/504) get one silent wake-up retry first; probe callers (health endpoints, Doctor, version poller, downloads list) opt out via `_noFatalRedirect` and keep presenting failures inline.
 
 ## v2.20.4 — One error surface, everywhere
@@ -63,7 +72,7 @@ Errors now have one visual treatment across the whole app.
 
 ## v2.20.3 — DCCNN error codes
 
-- feat(errors): every user-facing failure carries a traceable code — `Download failed [ERR DEX01]`. Codes are five characters: domain letter (D=downloads, A=auth, P=playlists…), two-letter category (VA=validation, NF=not-found, EX=execution…), two-digit sequence.
+- feat(errors): every user-facing failure carries a traceable code — `Download failed [ERROR_CODE: DEX01]`. Codes are five characters: domain letter (D=downloads, A=auth, P=playlists…), two-letter category (VA=validation, NF=not-found, EX=execution…), two-digit sequence.
 - feat(errors): one registry (`app/core/error_codes.py`) owns every code; `fail()` refuses unregistered ones; a contract test pins uniqueness, shape, domain consistency and the sync of `docs/ERROR_CODES.md`. Responses emit a structured `code` field.
 
 ## v2.20.2 — A test run that tells the truth

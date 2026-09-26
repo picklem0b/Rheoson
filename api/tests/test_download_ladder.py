@@ -146,8 +146,8 @@ async def test_stale_refusal_still_walks_the_ladder_when_retries_run_out(job, mo
     # refused the track, which is what this failure used to say. The DCCNN
     # code travels with the message so support can trace the raise site.
     # The DCCNN code travels with the message so support can trace the
-    # raise site: 'Download failed — <advice> [ERR DEX01]'.
-    assert str(err.value).endswith("[ERR DEX01]")
+    # raise site: 'Download failed — <advice> [ERROR_CODE: DEX01]'.
+    assert str(err.value).endswith("[ERROR_CODE: DEX01]")
     assert "cut the transfer short" in str(err.value)
     assert "every client" not in str(err.value)
 

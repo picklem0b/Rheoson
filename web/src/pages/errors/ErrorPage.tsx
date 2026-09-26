@@ -154,7 +154,7 @@ export default function ErrorPage({
                             text-[var(--text-muted)]">
                 Error code{' '}
                 <span className="ml-1 font-mono font-semibold text-[var(--text-primary)]">
-                  [ERR {code}]
+                  [ERROR_CODE: {code}]
                 </span>
               </p>
             )}

@@ -16,6 +16,7 @@ from app.services.artwork_service import extract_artwork, fetch_remote_artwork
 from app.services.metadata_service import _file_id
 from app.services import stream_service
 from app.core import error_codes
+from app.core.logging_config import arm_traceback_suppression
 
 # NOTE on auth for byte routes: the four content routes below (audio,
 # artwork, artwork-proxy) must stay reachable by <audio>/<img> elements,
@@ -1331,10 +1332,12 @@ async def _serve_direct_relay(track_id: str, request: Request) -> Optional[Respo
     )
 
     async def _relay():
+        sent = 0
         try:
             async for chunk in upstream.iter_bytes():
                 if tee is not None:
                     tee.feed(chunk)
+                sent += len(chunk)
                 yield chunk
             if tee is not None:
                 await tee.finish()
@@ -1344,10 +1347,26 @@ async def _serve_direct_relay(track_id: str, request: Request) -> Optional[Respo
             if tee is not None:
                 await tee.abort()
             return
-        except Exception:
+        except Exception as e:
             if tee is not None:
                 await tee.abort()
-            raise
+            # The CDN died mid-body (timeout, protocol error, reset). This is
+            # the one relay failure worth a line: what died, how much arrived,
+            # what was promised. The response now ends short of its mirrored
+            # Content-Length; uvicorn flags that shortfall at the send
+            # boundary and the ASGI layer would print a full traceback for it,
+            # so suppression is armed — the diagnosis above is the record, and
+            # generic_exception_handler renders the shortfall as one compact
+            # warning instead of the unhandled-exception treatment.
+            arm_traceback_suppression()
+            log.warning(
+                "stream.relay.upstream_died",
+                track_id=track_id,
+                relayed=sent,
+                expected=_expect,
+                error=str(e),
+            )
+            return
         finally:
             await upstream.aclose()
 

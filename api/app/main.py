@@ -22,7 +22,7 @@ from app.core.deps import get_current_user, get_optional_user
 from app.core import health as healthmod
 
 from app.core.config import settings, validate_startup
-from app.core.logging_config import configure_logging
+from app.core.logging_config import configure_logging, maybe_reload
 from app.core.database import connect_db, close_db, db_available
 from app.core.exceptions import (
     RheosonException,
@@ -52,7 +52,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.21.3"
+VERSION = "2.21.4"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -303,9 +303,24 @@ async def lifespan(_app: FastAPI):
 
     _health_task = asyncio.create_task(_health_probe_loop())
 
+    # Smart-logging reload loop: touching rheoson.logconfig.json (or flipping
+    # a RHEOSON_LOG_* env var in-process) applies new floors without a
+    # restart. Same cadence as the health probes — this is a file mtime
+    # stat, not a scan.
+    async def _log_reload_loop():
+        while True:
+            try:
+                maybe_reload()
+            except Exception:
+                log.error("logging.reload.failed", exc_info=True)
+            await asyncio.sleep(15)
+
+    _log_reload_task = asyncio.create_task(_log_reload_loop())
+
     log.info("Rheoson.api.ready", cron_jobs=[j.id for j in scheduler.get_jobs()])
     yield
     _health_task.cancel()
+    _log_reload_task.cancel()
     scheduler.shutdown(wait=False)
     await close_db()
     log.info("Rheoson.api.stopped")

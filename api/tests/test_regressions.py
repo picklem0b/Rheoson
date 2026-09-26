@@ -15,16 +15,14 @@ Each test reproduces a bug that shipped and verifies the fix holds:
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import hashlib
 import hmac
 import json
-import re
-import textwrap
+
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.core.exceptions import SearchError
 
@@ -312,12 +310,11 @@ def test_saved_directories_env_parses_on_next_boot(tmp_path):
 async def test_browse_directory_blocks_sibling_prefix(client, tmp_path, monkeypatch):
     """Regression: the containment check used startswith(), so a sibling dir
     like /music_evil was treated as being inside /music."""
-    import app.routers.settings_router as sr
     from app.core.config import settings
 
     base = tmp_path / "music"
-    sibling = tmp_path / "musicevil"
     base.mkdir()
+    sibling = tmp_path / "music_evil"
     sibling.mkdir()
     (base / "a.mp3").write_bytes(b"x")
     (sibling / "secret.mp3").write_bytes(b"y")

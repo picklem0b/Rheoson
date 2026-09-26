@@ -49,12 +49,15 @@ function makeError(status: number, detail: string, code?: string): ApiError {
 
 /**
  * Split a detail that carries the backend's DCCNN suffix
- * ("Download failed — … [ERR DEX01]") into message + code. Older backends
- * and non-API errors have no suffix; `code` stays undefined and the caller
- * falls back to the HTTP status.
+ * ("Download failed — … [ERROR_CODE: DEX01]") into message + code.
+ * Accepts the older "[ERR DEX01]" / "[ERR: DEX01]" renderings so a response
+ * already in flight across an upgrade still parses. No suffix (older
+ * backends, non-API errors) leaves `code` undefined and the caller falls
+ * back to the HTTP status.
  */
 export function splitErrorCode(detail: string): { message: string; code?: string } {
-   const m = /\s*\[ERR ([A-Z]{3}\d{2})\]\s*$/.exec(detail ?? "");
+   const m = /\s*\[ERROR_CODE: ([A-Z]{3}\d{2})\]\s*$/.exec(detail ?? "")
+      ?? /\s*\[ERR:? ([A-Z]{3}\d{2})\]\s*$/.exec(detail ?? "");
    if (!m) return { message: detail };
    return { message: detail.slice(0, m.index).trimEnd(), code: m[1] };
 }

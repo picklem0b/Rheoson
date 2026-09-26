@@ -140,11 +140,11 @@ export function DownloadModal() {
       closeDownloadModal()
     } catch (e) {
       // e.g. Wi-Fi-only mode on mobile data. The DCCNN code (from the
-      // structured field or the [ERR …] suffix) rides along on the toast,
-      // with the full message behind the ⓘ control.
+      // structured field or the [ERROR_CODE: …] chip) rides along on the
+      // toast, with the full message behind the ⓘ control.
       const err = e as { message?: string; detail?: string; code?: string }
       const full = err?.detail ?? err?.message ?? 'Download failed'
-      toastWithCode(full.replace(/\s*\[ERR [A-Z]{3}\d{2}\]\s*$/, ''), 'error', {
+      toastWithCode(full.replace(/\s*\[ERROR_CODE: [A-Z]{3}\d{2}\]\s*$/, ''), 'error', {
         code: err?.code,
         fullDetail: full,
         duration: 6000,

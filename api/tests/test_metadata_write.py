@@ -45,7 +45,7 @@ def _silence(path, seconds: float = 0.2) -> None:
     subprocess.run(
         [
             "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-            "-f", "lavfi", "-i", f"anullsrc=r=44100:cl=stereo",
+            "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
             "-t", str(seconds), str(path),
         ],
         check=True,

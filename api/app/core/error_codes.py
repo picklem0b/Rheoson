@@ -1,6 +1,6 @@
 """User-facing error codes — DCCNN: Domain, Category, sequence Number.
 
-Every user-visible failure carries a five-character code, e.g. ``[ERR DEX01]``:
+Every user-visible failure carries a five-character code, e.g. ``[ERROR_CODE: DEX01]``:
 
     D  = domain   (one letter: D=downloads, A=auth, P=playlists, …)
     CC = category (two letters: VA=validation, NF=not-found, EX=execution, …)
@@ -37,9 +37,9 @@ class _Section:
 
     def __init__(self, name: str, letter: str, members: dict[str, str]):
         assert len(letter) == 1 and letter.isalpha(), letter
-        self._name   = name
-        self.letter  = letter
-        self._codes  = dict(members)
+        self._name = name
+        self.letter = letter
+        self._codes = dict(members)
         for attr, code in members.items():
             assert code.startswith(letter), (
                 f"{name}.{attr} = {code} does not start with the domain letter"
@@ -62,136 +62,180 @@ class _Section:
 # ``fail(DOWNLOAD.JOB_NOT_FOUND, 404)`` — never raw strings, so a renumbering
 # stays inside this module.
 
-AUTH = _Section("AUTH", "A", {
-    "NOT_SIGNED_IN": "ASE01",   # session: no credentials on a guarded route
-    "INVALID_TOKEN": "ASE02",   # session: presented but invalid/expired
-    "FORBIDDEN":     "ACF01",   # access control: signed in, not allowed
-})
+AUTH = _Section(
+    "AUTH",
+    "A",
+    {
+        "NOT_SIGNED_IN": "ASE01",  # session: no credentials on a guarded route
+        "INVALID_TOKEN": "ASE02",  # session: presented but invalid/expired
+        "FORBIDDEN": "ACF01",  # access control: signed in, not allowed
+    },
+)
 
-PLAYLIST = _Section("PLAYLIST", "P", {
-    "NOT_FOUND":             "PNF01",
-    "TRACK_NOT_IN_PLAYLIST": "PNF02",
-    "ALREADY_EXISTS":        "PCN01",
-    "TRACK_DUPLICATE":       "PCN02",
-    "SMART_READONLY":        "PCF01",
-    "NAME_REQUIRED":         "PVA01",
-    "NAME_TOO_LONG":         "PVA02",
-    "INVALID_TRACK_LIST":    "PVA03",
-    "INVALID_ID":            "PVA04",
-    "URL_REQUIRED":          "PVA05",
-    "NAME_REQUIRED_IMPORT":  "PVA06",
-    "REORDER_MISMATCH":      "PVA07",
-    "SMART_RULE_INVALID":    "PVA08",
-    "TRACK_ID_REQUIRED":     "PVA09",
-    "IMPORT_FAILED":         "PEX01",
-    "EXPORT_EMPTY":          "PEX02",
-    "NO_PLAYABLE_TRACKS":    "PUP01",
-})
+PLAYLIST = _Section(
+    "PLAYLIST",
+    "P",
+    {
+        "NOT_FOUND": "PNF01",
+        "TRACK_NOT_IN_PLAYLIST": "PNF02",
+        "ALREADY_EXISTS": "PCN01",
+        "TRACK_DUPLICATE": "PCN02",
+        "SMART_READONLY": "PCF01",
+        "NAME_REQUIRED": "PVA01",
+        "NAME_TOO_LONG": "PVA02",
+        "INVALID_TRACK_LIST": "PVA03",
+        "INVALID_ID": "PVA04",
+        "URL_REQUIRED": "PVA05",
+        "NAME_REQUIRED_IMPORT": "PVA06",
+        "REORDER_MISMATCH": "PVA07",
+        "SMART_RULE_INVALID": "PVA08",
+        "TRACK_ID_REQUIRED": "PVA09",
+        "IMPORT_FAILED": "PEX01",
+        "EXPORT_EMPTY": "PEX02",
+        "NO_PLAYABLE_TRACKS": "PUP01",
+    },
+)
 
-TRACK = _Section("TRACK", "T", {
-    "NOT_FOUND":     "TNF01",
-    "HISTORY_EMPTY": "TNF02",
-    "INVALID_ID":    "TVA01",
-    "SIGNAL_UNKNOWN": "TVA02",
-    "LIKE_FAILED":   "TEX01",
-    "PLAY_FAILED":   "TEX02",
-})
+TRACK = _Section(
+    "TRACK",
+    "T",
+    {
+        "NOT_FOUND": "TNF01",
+        "HISTORY_EMPTY": "TNF02",
+        "INVALID_ID": "TVA01",
+        "SIGNAL_UNKNOWN": "TVA02",
+        "LIKE_FAILED": "TEX01",
+        "PLAY_FAILED": "TEX02",
+    },
+)
 
-DOWNLOAD = _Section("DOWNLOAD", "D", {
-    "JOB_NOT_FOUND":          "DNF01",
-    "INVALID_URL":            "DVA01",
-    "URL_TOO_LONG":           "DVA02",
-    "TARGET_REQUIRED":        "DVA03",
-    "INVALID_TRACK_ID":       "DVA04",
-    "INVALID_JOB_ID":         "DVA05",
-    "INVALID_QUALITY":        "DVA06",
-    "INVALID_FORMAT":         "DVA07",
-    "INVALID_SPEED":          "DVA08",
-    "INVALID_CONCURRENCY":    "DVA09",
-    "INVALID_TRACK_LIST":     "DVA10",
-    "JOB_ALREADY_RUNNING":    "DCN01",
-    "DIR_REGISTERED":         "DCN02",
-    "LIMIT_REACHED":          "DLM01",
-    "DIR_REQUIRED":           "DFS01",
-    "PATH_OUTSIDE":           "DFS02",
-    "DIR_UNREADABLE":         "DFS03",
-    "SPAWN_FAILED":           "DEN01",
-    "ENGINE_MISSING":         "DEN02",
-    "CONVERSION_UNAVAILABLE": "DEN03",
-    "FAILED":                 "DEX01",  # the transfer itself failed
-})
+DOWNLOAD = _Section(
+    "DOWNLOAD",
+    "D",
+    {
+        "JOB_NOT_FOUND": "DNF01",
+        "INVALID_URL": "DVA01",
+        "URL_TOO_LONG": "DVA02",
+        "TARGET_REQUIRED": "DVA03",
+        "INVALID_TRACK_ID": "DVA04",
+        "INVALID_JOB_ID": "DVA05",
+        "INVALID_QUALITY": "DVA06",
+        "INVALID_FORMAT": "DVA07",
+        "INVALID_SPEED": "DVA08",
+        "INVALID_CONCURRENCY": "DVA09",
+        "INVALID_TRACK_LIST": "DVA10",
+        "JOB_ALREADY_RUNNING": "DCN01",
+        "DIR_REGISTERED": "DCN02",
+        "LIMIT_REACHED": "DLM01",
+        "DIR_REQUIRED": "DFS01",
+        "PATH_OUTSIDE": "DFS02",
+        "DIR_UNREADABLE": "DFS03",
+        "SPAWN_FAILED": "DEN01",
+        "ENGINE_MISSING": "DEN02",
+        "CONVERSION_UNAVAILABLE": "DEN03",
+        "FAILED": "DEX01",  # the transfer itself failed
+    },
+)
 
-STREAM = _Section("STREAM", "S", {
-    "NOT_FOUND_REMOTE_INVALID": "SNF01",
-    "NOT_DOWNLOADED_LOCALLY":   "SNF02",
-    "RANGE_INVALID":            "SVA01",
-    "ARTWORK_HOST_DENIED":      "SVA02",
-    "INVALID_TRACK_ID":         "SVA03",
-    "NOT_SEEKABLE_YET":         "SEX01",
-    "WARMUP_FAILED":            "SEX02",
-    "TOO_MANY_STREAMS":         "SLM01",
-    "NOT_AVAILABLE":            "SUP01",
-    "UPSTREAM_REFUSED":         "SUP02",
-    "FAILURE_CACHED":           "SUP03",
-    "ARTWORK_FAILED":           "SUP04",
-})
+STREAM = _Section(
+    "STREAM",
+    "S",
+    {
+        "NOT_FOUND_REMOTE_INVALID": "SNF01",
+        "NOT_DOWNLOADED_LOCALLY": "SNF02",
+        "RANGE_INVALID": "SVA01",
+        "ARTWORK_HOST_DENIED": "SVA02",
+        "INVALID_TRACK_ID": "SVA03",
+        "NOT_SEEKABLE_YET": "SEX01",
+        "WARMUP_FAILED": "SEX02",
+        "TOO_MANY_STREAMS": "SLM01",
+        "NOT_AVAILABLE": "SUP01",
+        "UPSTREAM_REFUSED": "SUP02",
+        "FAILURE_CACHED": "SUP03",
+        "ARTWORK_FAILED": "SUP04",
+    },
+)
 
-SEARCH = _Section("SEARCH", "R", {
-    "LYRICS_NOT_FOUND": "RNF01",
-    "CATEGORY_UNKNOWN": "RNF02",
-    "TARGET_REQUIRED":  "RVA01",
-    "UNSUPPORTED_URL":  "RVA02",
-    "LYRICS_INVALID":   "RVA03",
-    "QUERY_EMPTY":      "RVA04",
-    "RESOLVE_FAILED":   "RUP01",
-})
+SEARCH = _Section(
+    "SEARCH",
+    "R",
+    {
+        "LYRICS_NOT_FOUND": "RNF01",
+        "CATEGORY_UNKNOWN": "RNF02",
+        "TARGET_REQUIRED": "RVA01",
+        "UNSUPPORTED_URL": "RVA02",
+        "LYRICS_INVALID": "RVA03",
+        "QUERY_EMPTY": "RVA04",
+        "RESOLVE_FAILED": "RUP01",
+    },
+)
 
-LIBRARY = _Section("LIBRARY", "L", {
-    "DIR_NOT_FOUND":             "LNF01",
-    "ARTIST_NOT_FOUND":          "LNF02",
-    "ALBUM_NOT_FOUND":           "LNF03",
-    "ALBUM_FOR_TRACK_NOT_FOUND": "LNF04",
-    "SCAN_INVALID":              "LVA01",
-    "BACKUP_FILE_INVALID":       "LVA02",
-    "SCAN_RUNNING":              "LCN01",
-    "BACKUP_EXPORT_FAILED":      "LEX01",
-    "BACKUP_RESTORE_FAILED":     "LEX02",
-    "DIRS_PERSIST_FAILED":       "LEX03",
-    "DB_UNAVAILABLE":            "LEN01",
-})
+LIBRARY = _Section(
+    "LIBRARY",
+    "L",
+    {
+        "DIR_NOT_FOUND": "LNF01",
+        "ARTIST_NOT_FOUND": "LNF02",
+        "ALBUM_NOT_FOUND": "LNF03",
+        "ALBUM_FOR_TRACK_NOT_FOUND": "LNF04",
+        "SCAN_INVALID": "LVA01",
+        "BACKUP_FILE_INVALID": "LVA02",
+        "SCAN_RUNNING": "LCN01",
+        "BACKUP_EXPORT_FAILED": "LEX01",
+        "BACKUP_RESTORE_FAILED": "LEX02",
+        "DIRS_PERSIST_FAILED": "LEX03",
+        "DB_UNAVAILABLE": "LEN01",
+    },
+)
 
-SETTINGS = _Section("SETTINGS", "E", {   # sE = settings & preferences
-    "PRESET_NOT_FOUND":        "ENF01",
-    "UNKNOWN_KEY":             "EVA01",
-    "VALUE_OUT_OF_RANGE":      "EVA02",
-    "PRESET_INVALID":          "EVA03",
-    "PRESET_NAME_REQUIRED":    "EVA04",
-    "EQ_BANDS_INVALID":        "EVA05",
-    "VISITOR_PAYLOAD_INVALID": "EVA06",
-    "PREFS_INVALID":           "EVA07",
-    "PREFS_DB_UNAVAILABLE":    "EEN01",
-})
+SETTINGS = _Section(
+    "SETTINGS",
+    "E",
+    {  # sE = settings & preferences
+        "PRESET_NOT_FOUND": "ENF01",
+        "UNKNOWN_KEY": "EVA01",
+        "VALUE_OUT_OF_RANGE": "EVA02",
+        "PRESET_INVALID": "EVA03",
+        "PRESET_NAME_REQUIRED": "EVA04",
+        "EQ_BANDS_INVALID": "EVA05",
+        "VISITOR_PAYLOAD_INVALID": "EVA06",
+        "PREFS_INVALID": "EVA07",
+        "PREFS_DB_UNAVAILABLE": "EEN01",
+    },
+)
 
-WEBHOOK = _Section("WEBHOOK", "W", {
-    "SECRET_UNCONFIGURED": "WEN01",
-    "HEADERS_MISSING":     "WVA01",
-    "TIMESTAMP_EXPIRED":   "WVA02",
-    "PAYLOAD_INVALID":     "WVA03",
-    "USER_ID_MISSING":     "WVA04",
-    "EVENT_UNSUPPORTED":   "WVA05",
-    "SIGNATURE_INVALID":   "WCF01",
-})
+WEBHOOK = _Section(
+    "WEBHOOK",
+    "W",
+    {
+        "SECRET_UNCONFIGURED": "WEN01",
+        "HEADERS_MISSING": "WVA01",
+        "TIMESTAMP_EXPIRED": "WVA02",
+        "PAYLOAD_INVALID": "WVA03",
+        "USER_ID_MISSING": "WVA04",
+        "EVENT_UNSUPPORTED": "WVA05",
+        "SIGNATURE_INVALID": "WCF01",
+    },
+)
 
-ARTIST = _Section("ARTIST", "F", {       # F = artist follows
-    "INVALID_ID":            "FVA01",
-    "ONBOARD_LIST_REQUIRED": "FVA02",
-    "ONBOARD_NAME_REQUIRED": "FVA03",
-    "FOLLOW_FAILED":         "FEX01",
-})
+ARTIST = _Section(
+    "ARTIST",
+    "F",
+    {  # F = artist follows
+        "INVALID_ID": "FVA01",
+        "ONBOARD_LIST_REQUIRED": "FVA02",
+        "ONBOARD_NAME_REQUIRED": "FVA03",
+        "FOLLOW_FAILED": "FEX01",
+    },
+)
 
-PLAYBACK = _Section("PLAYBACK", "Y", {   # plaYback: equalizer family
-    "EQ_UNSUPPORTED": "YEN01",
-})
+PLAYBACK = _Section(
+    "PLAYBACK",
+    "Y",
+    {  # plaYback: equalizer family
+        "EQ_UNSUPPORTED": "YEN01",
+    },
+)
 
 #: code → human message. Written to be shown; a router may append dynamic
 #: values via ``fail(..., append=f": {value}")`` without touching the code.
@@ -200,7 +244,6 @@ _REGISTRY: dict[str, str] = {
     "ASE01": "Not signed in",
     "ASE02": "Session expired or invalid",
     "ACF01": "You don't have access to this",
-
     # ── Playlists ─────────────────────────────────────────────
     "PNF01": "Playlist not found",
     "PNF02": "Track not found in playlist",
@@ -219,7 +262,6 @@ _REGISTRY: dict[str, str] = {
     "PEX01": "Import failed — the file could not be read",
     "PEX02": "Export failed — playlist is empty",
     "PUP01": "No playable tracks found at that URL",
-
     # ── Tracks / likes / history ──────────────────────────────
     "TNF01": "Track not found",
     "TNF02": "History is empty",
@@ -227,7 +269,6 @@ _REGISTRY: dict[str, str] = {
     "TVA02": "Unknown listening signal",
     "TEX01": "Could not update the like",
     "TEX02": "Could not record the play",
-
     # ── Downloads ─────────────────────────────────────────────
     "DNF01": "Download job not found",
     "DVA01": "Invalid URL format",
@@ -250,7 +291,6 @@ _REGISTRY: dict[str, str] = {
     "DEN02": "The download engine is not installed on this server",
     "DEN03": "Audio conversion is unavailable on this server",
     "DEX01": "Download failed",
-
     # ── Streaming ─────────────────────────────────────────────
     "SNF01": "Track not found locally and the id is not a valid remote track",
     "SNF02": "Not downloaded locally",
@@ -264,7 +304,6 @@ _REGISTRY: dict[str, str] = {
     "SUP02": "Could not stream this track. YouTube may be rate-limiting",
     "SUP03": "Track temporarily unavailable (recent failure cached)",
     "SUP04": "Could not fetch the artwork",
-
     # ── Search / resolve ──────────────────────────────────────
     "RNF01": "No lyrics found for this track",
     "RNF02": "Unknown trending category",
@@ -273,7 +312,6 @@ _REGISTRY: dict[str, str] = {
     "RVA03": "Invalid lyrics request",
     "RVA04": "The search query cannot be empty",
     "RUP01": "Could not look up this track right now",
-
     # ── Library / dirs / backups ──────────────────────────────
     "LNF01": "Directory not found",
     "LNF02": "Artist not found",
@@ -286,7 +324,6 @@ _REGISTRY: dict[str, str] = {
     "LEX02": "Backup restore failed",
     "LEX03": "Could not persist the music directories",
     "LEN01": "Database not available",
-
     # ── Settings / preferences ────────────────────────────────
     "ENF01": "Preset not found",
     "EVA01": "Unknown setting",
@@ -297,7 +334,6 @@ _REGISTRY: dict[str, str] = {
     "EVA06": "Invalid visitor counter payload",
     "EVA07": "Invalid preferences payload",
     "EEN01": "Preference sync needs the database. Your settings still work",
-
     # ── Webhooks ──────────────────────────────────────────────
     "WEN01": "Webhook secret not configured",
     "WVA01": "Missing webhook headers",
@@ -306,13 +342,11 @@ _REGISTRY: dict[str, str] = {
     "WVA04": "Webhook user is missing an id",
     "WVA05": "Webhook event type is not supported",
     "WCF01": "Invalid webhook signature",
-
     # ── Artists / follows ─────────────────────────────────────
     "FVA01": "Invalid artist id",
     "FVA02": "Provide a list of artist names",
     "FVA03": "Provide at least one artist name",
     "FEX01": "Artist follow could not be saved",
-
     # ── Playback / equalizer ──────────────────────────────────
     "YEN01": "Equalizer is not supported on this device",
 }
@@ -338,7 +372,7 @@ def fail(
     """Build the HTTPException for a registered DCCNN code.
 
     ``fail(DOWNLOAD.FAILED, 500)`` reads at the raise site, and the response
-    carries ``{"detail": "Download failed [ERR DEX01]", "code": "DEX01"}``.
+    carries ``{"detail": "Download failed [ERROR_CODE: DEX01]", "code": "DEX01"}``.
     The bracketed suffix is the machine-readable part; the message stays
     human copy. The code must be registered — an unregistered code raises
     here rather than leaking an untraceable error to a user.
@@ -352,7 +386,7 @@ def fail(
     detail = f"{msg}{append}" if append else msg
     exc = HTTPException(
         status_code=status,
-        detail=f"{detail} [ERR {code}]",
+        detail=f"{detail} [ERROR_CODE: {code}]",
         headers=headers,
     )
     # Read back by the response handler and emitted as the structured

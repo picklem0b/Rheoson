@@ -8,14 +8,14 @@ import { api } from '@/api/client.api'
 // ── ErrorPage: DCCNN code chip in the info panel ─────────────
 
 describe('ErrorPage code chip', () => {
-  it('renders the [ERR …] chip inside the info panel when a code is passed', () => {
+  it('renders the [ERROR_CODE: …] chip inside the info panel when a code is passed', () => {
     render(
       <MemoryRouter>
         <ErrorPage status={503} code="SSE01" />
       </MemoryRouter>
     )
     fireEvent.click(screen.getByRole('button', { name: /about error 503/i }))
-    expect(screen.getByText(/\[ERR SSE01\]/)).toBeTruthy()
+    expect(screen.getByText(/\[ERROR_CODE: SSE01\]/)).toBeTruthy()
   })
 
   it('no chip when no code is provided', () => {
@@ -59,7 +59,7 @@ describe('reportFatalApiError routing decisions', () => {
 
   it('≥500 navigates to /error with status, message and code (replace, not push)', async () => {
     const { navigate } = installRouter()
-    vi.stubGlobal('fetch', vi.fn(async () => jsonRes(500, { detail: 'Database gone [ERR LDB01]' })))
+    vi.stubGlobal('fetch', vi.fn(async () => jsonRes(500, { detail: 'Database gone [ERROR_CODE: LDB01]' })))
 
     await expect(call('/playlists')).rejects.toMatchObject({ status: 500 })
     await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))

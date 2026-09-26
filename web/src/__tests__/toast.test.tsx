@@ -47,7 +47,7 @@ describe('Toast info control', () => {
       type: 'error',
       message: 'Download failed',
       fullDetail:
-        'Download failed — the media server cut the transfer short. Retry to resume from where it stopped. [ERR DEX01]',
+        'Download failed — the media server cut the transfer short. Retry to resume from where it stopped. [ERROR_CODE: DEX01]',
       code: 'DEX01',
     })
     const info = screen.getByRole('button', { name: /show error details/i })
@@ -55,8 +55,8 @@ describe('Toast info control', () => {
     expect(
       screen.getByText(/the media server cut the transfer short/i)
     ).toBeTruthy()
-    // The code renders as a chip: "[ERR DEX01]"
-    expect(screen.getByText(/\[ERR DEX01\]/)).toBeTruthy()
+    // The code renders as a chip: "[ERROR_CODE: DEX01]"
+    expect(screen.getByText(/\[ERROR_CODE: DEX01\]/)).toBeTruthy()
   })
 
   it('code is exposed to screen readers even when collapsed', () => {

@@ -426,13 +426,18 @@ async def snapshot(request_id: str = "") -> dict:
 async def diagnostics(request_id: str = "") -> dict:
     """Deep diagnostics — authenticated-only, forces a fresh probe."""
     checks = await refresh_probe()
+    # The live logging state rides along: which profile is active, where it
+    # came from (builtin / file / env), and each channel's floor. This is
+    # how "why am I not seeing X?" is answered from inside the app.
+    from app.core.logging_config import snapshot as logging_snapshot
+
     return {
         **_base(request_id),
         "status": _worst([c["status"] for c in checks.values()]),
         "checks": checks,
         "summary": _summarize(checks),
         "latency": metrics.snapshot(),
-        "diagnostics": {"forceRefreshedAt": _iso()},
+        "diagnostics": {"forceRefreshedAt": _iso(), "logging": logging_snapshot()},
     }
 
 

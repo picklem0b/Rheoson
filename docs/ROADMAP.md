@@ -128,7 +128,7 @@ and the auth/OpenAPI guards see the full surface again.
 ## v2.20.3 — DCCNN error codes
 
 **A code on every failure.** Users reporting a problem now have something to
-quote: `Download failed [ERR DEX01]`. Codes are five characters — domain
+quote: `Download failed [ERROR_CODE: DEX01]`. Codes are five characters — domain
 letter, two-letter category, two-digit sequence — so the code itself carries
 meaning: D=downloads, A=auth, P=playlists…; VA=validation, NF=not-found,
 EX=execution failed. One registry owns every code (`app/core/error_codes.py`),
@@ -187,7 +187,7 @@ route a server failure to the `/error` surface built in v2.20.4: the failure's
 status, message and DCCNN code travel in router state, the navigation replaces
 (not pushes — the failed screen is not a destination), and repeated failures
 collapse into one navigation. The error page's ⓘ panel now also renders the
-`[ERR …]` chip.
+`[ERROR_CODE: …]` chip.
 
 **Failures that are somebody's job stay somebody's job.** Gateway-class
 responses (502/503/504) get one silent retry after 1.5 s before anything is
@@ -198,6 +198,34 @@ the health endpoints and the Doctor present a failing backend as findings
 and download failures stay in the Downloads list where retry lives — the same
 reason v2.20.0 kept failed job records durable. Status 0 (unreachable) still
 belongs to the NetworkErrorBanner, whose polling makes recovery visible.
+
+---
+
+## v2.21.4 — The console you can read
+
+The traceback.log told the whole story in one screen: ninety-two lines where
+two mattered. The `200 OK` flood buried a real fault — an upstream CDN dying
+mid-relay, reported as a raw `Response content shorter than Content-Length`
+traceback, twice, by layers that never knew what the bytes were for.
+
+Smart logging fixes the surface and the source. Log output is organized
+into **channels** (access, stream, download, library, lyrics, lifecycle,
+core) with per-channel severity floors, grouped into **profiles** —
+`default` drops successful request lines and keeps every failure; `quiet`
+shows application-breaking errors only; `debug` is the firehose for
+tracing one flow. A **`rheoson.logconfig.json`** debug-config in `MUSIC_DIR`
+takes effect within seconds of a touch — no restart — and env vars
+(`RHEOSON_LOG_PROFILE`, `RHEOSON_LOG_LEVEL`, `RHEOSON_LOG_CHANNELS`) sit on
+top; `/api/health/diag` reports which profile is live and where it came
+from. The relay now **diagnoses upstream death** with one structured
+warning instead of propagating it, and the ASGI layer's duplicate
+traceback is suppressed after the app has logged the real record.
+
+The same log exposed a quieter bug: the error-code wire format was
+`[ERR: DEX01]` on the backend but `[ERR DEX01]` in the frontend parser, so
+live toasts never extracted the code at all. The format is now
+**`[ERROR_CODE: DEX01]`** end to end — distinct at a glance, unambiguous to
+grep — with the parser accepting the legacy renderings across an upgrade.
 
 ---
 
@@ -266,7 +294,7 @@ quick-pick tiles, featured carousel and recommendation rails retired.
 ## v2.20.9 — The preview toast fails honestly
 
 The mini preview only ever showed the happy path. Its downloads tab
-now carries the app's red failure toast with the [ERR DEX01] chip and
+now carries the app's red failure toast with the [ERROR_CODE: DEX01] chip and
 an accessible ⓘ toggle that expands the full plain-language message,
 so the site demonstrates the promise the product makes about errors.
 
