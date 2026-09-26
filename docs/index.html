@@ -401,11 +401,16 @@
             height: 34px;
             border-radius: 8px;
             flex-shrink: 0;
-            display: grid;
-            place-items: center;
-            font-weight: 800;
-            font-size: 11px;
-            color: #fff;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+         }
+
+         .mini-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
          }
 
          .mini-meta {
@@ -938,52 +943,52 @@
                      <div class="mini-body">
                         <div class="mini-page on" data-page="home">
                            <div class="mini-row playing">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #7c3aed, #4c1d95)">N</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Nightcall</b><span>Kavinsky</span></div>
                               <div class="mini-eq" aria-hidden="true"><i></i><i></i><i></i></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #0ea5e9, #1e40af)">M</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Midnight City</b><span>M83</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #f59e0b, #b45309)">R</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Redbone</b><span>Childish Gambino</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #10b981, #065f46)">F</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Feel Good Inc.</b><span>Gorillaz</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #f43f5e, #9f1239)">D</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Dreams</b><span>Fleetwood Mac</span></div>
                            </div>
                         </div>
                         <div class="mini-page" data-page="search">
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #8b5cf6, #5b21b6)">Q</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Queries</b><span>4 results</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #64748b, #334155)">S</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Stream warming</b><span>buffered ahead</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #22d3ee, #0e7490)">I</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Instant history</b><span>synced</span></div>
                            </div>
                         </div>
                         <div class="mini-page" data-page="library">
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #8b5cf6, #4c1d95)">L</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Liked songs</b><span>218 tracks</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #059669, #064e3b)">P</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Playlist: Late drives</b><span>32 tracks</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #d97706, #7c2d12)">O</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Offline</b><span>12 downloaded</span></div>
                            </div>
                         </div>

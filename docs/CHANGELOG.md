@@ -6,6 +6,10 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.20.7 — The preview wears the real mark
+
+- fix(site): **the mini preview's eleven fake album-art gradients are now the real Rheoson logo** — the asset the app itself uses as its artwork placeholder, served from `docs/assets/`, framed with the app's tile chrome (rounded corners, hairline border) instead of saturated gradients with a letter.
+
 ## v2.20.6 — The website, findable
 
 - feat(seo): **robots.txt, sitemap.xml, canonical URL, og:url/site_name, Twitter card, JSON-LD WebApplication and a descriptive title/description/keywords** — the site was absent from Google entirely (zero results); every discovery primitive now ships in the build.

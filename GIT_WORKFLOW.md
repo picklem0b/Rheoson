@@ -92,7 +92,7 @@ Rheoson versions as `v2.MILESTONE.PHASE[-rc]` — not generic semver:
 
 Tags are **always annotated** (`git tag -a`), never lightweight. The subject is `v2.M.PHASE — <phase theme>`; the body lists what the phase delivered as bullets, and feeds `docs/CHANGELOG.md`. Push tags with `git push --follow-tags` (never a bare `git push --tags`).
 
-### Current milestone: 2.20 — in development: v2.20.6
+### Current milestone: 2.20 — in development: v2.20.7
 
 Milestone 2.19 delivered the reliability arc: playback and downloads that work
 on a bare host, a corrected auth and API trust boundary, an account contract

@@ -201,6 +201,18 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.20.7 — The preview wears the real mark
+
+The landing page's mini app preview showed gradient tiles with a single
+letter standing in for album art. The real app never does that — its
+placeholder for missing artwork is the Rheoson logo itself. The preview now
+uses the actual logo asset (copied to `docs/assets/` so Pages serves it
+without touching `web/`), framed like the app's placeholder tiles: rounded,
+hairline border, cover-fit. Same fix across all eleven tiles on the Home,
+Search and Library tabs.
+
+---
+
 ## v2.20.6 — The website, findable
 
 **Google had never heard of us.** A site search returned zero results — not
