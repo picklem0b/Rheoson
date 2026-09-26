@@ -201,6 +201,102 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.21.3 — Everything personal behind your face
+
+The gear icon left the navigation; the profile picture opens a sheet
+that carries **Settings, Listening stats, About, Privacy and Account**.
+Settings regrouped to match how listeners think: Sound & playback
+(Notifications, Audio quality, Playback — with the real speed control,
+gapless, seek step and haptics), App & data (Layout, Navigation &
+fonts, **Streaming** for autoplay and warm-ahead, **Data-saving &
+offline** for the offline cache, Downloads, Storage). About replaced
+the tag-chip strip with a real changelog reader and gained a
+**Contributing** button beside the stars. The Privacy section now
+contains the full documentation in-app — what data exists, where it
+lives, who receives it, and how to remove each kind — not just a link.
+Every section keeps a live consumer; nothing decorative survived the
+move.
+
+---
+
+## v2.21.2 — The library answers back
+
+A library-wide search field filters favourites, playlists, albums and
+artists live, and a section with no matches says so instead of sitting
+silent. Empty sections render their message the moment data lands
+rather than loading forever. Playlists render as thumbnail cards with
+provenance — created by the signed-in user on the date, 22 sep format —
+in a horizontal scroller with a nudge button, and the artist skeleton
+is circular to match what it becomes.
+
+---
+
+## v2.21.1 — The player tells the truth about speed, source and favourites
+
+The playback surface caught up with its own engine. The ••• menu's
+playback settings became a real sheet: speed (0.75× to 2×, persisted,
+applied to the live Howl and re-applied on every load), repeat, shuffle
+and a playthrough choice — keep going when the queue ends, or stop. The
+full player's header now says **Playing from …** instead of the static
+"Now Playing" label, derived once at play time from wherever the track
+was started (search, trending, a playlist, an album, an artist). The
+fake drag handle is gone; a working dismissal path (back, chevron) was
+already there. The buffering spinner became the app's EQ motif, and the
+queue no longer lists the playing song twice — history's last entry IS
+the current track, and the queue tab now dedupes on id. Lyrics warm the
+cache on mount, so the Lyrics tab never opens cold. Like became
+**Favourite** across the player, context menu, album page, downloads
+rows, profile stat and library section.
+
+---
+
+## v2.21.0 — The home page picks a lane
+
+Home carried eight stacked surfaces; a listener had to parse them all.
+It now renders four, each answering one question: **Last played** as a
+plain list, **Recommended artists** derived from the thirty-day
+listening profile (circular cards, resolved through search so every
+tap routes to the artist page), **Trending this week** as five rows
+that expand to ten in place with a See all route to the full chart,
+and **Made for you** as a grid of daily-mix playlist cards. The hero,
+quick-pick tiles, featured carousel and recommendation rails retired.
+
+---
+
+## v2.20.9 — The preview toast fails honestly
+
+The mini preview only ever showed the happy path. Its downloads tab
+now carries the app's red failure toast with the [ERR DEX01] chip and
+an accessible ⓘ toggle that expands the full plain-language message,
+so the site demonstrates the promise the product makes about errors.
+
+---
+
+## v2.20.8 — The preview shows the receipts
+
+The landing page's phone preview demonstrated streaming but never the
+feature this project is named for: downloads. The preview gains a fourth
+tab, **Downloads**, showing the completed state — three tracks with the
+logo placeholder art, format and duration lines, and green check chips —
+plus the app's signature green **"Download complete"** toast floating
+above the player bar, exactly as the real app announces a finished job.
+The bottom dock was decorative; every dock item now switches tabs too,
+mirroring the tab strip like the real nav would.
+
+---
+
+## v2.20.7 — The preview wears the real mark
+
+The landing page's mini app preview showed gradient tiles with a single
+letter standing in for album art. The real app never does that — its
+placeholder for missing artwork is the Rheoson logo itself. The preview now
+uses the actual logo asset (copied to `docs/assets/` so Pages serves it
+without touching `web/`), framed like the app's placeholder tiles: rounded,
+hairline border, cover-fit. Same fix across all eleven tiles on the Home,
+Search and Library tabs.
+
+---
+
 ## v2.20.6 — The website, findable
 
 **Google had never heard of us.** A site search returned zero results — not

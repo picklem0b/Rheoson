@@ -191,7 +191,7 @@ export default function PlayerBar() {
                   <motion.button
                      whileTap={{ scale: 0.8 }}
                      onClick={handleLike}
-                     aria-label={liked ? "Remove from liked" : "Like song"}
+                     aria-label={liked ? "Remove from favourites" : "Favourite"}
                      className='flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center active:bg-[var(--bg-elevated)]'>
                      <Heart
                         className={cn(
@@ -260,8 +260,8 @@ export default function PlayerBar() {
                               {[
                                  {
                                     label: liked
-                                       ? "Remove from liked"
-                                       : "Like song",
+                                       ? "Remove from favourites"
+                                       : "Favourite",
                                     icon: (
                                        <Heart
                                           className={cn(

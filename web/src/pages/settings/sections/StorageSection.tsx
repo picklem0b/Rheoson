@@ -1,12 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FolderOpen, ArrowClockwise, DownloadSimple, Trash, CheckCircle, WarningCircle, MusicNotes, CaretDown, CaretRight, HardDrive } from '@phosphor-icons/react';
+import { FolderOpen, ArrowClockwise, DownloadSimple, Trash, CheckCircle, WarningCircle, MusicNotes, CaretDown, CaretRight } from '@phosphor-icons/react';
 import { api } from "@/api/client.api";
-import {
-   getAudioCacheStats,
-   clearAudioCache,
-   pruneAudioCache
-} from "@/lib/audioCache";
 import { usePersisted } from "@/hooks/persisted.hook";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -43,7 +38,6 @@ function fmt(bytes: number) {
 export default function StorageSection() {
    const queryClient = useQueryClient();
    const [dirs, setDirs] = usePersisted<Dir[]>("music-dirs", DEFAULT_DIRS);
-   const [autoWarm, setAutoWarm] = usePersisted("storage-auto-warm", true);
    const [adding, setAdding] = useState(false);
    const [pathInput, setPathInput] = useState("");
    const [preview, setPreview] = useState<Record<string, AudioFile[]>>({});
@@ -54,47 +48,6 @@ export default function StorageSection() {
    const [exportState, setExportState] = useState<ActionState>("idle");
    const [streamState, setStreamState] = useState<ActionState>("idle");
    const [artworkState, setArtworkState] = useState<ActionState>("idle");
-   const [audioState, setAudioState] = useState<ActionState>("idle");
-
-   // Client-side offline audio cache (see lib/audioCache)
-   const [audioStats, setAudioStats] = useState<{
-      count: number;
-      bytes: number;
-      limitBytes: number;
-   } | null>(null);
-   const [cacheLimitMb, setCacheLimitMb] = useState(300);
-
-   const refreshAudioStats = useCallback(() => {
-      getAudioCacheStats()
-         .then(setAudioStats)
-         .catch(() => setAudioStats(null))
-   }, []);
-
-   useEffect(() => {
-      try {
-         const raw = localStorage.getItem('rheoson-audio-cache-limit-mb')
-         if (raw !== null) setCacheLimitMb(Number(JSON.parse(raw)))
-      } catch {
-         /* keep the default */
-      }
-   }, [])
-
-   // Stats are read on entry and after any clear, so the numbers reflect the
-   // real store rather than a cached guess.
-   useEffect(() => {
-      let alive = true
-      getAudioCacheStats()
-         .then(s => { if (alive) setAudioStats(s) })
-         .catch(() => {})
-      return () => { alive = false }
-   }, [audioState])
-
-   const clearAudio = async () => {
-      await actionRunner(setAudioState, async () => {
-         await clearAudioCache()
-         refreshAudioStats()
-      })
-   }
 
    // Load server-side dirs on mount and merge with persisted state
    useEffect(() => {
@@ -375,17 +328,6 @@ export default function StorageSection() {
             />
          </SettingsGroup>
 
-         {/* Caching behaviour */}
-         <SettingsGroup
-            title='Caching behaviour'
-            footer='Warm-ahead pre-buffers tracks you are about to hear so skips are instant. Turning it off saves data at the cost of slower skips.'>
-            <SettingsRow
-               label='Warm-ahead pre-buffer'
-               description='Fetch upcoming tracks in the background while listening'>
-               <Toggle value={autoWarm} onChange={setAutoWarm} />
-            </SettingsRow>
-         </SettingsGroup>
-
          {/* Cache */}
          <SettingsGroup
             title='Cache'
@@ -407,59 +349,6 @@ export default function StorageSection() {
                okLabel='Artwork cache cleared'
                errLabel='Failed to clear'
                onClick={artworkState === "idle" ? clearArtwork : undefined}
-               idleIcon={<Trash className='w-4 h-4 text-[var(--danger-text)]' />}
-               danger
-            />
-         </SettingsGroup>
-
-         {/* Offline audio cache */}
-         <SettingsGroup
-            title='Offline audio cache'
-            footer='Tracks you have played are kept in the browser so replaying and skipping start instantly — and keep working with no connection. Downloaded music lives in your library and is never cleared here.'>
-            <SettingsRow
-               label='Cached for offline playback'
-               description={
-                  audioStats
-                     ? `${audioStats.count} track${audioStats.count === 1 ? '' : 's'} · ${fmt(audioStats.bytes)} of ${fmt(audioStats.limitBytes)}`
-                     : 'Measuring…'
-               }
-               icon={<DownloadSimple className='w-[14px] h-[14px]' />}
-               iconBg='#0EA5E9'
-            />
-
-            <SettingsRow
-               label='Cache size limit'
-               description='How much audio to keep on this device (0 disables the cache)'
-               icon={<HardDrive className='w-[14px] h-[14px]' />}
-               iconBg='#8B5CF6'>
-               <select
-                  value={cacheLimitMb}
-                  onChange={e => {
-                     const mb = Number(e.target.value)
-                     setCacheLimitMb(mb)
-                     localStorage.setItem(
-                        'rheoson-audio-cache-limit-mb',
-                        JSON.stringify(mb)
-                     )
-                     pruneAudioCache().then(refreshAudioStats).catch(() => {})
-                  }}
-                  className='h-9 px-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]'
-               >
-                  {[0, 100, 300, 500, 1000].map(mb => (
-                     <option key={mb} value={mb}>
-                        {mb === 0 ? 'Off' : `${mb} MB`}
-                     </option>
-                  ))}
-               </select>
-            </SettingsRow>
-
-            <StateRow
-               state={audioState}
-               idleLabel='Clear offline audio'
-               idleDesc='Free the space used by cached tracks'
-               okLabel='Offline audio cleared'
-               errLabel='Failed to clear'
-               onClick={audioState === "idle" ? clearAudio : undefined}
                idleIcon={<Trash className='w-4 h-4 text-[var(--danger-text)]' />}
                danger
             />

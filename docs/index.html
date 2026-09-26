@@ -302,6 +302,7 @@
          }
 
          .screen {
+            position: relative;
             background: var(--bg);
             border-radius: 30px;
             overflow: hidden;
@@ -401,11 +402,16 @@
             height: 34px;
             border-radius: 8px;
             flex-shrink: 0;
-            display: grid;
-            place-items: center;
-            font-weight: 800;
-            font-size: 11px;
-            color: #fff;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+         }
+
+         .mini-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
          }
 
          .mini-meta {
@@ -542,6 +548,119 @@
          .mini-dock i {
             font-style: normal;
             font-size: 13px;
+         }
+
+         /* downloads tab */
+         .mini-dl-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 10px 4px 6px;
+         }
+
+         .mini-dl-head b {
+            font-size: 12px;
+         }
+
+         .mini-dl-head span {
+            color: var(--muted);
+            font-size: 9.5px;
+         }
+
+         .mini-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.14);
+            color: var(--success);
+            display: grid;
+            place-items: center;
+            font-size: 10px;
+            font-weight: 800;
+            flex-shrink: 0;
+         }
+
+         .mini-toast {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 154px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-card);
+            border: 1px solid rgba(52, 211, 153, 0.28);
+            border-radius: var(--r-md);
+            padding: 10px 12px;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+            animation: fadeUp 0.25s ease;
+         }
+
+         .toast-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.16);
+            color: var(--success);
+            display: grid;
+            place-items: center;
+            font-size: 11px;
+            font-weight: 800;
+            flex-shrink: 0;
+         }
+
+         .mini-toast-meta {
+            min-width: 0;
+         }
+
+         .mini-toast-meta b {
+            display: block;
+            font-size: 11px;
+         }
+
+         .mini-toast-meta span {
+            color: var(--muted);
+            font-size: 9.5px;
+         }
+
+         .mini-toast.fail {
+            border-color: rgba(248, 113, 113, 0.3);
+         }
+
+         .mini-toast .toast-info {
+            cursor: pointer;
+            background: none;
+            font-family: inherit;
+            padding: 0;
+            transition: border-color 0.15s ease, color 0.15s ease;
+         }
+
+         .mini-toast .toast-info:hover,
+         .mini-toast .toast-info:focus-visible {
+            border-color: var(--danger);
+            color: var(--danger);
+         }
+
+         .mini-toast-detail {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 208px;
+            background: var(--bg-raised);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+            border-radius: var(--r-md);
+            padding: 12px 14px;
+            color: var(--text-mid);
+            font-size: 10.5px;
+            line-height: 1.55;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+            animation: fadeUp 0.2s ease;
+         }
+
+         .mini-toast-detail .code-chip {
+            margin-left: 6px;
+            font-size: 9px;
+            padding: 1px 6px;
          }
 
          /* ── bento ───────────────────────────────────────────── */
@@ -882,7 +1001,9 @@
             }
 
             .mini-eq i,
-            .mini-page {
+            .mini-page,
+            .mini-toast,
+            .mini-toast-detail {
                animation: none;
             }
          }
@@ -934,57 +1055,79 @@
                         <button class="mini-tab on" data-page="home" role="tab" aria-selected="true">Home</button>
                         <button class="mini-tab" data-page="search" role="tab" aria-selected="false">Search</button>
                         <button class="mini-tab" data-page="library" role="tab" aria-selected="false">Library</button>
+                        <button class="mini-tab" data-page="downloads" role="tab" aria-selected="false">Downloads</button>
                      </div>
                      <div class="mini-body">
                         <div class="mini-page on" data-page="home">
                            <div class="mini-row playing">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #7c3aed, #4c1d95)">N</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Nightcall</b><span>Kavinsky</span></div>
                               <div class="mini-eq" aria-hidden="true"><i></i><i></i><i></i></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #0ea5e9, #1e40af)">M</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Midnight City</b><span>M83</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #f59e0b, #b45309)">R</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Redbone</b><span>Childish Gambino</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #10b981, #065f46)">F</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Feel Good Inc.</b><span>Gorillaz</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #f43f5e, #9f1239)">D</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Dreams</b><span>Fleetwood Mac</span></div>
                            </div>
                         </div>
                         <div class="mini-page" data-page="search">
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #8b5cf6, #5b21b6)">Q</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Queries</b><span>4 results</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #64748b, #334155)">S</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Stream warming</b><span>buffered ahead</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #22d3ee, #0e7490)">I</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Instant history</b><span>synced</span></div>
                            </div>
                         </div>
                         <div class="mini-page" data-page="library">
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #8b5cf6, #4c1d95)">L</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Liked songs</b><span>218 tracks</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #059669, #064e3b)">P</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Playlist: Late drives</b><span>32 tracks</span></div>
                            </div>
                            <div class="mini-row">
-                              <div class="mini-art" style="background: linear-gradient(135deg, #d97706, #7c2d12)">O</div>
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
                               <div class="mini-meta"><b>Offline</b><span>12 downloaded</span></div>
+                           </div>
+                        </div>
+                        <div class="mini-page" data-page="downloads">
+                           <div class="mini-dl-head">
+                              <b>Downloads</b>
+                              <span>12 on this device</span>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
+                              <div class="mini-meta"><b>Nightcall</b><span>Kavinsky · 3:32 · MP3</span></div>
+                              <div class="mini-check" aria-label="Downloaded">&#10003;</div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
+                              <div class="mini-meta"><b>Midnight City</b><span>M83 · 4:03 · MP3</span></div>
+                              <div class="mini-check" aria-label="Downloaded">&#10003;</div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
+                              <div class="mini-meta"><b>Redbone</b><span>Childish Gambino · 5:25 · FLAC</span></div>
+                              <div class="mini-check" aria-label="Downloaded">&#10003;</div>
                            </div>
                         </div>
                      </div>
@@ -998,10 +1141,24 @@
                         </div>
                      </div>
                      <div class="mini-dock">
-                        <span class="on"><i>&#9635;</i>Home</span>
-                        <span><i>&#9906;</i>Search</span>
-                        <span><i>&#9871;</i>Library</span>
-                        <span><i>&#8599;</i>Stats</span>
+                        <span class="on" data-tab="home"><i>&#9635;</i>Home</span>
+                        <span data-tab="search"><i>&#9906;</i>Search</span>
+                        <span data-tab="library"><i>&#9871;</i>Library</span>
+                        <span data-tab="downloads"><i>&#8599;</i>Downloads</span>
+                     </div>
+                     <div class="mini-toast fail" role="status">
+                        <span class="toast-x">&#10005;</span>
+                        <div class="mini-toast-meta">
+                           <b>Download failed</b>
+                           <span>YouTube refused every client · [ERR DEX01]</span>
+                        </div>
+                        <button class="toast-info" type="button" aria-expanded="false"
+                           aria-label="Show error details">i</button>
+                     </div>
+                     <div class="mini-toast-detail" id="mini-err-detail" hidden>
+                        YouTube refused this track on every client we tried. Update
+                        the download engine or retry shortly.
+                        <span class="code-chip">[ERR DEX01]</span>
                      </div>
                   </div>
                </div>
@@ -1214,19 +1371,46 @@
       </footer>
 
       <script>
-         // mini-app tab switching (the phone preview)
+         // mini-app tab switching (the phone preview); the dock mirrors the tab strip
+         function activateMiniPage(page) {
+            document.querySelectorAll(".mini-tab").forEach(function (t) {
+               t.classList.toggle("on", t.dataset.page === page);
+               t.setAttribute("aria-selected", t.dataset.page === page ? "true" : "false");
+            });
+            document.querySelectorAll(".mini-page").forEach(function (p) {
+               p.classList.toggle("on", p.dataset.page === page);
+            });
+            document.querySelectorAll(".mini-dock span[data-tab]").forEach(function (s) {
+               s.classList.toggle("on", s.dataset.tab === page);
+            });
+         }
+
          document.querySelectorAll(".mini-tab").forEach(function (tab) {
             tab.addEventListener("click", function () {
-               var page = tab.dataset.page;
-               document.querySelectorAll(".mini-tab").forEach(function (t) {
-                  t.classList.toggle("on", t === tab);
-                  t.setAttribute("aria-selected", t === tab ? "true" : "false");
-               });
-               document.querySelectorAll(".mini-page").forEach(function (p) {
-                  p.classList.toggle("on", p.dataset.page === page);
-               });
+               activateMiniPage(tab.dataset.page);
             });
          });
+
+         document.querySelectorAll(".mini-dock span[data-tab]").forEach(function (item) {
+            item.addEventListener("click", function () {
+               activateMiniPage(item.dataset.tab);
+            });
+         });
+
+         // mini error toast: the i button expands the full message
+         var miniInfo = document.querySelector(".mini-toast .toast-info");
+         var miniDetail = document.getElementById("mini-err-detail");
+         if (miniInfo && miniDetail) {
+            miniInfo.addEventListener("click", function () {
+               var open = miniDetail.hidden;
+               miniDetail.hidden = !open;
+               miniInfo.setAttribute("aria-expanded", open ? "true" : "false");
+               miniInfo.setAttribute(
+                  "aria-label",
+                  open ? "Hide error details" : "Show error details"
+               );
+            });
+         }
 
          // quickstart tabs
          document.querySelectorAll(".tab").forEach(function (tab) {

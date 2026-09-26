@@ -6,6 +6,42 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.21.3 — Everything personal behind your face
+
+- feat(nav): **the profile picture replaces the gear icon** in both navs, opening a sheet with Settings, Listening stats, About, Privacy and Account (the last three deep-link into their settings sections).
+- feat(settings): regrouped — Notifications, **Audio quality**, **Playback** (speed, gapless, seek step, haptics), Layout, Navigation & fonts, **Streaming** (autoplay, warm-ahead), **Data-saving & offline** (offline cache), Downloads, Storage.
+- feat(about): a real **changelog reader** replaces the release tag chips; **Contributing** button added beside the GitHub star button.
+- feat(privacy): **the full privacy documentation renders in the app** — what data exists, where it lives, who receives it, how to remove it.
+
+## v2.21.2 — The library answers back
+
+- feat(library): a **library-wide search field** filters favourites, playlists, albums and artists live, with per-section no-matches states.
+- fix(library): empty sections render their empty state instead of skeletons when there is nothing to show.
+- feat(library): playlist cards show thumbnail, name, created by the user on the date (22 sep), in a scroller with a nudge button; artist skeletons are circular.
+
+## v2.21.1 — The player tells the truth about speed, source and favourites
+
+- feat(player): **playback settings sheet gains speed (0.75×–2×, persisted, applied live), repeat, shuffle and playthrough (keep going / stop)** — controls the engine already had, finally reachable.
+- feat(player): the full-player header reads **"Playing from …"**, set from the route at play time; the fake drag handle is removed; buffering shows the EQ motif; the queue tab dedupes the current track (history's last entry is the current track).
+- feat(library): lyrics preload on mount so the Lyrics tab never opens cold.
+- refactor(naming): **Like → Favourite** across player, context menu, album, downloads rows, profile and library.
+
+## v2.21.0 — The home page picks a lane
+
+- feat(home): Last played renders as a list; Recommended artists derives from real listening (top artists) and resolves to artist pages; Trending this week shows 5 with an in-place expand to 10 plus See all; Made for you is a grid of daily-mix playlist cards. The hero, quick picks, featured carousel and rec rails were retired.
+
+## v2.20.9 — The preview toast fails honestly
+
+- docs(site): the mini preview's downloads tab now shows the red failure toast with the [ERR DEX01] chip and an accessible i toggle that expands the full error message.
+
+## v2.20.8 — The preview shows the receipts
+
+- feat(site): **the mini preview gains a Downloads tab** showing the completed state — three tracks with logo placeholder art, format/duration lines, green check chips — and the app's green "Download complete" toast above the player bar. The bottom dock is now functional: every item switches tabs, mirroring the tab strip.
+
+## v2.20.7 — The preview wears the real mark
+
+- fix(site): **the mini preview's eleven fake album-art gradients are now the real Rheoson logo** — the asset the app itself uses as its artwork placeholder, served from `docs/assets/`, framed with the app's tile chrome (rounded corners, hairline border) instead of saturated gradients with a letter.
+
 ## v2.20.6 — The website, findable
 
 - feat(seo): **robots.txt, sitemap.xml, canonical URL, og:url/site_name, Twitter card, JSON-LD WebApplication and a descriptive title/description/keywords** — the site was absent from Google entirely (zero results); every discovery primitive now ships in the build.

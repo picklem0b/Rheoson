@@ -1,6 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { House, MagnifyingGlass, Books, DownloadSimple, GearSix, UserCircle } from '@phosphor-icons/react'
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { House, MagnifyingGlass, Books, DownloadSimple, UserCircle } from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
+import ProfileSheet from '@/components/layout/ProfileSheet'
 import { useUser } from '@clerk/clerk-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
@@ -12,13 +14,12 @@ const NAV_ITEMS = [
   { to: '/search', icon: MagnifyingGlass, label: 'Search' },
   { to: '/library', icon: Books, label: 'Library' },
   { to: '/downloads', icon: DownloadSimple, label: 'My Music' },
-  { to: '/settings', icon: GearSix, label: 'Settings' },
 ]
 
 /** Sidebar icon size token — matches the BottomNav rhythm. */
 const ICON_SIZE = 20
 
-// ── Profile button ─────────────────────────────────────────────
+// ── Profile button — opens the profile sheet ─────────────────────
 
 const AVATAR_GRADIENTS = [
   'from-violet-600 to-fuchsia-500',
@@ -38,12 +39,9 @@ function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
   return (parts[0]?.[0] ?? 'U').toUpperCase()
-}
-
-function ProfileButton() {
-  const navigate = useNavigate()
-  if (!isClerkEnabled()) return <LocalProfileButton navigate={navigate} />
-  return <ClerkProfileButton navigate={navigate} />
+}function ProfileButton({ onOpen }: { onOpen: () => void }) {
+  if (!isClerkEnabled()) return <LocalProfileButton onOpen={onOpen} />
+  return <ClerkProfileButton onOpen={onOpen} />
 }
 
 /**
@@ -53,20 +51,20 @@ function ProfileButton() {
  * this component renders inside the shared layout, which is not wrapped by
  * the provider in that case.
  */
-function ClerkProfileButton({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+function ClerkProfileButton({ onOpen }: { onOpen: () => void }) {
   const { user: clerkUser } = useUser()
   const localUser = useAuthStore((s) => s.user)
 
   const name = clerkUser?.username ?? localUser?.username ?? 'Your account'
   const imageUrl = clerkUser?.imageUrl ?? localUser?.image_url
-  return <ProfileButtonBody navigate={navigate} name={name} imageUrl={imageUrl} />
+  return <ProfileButtonBody onOpen={onOpen} name={name} imageUrl={imageUrl} />
 }
 
-function LocalProfileButton({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+function LocalProfileButton({ onOpen }: { onOpen: () => void }) {
   const localUser = useAuthStore((s) => s.user)
   return (
     <ProfileButtonBody
-      navigate={navigate}
+      onOpen={onOpen}
       name={localUser?.username ?? 'Your account'}
       imageUrl={localUser?.image_url}
     />
@@ -74,11 +72,11 @@ function LocalProfileButton({ navigate }: { navigate: ReturnType<typeof useNavig
 }
 
 function ProfileButtonBody({
-  navigate,
+  onOpen,
   name,
   imageUrl,
 }: {
-  navigate: ReturnType<typeof useNavigate>
+  onOpen: () => void
   name: string
   imageUrl?: string
 }) {
@@ -88,7 +86,7 @@ function ProfileButtonBody({
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
-      onClick={() => navigate('/profile')}
+      onClick={onOpen}
       className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl w-full hover:bg-[var(--bg-elevated)] transition-colors text-left"
     >
       {imageUrl ? (
@@ -105,7 +103,7 @@ function ProfileButtonBody({
       )}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-[var(--text-primary)] truncate">{name}</p>
-        <p className="text-[10px] text-[var(--text-muted)] truncate">View profile</p>
+        <p className="text-[10px] text-[var(--text-muted)] truncate">Settings, stats, more</p>
       </div>
       <UserCircle size={16} className="text-[var(--text-muted)] flex-shrink-0" aria-hidden />
     </motion.button>
@@ -115,7 +113,10 @@ function ProfileButtonBody({
 /** Desktop-only sidebar. Hidden on mobile via RootLayout's breakpoint, and
  *  never mounted inside the native shell (see RootLayout). */
 export default function Sidebar() {
+  const [sheetOpen, setSheetOpen] = useState(false)
+
   return (
+    <>
     <motion.div
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
@@ -170,9 +171,14 @@ export default function Sidebar() {
       ))}
       {/* ── Bottom section ─────────────────────────────── */}
       <div className="mt-auto space-y-1">
-        <ProfileButton />
+        <ProfileButton onOpen={() => setSheetOpen(true)} />
         <ShortcutsModal />
       </div>
     </motion.div>
+
+    <AnimatePresence>
+      {sheetOpen && <ProfileSheet onClose={() => setSheetOpen(false)} />}
+    </AnimatePresence>
+    </>
   )
 }

@@ -20,6 +20,14 @@ interface PlayerStore {
     isShuffled: boolean;
 
     /**
+     * Human label of where the current track was started from — a playlist
+     * name, "Search", "Trending this week", "Favourites". The full-player
+     * header reads it ("Playing from …"). Session-scoped, never persisted.
+     */
+    playSource: string;
+    setPlaySource: (label: string) => void;
+
+    /**
      * Set when a track is chosen by the user (or advanced by the queue) and
      * consumed by the player hook, which starts playback automatically.
      * Restoring a persisted track at boot deliberately leaves this false so
@@ -56,7 +64,10 @@ export const usePlayerStore = create<PlayerStore>()(
             isMuted: false,
             repeatMode: 'off',
             isShuffled: false,
+            playSource: 'Your library',
             autoPlayPending: false,
+
+            setPlaySource: label => set({ playSource: label }),
 
             setTrack: (track, opts) => {
                 set({

@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash, CheckCircle, WarningCircle, ArrowClockwise, ArrowSquareOut, DownloadSimple, Upload } from '@phosphor-icons/react';
+import { motion, AnimatePresence } from "framer-motion";
+import { Trash, CheckCircle, WarningCircle, ArrowClockwise, ArrowSquareOut, DownloadSimple, Upload, CaretDown } from '@phosphor-icons/react';
 import { api } from "@/api/client.api";
 import { usePersisted } from "@/hooks/persisted.hook";
+import { cn } from "@/lib/utils";
 import {
    SettingsGroup,
    SettingsRow,
@@ -238,6 +240,9 @@ export default function PrivacySection() {
             />
          </SettingsGroup>
 
+         {/* Full documentation — the whole policy, in the app */}
+         <PrivacyDocs />
+
          <SettingsGroup title='Legal'>
             <SettingsRow
                label='Privacy policy'
@@ -297,5 +302,116 @@ function HistoryRow({
          {state === "err" && <WarningCircle className='w-4 h-4 text-[var(--danger-text)]' />}
          {state === "idle" && <Trash className='w-4 h-4 text-[var(--danger-text)]' />}
       </SettingsRow>
+   );
+}
+
+/**
+ * The full privacy documentation, rendered in the app — what data exists,
+ * where it lives, who receives it, and how to remove it. Mirrors
+ * docs/PRIVACY.md; this is the reader, the file is the source.
+ */
+function PrivacyDocs() {
+   const [open, setOpen] = useState(false);
+   const SECTIONS: { title: string; body: React.ReactNode }[] = [
+      {
+         title: 'What Rheoson collects',
+         body: (
+            <>
+               <p>Rheoson is self-hosted: when you run your own instance, <b>you are the operator</b>. The software sends nothing to any central service run by the maintainer.</p>
+               <p>What exists, and where it lives:</p>
+               <ul>
+                  <li><b>Account identity</b> — Clerk (third-party sign-in). Email and avatar you sign up with; Clerk&apos;s own policy governs it.</li>
+                  <li><b>Likes, history, playlists, follows</b> — your server, keyed to your account, isolated per user.</li>
+                  <li><b>Play signals &amp; listening stats</b> — your server&apos;s database, only if you configured one; powers recommendations.</li>
+                  <li><b>Downloaded audio</b> — your server&apos;s library and your device storage.</li>
+                  <li><b>Theme, layout, playback settings</b> — this device only. Never uploaded.</li>
+               </ul>
+            </>
+         ),
+      },
+      {
+         title: 'Who receives data',
+         body: (
+            <>
+               <p>Requests leave your machine only when you search, stream, or fetch extras:</p>
+               <ul>
+                  <li><b>YouTube Music</b> — search terms and video IDs when you search or stream.</li>
+                  <li><b>Spotify</b> — only when you paste a Spotify link; metadata only, no audio, no personal data.</li>
+                  <li><b>Lyrics providers</b> — track title and artist for songs you play.</li>
+                  <li><b>Clerk</b> — sign-in only.</li>
+                  <li><b>Artwork CDNs</b> — image URLs, proxied server-side.</li>
+               </ul>
+               <p>None of these receive your likes, history, playlists, or any Rheoson-internal data.</p>
+            </>
+         ),
+      },
+      {
+         title: 'What is logged',
+         body: (
+            <p>The server logs structured operational events: request IDs, routes, status codes, timing. <b>No tokens, no credentials, no request bodies.</b> Database connection strings are redacted. Retention is controlled by whoever operates the server — on your own instance, that is you.</p>
+         ),
+      },
+      {
+         title: 'How to remove your data',
+         body: (
+            <>
+               <p>Everything on this page is actionable:</p>
+               <ul>
+                  <li><b>Play history</b> — clear it above (Clear play history).</li>
+                  <li><b>Search logs</b> — clear them above, or turn saving off entirely.</li>
+                  <li><b>Likes, playlists, follows</b> — export a backup, then delete them in the app.</li>
+                  <li><b>Everything</b> — delete your account with Clerk; server-side data is keyed to that identity and can be purged by the operator.</li>
+               </ul>
+            </>
+         ),
+      },
+      {
+         title: 'Hosting for other people',
+         body: (
+            <p>If you host an instance for others, this policy describes the software&apos;s behaviour; you are responsible for your own privacy notice, log retention, and user data removal requests.</p>
+         ),
+      },
+   ];
+
+   return (
+      <SettingsGroup
+         title='How your data works'
+         footer='The full documentation, not a summary.'>
+         <button
+            onClick={() => setOpen(o => !o)}
+            aria-expanded={open}
+            className='w-full flex items-center justify-between px-4 py-3.5 text-left'>
+            <span className='text-[15px] font-medium text-[var(--text-primary)]'>
+               Read the full privacy documentation
+            </span>
+            <CaretDown
+               className={cn(
+                  'w-4 h-4 text-[var(--text-muted)] transition-transform',
+                  open && 'rotate-180',
+               )}
+            />
+         </button>
+         <AnimatePresence initial={false}>
+            {open && (
+               <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className='overflow-hidden'>
+                  <div className='px-4 pb-4 space-y-5'>
+                     {SECTIONS.map(s => (
+                        <div key={s.title}>
+                           <p className='text-[13px] font-bold text-[var(--text-primary)] mb-1.5'>{s.title}</p>
+                           <div className='text-[13px] leading-relaxed text-[var(--text-secondary)] space-y-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_b]:text-[var(--text-primary)]'>
+                              {s.body}
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               </motion.div>
+            )}
+         </AnimatePresence>
+      </SettingsGroup>
    );
 }
