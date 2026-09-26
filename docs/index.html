@@ -623,6 +623,46 @@
             font-size: 9.5px;
          }
 
+         .mini-toast.fail {
+            border-color: rgba(248, 113, 113, 0.3);
+         }
+
+         .mini-toast .toast-info {
+            cursor: pointer;
+            background: none;
+            font-family: inherit;
+            padding: 0;
+            transition: border-color 0.15s ease, color 0.15s ease;
+         }
+
+         .mini-toast .toast-info:hover,
+         .mini-toast .toast-info:focus-visible {
+            border-color: var(--danger);
+            color: var(--danger);
+         }
+
+         .mini-toast-detail {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 208px;
+            background: var(--bg-raised);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+            border-radius: var(--r-md);
+            padding: 12px 14px;
+            color: var(--text-mid);
+            font-size: 10.5px;
+            line-height: 1.55;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+            animation: fadeUp 0.2s ease;
+         }
+
+         .mini-toast-detail .code-chip {
+            margin-left: 6px;
+            font-size: 9px;
+            padding: 1px 6px;
+         }
+
          /* ── bento ───────────────────────────────────────────── */
          .bento {
             display: grid;
@@ -962,7 +1002,8 @@
 
             .mini-eq i,
             .mini-page,
-            .mini-toast {
+            .mini-toast,
+            .mini-toast-detail {
                animation: none;
             }
          }
@@ -1105,12 +1146,19 @@
                         <span data-tab="library"><i>&#9871;</i>Library</span>
                         <span data-tab="downloads"><i>&#8599;</i>Downloads</span>
                      </div>
-                     <div class="mini-toast" role="status">
-                        <span class="toast-check">&#10003;</span>
+                     <div class="mini-toast fail" role="status">
+                        <span class="toast-x">&#10005;</span>
                         <div class="mini-toast-meta">
-                           <b>Download complete</b>
-                           <span>Nightcall · Kavinsky</span>
+                           <b>Download failed</b>
+                           <span>YouTube refused every client · [ERR DEX01]</span>
                         </div>
+                        <button class="toast-info" type="button" aria-expanded="false"
+                           aria-label="Show error details">i</button>
+                     </div>
+                     <div class="mini-toast-detail" id="mini-err-detail" hidden>
+                        YouTube refused this track on every client we tried. Update
+                        the download engine or retry shortly.
+                        <span class="code-chip">[ERR DEX01]</span>
                      </div>
                   </div>
                </div>
@@ -1348,6 +1396,21 @@
                activateMiniPage(item.dataset.tab);
             });
          });
+
+         // mini error toast: the i button expands the full message
+         var miniInfo = document.querySelector(".mini-toast .toast-info");
+         var miniDetail = document.getElementById("mini-err-detail");
+         if (miniInfo && miniDetail) {
+            miniInfo.addEventListener("click", function () {
+               var open = miniDetail.hidden;
+               miniDetail.hidden = !open;
+               miniInfo.setAttribute("aria-expanded", open ? "true" : "false");
+               miniInfo.setAttribute(
+                  "aria-label",
+                  open ? "Hide error details" : "Show error details"
+               );
+            });
+         }
 
          // quickstart tabs
          document.querySelectorAll(".tab").forEach(function (tab) {
