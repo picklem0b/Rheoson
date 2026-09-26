@@ -3,28 +3,47 @@
    <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Rheoson: Self-hosted music streaming and downloads</title>
       <meta
          name="description"
-         content="Rheoson — Self-hosted music. No subscription. No ads. No compromise. Search, stream, and download any song." />
-      <meta property="og:title" content="Rheoson" />
+         content="Rheoson is self-hosted music streaming with real downloads: stream your library on Android or web, keep your files, and get honest errors when something breaks. No subscription, no ads." />
+      <meta
+         name="keywords"
+         content="rheoson, self-hosted music streaming, music downloader, offline music app, android music player, termux music server, open source spotify alternative, personal music server" />
+      <link rel="canonical" href="https://picklem0b.github.io/Rheoson/" />
+      <meta
+         property="og:title"
+         content="Rheoson: Self-hosted music streaming and downloads" />
       <meta
          property="og:description"
-         content="Self-hosted music. No subscription. No ads. No compromise." />
+         content="Stream your library on Android or web, keep your files, read honest errors when something breaks." />
       <meta
          property="og:image"
          content="https://raw.githubusercontent.com/picklem0b/Rheoson/main/web/public/assets/logo.png" />
-      <meta property="og:url" content="https://picklem0b.github.io/Rheoson" />
+      <meta property="og:url" content="https://picklem0b.github.io/Rheoson/" />
       <meta name="twitter:card" content="summary_large_image" />
-      <title>Rheoson — Self-hosted music</title>
+      <script type="application/ld+json">
+         {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "Rheoson",
+            "url": "https://picklem0b.github.io/Rheoson/",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Android, Web",
+            "description": "Self-hosted music streaming with real downloads. Your library, your server.",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+         }
+      </script>
       <link
          rel="icon"
          href="https://raw.githubusercontent.com/picklem0b/Rheoson/main/web/public/assets/logo.png" />
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
       <link
-         href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+         href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
          rel="stylesheet" />
       <style>
+         /* ── tokens ──────────────────────────────────────────── */
          *,
          *::before,
          *::after {
@@ -35,14 +54,20 @@
 
          :root {
             --bg: #0a0a0a;
-            --bg-card: #111111;
-            --bg-card2: #161616;
+            --bg-raised: #111111;
+            --bg-card: #141414;
             --border: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.14);
             --accent: #8b5cf6;
-            --accent-dim: rgba(139, 92, 246, 0.15);
+            --accent-dim: rgba(139, 92, 246, 0.14);
+            --success: #34d399;
+            --danger: #f87171;
             --text: #f5f5f5;
+            --text-mid: #a3a3a3;
             --muted: #737373;
-            --radius: 20px;
+            --r-sm: 12px;
+            --r-md: 16px;
+            --r-lg: 20px;
          }
 
          html {
@@ -50,624 +75,983 @@
          }
 
          body {
-            font-family: "Plus Jakarta Sans", system-ui, sans-serif;
             background: var(--bg);
             color: var(--text);
+            font-family: "Plus Jakarta Sans", system-ui, sans-serif;
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
          }
 
-         a {
-            color: var(--accent);
-            text-decoration: none;
-         }
-         a:hover {
-            text-decoration: underline;
-            text-underline-offset: 3px;
+         ::selection {
+            background: var(--accent-dim);
          }
 
-         /* ── Nav ── */
+         .container {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 0 24px;
+         }
+
+         section {
+            padding: 88px 0;
+         }
+
+         hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            max-width: 1120px;
+            margin: 0 auto;
+         }
+
+         /* ── type ────────────────────────────────────────────── */
+         h2 {
+            font-size: clamp(1.7rem, 3.4vw, 2.4rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+            margin: 10px 0 14px;
+         }
+
+         .lede {
+            color: var(--text-mid);
+            max-width: 58ch;
+            font-size: 1.02rem;
+         }
+
+         .mono {
+            font-family: "JetBrains Mono", monospace;
+         }
+
+         /* ── nav ─────────────────────────────────────────────── */
          nav {
             position: sticky;
             top: 0;
             z-index: 50;
+            height: 64px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 0 clamp(1.25rem, 5vw, 3rem);
-            height: 60px;
-            background: rgba(10, 10, 10, 0.85);
-            backdrop-filter: blur(20px);
+            background: rgba(10, 10, 10, 0.82);
+            backdrop-filter: blur(14px);
             border-bottom: 1px solid var(--border);
          }
-         .nav-logo {
+
+         .nav-inner {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            width: 100%;
+         }
+
+         .brand {
             display: flex;
             align-items: center;
             gap: 10px;
             font-weight: 800;
-            font-size: 1.1rem;
+            font-size: 1.05rem;
+            letter-spacing: -0.01em;
             color: var(--text);
+            text-decoration: none;
          }
-         .nav-logo img {
-            width: 30px;
-            height: 30px;
+
+         .brand-dot {
+            width: 26px;
+            height: 26px;
             border-radius: 8px;
+            background: linear-gradient(135deg, #a78bfa, #7c3aed);
+            display: grid;
+            place-items: center;
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: #fff;
          }
+
          .nav-links {
             display: flex;
-            align-items: center;
-            gap: 1.5rem;
+            gap: 22px;
+            margin-left: auto;
          }
+
          .nav-links a {
-            font-size: 0.875rem;
+            color: var(--text-mid);
+            text-decoration: none;
+            font-size: 0.92rem;
             font-weight: 500;
-            color: var(--muted);
-            transition: color 0.15s;
          }
+
          .nav-links a:hover {
             color: var(--text);
-            text-decoration: none;
          }
-         .btn-nav {
-            padding: 0.45rem 1.1rem;
-            border-radius: 100px;
-            background: var(--accent);
-            color: #fff;
-            font-weight: 600;
-            font-size: 0.875rem;
-            transition: opacity 0.15s;
-         }
-         .btn-nav:hover {
-            opacity: 0.85;
-            text-decoration: none;
-         }
-         @media (max-width: 600px) {
-            .nav-links {
-               gap: 0.75rem;
-            }
-            .nav-links .hide-sm {
+
+         @media (max-width: 720px) {
+            .nav-links a:not(.nav-cta) {
                display: none;
             }
          }
 
-         /* ── Layout ── */
-         .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 clamp(1.25rem, 5vw, 3rem);
+         .nav-cta {
+            color: #fff !important;
+            background: var(--accent);
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-weight: 700;
          }
 
-         /* ── Hero ── */
-         .hero {
-            text-align: center;
-            padding: clamp(5rem, 12vw, 9rem) 1.25rem clamp(4rem, 8vw, 6rem);
+         .nav-cta:hover {
+            background: #7c3aed;
          }
-         .hero-logo {
-            width: clamp(72px, 12vw, 100px);
-            height: clamp(72px, 12vw, 100px);
-            border-radius: clamp(18px, 3vw, 26px);
-            margin: 0 auto 1.75rem;
-            display: block;
-            box-shadow:
-               0 0 0 1px rgba(139, 92, 246, 0.3),
-               0 20px 60px rgba(139, 92, 246, 0.25);
+
+         /* ── buttons ─────────────────────────────────────────── */
+         .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 13px 24px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.97rem;
+            text-decoration: none;
+            transition:
+               transform 0.15s ease,
+               background 0.2s ease,
+               border-color 0.2s ease;
+            white-space: nowrap;
          }
-         .hero h1 {
-            font-size: clamp(2.4rem, 7vw, 5rem);
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            line-height: 1.08;
-            margin-bottom: 1.25rem;
+
+         .btn:active {
+            transform: scale(0.98);
          }
-         .hero h1 span {
-            color: var(--accent);
-         }
-         .hero-sub {
-            font-size: clamp(1rem, 2.5vw, 1.2rem);
-            color: var(--muted);
-            max-width: 540px;
-            margin: 0 auto 2.5rem;
-            font-weight: 400;
-         }
-         .hero-actions {
-            display: flex;
-            gap: 0.75rem;
-            justify-content: center;
-            flex-wrap: wrap;
-         }
+
          .btn-primary {
-            padding: 0.75rem 1.75rem;
-            border-radius: 100px;
             background: var(--accent);
             color: #fff;
-            font-weight: 700;
-            font-size: 0.95rem;
-            transition:
-               opacity 0.15s,
-               transform 0.15s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
          }
+
          .btn-primary:hover {
-            opacity: 0.88;
-            transform: translateY(-1px);
-            text-decoration: none;
+            background: #7c3aed;
          }
-         .btn-secondary {
-            padding: 0.75rem 1.75rem;
-            border-radius: 100px;
-            background: var(--bg-card);
+
+         .btn-ghost {
+            border: 1px solid var(--border-strong);
             color: var(--text);
-            font-weight: 600;
-            font-size: 0.95rem;
-            border: 1px solid var(--border);
-            transition:
-               background 0.15s,
-               transform 0.15s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-         }
-         .btn-secondary:hover {
-            background: var(--bg-card2);
-            transform: translateY(-1px);
-            text-decoration: none;
-         }
-         .badges {
-            display: flex;
-            gap: 0.5rem;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 2.5rem;
-         }
-         .badges img {
-            height: 20px;
          }
 
-         /* ── Section ── */
-         section {
-            padding: clamp(3rem, 8vw, 5rem) 0;
-         }
-         .section-label {
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: var(--accent);
-            margin-bottom: 0.75rem;
-         }
-         .section-title {
-            font-size: clamp(1.6rem, 4vw, 2.4rem);
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 1rem;
-            line-height: 1.15;
-         }
-         .section-sub {
-            color: var(--muted);
-            max-width: 520px;
-            font-size: 1rem;
+         .btn-ghost:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.04);
          }
 
-         /* ── Feature grid ── */
-         .feature-grid {
+         /* ── hero ────────────────────────────────────────────── */
+         .hero {
+            padding: 72px 0 96px;
+         }
+
+         .hero-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1rem;
-            margin-top: 2.5rem;
-         }
-         .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 1.5rem;
-            transition:
-               border-color 0.2s,
-               transform 0.2s;
-         }
-         .feature-card:hover {
-            border-color: rgba(139, 92, 246, 0.35);
-            transform: translateY(-2px);
-         }
-         .feature-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            background: var(--accent-dim);
-            display: flex;
+            grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+            gap: 56px;
             align-items: center;
-            justify-content: center;
-            margin-bottom: 1rem;
-            font-size: 1.25rem;
-         }
-         .feature-card h3 {
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: 0.4rem;
-         }
-         .feature-card p {
-            font-size: 0.875rem;
-            color: var(--muted);
-            line-height: 1.55;
          }
 
-         /* ── How it works ── */
-         .steps {
+         @media (max-width: 900px) {
+            .hero-grid {
+               grid-template-columns: 1fr;
+               gap: 48px;
+            }
+         }
+
+         .hero h1 {
+            font-size: clamp(2.3rem, 5.4vw, 3.6rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.06;
+         }
+
+         .hero h1 em {
+            font-style: normal;
+            color: var(--accent);
+         }
+
+         .hero p {
+            margin: 18px 0 28px;
+            color: var(--text-mid);
+            font-size: 1.06rem;
+            max-width: 50ch;
+         }
+
+         .hero-actions {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+         }
+
+         /* ── phone + mini app ────────────────────────────────── */
+         .phone-wrap {
+            display: flex;
+            justify-content: center;
+         }
+
+         .phone {
+            width: 300px;
+            background: #000;
+            border: 1px solid var(--border-strong);
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow:
+               0 30px 80px rgba(0, 0, 0, 0.55),
+               inset 0 1px 0 rgba(255, 255, 255, 0.06);
+         }
+
+         .screen {
+            background: var(--bg);
+            border-radius: 30px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            height: 560px;
             display: flex;
             flex-direction: column;
-            gap: 0;
-            margin-top: 2.5rem;
-         }
-         .step {
-            display: flex;
-            gap: 1.5rem;
-            position: relative;
-         }
-         .step:not(:last-child)::before {
-            content: "";
-            position: absolute;
-            left: 19px;
-            top: 48px;
-            width: 2px;
-            bottom: -1px;
-            background: var(--border);
-         }
-         .step-num {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--accent-dim);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 0.9rem;
-            color: var(--accent);
-            flex-shrink: 0;
-            z-index: 1;
-         }
-         .step-body {
-            padding-bottom: 2rem;
-         }
-         .step-body h3 {
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: 0.35rem;
-         }
-         .step-body p {
-            font-size: 0.875rem;
-            color: var(--muted);
-            line-height: 1.6;
+            font-size: 11px;
          }
 
-         /* ── Stack ── */
-         .stack-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 0.75rem;
-            margin-top: 2.5rem;
-         }
-         .stack-item {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 1rem 1.1rem;
+         .mini-head {
+            padding: 14px 16px 10px;
             display: flex;
-            align-items: center;
+            align-items: baseline;
             justify-content: space-between;
-            gap: 0.5rem;
-            font-size: 0.9rem;
          }
-         .stack-item span:first-child {
-            font-weight: 600;
+
+         .mini-head strong {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
          }
-         .stack-item span:last-child {
+
+         .mini-head span {
             color: var(--muted);
-            font-size: 0.8rem;
-            font-family: monospace;
+            font-size: 10px;
          }
 
-         /* ── Quick start ── */
-         .code-block {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 1.5rem;
-            margin-top: 1rem;
-            overflow-x: auto;
-         }
-         .code-block pre {
-            font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-            font-size: 0.82rem;
-            line-height: 1.7;
-            color: #c9d1d9;
-            white-space: pre;
-         }
-         .code-comment {
-            color: #6e7681;
-         }
-         .code-cmd {
-            color: #79c0ff;
-         }
-         .code-str {
-            color: #a5d6ff;
-         }
-
-         .qs-tabs {
+         .mini-tabs {
             display: flex;
-            gap: 0.5rem;
-            margin-bottom: 0.75rem;
-            flex-wrap: wrap;
+            gap: 6px;
+            padding: 0 12px 10px;
          }
-         .qs-tab {
-            padding: 0.4rem 1rem;
-            border-radius: 100px;
+
+         .mini-tab {
+            flex: 1;
+            text-align: center;
+            padding: 7px 0;
+            border-radius: 999px;
             border: 1px solid var(--border);
-            font-size: 0.8rem;
-            font-weight: 600;
+            color: var(--text-mid);
             cursor: pointer;
-            background: transparent;
-            color: var(--muted);
-            transition: all 0.15s;
+            font-weight: 600;
+            font-size: 10.5px;
+            background: none;
+            font-family: inherit;
+            transition: all 0.15s ease;
          }
-         .qs-tab.active {
+
+         .mini-tab.on {
             background: var(--accent);
             border-color: var(--accent);
             color: #fff;
          }
-         .qs-panel {
-            display: none;
+
+         .mini-body {
+            flex: 1;
+            overflow: hidden;
+            padding: 4px 12px 0;
          }
-         .qs-panel.active {
+
+         .mini-page {
+            display: none;
+            animation: fadeUp 0.25s ease;
+         }
+
+         .mini-page.on {
             display: block;
          }
 
-         /* ── Install banner ── */
-         .install-banner {
-            background: linear-gradient(
-               135deg,
-               rgba(139, 92, 246, 0.12) 0%,
-               rgba(139, 92, 246, 0.04) 100%
-            );
-            border: 1px solid rgba(139, 92, 246, 0.25);
-            border-radius: var(--radius);
-            padding: clamp(2rem, 5vw, 3rem);
-            text-align: center;
-            margin: clamp(3rem, 6vw, 4rem) 0;
-         }
-         .install-banner h2 {
-            font-size: clamp(1.5rem, 4vw, 2rem);
-            font-weight: 800;
-            margin-bottom: 0.75rem;
-         }
-         .install-banner p {
-            color: var(--muted);
-            margin-bottom: 2rem;
-            max-width: 460px;
-            margin-left: auto;
-            margin-right: auto;
+         @keyframes fadeUp {
+            from {
+               opacity: 0;
+               transform: translateY(6px);
+            }
+
+            to {
+               opacity: 1;
+               transform: none;
+            }
          }
 
-         /* ── Shortcuts ── */
-         .shortcuts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 0.6rem;
-            margin-top: 2rem;
-         }
-         .shortcut {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 0.7rem 1rem;
+         .mini-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            font-size: 0.875rem;
-         }
-         kbd {
-            background: var(--bg-card2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.2rem 0.55rem;
-            font-family: monospace;
-            font-size: 0.78rem;
-            color: var(--text);
-            box-shadow: 0 1px 0 var(--border);
+            gap: 10px;
+            padding: 8px 4px;
+            border-radius: var(--r-sm);
          }
 
-         /* ── Footer ── */
-         footer {
+         .mini-row.playing {
+            background: var(--accent-dim);
+         }
+
+         .mini-art {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            font-size: 11px;
+            color: #fff;
+         }
+
+         .mini-meta {
+            min-width: 0;
+            flex: 1;
+         }
+
+         .mini-meta b {
+            display: block;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 11px;
+         }
+
+         .mini-meta span {
+            color: var(--muted);
+            font-size: 9.5px;
+         }
+
+         .mini-eq {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 12px;
+         }
+
+         .mini-eq i {
+            width: 2.5px;
+            background: var(--accent);
+            border-radius: 2px;
+            animation: eq 0.9s ease-in-out infinite;
+         }
+
+         .mini-eq i:nth-child(2) {
+            animation-delay: 0.2s;
+         }
+
+         .mini-eq i:nth-child(3) {
+            animation-delay: 0.45s;
+         }
+
+         @keyframes eq {
+            0%,
+            100% {
+               height: 4px;
+            }
+
+            50% {
+               height: 12px;
+            }
+         }
+
+         .mini-player {
             border-top: 1px solid var(--border);
-            padding: 2.5rem 0;
+            background: var(--bg-raised);
+            padding: 10px 14px 12px;
+         }
+
+         .mini-trackline {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+         }
+
+         .mini-trackline b {
+            font-size: 11px;
+         }
+
+         .mini-trackline span {
+            color: var(--muted);
+            font-size: 9.5px;
+         }
+
+         .mini-bar {
+            height: 3.5px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+         }
+
+         .mini-bar i {
+            display: block;
+            height: 100%;
+            width: 42%;
+            background: var(--accent);
+            border-radius: 99px;
+         }
+
+         .mini-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 22px;
+            margin-top: 11px;
+            color: var(--text-mid);
+            font-size: 13px;
+         }
+
+         .mini-controls .play {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            background: #fff;
+            color: #000;
+            display: grid;
+            place-items: center;
+            font-size: 11px;
+         }
+
+         .mini-dock {
+            display: flex;
+            justify-content: space-around;
+            padding: 9px 0 13px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 9px;
+            font-weight: 600;
+         }
+
+         .mini-dock span {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+         }
+
+         .mini-dock .on {
+            color: var(--accent);
+         }
+
+         .mini-dock i {
+            font-style: normal;
+            font-size: 13px;
+         }
+
+         /* ── bento ───────────────────────────────────────────── */
+         .bento {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            margin-top: 36px;
+         }
+
+         @media (max-width: 860px) {
+            .bento {
+               grid-template-columns: 1fr;
+            }
+         }
+
+         .cell {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-lg);
+            padding: 26px;
+         }
+
+         .cell h3 {
+            font-size: 1.06rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.01em;
+         }
+
+         .cell p {
+            color: var(--text-mid);
+            font-size: 0.93rem;
+         }
+
+         .cell-2 {
+            grid-column: span 2;
+         }
+
+         .cell-3 {
+            grid-column: span 3;
+         }
+
+         .cell-4 {
+            grid-column: span 4;
+         }
+
+         @media (max-width: 860px) {
+
+            .cell-2,
+            .cell-3,
+            .cell-4 {
+               grid-column: span 1;
+            }
+         }
+
+         .cell-art {
+            background:
+               radial-gradient(circle at 80% 10%, rgba(139, 92, 246, 0.22), transparent 55%),
+               var(--bg-card);
+         }
+
+         .cell-glow {
+            background:
+               radial-gradient(circle at 15% 85%, rgba(139, 92, 246, 0.16), transparent 50%),
+               var(--bg-card);
+         }
+
+         .knum {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 1.9rem;
+            font-weight: 500;
+            letter-spacing: -0.03em;
+         }
+
+         /* ── error surface demo ──────────────────────────────── */
+         .fail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+            margin-top: 40px;
+         }
+
+         @media (max-width: 860px) {
+            .fail-grid {
+               grid-template-columns: 1fr;
+            }
+         }
+
+         .toast-demo {
+            background: var(--bg-card);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+            border-radius: var(--r-md);
+            padding: 14px 16px;
+            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4);
+         }
+
+         .toast-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+         }
+
+         .toast-x {
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: rgba(248, 113, 113, 0.16);
+            color: var(--danger);
+            display: grid;
+            place-items: center;
+            font-size: 11px;
+            font-weight: 800;
+            flex-shrink: 0;
+         }
+
+         .toast-line b {
+            font-size: 0.9rem;
+            flex: 1;
+         }
+
+         .toast-info {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 1px solid var(--border-strong);
+            color: var(--text-mid);
+            display: grid;
+            place-items: center;
+            font-size: 10px;
+            font-style: normal;
+            flex-shrink: 0;
+         }
+
+         .toast-detail {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            color: var(--text-mid);
+            font-size: 0.82rem;
+            line-height: 1.55;
+         }
+
+         .code-chip {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.78rem;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--border-strong);
+            border-radius: 6px;
+            padding: 1px 7px;
+            white-space: nowrap;
+         }
+
+         .fail-points {
+            list-style: none;
+         }
+
+         .fail-points li {
+            padding: 13px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-mid);
+            font-size: 0.95rem;
+         }
+
+         .fail-points li:first-child {
+            border-top: 1px solid var(--border);
+         }
+
+         .fail-points b {
+            color: var(--text);
+         }
+
+         /* ── quickstart ──────────────────────────────────────── */
+         .tabs {
+            display: flex;
+            gap: 8px;
+            margin: 32px 0 18px;
+            flex-wrap: wrap;
+         }
+
+         .tab {
+            padding: 9px 20px;
+            border-radius: 999px;
+            border: 1px solid var(--border-strong);
+            background: none;
+            color: var(--text-mid);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s ease;
+         }
+
+         .tab.on {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+         }
+
+         .panel {
+            display: none;
+         }
+
+         .panel.on {
+            display: block;
+         }
+
+         .term {
+            background: #050505;
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            padding: 22px 24px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.86rem;
+            line-height: 1.9;
+            overflow-x: auto;
+         }
+
+         .term .c {
+            color: #5b5b5b;
+         }
+
+         .term .p {
+            color: var(--accent);
+         }
+
+         .term a {
+            color: var(--text-mid);
+         }
+
+         /* ── shortcuts ───────────────────────────────────────── */
+         .keys {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 10px;
+            margin-top: 32px;
+         }
+
+         .key {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-sm);
+            padding: 11px 14px;
+            color: var(--text-mid);
+            font-size: 0.88rem;
+         }
+
+         kbd {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.76rem;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-strong);
+            border-bottom-width: 2px;
+            border-radius: 6px;
+            padding: 2px 8px;
+            color: var(--text);
+         }
+
+         /* ── cta + footer ────────────────────────────────────── */
+         .banner {
+            background:
+               radial-gradient(circle at 85% 20%, rgba(139, 92, 246, 0.2), transparent 55%),
+               var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 56px 40px;
             text-align: center;
-            color: var(--muted);
-            font-size: 0.85rem;
          }
+
+         .banner h2 {
+            margin-top: 0;
+         }
+
+         .banner p {
+            color: var(--text-mid);
+            max-width: 46ch;
+            margin: 0 auto 28px;
+         }
+
+         .banner-actions {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+         }
+
+         footer {
+            padding: 44px 0 56px;
+            color: var(--muted);
+            font-size: 0.88rem;
+         }
+
+         .foot-links {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+         }
+
          footer a {
-            color: var(--muted);
+            color: var(--text-mid);
+            text-decoration: none;
          }
+
          footer a:hover {
             color: var(--text);
          }
 
-         /* ── Divider ── */
-         hr {
-            border: none;
-            border-top: 1px solid var(--border);
-            margin: 0;
+         /* ── reveal + motion ─────────────────────────────────── */
+         .reveal {
+            opacity: 0;
+            transform: translateY(22px);
+            transition:
+               opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+               transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+         }
+
+         .reveal.in {
+            opacity: 1;
+            transform: none;
+         }
+
+         @media (prefers-reduced-motion: reduce) {
+
+            html {
+               scroll-behavior: auto;
+            }
+
+            .reveal {
+               opacity: 1;
+               transform: none;
+               transition: none;
+            }
+
+            .mini-eq i,
+            .mini-page {
+               animation: none;
+            }
          }
       </style>
    </head>
    <body>
-      <!-- ── Nav ─────────────────────────────────────────────────── -->
       <nav>
-         <a href="#" class="nav-logo" style="text-decoration: none">
-            <img
-               src="https://raw.githubusercontent.com/picklem0b/Rheoson/main/web/public/assets/logo.png"
-               alt="Rheoson logo" />
-            Rheoson
-         </a>
-         <div class="nav-links">
-            <a href="#features" class="hide-sm">Features</a>
-            <a href="#how" class="hide-sm">How it works</a>
-            <a href="#quickstart" class="hide-sm">Quick start</a>
-            <a
-               href="https://github.com/picklem0b/Rheoson"
-               target="_blank"
-               rel="noopener"
-               >GitHub</a
-            >
-            <a
-               href="https://Rheoson-web.onrender.com"
-               target="_blank"
-               rel="noopener"
-               class="btn-nav"
-               >Live demo</a
-            >
+         <div class="container nav-inner">
+            <a class="brand" href="#"><span class="brand-dot">R</span>Rheoson</a>
+            <div class="nav-links">
+               <a href="#features">Features</a>
+               <a href="#honest">Errors</a>
+               <a href="#quickstart">Quickstart</a>
+               <a
+                  class="nav-cta"
+                  href="https://github.com/picklem0b/Rheoson"
+                  target="_blank"
+                  rel="noopener">GitHub</a>
+            </div>
          </div>
       </nav>
 
-      <!-- ── Hero ─────────────────────────────────────────────────── -->
-      <section class="hero">
-         <img
-            class="hero-logo"
-            src="https://raw.githubusercontent.com/picklem0b/Rheoson/main/web/public/assets/logo.png"
-            alt="Rheoson" />
-         <h1>Self-hosted music.<br /><span>No subscription.</span></h1>
-         <p class="hero-sub">
-            Search, stream, and download any song with a Spotify-grade interface
-            that runs entirely on your own device or server.
-         </p>
-         <div class="hero-actions">
-            <a
-               href="https://Rheoson-web.onrender.com"
-               target="_blank"
-               rel="noopener"
-               class="btn-primary">
-               ▶ &nbsp;Live demo
-            </a>
-            <a
-               href="https://github.com/picklem0b/Rheoson"
-               target="_blank"
-               rel="noopener"
-               class="btn-secondary">
-               ★ &nbsp;Star on GitHub
-            </a>
-            <a
-               href="https://github.com/picklem0b/Rheoson/releases"
-               target="_blank"
-               rel="noopener"
-               class="btn-secondary">
-               ⬇ &nbsp;Download APK
-            </a>
+      <!-- ── hero ──────────────────────────────────────────────── -->
+      <header class="hero">
+         <div class="container hero-grid">
+            <div>
+               <h1>Your music.<br />Your server.<br /><em>Your files, kept.</em></h1>
+               <p>
+                  Streams your library on Android and the web. Downloads real
+                  files you own. Tells you the truth when something breaks.
+               </p>
+               <div class="hero-actions">
+                  <a class="btn btn-primary" href="#quickstart">Get started</a>
+                  <a
+                     class="btn btn-ghost"
+                     href="https://Rheoson-web.onrender.com"
+                     target="_blank"
+                     rel="noopener">Live demo</a>
+               </div>
+            </div>
+            <div class="phone-wrap reveal">
+               <div class="phone" aria-label="Rheoson app preview">
+                  <div class="screen">
+                     <div class="mini-head">
+                        <strong>Good evening</strong>
+                        <span>Tonight's mix</span>
+                     </div>
+                     <div class="mini-tabs" role="tablist" aria-label="App sections">
+                        <button class="mini-tab on" data-page="home" role="tab" aria-selected="true">Home</button>
+                        <button class="mini-tab" data-page="search" role="tab" aria-selected="false">Search</button>
+                        <button class="mini-tab" data-page="library" role="tab" aria-selected="false">Library</button>
+                     </div>
+                     <div class="mini-body">
+                        <div class="mini-page on" data-page="home">
+                           <div class="mini-row playing">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #7c3aed, #4c1d95)">N</div>
+                              <div class="mini-meta"><b>Nightcall</b><span>Kavinsky</span></div>
+                              <div class="mini-eq" aria-hidden="true"><i></i><i></i><i></i></div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #0ea5e9, #1e40af)">M</div>
+                              <div class="mini-meta"><b>Midnight City</b><span>M83</span></div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #f59e0b, #b45309)">R</div>
+                              <div class="mini-meta"><b>Redbone</b><span>Childish Gambino</span></div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #10b981, #065f46)">F</div>
+                              <div class="mini-meta"><b>Feel Good Inc.</b><span>Gorillaz</span></div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #f43f5e, #9f1239)">D</div>
+                              <div class="mini-meta"><b>Dreams</b><span>Fleetwood Mac</span></div>
+                           </div>
+                        </div>
+                        <div class="mini-page" data-page="search">
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #8b5cf6, #5b21b6)">Q</div>
+                              <div class="mini-meta"><b>Queries</b><span>4 results</span></div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #64748b, #334155)">S</div>
+                              <div class="mini-meta"><b>Stream warming</b><span>buffered ahead</span></div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #22d3ee, #0e7490)">I</div>
+                              <div class="mini-meta"><b>Instant history</b><span>synced</span></div>
+                           </div>
+                        </div>
+                        <div class="mini-page" data-page="library">
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #8b5cf6, #4c1d95)">L</div>
+                              <div class="mini-meta"><b>Liked songs</b><span>218 tracks</span></div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #059669, #064e3b)">P</div>
+                              <div class="mini-meta"><b>Playlist: Late drives</b><span>32 tracks</span></div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art" style="background: linear-gradient(135deg, #d97706, #7c2d12)">O</div>
+                              <div class="mini-meta"><b>Offline</b><span>12 downloaded</span></div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="mini-player">
+                        <div class="mini-trackline"><b>Nightcall</b><span>1:24 / 3:32</span></div>
+                        <div class="mini-bar"><i></i></div>
+                        <div class="mini-controls" aria-hidden="true">
+                           <span>&#9198;</span>
+                           <span class="play">&#9654;</span>
+                           <span>&#9197;</span>
+                        </div>
+                     </div>
+                     <div class="mini-dock">
+                        <span class="on"><i>&#9635;</i>Home</span>
+                        <span><i>&#9906;</i>Search</span>
+                        <span><i>&#9871;</i>Library</span>
+                        <span><i>&#8599;</i>Stats</span>
+                     </div>
+                  </div>
+               </div>
+            </div>
          </div>
-         <div class="badges">
-            <img
-               src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white"
-               alt="Python" />
-            <img
-               src="https://img.shields.io/badge/FastAPI-0.103+-009688?logo=fastapi&logoColor=white"
-               alt="FastAPI" />
-            <img
-               src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black"
-               alt="React" />
-            <img
-               src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white"
-               alt="TypeScript" />
-            <img
-               src="https://img.shields.io/badge/License-MIT-yellow.svg"
-               alt="MIT" />
-         </div>
-      </section>
+      </header>
 
       <hr />
 
-      <!-- ── Features ─────────────────────────────────────────────── -->
+      <!-- ── features ──────────────────────────────────────────── -->
       <section id="features">
          <div class="container">
-            <p class="section-label">Features</p>
-            <h2 class="section-title">
-               Everything you need.<br />Nothing you don't.
-            </h2>
-            <p class="section-sub">
-               A complete music experience with no lock-in, no tracking, and no
-               monthly bill.
+            <h2 class="reveal">Everything a music app should do.<br />Nothing it shouldn't.</h2>
+            <p class="lede reveal">
+               One FastAPI server, one React app, your existing storage. No
+               account servers, no telemetry, no one between you and your
+               music.
             </p>
-
-            <div class="feature-grid">
-               <div class="feature-card">
-                  <div class="feature-icon">▶</div>
-                  <h3>Stream anything</h3>
+            <div class="bento">
+               <div class="cell cell-4 cell-art reveal">
+                  <h3>Stream with real engineering behind it</h3>
                   <p>
-                     Audio starts in 1–3 seconds via yt-dlp piped directly
-                     through the HTTP response. No buffering wait.
+                     Range-request serving, a byte-budgeted warm cache that
+                     seeks correctly, and prefetch that buffers the next queue
+                     track before you tap play. A seek never poisons the cache;
+                     a cold start still starts in about a second.
                   </p>
                </div>
-               <div class="feature-card">
-                  <div class="feature-icon">⬇</div>
-                  <h3>Offline downloads</h3>
+               <div class="cell cell-2 reveal">
+                  <h3>Downloads you own</h3>
                   <p>
-                     Downloaded tracks play from disk at full quality — zero
-                     network, zero YouTube, zero buffering.
+                     Real files into your library, tagged and named your way,
+                     with resume from staged bytes. They are yours even if this
+                     project disappears tomorrow.
                   </p>
                </div>
-               <div class="feature-card">
-                  <div class="feature-icon">🔍</div>
-                  <h3>Paste any link</h3>
+               <div class="cell cell-2 cell-glow reveal">
+                  <p class="knum">0</p>
+                  <h3>Accounts stored elsewhere</h3>
                   <p>
-                     Spotify tracks, albums, and playlists. YouTube URLs.
-                     SoundCloud, Bandcamp, Deezer. All resolved automatically.
+                     Your server issues the sessions, your storage holds the
+                     library, your Mongo holds the profile.
                   </p>
                </div>
-               <div class="feature-card">
-                  <div class="feature-icon">📱</div>
-                  <h3>Native Android APK</h3>
+               <div class="cell cell-4 reveal">
+                  <h3>Tuned by ear</h3>
                   <p>
-                     Capacitor wraps the app into a native APK. Install from
-                     GitHub Releases, no Play Store needed.
-                  </p>
-               </div>
-               <div class="feature-card">
-                  <div class="feature-icon">🎵</div>
-                  <h3>Synced lyrics</h3>
-                  <p>
-                     LRC-format lyrics scroll line-by-line in time with the
-                     song. Embedded into downloaded files too.
-                  </p>
-               </div>
-               <div class="feature-card">
-                  <div class="feature-icon">📚</div>
-                  <h3>Full library</h3>
-                  <p>
-                     Playlists, albums, artists. Import any Spotify playlist by
-                     URL. Liked songs. Recently played.
-                  </p>
-               </div>
-               <div class="feature-card">
-                  <div class="feature-icon">🎨</div>
-                  <h3>Themes</h3>
-                  <p>
-                     7 accent colours, dark and light surfaces, glass opacity —
-                     all applied instantly, no reload.
-                  </p>
-               </div>
-               <div class="feature-card">
-                  <div class="feature-icon">⚡</div>
-                  <h3>Runs on Termux</h3>
-                  <p>
-                     The entire backend runs on an Android phone via Termux. No
-                     server, no cloud bill, no compromise.
-                  </p>
-               </div>
-               <div class="feature-card">
-                  <div class="feature-icon">🔒</div>
-                  <h3>Fully private</h3>
-                  <p>
-                     No account. No telemetry. No ads. Your listening history
-                     never leaves your device or server.
+                     A 10-band equalizer, bass boost, mono and preamp in a
+                     shared Web Audio graph, synced to your account. Sleep
+                     timer included.
                   </p>
                </div>
             </div>
@@ -676,362 +1060,203 @@
 
       <hr />
 
-      <!-- ── How it works ──────────────────────────────────────────── -->
-      <section id="how">
+      <!-- ── honest errors ─────────────────────────────────────── -->
+      <section id="honest">
          <div class="container">
-            <p class="section-label">How it works</p>
-            <h2 class="section-title">Simple by design.</h2>
-            <p class="section-sub">
-               Rheoson is a thin layer between you and yt-dlp. No databases, no
-               accounts, no complexity.
+            <h2 class="reveal">When a download fails,<br />it says why.</h2>
+            <p class="lede reveal">
+               Most apps hand you a spinner and then a shrug. Rheoson classifies
+               the failure, gives it a traceable code, retries what is retryable
+               on its own, and shows the full sentence on tap.
             </p>
-
-            <div class="steps">
-               <div class="step">
-                  <div class="step-num">1</div>
-                  <div class="step-body">
-                     <h3>Search or paste a link</h3>
-                     <p>
-                        Type a song name — ytmusicapi searches YouTube Music and
-                        returns tracks, albums, artists, and playlists in under
-                        a second. Or paste any Spotify, YouTube, SoundCloud, or
-                        Bandcamp URL and Rheoson resolves it automatically.
-                     </p>
+            <div class="fail-grid">
+               <div class="reveal">
+                  <div class="toast-demo" role="img" aria-label="Example error toast with an expandable detail panel">
+                     <div class="toast-line">
+                        <span class="toast-x">&#10005;</span>
+                        <b>Download failed</b>
+                        <i class="toast-info">i</i>
+                     </div>
+                     <div class="toast-detail">
+                        The media server cut the transfer short. Retry to resume
+                        from where it stopped.
+                        <span class="code-chip">[ERR DEX01]</span>
+                     </div>
                   </div>
                </div>
-               <div class="step">
-                  <div class="step-num">2</div>
-                  <div class="step-body">
-                     <h3>Tap to stream</h3>
-                     <p>
-                        The frontend calls
-                        <code
-                           style="
-                              background: var(--bg-card);
-                              padding: 1px 5px;
-                              border-radius: 4px;
-                              font-size: 0.82rem;
-                           "
-                           >/api/stream/{id}/audio</code
-                        >. The backend checks if the file is downloaded — if
-                        yes, serves it from disk instantly. If not, pipes yt-dlp
-                        stdout straight through the response. Audio starts in
-                        1–3 seconds either way.
-                     </p>
-                  </div>
-               </div>
-               <div class="step">
-                  <div class="step-num">3</div>
-                  <div class="step-body">
-                     <h3>Download to keep</h3>
-                     <p>
-                        Submit a download job. yt-dlp fetches the best quality,
-                        ffmpeg converts to your chosen format
-                        (MP3/FLAC/Opus/M4A/WAV), and mutagen embeds full
-                        metadata, artwork, and synced lyrics into the file.
-                        Done.
-                     </p>
-                  </div>
-               </div>
-               <div class="step">
-                  <div class="step-num">4</div>
-                  <div class="step-body">
-                     <h3>Play forever offline</h3>
-                     <p>
-                        Downloaded tracks appear in Library immediately. Play
-                        them with zero network activity — the stream endpoint
-                        serves from disk with full HTTP range support for
-                        instant scrubbing.
-                     </p>
-                  </div>
-               </div>
+               <ul class="fail-points reveal">
+                  <li><b>One code per failure.</b> Five characters: domain, category, sequence. Report "DEX01" and it traces to the exact line in the source.</li>
+                  <li><b>Retries before advice.</b> A refused transfer retries itself with fresh credentials first. Switching clients is the last resort, not the first reaction.</li>
+                  <li><b>Readable, everywhere.</b> The full message wraps in the pill and the list, and the info control expands it. Nothing truncates the part that tells you what to do.</li>
+               </ul>
             </div>
          </div>
       </section>
 
       <hr />
 
-      <!-- ── Quick Start ───────────────────────────────────────────── -->
+      <!-- ── quickstart ────────────────────────────────────────── -->
       <section id="quickstart">
          <div class="container">
-            <p class="section-label">Quick start</p>
-            <h2 class="section-title">Up in five minutes.</h2>
-            <p class="section-sub">
-               Choose your environment — Termux on Android, your Mac, or Render.
+            <h2 class="reveal">Running in five minutes.</h2>
+            <p class="lede reveal">
+               Termux turns a spare Android phone into the server. A laptop or
+               a Render free instance works too.
             </p>
+            <div class="tabs reveal" role="tablist" aria-label="Install targets">
+               <button class="tab on" data-panel="termux" role="tab" aria-selected="true">Termux</button>
+               <button class="tab" data-panel="local" role="tab" aria-selected="false">Local</button>
+               <button class="tab" data-panel="render" role="tab" aria-selected="false">Render</button>
+            </div>
+            <div class="panel on term reveal" data-panel="termux">
+               <pre><span class="c"># packages</span>
+<span class="p">$</span> pkg install ffmpeg python nodejs git
+<span class="p">$</span> pip install uv
 
-            <div style="margin-top: 2rem">
-               <div class="qs-tabs">
-                  <button class="qs-tab active" onclick="showTab('termux')">
-                     Termux (Android)
-                  </button>
-                  <button class="qs-tab" onclick="showTab('local')">
-                     Local (Mac/Linux)
-                  </button>
-                  <button class="qs-tab" onclick="showTab('render')">
-                     Render (Cloud)
-                  </button>
-               </div>
+<span class="c"># get the code</span>
+<span class="p">$</span> git clone https://github.com/picklem0b/Rheoson.git
+<span class="p">$</span> cd Rheoson/api
 
-               <div id="tab-termux" class="qs-panel active">
-                  <div class="code-block">
-                     <pre><span class="code-comment"># Install dependencies in Termux</span>
-pkg install ffmpeg python nodejs git
+<span class="c"># backend</span>
+<span class="p">$</span> uv sync --extra dev
+<span class="p">$</span> cp .env.example .env
+<span class="p">$</span> uv run uvicorn app.main:socket_app --host 127.0.0.1 --port 8000
 
-<span class="code-comment"># Clone and set up backend</span>
-git clone https://github.com/picklem0b/Rheoson.git
-cd Rheoson/api
-pip install -e . --break-system-packages
-cp .env.example .env
+<span class="c"># frontend (second session)</span>
+<span class="p">$</span> cd ~/Rheoson/web && npm install
+<span class="p">$</span> npm run dev
 
-<span class="code-comment"># Start the API</span>
-uvicorn app.main:socket_app --host 0.0.0.0 --port 8000
+<span class="c"># open http://localhost:5173 in the browser</span></pre>
+            </div>
+            <div class="panel term reveal" data-panel="local">
+               <pre><span class="c"># any Linux, macOS or WSL machine</span>
+<span class="p">$</span> git clone https://github.com/picklem0b/Rheoson.git
+<span class="p">$</span> cd Rheoson
 
-<span class="code-comment"># In a second Termux session — start the frontend</span>
-cd ../web
-npm install
-npm run dev
+<span class="c"># backend</span>
+<span class="p">$</span> cd api && uv sync --extra dev && cp .env.example .env
+<span class="p">$</span> uv run uvicorn app.main:socket_app --port 8000
 
-<span class="code-comment"># Open http://localhost:3000 in your browser</span></pre>
-                  </div>
-               </div>
-
-               <div id="tab-local" class="qs-panel">
-                  <div class="code-block">
-                     <pre><span class="code-comment"># Requirements: Python 3.13+, Node 18+, ffmpeg</span>
-brew install ffmpeg node python@3.13   <span class="code-comment"># macOS</span>
-apt install ffmpeg nodejs python3.13   <span class="code-comment"># Debian/Ubuntu</span>
-
-git clone https://github.com/picklem0b/Rheoson.git
-cd Rheoson
-
-<span class="code-comment"># Backend</span>
-cd api && pip install -e . && cp .env.example .env
-uvicorn app.main:socket_app --host 0.0.0.0 --port 8000 --reload
-
-<span class="code-comment"># Frontend (new terminal)</span>
-cd web && npm install && npm run dev</pre>
-                  </div>
-               </div>
-
-               <div id="tab-render" class="qs-panel">
-                  <div class="code-block">
-                     <pre><span class="code-comment"># Fork the repo, then connect to Render</span>
-<span class="code-comment"># render.yaml defines both services automatically</span>
-
-<span class="code-comment"># API service env vars to set in Render dashboard:</span>
-SPOTIFY_CLIENT_ID     = your_id
-SPOTIFY_CLIENT_SECRET = your_secret
-MUSIC_DIR             = /tmp/Rheoson/music
-DOWNLOADS_DIR         = /tmp/Rheoson/downloads
-
-<span class="code-comment"># Web service env vars:</span>
-VITE_API_URL = https://Rheoson-api-vnny.onrender.com
-
-<span class="code-comment"># Note: free tier sleeps after 15 min inactivity</span>
-<span class="code-comment"># First request after sleep takes ~30 s to wake</span></pre>
-                  </div>
-               </div>
+<span class="c"># frontend</span>
+<span class="p">$</span> cd ../web && npm install && npm run dev</pre>
+            </div>
+            <div class="panel term reveal" data-panel="render">
+               <pre><span class="c"># render.yaml ships in the repo: backend + web in one blueprint</span>
+<span class="c"># 1. fork the repo on GitHub</span>
+<span class="c"># 2. Render dashboard: New, Blueprint, pick the fork</span>
+<span class="c"># 3. deploy; free tier sleeps after 15 idle minutes</span>
+<span class="c">#    first request after sleep takes about 30 s to wake</span></pre>
             </div>
          </div>
       </section>
 
       <hr />
 
-      <!-- ── Stack ─────────────────────────────────────────────────── -->
+      <!-- ── shortcuts ─────────────────────────────────────────── -->
       <section>
          <div class="container">
-            <p class="section-label">Stack</p>
-            <h2 class="section-title">Built with the right tools.</h2>
-            <div class="stack-grid">
-               <div class="stack-item">
-                  <span>Python</span><span>3.13</span>
-               </div>
-               <div class="stack-item">
-                  <span>FastAPI</span><span>0.103+</span>
-               </div>
-               <div class="stack-item">
-                  <span>yt-dlp</span><span>2026.3+</span>
-               </div>
-               <div class="stack-item">
-                  <span>ytmusicapi</span><span>1.12.0</span>
-               </div>
-               <div class="stack-item">
-                  <span>mutagen</span><span>1.47</span>
-               </div>
-               <div class="stack-item">
-                  <span>Socket.IO</span><span>python</span>
-               </div>
-               <div class="stack-item"><span>React</span><span>18</span></div>
-               <div class="stack-item">
-                  <span>TypeScript</span><span>5</span>
-               </div>
-               <div class="stack-item"><span>Vite</span><span>5</span></div>
-               <div class="stack-item">
-                  <span>Tailwind CSS</span><span>3.4</span>
-               </div>
-               <div class="stack-item">
-                  <span>Framer Motion</span><span>11</span>
-               </div>
-               <div class="stack-item">
-                  <span>Howler.js</span><span>2.2.4</span>
-               </div>
-               <div class="stack-item">
-                  <span>Zustand</span><span>4.5</span>
-               </div>
-               <div class="stack-item">
-                  <span>TanStack Query</span><span>5</span>
-               </div>
-               <div class="stack-item">
-                  <span>Capacitor</span><span>6</span>
-               </div>
-               <div class="stack-item">
-                  <span>ffmpeg</span><span>system</span>
-               </div>
+            <h2 class="reveal">Hands on the keys.</h2>
+            <div class="keys reveal">
+               <div class="key"><span>Play / pause</span><kbd>Space</kbd></div>
+               <div class="key"><span>Next track</span><kbd>N</kbd></div>
+               <div class="key"><span>Previous track</span><kbd>P</kbd></div>
+               <div class="key"><span>Seek forward 10 s</span><kbd>&rarr;</kbd></div>
+               <div class="key"><span>Seek back 10 s</span><kbd>&larr;</kbd></div>
+               <div class="key"><span>Volume up</span><kbd>&uarr;</kbd></div>
+               <div class="key"><span>Volume down</span><kbd>&darr;</kbd></div>
+               <div class="key"><span>Cycle repeat</span><kbd>R</kbd></div>
+               <div class="key"><span>Toggle shuffle</span><kbd>S</kbd></div>
+               <div class="key"><span>Toggle queue</span><kbd>Q</kbd></div>
+               <div class="key"><span>Toggle lyrics</span><kbd>L</kbd></div>
+               <div class="key"><span>Fullscreen player</span><kbd>F</kbd></div>
+               <div class="key"><span>Mute</span><kbd>M</kbd></div>
+               <div class="key"><span>Focus search</span><kbd>Ctrl F</kbd></div>
             </div>
          </div>
       </section>
 
       <hr />
 
-      <!-- ── Shortcuts ─────────────────────────────────────────────── -->
+      <!-- ── cta ───────────────────────────────────────────────── -->
       <section>
          <div class="container">
-            <p class="section-label">Keyboard shortcuts</p>
-            <h2 class="section-title">Hands on the keys.</h2>
-            <div class="shortcuts-grid">
-               <div class="shortcut">
-                  <span>Play / Pause</span> <kbd>Space</kbd>
-               </div>
-               <div class="shortcut"><span>Next track</span> <kbd>N</kbd></div>
-               <div class="shortcut">
-                  <span>Previous track</span> <kbd>P</kbd>
-               </div>
-               <div class="shortcut">
-                  <span>Seek forward 10 s</span> <kbd>→</kbd>
-               </div>
-               <div class="shortcut">
-                  <span>Seek back 10 s</span> <kbd>←</kbd>
-               </div>
-               <div class="shortcut"><span>Volume +10%</span> <kbd>↑</kbd></div>
-               <div class="shortcut"><span>Volume −10%</span> <kbd>↓</kbd></div>
-               <div class="shortcut">
-                  <span>Cycle repeat</span> <kbd>R</kbd>
-               </div>
-               <div class="shortcut">
-                  <span>Toggle shuffle</span> <kbd>S</kbd>
-               </div>
-               <div class="shortcut">
-                  <span>Toggle queue</span> <kbd>Q</kbd>
-               </div>
-               <div class="shortcut">
-                  <span>Toggle lyrics</span> <kbd>L</kbd>
-               </div>
-               <div class="shortcut">
-                  <span>Fullscreen player</span> <kbd>F</kbd>
-               </div>
-               <div class="shortcut"><span>Mute</span> <kbd>M</kbd></div>
-               <div class="shortcut">
-                  <span>Focus search</span> <kbd>Ctrl+F</kbd>
+            <div class="banner reveal">
+               <h2>Put your music back in your hands.</h2>
+               <p>
+                  Apache-2.0 licensed, self-hosted, and honest about its
+                  failures. Clone it, run it, change it.
+               </p>
+               <div class="banner-actions">
+                  <a class="btn btn-primary" href="#quickstart">Get started</a>
+                  <a
+                     class="btn btn-ghost"
+                     href="https://github.com/picklem0b/Rheoson"
+                     target="_blank"
+                     rel="noopener">GitHub</a>
                </div>
             </div>
          </div>
       </section>
 
-      <!-- ── CTA ───────────────────────────────────────────────────── -->
-      <div class="container">
-         <div class="install-banner">
-            <h2>Your music. Your server. Your rules.</h2>
-            <p>
-               No subscription. No ads. No tracking. Run it on your phone with
-               Termux or deploy to Render in five minutes.
-            </p>
-            <div class="hero-actions">
-               <a
-                  href="https://github.com/picklem0b/Rheoson"
-                  target="_blank"
-                  rel="noopener"
-                  class="btn-primary">
-                  View on GitHub
-               </a>
-               <a
-                  href="https://Rheoson-web.onrender.com"
-                  target="_blank"
-                  rel="noopener"
-                  class="btn-secondary">
-                  Live demo
-               </a>
-            </div>
-         </div>
-      </div>
-
-      <hr />
-
-      <!-- ── Footer ───────────────────────────────────────────────── -->
       <footer>
          <div class="container">
-            <p style="margin-bottom: 0.5rem">
+            <p style="margin-bottom: 0.6rem">
                Built by
-               <a
-                  href="https://github.com/picklem0b"
-                  target="_blank"
-                  rel="noopener"
-                  >LethaboK</a
-               >
-               ·
-               <a
-                  href="https://github.com/picklem0b/Rheoson/blob/main/LICENSE"
-                  target="_blank"
-                  rel="noopener"
-                  >Apache-2.0 License</a
-               >
-               ·
-               <a
-                  href="https://github.com/picklem0b/Rheoson/blob/main/docs/PRIVACY.md"
-                  target="_blank"
-                  rel="noopener"
-                  >Privacy</a
-               >
-               ·
-               <a
-                  href="https://github.com/picklem0b/Rheoson/blob/main/docs/README.md"
-                  target="_blank"
-                  rel="noopener"
-                  >Docs</a
-               >
-               ·
-               <a
-                  href="https://github.com/picklem0b/Rheoson/blob/main/docs/CHANGELOG.md"
-                  target="_blank"
-                  rel="noopener"
-                  >Changelog</a
-               >
-               ·
-               <a
-                  href="https://github.com/picklem0b/Rheoson/issues"
-                  target="_blank"
-                  rel="noopener"
-                  >Issues</a
-               >
+               <a href="https://github.com/picklem0b" target="_blank" rel="noopener">LethaboK</a>
             </p>
-            <p style="margin-top: 0.4rem; font-size: 0.78rem">
-               Built in Termux on Android. Deployed on Render. Sounds like a
-               proper server.
-            </p>
+            <div class="foot-links">
+               <a href="https://github.com/picklem0b/Rheoson/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0 License</a>
+               <a href="https://github.com/picklem0b/Rheoson/blob/main/docs/README.md" target="_blank" rel="noopener">Docs</a>
+               <a href="https://github.com/picklem0b/Rheoson/blob/main/docs/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+               <a href="https://github.com/picklem0b/Rheoson/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">Privacy</a>
+            </div>
          </div>
       </footer>
 
       <script>
-         function showTab(id) {
-            document
-               .querySelectorAll(".qs-tab")
-               .forEach(t => t.classList.remove("active"));
-            document
-               .querySelectorAll(".qs-panel")
-               .forEach(p => p.classList.remove("active"));
-            document.getElementById("tab-" + id).classList.add("active");
-            event.currentTarget.classList.add("active");
-         }
+         // mini-app tab switching (the phone preview)
+         document.querySelectorAll(".mini-tab").forEach(function (tab) {
+            tab.addEventListener("click", function () {
+               var page = tab.dataset.page;
+               document.querySelectorAll(".mini-tab").forEach(function (t) {
+                  t.classList.toggle("on", t === tab);
+                  t.setAttribute("aria-selected", t === tab ? "true" : "false");
+               });
+               document.querySelectorAll(".mini-page").forEach(function (p) {
+                  p.classList.toggle("on", p.dataset.page === page);
+               });
+            });
+         });
+
+         // quickstart tabs
+         document.querySelectorAll(".tab").forEach(function (tab) {
+            tab.addEventListener("click", function () {
+               var panel = tab.dataset.panel;
+               document.querySelectorAll(".tab").forEach(function (t) {
+                  t.classList.toggle("on", t === tab);
+                  t.setAttribute("aria-selected", t === tab ? "true" : "false");
+               });
+               document.querySelectorAll(".panel").forEach(function (p) {
+                  p.classList.toggle("on", p.dataset.panel === panel);
+               });
+            });
+         });
+
+         // scroll reveal (IntersectionObserver, not scroll listeners)
+         var io = new IntersectionObserver(
+            function (entries) {
+               entries.forEach(function (e) {
+                  if (e.isIntersecting) {
+                     e.target.classList.add("in");
+                     io.unobserve(e.target);
+                  }
+               });
+            },
+            { threshold: 0.12 }
+         );
+         document.querySelectorAll(".reveal").forEach(function (el) {
+            io.observe(el);
+         });
       </script>
    </body>
 </html>
