@@ -6,6 +6,12 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.21.2 — The library answers back
+
+- feat(library): a **library-wide search field** filters favourites, playlists, albums and artists live, with per-section no-matches states.
+- fix(library): empty sections render their empty state instead of skeletons when there is nothing to show.
+- feat(library): playlist cards show thumbnail, name, created by the user on the date (22 sep), in a scroller with a nudge button; artist skeletons are circular.
+
 ## v2.21.1 — The player tells the truth about speed, source and favourites
 
 - feat(player): **playback settings sheet gains speed (0.75×–2×, persisted, applied live), repeat, shuffle and playthrough (keep going / stop)** — controls the engine already had, finally reachable.

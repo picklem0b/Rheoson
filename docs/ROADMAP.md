@@ -201,6 +201,18 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.21.2 — The library answers back
+
+A library-wide search field filters favourites, playlists, albums and
+artists live, and a section with no matches says so instead of sitting
+silent. Empty sections render their message the moment data lands
+rather than loading forever. Playlists render as thumbnail cards with
+provenance — created by the signed-in user on the date, 22 sep format —
+in a horizontal scroller with a nudge button, and the artist skeleton
+is circular to match what it becomes.
+
+---
+
 ## v2.21.1 — The player tells the truth about speed, source and favourites
 
 The playback surface caught up with its own engine. The ••• menu's
