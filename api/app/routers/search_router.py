@@ -1,6 +1,6 @@
 from __future__ import annotations
 import re
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 import structlog
 from app.core.deps import get_optional_user
@@ -8,6 +8,7 @@ from app.services.search_service import search, resolve_url
 from app.services.ytmusic_service import CATEGORIES, category_meta
 from app.services import weekly_cache
 from app.schemas.search_schema import SearchResultsSchema, ResolveResponseSchema
+from app.core import error_codes
 
 router = APIRouter()
 log = structlog.get_logger()
@@ -35,7 +36,7 @@ async def search_endpoint(
 ):
     q = _sanitize_query(q)
     if not q:
-        raise HTTPException(status_code=400, detail="Query cannot be empty")
+        raise error_codes.fail(error_codes.SEARCH.QUERY_EMPTY, 400)
     return await search(q, filter=filter)
 
 
@@ -61,7 +62,7 @@ async def category_top(
     """The best songs in one category, refreshed weekly and cached on disk."""
     meta = category_meta(slug)
     if meta is None:
-        raise HTTPException(status_code=404, detail=f"Unknown category: {slug}")
+        raise error_codes.fail(error_codes.SEARCH.CATEGORY_UNKNOWN, 404, append=f": {slug}")
 
     async def produce():
         from app.services.ytmusic_service import get_category_top
@@ -88,18 +89,18 @@ async def resolve_endpoint(
 ):
     url = body.url.strip()
     if not url:
-        raise HTTPException(status_code=400, detail="url is required")
+        raise error_codes.fail(error_codes.SEARCH.TARGET_REQUIRED, 400, append=" (url)")
     if len(url) > 2048:
-        raise HTTPException(status_code=400, detail="URL too long")
+        raise error_codes.fail(error_codes.DOWNLOAD.URL_TOO_LONG, 400)
     if not _URL_PATTERN.match(url):
-        raise HTTPException(status_code=400, detail="Invalid URL format")
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400)
 
     # Only known media hosts may be fetched server-side (SSRF guard).
     from app.services.netguard import ensure_safe_media_url
     try:
         ensure_safe_media_url(url)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400, append=f": {e}")
     try:
         return await resolve_url(url)
     except Exception as e:
@@ -107,4 +108,4 @@ async def resolve_endpoint(
         # the response carries an actionable line instead.
         log.warning("search.resolve.failed", url=url, error=str(e))
         from app.routers.playlist_router import _friendly_url_error
-        raise HTTPException(status_code=400, detail=_friendly_url_error(e)) from e
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400, append=f": {_friendly_url_error(e)}") from e

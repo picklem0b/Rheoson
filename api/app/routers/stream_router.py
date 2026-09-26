@@ -15,6 +15,7 @@ from app.core.deps import get_current_user, get_optional_user
 from app.services.artwork_service import extract_artwork, fetch_remote_artwork
 from app.services.metadata_service import _file_id
 from app.services import stream_service
+from app.core import error_codes
 
 # NOTE on auth for byte routes: the four content routes below (audio,
 # artwork, artwork-proxy) must stay reachable by <audio>/<img> elements,
@@ -620,7 +621,7 @@ async def _ensure_remote_session(track_id: str) -> dict | None:
                 _remote_sessions[track_id] = session
                 return session
         await asyncio.sleep(0.1)
-    raise HTTPException(status_code=503, detail="Too many concurrent streams, try again shortly")
+    raise error_codes.fail(error_codes.STREAM.TOO_MANY_STREAMS, 503)
 
 
 @router.post("/{track_id}/warm")
@@ -631,7 +632,7 @@ async def warm_stream(track_id: str, _user: dict | None = Depends(get_optional_u
     warm request and a concurrent play request share one yt-dlp process.
     """
     if len(track_id) != 11:
-        raise HTTPException(status_code=404, detail="Invalid track ID")
+        raise error_codes.fail(error_codes.STREAM.INVALID_TRACK_ID, 404)
 
     await _ensure_cache()
     if _find_local(track_id):
@@ -680,7 +681,7 @@ async def stream_audio(track_id: str, request: Request):
 
     if request.method == "HEAD":
         if len(track_id) != 11:
-            raise HTTPException(status_code=404, detail="Invalid track ID")
+            raise error_codes.fail(error_codes.STREAM.INVALID_TRACK_ID, 404)
         headers = {"Accept-Ranges": "bytes", "Content-Type": "audio/mp4"}
         # When the CDN URL is already resolved, ask it what a GET would really
         # deliver so the answer carries a truthful content type and total
@@ -718,7 +719,7 @@ async def stream_audio(track_id: str, request: Request):
     # YouTube URL. Fail fast on malformed remote ids instead of burning a
     # yt-dlp process (and a 30 s spawn timeout) for garbage input.
     if len(track_id) != 11:
-        raise HTTPException(status_code=404, detail="Track not found locally and id is not a valid remote track")
+        raise error_codes.fail(error_codes.STREAM.NOT_FOUND_REMOTE_INVALID, 404)
 
     return await _serve_ytdlp(track_id, request)
 
@@ -733,7 +734,7 @@ async def get_artwork(track_id: str):
     await _ensure_cache()
     local = _find_local(track_id)
     if not local:
-        raise HTTPException(status_code=404, detail="Not downloaded locally")
+        raise error_codes.fail(error_codes.STREAM.NOT_DOWNLOADED_LOCALLY, 404)
     art = extract_artwork(local)
     return art if art else Response(status_code=204)
 
@@ -783,7 +784,7 @@ async def proxy_artwork(
     if not url:
         return Response(status_code=204)
     if not _artwork_url_allowed(url):
-        raise HTTPException(status_code=400, detail="Artwork URL not allowed")
+        raise error_codes.fail(error_codes.STREAM.ARTWORK_HOST_DENIED, 400)
 
     data = await fetch_remote_artwork(url)
     if not data:
@@ -864,9 +865,9 @@ def _parse_range(rng: str, file_size: int) -> tuple[int, int]:
         start = int(s)
         end   = int(e) if e else file_size - 1
     except Exception:
-        raise HTTPException(status_code=416, detail="Bad Range header")
+        raise error_codes.fail(error_codes.STREAM.RANGE_INVALID, 416, append=" — malformed Range header")
     if start >= file_size or start > end:
-        raise HTTPException(status_code=416, detail="Range not satisfiable")
+        raise error_codes.fail(error_codes.STREAM.RANGE_INVALID, 416)
     end = min(end, file_size - 1)
     return (start, end)
 
@@ -1049,10 +1050,7 @@ async def _fill_buffer_ytdlp(track_id: str, dest: Path, on_mime=None) -> str:
     # All attempts failed
     if dest.exists():
         dest.unlink()
-    raise HTTPException(
-        status_code=502,
-        detail="Could not stream this track. YouTube may be rate-limiting.",
-    )
+    raise error_codes.fail(error_codes.STREAM.UPSTREAM_REFUSED, 502)
 
 
 # ── Remote live streaming (session-backed) ────────────────────
@@ -1168,7 +1166,7 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
             if total == 0:
                 # Fill produced nothing (failed) — surface an error so the
                 # client retries through the normal path.
-                raise HTTPException(status_code=502, detail="Stream warm-up failed")
+                raise error_codes.fail(error_codes.STREAM.WARMUP_FAILED, 502)
 
             if session["ok"] and path.exists() and path.stat().st_size > 0:
                 await _complete_session(track_id, session)
@@ -1385,10 +1383,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
     now = time.monotonic()
     if track_id in _failure_cache:
         if _failure_cache[track_id] > now:
-            raise HTTPException(
-                status_code=502,
-                detail="Track temporarily unavailable (recent failure cached).",
-            )
+            raise error_codes.fail(error_codes.STREAM.FAILURE_CACHED, 502)
         del _failure_cache[track_id]
 
     # ── Case 1: durable cache hit ──────────────────────────────
@@ -1408,7 +1403,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
         cached = _remote_cache_get(track_id)
         if cached is not None and cached.exists():
             return _serve_local(cached, request, _remote_cache_mime(track_id))
-        raise HTTPException(status_code=502, detail="Track not available")
+        raise error_codes.fail(error_codes.STREAM.NOT_AVAILABLE, 502)
 
     if session["done"].is_set():
         # Fill finished while we were waiting for a slot
@@ -1424,10 +1419,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
         async with _session_lock:
             _remote_sessions.pop(track_id, None)
         _failure_cache[track_id] = time.monotonic() + _FAILURE_TTL
-        raise HTTPException(
-            status_code=502,
-            detail="Could not stream this track. YouTube may be rate-limiting.",
-        )
+        raise error_codes.fail(error_codes.STREAM.UPSTREAM_REFUSED, 502)
 
     # ── Case 4: fill in progress ──────────────────────────────
     # A `bytes=0-` range is not a seek — it is what every media element sends
@@ -1457,7 +1449,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
         async with _session_lock:
             _remote_sessions.pop(track_id, None)
         _failure_cache[track_id] = time.monotonic() + _FAILURE_TTL
-        raise HTTPException(status_code=502, detail="Stream not ready for seeking yet")
+        raise error_codes.fail(error_codes.STREAM.NOT_SEEKABLE_YET, 502)
 
     log.info("stream.ytdlp.live_stream", track_id=track_id)
     return await _serve_session_stream(track_id, session)

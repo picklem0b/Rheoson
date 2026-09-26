@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from app.core.auth import clerk_revoke_session
 from app.core.database import get_db, db_available
 from app.core.deps import get_current_user, get_optional_user
+from app.core import error_codes
 
 log = structlog.get_logger()
 
@@ -108,7 +109,7 @@ async def update_profile(
     clerk_id = user.get("sub", "")
 
     if not db_available():
-        raise HTTPException(status_code=503, detail="Database not available")
+        raise error_codes.fail(error_codes.LIBRARY.DB_UNAVAILABLE, 503)
 
     from app.core.database import get_db as _get_db
     db = _get_db()
@@ -173,10 +174,11 @@ async def update_preferences_route(
 
     db = _optional_db()
     if db is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Preference sync needs the database. Your settings still work locally on this device.",
-        )
+        raise error_codes.fail(
+        error_codes.SETTINGS.PREFS_DB_UNAVAILABLE,
+        503,
+        append=" locally on this device",
+    )
 
     prefs = await prefs_service.update_preferences(db, user["sub"], body.preferences)
     return {"preferences": prefs, "synced": True}

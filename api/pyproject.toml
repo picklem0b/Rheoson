@@ -1,10 +1,13 @@
 [project]
 name = "rheoson-api"
-version = "2.20.0"
+version = "2.20.4"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 dependencies = [
-    "fastapi>=0.103.2,<0.112",
+    # Floor raised for Python 3.14: fastapi/routing.py and starlette/_utils.py
+    # called `asyncio.iscoroutinefunction()`, which 3.14 deprecates (removal in
+    # 3.16), so every request emitted a DeprecationWarning on current CPython.
+    "fastapi>=0.141,<0.142",
     "uvicorn[standard]>=0.23.2",
     "pydantic==2.13.4",
     "pydantic-settings==2.3.0",
@@ -40,8 +43,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest==8.2.2",
-    "pytest-asyncio==0.23.7",
+    # pytest-asyncio 0.23 drove the event loop through
+    # asyncio.get/set_event_loop_policy(), which Python 3.14 deprecates — roughly
+    # 50 warnings per test. 1.x dropped that machinery and needs pytest>=8.4.
+    "pytest>=8.4,<10",
+    "pytest-asyncio>=1.4,<2",
     "black",
     "isort",
     "pyflakes",

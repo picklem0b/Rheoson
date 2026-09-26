@@ -76,6 +76,109 @@ debug level. They still fall back.
 
 ---
 
+## v2.20.1 — Transient refusal recovery
+
+**A refused transfer is retried, not answered with another client.**
+`unable to download video data: HTTP Error 403` means extraction *succeeded* and
+the CDN then refused the bytes — typically a signature that expired or is bound
+to the IP it was minted for. It was also listed in `_EXTRACTOR_FAILURE_MARKERS`,
+so the ladder read the one failure a retry fixes as a reason to switch player
+client: it spent every rung and only then reported *"refused this track on every
+client we tried"*. Nothing anywhere retried. Measured on a track failing this
+way, an immediate re-run succeeded 5/5 — re-running re-extracts, which mints a
+fresh URL, which is the actual remedy.
+
+The ladder now checks a refused transfer first and retries the **same** client
+with a bounded backoff (two tries, 1s then 3s) before any client switch, so the
+worst case stays bounded and a cancelled job still aborts between attempts.
+
+**One marker list, not two.** `download_service` carried its own
+`_MEDIA_REFUSED_MARKERS` alongside `stream_service._EXTRACTOR_FAILURE_MARKERS` —
+the same four strings in two places, disagreeing about what `http error 403`
+means. The list now lives once, in `stream_service`, beside
+`is_transient_media_refusal()`, with a test pinning the deliberate overlap so
+the ordering that resolves it cannot silently become dead code.
+
+---
+
+## v2.20.2 — A test run that tells the truth
+
+**Zero warnings.** On Python 3.14 the suite emitted 17,909 warnings — every
+one from third-party code calling `asyncio` APIs deprecated in 3.14
+(`pytest-asyncio` 0.23 drove the loop through `get/set_event_loop_policy`; FastAPI and
+Starlette called `asyncio.iscoroutinefunction`). Nothing came from `app/` or
+`tests/`, and Python 3.16 will remove the calls outright. Upgraded
+`pytest-asyncio` 0.23.7 → 1.4.0 (needs pytest ≥ 8.4, so pytest 8.2.2 → 9.1.1)
+and FastAPI 0.111 → 0.141 / Starlette 0.37 → 1.7, whose floors stopped calling
+the deprecated APIs. The suite now prints **343 passed** and nothing else.
+
+**A guard rail that had gone blind.** The upgrade failed
+`test_route_count_sane_and_health_exported`, and for a good reason: FastAPI
+0.141 no longer flattens `include_router` children into `app.routes` — it adds
+a lazy wrapper holding the handlers and the mount prefix. The endpoint
+inventory's `_routes()` filtered `app.routes` for `APIRoute` instances and had
+been iterating **13 of the 108 registered routes**, so `test_openapi_covers_registered_routes`,
+`test_every_mutating_route_requires_auth` and `test_public_get_routes_never_500`
+were passing while checking almost nothing. `_routes()` now walks the wrappers
+(`original_router` + `include_context.prefix`), re-attaches the effective path,
+and the auth/OpenAPI guards see the full surface again.
+
+---
+
+## v2.20.3 — DCCNN error codes
+
+**A code on every failure.** Users reporting a problem now have something to
+quote: `Download failed [ERR DEX01]`. Codes are five characters — domain
+letter, two-letter category, two-digit sequence — so the code itself carries
+meaning: D=downloads, A=auth, P=playlists…; VA=validation, NF=not-found,
+EX=execution failed. One registry owns every code (`app/core/error_codes.py`),
+`fail()` refuses to raise an unregistered code, and a contract test pins
+uniqueness, domain-letter consistency, DCCNN shape and the sync of
+`docs/ERROR_CODES.md`. Every `HTTPException` in the routers now goes through
+the registry, and the response handler emits a structured `code` field so the
+frontend never parses it out of the message text.The download failure path attaches its registry code to the job's error message.
+
+---
+
+## v2.20.4 — One error surface, everywhere
+
+**An error page that is an app surface, not a browser default.** Unknown routes
+(404), failed API calls routed through `/error`, auth guards and React render
+crashes all land on the same `ErrorPage`: an "ERROR PAGE" eyebrow, the big
+code, the short label, and an ⓘ control. The long explanation is never shown
+by default — tapping ⓘ opens an accessible panel with the error-specific title
+and subtitle (404 → "Not Found / We couldn't find the page you're looking
+for.", 401 → "Sign in first", 503 → "We'll be back shortly", and so on). The
+config is data-driven (`lib/errorPages.ts`): adding a status is an entry, not
+a component. Mouse, keyboard and touch all work — the ⓘ is a real button with
+`aria-expanded`/`aria-controls`, Escape closes, focus returns to the control
+that opened the panel. Unknown error codes render the 500-shaped fallback.
+
+**The ErrorBoundary stopped having its own visual style.** It used to render a
+private card with its own icon, buttons and typography — a second, worse error
+design. It now renders the same `ErrorPage` (500-shaped — a render crash *is*
+"something broke"), with the underlying exception message behind ⓘ. Because
+the boundary mounts above the router, `ErrorPage` is purely presentational and
+the router-aware action row is a separate export used by the routed wrappers.
+
+**Toasts that carry the code.** Toasts gained success (green, check) and error
+(red, cross) variants — downloads announce "Download complete — “Title”" in
+green and failures in red — plus a code chip and an ⓘ control that expands to
+the full untruncated message. The API client's `ApiError` now carries the
+backend's DCCNN code as a field, parsed from the structured `code` the backend
+emits with a suffix fallback for older servers, so the UI never has to regex a
+code out of a sentence.
+
+**A test run that stops lying about coverage.** Full-suite runs on Termux
+flaked: Vitest's default pool fans out across fork workers, and parallel
+jsdom+React imports outran the worker startup timeout — a worker died, its
+file silently vanished from the run, and the suite reported "passed" over
+fewer files than exist (observed: 14 files → 13 → 12 across consecutive runs
+with zero test failures). The pool is now pinned to one worker: the run is
+deterministic at **15 files / 141 tests**, every file every time.
+
+---
+
 ## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the

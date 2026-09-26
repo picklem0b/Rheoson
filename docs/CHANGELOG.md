@@ -6,6 +6,40 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.20.4 — One error surface, everywhere
+
+Errors now have one visual treatment across the whole app.
+
+- feat(errors): **ErrorPage** — "ERROR PAGE" eyebrow, the big code, the short label, and an ⓘ control; the long explanation lives behind ⓘ in an accessible panel (real button, `aria-expanded`/`aria-controls`, Escape closes, focus returns). Data-driven config (`lib/errorPages.ts`) covers 404/401/403/429/500/502/503/504, each with its own title and subtitle; unknown codes fall back to the 500 shape.
+- feat(errors): unknown routes, `/error` API-failure redirects and the React **ErrorBoundary** all render the same ErrorPage — the boundary's private card style is gone; its raw exception text is reachable behind ⓘ.
+- feat(errors): toasts gain success (green) and error (red) variants with a **DCCNN code chip** and an ⓘ expandable full message; downloads announce "Download complete — “Title”". `ApiError` carries the backend code as a structured field, with a suffix fallback for older servers.
+- fix(test): the vitest pool is pinned to one worker — parallel forks outran the worker startup timeout on Termux and **files silently dropped from runs** (14 → 13 → 12 across consecutive runs, all reporting "passed"). Deterministic at 15 files / 141 tests.
+
+## v2.20.3 — DCCNN error codes
+
+- feat(errors): every user-facing failure carries a traceable code — `Download failed [ERR DEX01]`. Codes are five characters: domain letter (D=downloads, A=auth, P=playlists…), two-letter category (VA=validation, NF=not-found, EX=execution…), two-digit sequence.
+- feat(errors): one registry (`app/core/error_codes.py`) owns every code; `fail()` refuses unregistered ones; a contract test pins uniqueness, shape, domain consistency and the sync of `docs/ERROR_CODES.md`. Responses emit a structured `code` field.
+
+## v2.20.2 — A test run that tells the truth
+
+- fix(deps): **zero warnings** (was 17,909) — pytest-asyncio 0.23 → 1.4 and FastAPI 0.111 → 0.141 / Starlette 0.37 → 1.7 stop calling the `asyncio` APIs Python 3.14 deprecated (removal lands in 3.16).
+- fix(test): FastAPI 0.141 no longer flattens `include_router` children into `app.routes`; the endpoint inventory had been checking **13 of 108 routes**. The walker now threads the wrappers + mount prefixes, so the OpenAPI and auth guard rails see the full surface again.
+
+## v2.20.1 — Transient refusal recovery
+
+- fix(downloads): a refused transfer (`HTTP Error 403` after successful extraction) is **retried on the same client** (bounded backoff, two tries) instead of being read as a reason to switch player clients — re-extraction mints a fresh URL, which is the actual remedy. The ladder no longer burns every rung before reporting a dead track that was never dead.
+- refactor(downloads): the duplicated media-refusal marker list is gone; the classification lives once in `stream_service` with the overlap pinned by test.
+
+## v2.20.0 — Download and failure-surface correctness
+
+- fix(downloads): **progress is reported** — yt-dlp writes progress to stdout and diagnostics to stderr; the code read only stderr and passed `--quiet` (which suppresses progress outright). Both pipes are drained concurrently.
+- fix(downloads): **failures say what happened** — four branches (permanently unavailable / bot-check / media server refused / generic extractor) replace the single sentence that advised updating an engine already at the latest release.
+- fix(downloads): the error is **readable** — the pill and the Downloads row wrapped instead of truncating; the doubled "Download failed:" prefix is gone; a dismissal sticks without deleting the record.
+- fix(downloads): `yt-dlp -U` refuses pip installs; the daily cron now falls back to pip through the binary's own interpreter (PEP 668 retry).
+- fix(streaming): the dead `ios`/`mweb`/`web` ladder rungs are gone — each cost a spawn and a full extraction and never produced a format.
+- fix(health): `/api/health` reports Redis from a bounded PING with `configured` vs `reachable` separate; the URL (which carries the password) is never echoed; the aggregator ranks `failing` above `skipped` so an unconfigured optional service can't mask a degraded database.
+- fix(schema): duplicate OpenAPI operationIds are split (one decorator per method) and the types regenerated; the Search Console verification file actually ships in the build.
+
 ## v2.19.14
 
 Found by playing the whole app against a live server.

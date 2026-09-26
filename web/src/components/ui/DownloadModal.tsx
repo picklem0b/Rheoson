@@ -81,7 +81,7 @@ export function DownloadModal() {
   const knownTrack = useUIStore((s) => s.downloadModalTrack)
   const closeDownloadModal = useUIStore((s) => s.closeDownloadModal)
   const { download } = useDownloads()
-  const { toast } = useToast()
+  const { toast, toastWithCode } = useToast()
 
   // One-off choices — start from the user's saved defaults but never
   // write back to them (a download is a single action, not a preference).
@@ -139,8 +139,16 @@ export function DownloadModal() {
       toast(`"${usableTrack.title}" queued for download`, 'success')
       closeDownloadModal()
     } catch (e) {
-      // e.g. Wi-Fi-only mode on mobile data
-      toast(e instanceof Error ? e.message : 'Download failed', 'error', 4000)
+      // e.g. Wi-Fi-only mode on mobile data. The DCCNN code (from the
+      // structured field or the [ERR …] suffix) rides along on the toast,
+      // with the full message behind the ⓘ control.
+      const err = e as { message?: string; detail?: string; code?: string }
+      const full = err?.detail ?? err?.message ?? 'Download failed'
+      toastWithCode(full.replace(/\s*\[ERR [A-Z]{3}\d{2}\]\s*$/, ''), 'error', {
+        code: err?.code,
+        fullDetail: full,
+        duration: 6000,
+      })
     }
   }
 

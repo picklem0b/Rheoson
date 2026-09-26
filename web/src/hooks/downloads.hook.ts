@@ -13,6 +13,8 @@ import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
 import { playChime, downloadChimeEnabled } from '@/lib/sounds'
 import { downloadForeground } from '@/lib/downloadForeground'
 import { signalDownload } from '@/lib/signals'
+import { useToast } from '@/components/ui/Toaster'
+import { splitErrorCode } from '@/api/client.api'
 import type { FileNaming } from '@/types'
 
 // Notification chime — louder than the generic success toast so it's
@@ -81,6 +83,7 @@ export function useDownloads() {
   const activeJobs  = useDownloadStore(selectActiveJobs)
   const completedJobs = useDownloadStore(selectCompletedJobs)
   const { addJob, updateJob, removeJob, clearDone } = useDownloadStore()
+  const { toast, toastWithCode } = useToast()
 
   // Track previous statuses so we can detect done transitions locally
   // (fallback for when the WebSocket isn't connected).
@@ -107,6 +110,7 @@ export function useDownloads() {
       // Mark as handled so the local watcher below doesn't double-fire
       prevStatuses.current.set(d.id, 'done')
       if (downloadChimeEnabled()) playChime(0.6)
+      if (d.title) toast(`Download complete — “${d.title}”`, 'success')
     }
 
     const onError = (data: unknown) => {
@@ -114,6 +118,12 @@ export function useDownloads() {
       if (!d.id) return
       updateJob(d.id, { ...d, status: 'error' })
       prevStatuses.current.set(d.id, 'error')
+      // The backend message already ends with its DCCNN code
+      // ("… [ERR DEX01]"). Split it so the code renders as a chip and the
+      // full sentence stays reachable behind the ⓘ control.
+      const raw = d.error || 'The download did not complete'
+      const { message, code } = splitErrorCode(raw)
+      toastWithCode(message, 'error', { code, fullDetail: raw, duration: 6000 })
     }
 
     ws.on('download:progress', onProgress)
@@ -125,7 +135,7 @@ export function useDownloads() {
       ws.off('download:done',     onDone)
       ws.off('download:error',    onError)
     }
-  }, [updateJob])
+  }, [updateJob, toast, toastWithCode])
 
   // ── Local transition watcher (WS fallback) ────────────────
   // Only fires if the WS handler didn't already set prevStatuses to 'done'.

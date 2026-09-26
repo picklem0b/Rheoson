@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 import structlog
 
@@ -29,6 +29,7 @@ from app.core.config import settings
 from app.core.database import db_available, get_db
 from app.core.deps import get_current_user
 from app.schemas.playlist_schema import PlaylistSchema, CreatePlaylistSchema, UpdatePlaylistSchema
+from app.core import error_codes
 
 router = APIRouter()
 log = structlog.get_logger()
@@ -186,28 +187,28 @@ async def import_playlist_url(
     """Create a new playlist from a shared URL (Spotify/YouTube/SoundCloud…)."""
     url = (req.url or "").strip()
     if not url:
-        raise HTTPException(status_code=400, detail="url required")
+        raise error_codes.fail(error_codes.PLAYLIST.URL_REQUIRED, 400)
     if len(url) > 2048:
-        raise HTTPException(status_code=400, detail="URL too long")
+        raise error_codes.fail(error_codes.DOWNLOAD.URL_TOO_LONG, 400)
     if not url.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="Invalid URL format")
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400)
 
     from app.services.netguard import ensure_safe_media_url
     try:
         ensure_safe_media_url(url)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400, append=f": {e}") from e
 
     try:
         from app.services.search_service import resolve_url
         result = await resolve_url(url)
     except Exception as e:
         log.warning("playlist.import_url.failed", url=url, error=str(e))
-        raise HTTPException(status_code=400, detail=_friendly_url_error(e)) from e
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400, append=f": {_friendly_url_error(e)}") from e
 
     tracks = result.get("tracks", [])
     if not tracks:
-        raise HTTPException(status_code=400, detail="No playable tracks found at that URL")
+        raise error_codes.fail(error_codes.PLAYLIST.NO_PLAYABLE_TRACKS, 400)
 
     ids: list[str] = []
     for t in tracks:
@@ -215,7 +216,7 @@ async def import_playlist_url(
         if tid and tid not in ids:
             ids.append(str(tid))
     if not ids:
-        raise HTTPException(status_code=400, detail="No playable tracks found at that URL")
+        raise error_codes.fail(error_codes.PLAYLIST.NO_PLAYABLE_TRACKS, 400)
 
     playlists = result.get("playlists") or []
     source_title = ""
@@ -238,7 +239,7 @@ async def get_playlist(playlist_id: str, user: dict = Depends(get_current_user))
     data = _load(user["sub"])
     pl = data.get(playlist_id)
     if not pl:
-        raise HTTPException(status_code=404, detail="Playlist not found")
+        raise error_codes.fail(error_codes.PLAYLIST.NOT_FOUND, 404)
 
     # Hydrate the stored track IDs into full Track objects. Unhydratable IDs
     # are dropped from the response but kept in storage.
@@ -279,7 +280,7 @@ async def update_playlist(
     data = _load(user_id)
     pl = data.get(playlist_id)
     if not pl:
-        raise HTTPException(status_code=404, detail="Playlist not found")
+        raise error_codes.fail(error_codes.PLAYLIST.NOT_FOUND, 404)
 
     now = datetime.now(timezone.utc).isoformat()
     if req.title is not None:
@@ -323,13 +324,13 @@ async def add_track(
     """Add a track to a playlist."""
     track_id = body.get("trackId")
     if not track_id:
-        raise HTTPException(status_code=400, detail="trackId required")
+        raise error_codes.fail(error_codes.PLAYLIST.TRACK_ID_REQUIRED, 400)
 
     user_id = user["sub"]
     data = _load(user_id)
     pl = data.get(playlist_id)
     if not pl:
-        raise HTTPException(status_code=404, detail="Playlist not found")
+        raise error_codes.fail(error_codes.PLAYLIST.NOT_FOUND, 404)
 
     tracks = _stored_ids(pl)
     if track_id in tracks:
@@ -357,7 +358,7 @@ async def remove_track(
     data = _load(user_id)
     pl = data.get(playlist_id)
     if not pl:
-        raise HTTPException(status_code=404, detail="Playlist not found")
+        raise error_codes.fail(error_codes.PLAYLIST.NOT_FOUND, 404)
 
     tracks = [t for t in _stored_ids(pl) if t != track_id]
     pl["tracks"] = tracks
@@ -379,13 +380,13 @@ async def reorder_tracks(
     """Reorder tracks in a playlist."""
     track_ids = body.get("trackIds", [])
     if not isinstance(track_ids, list) or not all(isinstance(t, str) for t in track_ids):
-        raise HTTPException(status_code=400, detail="trackIds must be a list of strings")
+        raise error_codes.fail(error_codes.PLAYLIST.INVALID_TRACK_LIST, 400)
 
     user_id = user["sub"]
     data = _load(user_id)
     pl = data.get(playlist_id)
     if not pl:
-        raise HTTPException(status_code=404, detail="Playlist not found")
+        raise error_codes.fail(error_codes.PLAYLIST.NOT_FOUND, 404)
 
     pl["tracks"] = track_ids
     pl["trackIds"] = track_ids
@@ -406,27 +407,27 @@ async def import_into_playlist(
     """Import tracks from a shared URL into an existing playlist."""
     url = body.get("url", "")
     if not url:
-        raise HTTPException(status_code=400, detail="url required")
+        raise error_codes.fail(error_codes.PLAYLIST.URL_REQUIRED, 400)
 
     from app.services.netguard import ensure_safe_media_url
     try:
         ensure_safe_media_url(url)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400, append=f": {e}") from e
 
     from app.services.search_service import resolve_url
     try:
         result = await resolve_url(url)
     except Exception as e:
         log.warning("playlist.import_tracks.failed", url=url, error=str(e))
-        raise HTTPException(status_code=400, detail=_friendly_url_error(e)) from e
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400, append=f": {_friendly_url_error(e)}") from e
 
     tracks = result.get("tracks", [])
     user_id = user["sub"]
     data = _load(user_id)
     pl = data.get(playlist_id)
     if not pl:
-        raise HTTPException(status_code=404, detail="Playlist not found")
+        raise error_codes.fail(error_codes.PLAYLIST.NOT_FOUND, 404)
 
     existing = _stored_ids(pl)
     for t in tracks:
@@ -450,7 +451,7 @@ async def export_playlist(playlist_id: str, user: dict = Depends(get_current_use
     data = _load(user["sub"])
     pl = data.get(playlist_id)
     if not pl:
-        raise HTTPException(status_code=404, detail="Playlist not found")
+        raise error_codes.fail(error_codes.PLAYLIST.NOT_FOUND, 404)
 
     from app.routers.track_router import _hydrate_track
 

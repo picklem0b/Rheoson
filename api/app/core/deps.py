@@ -30,6 +30,7 @@ from typing import Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.core import error_codes
 from app.core.auth import verify_clerk_token
 
 _bearer = HTTPBearer(auto_error=False)
@@ -73,9 +74,9 @@ async def get_optional_user(
 
     claims = await verify_clerk_token(cred.credentials)
     if claims is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+        raise error_codes.fail(
+            error_codes.AUTH.INVALID_TOKEN,
+            status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
         )
     return claims
@@ -107,17 +108,17 @@ async def get_current_user(
         )
 
     if cred is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
+        raise error_codes.fail(
+            error_codes.AUTH.NOT_SIGNED_IN,
+            status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     claims = await verify_clerk_token(cred.credentials)
     if claims is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+        raise error_codes.fail(
+            error_codes.AUTH.INVALID_TOKEN,
+            status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
         )
 

@@ -1,6 +1,6 @@
 import React from 'react'
-import { Warning, ArrowClockwise } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
+import ErrorPage from '@/pages/errors/ErrorPage'
 
 interface Props {
   children: React.ReactNode
@@ -15,6 +15,11 @@ interface State {
 /**
  * ErrorBoundary — catches React rendering errors and shows a recovery UI.
  * Wraps critical sections like the player, search results, etc.
+ *
+ * The fallback is the app's one ErrorPage treatment (500-shaped — a render
+ * crash *is* "something broke"), not a second visual style for errors. The
+ * boundary mounts outside <RouterProvider>, so navigation buttons are
+ * replaced by a reload action and the ⓘ panel carries the underlying message.
  */
 export default class ErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
@@ -44,36 +49,27 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
       return (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center justify-center py-12 px-6 text-center gap-4"
+          className="min-h-screen w-full bg-[var(--bg-base)] flex items-center justify-center"
         >
-          <div className="w-16 h-16 rounded-3xl bg-[var(--danger-bg)] flex items-center justify-center">
-            <Warning className="w-7 h-7 text-[var(--danger-text)]" />
-          </div>
-          <div>
-            <h3 className="font-bold text-[var(--text-primary)]">Something went wrong</h3>
-            <p className="text-sm text-[var(--text-muted)] mt-1 max-w-xs">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={this.handleReset}
-              className="px-4 py-2 rounded-full bg-[var(--bg-elevated)] text-sm font-semibold text-[var(--text-primary)] border border-[var(--border)]"
-            >
-              Try again
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={this.handleReload}
-              className="px-4 py-2 rounded-full bg-[var(--accent)] text-sm font-semibold text-white flex items-center gap-1.5"
-            >
-              <ArrowClockwise className="w-3.5 h-3.5" />
-              Reload
-            </motion.button>
-          </div>
+          <ErrorPage
+            status={500}
+            message={this.state.error?.message}
+            onRetry={this.handleReset}
+            actions={
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={this.handleReload}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[var(--bg-elevated)]
+                           text-sm font-semibold text-[var(--text-primary)] border border-[var(--border)]
+                           active:bg-[var(--bg-surface)] transition-colors
+                           focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              >
+                Reload app
+              </motion.button>
+            }
+          />
         </motion.div>
       )
     }

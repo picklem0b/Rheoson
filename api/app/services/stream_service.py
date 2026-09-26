@@ -122,6 +122,31 @@ def is_extractor_failure(text: str) -> bool:
     return any(marker in low for marker in _EXTRACTOR_FAILURE_MARKERS)
 
 
+#: The extractor succeeded and handed back a URL, but the media server refused
+#: the bytes: a signature that expired or is bound to the IP it was minted for,
+#: or an edge rate-limit. Switching player client cannot help — extraction
+#: already worked — while re-running mints a fresh URL, so this is retried on
+#: the *same* client. Measured on a track failing with "unable to download
+#: video data: HTTP Error 403": 5/5 success on immediate re-run.
+_TRANSIENT_MEDIA_REFUSAL_MARKERS = (
+    "unable to download video data",
+    "http error 403",
+    "http error 429",
+    "http error 503",
+)
+
+
+def is_transient_media_refusal(text: str) -> bool:
+    """True when the bytes were refused after a successful extraction.
+
+    Overlaps ``is_extractor_failure`` on purpose (``http error 403`` is in
+    both), so callers must decide which one to consult first: retrying the
+    same client, or switching to another one.
+    """
+    low = (text or "").lower()
+    return any(marker in low for marker in _TRANSIENT_MEDIA_REFUSAL_MARKERS)
+
+
 def client_attempts() -> list[list[str]]:
     """`--extractor-args` payloads to try, in order (empty list = default)."""
     return [

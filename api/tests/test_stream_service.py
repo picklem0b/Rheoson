@@ -152,6 +152,36 @@ def test_is_extractor_failure(text, expected):
     assert ss.is_extractor_failure(text) is expected
 
 
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("ERROR: unable to download video data: HTTP Error 403: Forbidden", True),
+        ("ERROR: HTTP Error 429: Too Many Requests", True),
+        ("ERROR: HTTP Error 503: Service Unavailable", True),
+        ("ERROR: [youtube] x: Requested format is not available.", False),
+        ("ERROR: Sign in to confirm you're not a bot.", False),
+        ("ERROR: unable to write data to disk: No space left on device", False),
+        ("", False),
+    ],
+)
+def test_is_transient_media_refusal(text, expected):
+    """A refused transfer is a retry, not a reason to change player client."""
+    assert ss.is_transient_media_refusal(text) is expected
+
+
+def test_the_two_failure_readings_overlap_on_a_refused_transfer():
+    """Pin the overlap that decides which remedy runs first.
+
+    `http error 403` is deliberately in both marker sets, so callers have to
+    choose: retry the same client, or switch. The download ladder checks this
+    one first, and if the overlap ever disappears silently that ordering would
+    become dead code rather than the fix it is.
+    """
+    text = "ERROR: unable to download video data: HTTP Error 403: Forbidden"
+    assert ss.is_transient_media_refusal(text) is True
+    assert ss.is_extractor_failure(text) is True
+
+
 # ── Fake CDN ──────────────────────────────────────────────────
 
 
