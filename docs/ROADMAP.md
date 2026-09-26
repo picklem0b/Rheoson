@@ -201,6 +201,19 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.21.5 — Appearance shows appearance
+
+Opening Appearance used to serve a grab-bag: a "Layout shortcuts" group
+that duplicated the sidebar row living one section over, and "Keep screen
+awake" — playback behaviour wearing a looks costume. The section now
+holds exactly its four appearance controls: accent colour, theme,
+transparency, motion. Keep-awake moved to Playback → Transport, the
+sidebar row keeps only its Layout home, and the nav row that was
+confusingly labelled "Layout" while pointing at Appearance now says
+"Appearance". Every toggle still has a live consumer; none has two homes.
+
+---
+
 ## v2.21.4 — The console you can read
 
 The traceback.log told the whole story in one screen: ninety-two lines where

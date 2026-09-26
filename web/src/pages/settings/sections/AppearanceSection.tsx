@@ -1,9 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Sun, Moon, Eye, EyeSlash } from '@phosphor-icons/react';
+import { Check, Sun, Moon } from '@phosphor-icons/react';
 import { useThemeStore } from "@/store/theme.store";
 import { useUIStore } from "@/store/ui.store";
 import { ACCENT_THEMES } from "@/themes";
-import { usePersisted } from "@/hooks/persisted.hook";
 import {
    SettingsGroup,
    SettingsRow,
@@ -14,9 +13,8 @@ import {
 export default function AppearanceSection() {
    const { theme, glassOpacity, setAccent, setSurface, setGlassOpacity } =
       useThemeStore();
-   const { reduceMotion, setReduceMotion, sidebarCollapsed, toggleSidebar } =
+   const { reduceMotion, setReduceMotion } =
       useUIStore();
-   const [keepAwake, setKeepAwake] = usePersisted("keep-awake", true);
 
    return (
       <div className='pb-4'>
@@ -144,42 +142,21 @@ export default function AppearanceSection() {
             />
          </SettingsGroup>
 
-         {/* Motion & screen */}
+         {/* Motion */}
          <SettingsGroup
-            title='Motion & screen'
-            footer='Reduce motion jumps every animation straight to its end state — the whole app stops moving. Keep screen awake holds the display on while music plays.'>
+            title='Motion'
+            footer='Reduce motion jumps every animation straight to its end state — the whole app stops moving. Gentle on eyes and battery.'>
             <SettingsRow
                label='Reduce motion'
-               description='Stop animations across the entire app — gentle on eyes and battery'>
+               description='Stop animations across the entire app'>
                <Toggle value={reduceMotion} onChange={setReduceMotion} />
             </SettingsRow>
-            <SettingsRow
-               label='Keep screen awake'
-               description='Hold the display on while music is playing'>
-               <Toggle value={keepAwake} onChange={setKeepAwake} />
-            </SettingsRow>
          </SettingsGroup>
 
-         {/* Layout shortcuts */}
-         <SettingsGroup
-            title='Layout shortcuts'
-            footer='The desktop sidebar can be collapsed to icons to give the content more room. Full layout controls live in the Layout section.'>
-            <SettingsRow
-               label='Collapse sidebar'
-               description={sidebarCollapsed ? 'Sidebar is collapsed to icons' : 'Sidebar shows icons and labels'}
-               onClick={toggleSidebar}
-               icon={sidebarCollapsed ? <EyeSlash className='w-[14px] h-[14px]' /> : <Eye className='w-[14px] h-[14px]' />}
-               iconBg='#8B5CF6'>
-               <span className='text-[13px] text-[var(--text-muted)]'>
-                  {sidebarCollapsed ? 'Collapsed' : 'Expanded'}
-               </span>
-            </SettingsRow>
-         </SettingsGroup>
-
-         {/* Fonts and navigation live in Layout — they are the only display
-             controls with live consumers, so the old Display group (compact
-             rows, artwork visibility, animation switch) was removed: none of
-             those keys were read anywhere. */}
+         {/* Appearance only, by contract: accent, theme, transparency and
+             motion live here. Keep-awake is playback behaviour (Playback
+             section); sidebar collapse is navigation (Layout section); the
+             old "Layout shortcuts" group was a duplicate of that row. */}
       </div>
    );
 }

@@ -6,6 +6,11 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.21.5 — Appearance shows appearance
+
+- fix(settings): **the Appearance section is only appearance** — the "Layout shortcuts" group (a duplicate of Layout's sidebar row) and "Keep screen awake" (playback behaviour, not looks) left the section; keep-awake moved to **Playback → Transport**.
+- fix(settings): de-duplicated — Layout's redundant "Reduce motion" row is gone (Appearance holds the canonical one); the nav row formerly labelled "Layout" is now honestly **"Appearance — theme, accent, transparency"**, so the two sections stop trading names.
+
 ## v2.21.4 — The console you can read
 
 - feat(logging): **smart logging** — channels (access, stream, download, library, lyrics, lifecycle, core) with per-channel severity floors, profiles (`default` / `quiet` / `debug`), and an access gate that drops the `200 OK` flood while 4xx/5xx still print.

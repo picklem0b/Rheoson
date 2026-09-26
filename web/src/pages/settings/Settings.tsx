@@ -54,7 +54,7 @@ const GROUPS: { label: string; items: SectionMeta[] }[] = [
   {
     label: 'App & data',
     items: [
-      { id: 'appearance',    label: 'Layout',             desc: 'Theme, accent, navigation',  Icon: Palette },
+      { id: 'appearance',    label: 'Appearance',          desc: 'Theme, accent, transparency',  Icon: Palette },
       { id: 'layout',        label: 'Navigation & fonts', desc: 'Nav style, fonts, sidebar',  Icon: Layout },
       { id: 'streaming',     label: 'Streaming',          desc: 'Autoplay, warm-ahead',       Icon: WifiHigh },
       { id: 'data-offline',  label: 'Data-saving & offline', desc: 'Offline cache & limits',  Icon: HardDrives },

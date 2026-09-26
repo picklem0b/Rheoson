@@ -22,6 +22,9 @@ export default function PlaybackSection() {
    const [gapless, setGapless] = usePersisted("gapless", true);
    const [seekStep, setSeekStep] = usePersisted("seek-step", 10);
    const [hapticsOn, setHapticsOn] = usePersisted("haptics-enabled", true);
+   // Keep-awake used to live in Appearance — it holds the display on while
+   // music plays, which is playback behaviour, not looks.
+   const [keepAwake, setKeepAwake] = usePersisted("keep-awake", true);
    const [speed, setSpeed] = useState(() => getPlaybackRate());
 
    const chooseSpeed = (v: number) => {
@@ -82,6 +85,11 @@ export default function PlaybackSection() {
                label='Haptics'
                description='Vibration feedback on player controls'>
                <Toggle value={hapticsOn} onChange={setHapticsOn} />
+            </SettingsRow>
+            <SettingsRow
+               label='Keep screen awake'
+               description='Hold the display on while music is playing'>
+               <Toggle value={keepAwake} onChange={setKeepAwake} />
             </SettingsRow>
          </SettingsGroup>
       </div>
