@@ -201,6 +201,19 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.20.8 — The preview shows the receipts
+
+The landing page's phone preview demonstrated streaming but never the
+feature this project is named for: downloads. The preview gains a fourth
+tab, **Downloads**, showing the completed state — three tracks with the
+logo placeholder art, format and duration lines, and green check chips —
+plus the app's signature green **"Download complete"** toast floating
+above the player bar, exactly as the real app announces a finished job.
+The bottom dock was decorative; every dock item now switches tabs too,
+mirroring the tab strip like the real nav would.
+
+---
+
 ## v2.20.7 — The preview wears the real mark
 
 The landing page's mini app preview showed gradient tiles with a single

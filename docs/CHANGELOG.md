@@ -6,6 +6,10 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.20.8 — The preview shows the receipts
+
+- feat(site): **the mini preview gains a Downloads tab** showing the completed state — three tracks with logo placeholder art, format/duration lines, green check chips — and the app's green "Download complete" toast above the player bar. The bottom dock is now functional: every item switches tabs, mirroring the tab strip.
+
 ## v2.20.7 — The preview wears the real mark
 
 - fix(site): **the mini preview's eleven fake album-art gradients are now the real Rheoson logo** — the asset the app itself uses as its artwork placeholder, served from `docs/assets/`, framed with the app's tile chrome (rounded corners, hairline border) instead of saturated gradients with a letter.

@@ -302,6 +302,7 @@
          }
 
          .screen {
+            position: relative;
             background: var(--bg);
             border-radius: 30px;
             overflow: hidden;
@@ -547,6 +548,79 @@
          .mini-dock i {
             font-style: normal;
             font-size: 13px;
+         }
+
+         /* downloads tab */
+         .mini-dl-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 10px 4px 6px;
+         }
+
+         .mini-dl-head b {
+            font-size: 12px;
+         }
+
+         .mini-dl-head span {
+            color: var(--muted);
+            font-size: 9.5px;
+         }
+
+         .mini-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.14);
+            color: var(--success);
+            display: grid;
+            place-items: center;
+            font-size: 10px;
+            font-weight: 800;
+            flex-shrink: 0;
+         }
+
+         .mini-toast {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 154px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-card);
+            border: 1px solid rgba(52, 211, 153, 0.28);
+            border-radius: var(--r-md);
+            padding: 10px 12px;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+            animation: fadeUp 0.25s ease;
+         }
+
+         .toast-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.16);
+            color: var(--success);
+            display: grid;
+            place-items: center;
+            font-size: 11px;
+            font-weight: 800;
+            flex-shrink: 0;
+         }
+
+         .mini-toast-meta {
+            min-width: 0;
+         }
+
+         .mini-toast-meta b {
+            display: block;
+            font-size: 11px;
+         }
+
+         .mini-toast-meta span {
+            color: var(--muted);
+            font-size: 9.5px;
          }
 
          /* ── bento ───────────────────────────────────────────── */
@@ -887,7 +961,8 @@
             }
 
             .mini-eq i,
-            .mini-page {
+            .mini-page,
+            .mini-toast {
                animation: none;
             }
          }
@@ -939,6 +1014,7 @@
                         <button class="mini-tab on" data-page="home" role="tab" aria-selected="true">Home</button>
                         <button class="mini-tab" data-page="search" role="tab" aria-selected="false">Search</button>
                         <button class="mini-tab" data-page="library" role="tab" aria-selected="false">Library</button>
+                        <button class="mini-tab" data-page="downloads" role="tab" aria-selected="false">Downloads</button>
                      </div>
                      <div class="mini-body">
                         <div class="mini-page on" data-page="home">
@@ -992,6 +1068,27 @@
                               <div class="mini-meta"><b>Offline</b><span>12 downloaded</span></div>
                            </div>
                         </div>
+                        <div class="mini-page" data-page="downloads">
+                           <div class="mini-dl-head">
+                              <b>Downloads</b>
+                              <span>12 on this device</span>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
+                              <div class="mini-meta"><b>Nightcall</b><span>Kavinsky · 3:32 · MP3</span></div>
+                              <div class="mini-check" aria-label="Downloaded">&#10003;</div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
+                              <div class="mini-meta"><b>Midnight City</b><span>M83 · 4:03 · MP3</span></div>
+                              <div class="mini-check" aria-label="Downloaded">&#10003;</div>
+                           </div>
+                           <div class="mini-row">
+                              <div class="mini-art"><img src="assets/logo.png" alt=""></div>
+                              <div class="mini-meta"><b>Redbone</b><span>Childish Gambino · 5:25 · FLAC</span></div>
+                              <div class="mini-check" aria-label="Downloaded">&#10003;</div>
+                           </div>
+                        </div>
                      </div>
                      <div class="mini-player">
                         <div class="mini-trackline"><b>Nightcall</b><span>1:24 / 3:32</span></div>
@@ -1003,10 +1100,17 @@
                         </div>
                      </div>
                      <div class="mini-dock">
-                        <span class="on"><i>&#9635;</i>Home</span>
-                        <span><i>&#9906;</i>Search</span>
-                        <span><i>&#9871;</i>Library</span>
-                        <span><i>&#8599;</i>Stats</span>
+                        <span class="on" data-tab="home"><i>&#9635;</i>Home</span>
+                        <span data-tab="search"><i>&#9906;</i>Search</span>
+                        <span data-tab="library"><i>&#9871;</i>Library</span>
+                        <span data-tab="downloads"><i>&#8599;</i>Downloads</span>
+                     </div>
+                     <div class="mini-toast" role="status">
+                        <span class="toast-check">&#10003;</span>
+                        <div class="mini-toast-meta">
+                           <b>Download complete</b>
+                           <span>Nightcall · Kavinsky</span>
+                        </div>
                      </div>
                   </div>
                </div>
@@ -1219,17 +1323,29 @@
       </footer>
 
       <script>
-         // mini-app tab switching (the phone preview)
+         // mini-app tab switching (the phone preview); the dock mirrors the tab strip
+         function activateMiniPage(page) {
+            document.querySelectorAll(".mini-tab").forEach(function (t) {
+               t.classList.toggle("on", t.dataset.page === page);
+               t.setAttribute("aria-selected", t.dataset.page === page ? "true" : "false");
+            });
+            document.querySelectorAll(".mini-page").forEach(function (p) {
+               p.classList.toggle("on", p.dataset.page === page);
+            });
+            document.querySelectorAll(".mini-dock span[data-tab]").forEach(function (s) {
+               s.classList.toggle("on", s.dataset.tab === page);
+            });
+         }
+
          document.querySelectorAll(".mini-tab").forEach(function (tab) {
             tab.addEventListener("click", function () {
-               var page = tab.dataset.page;
-               document.querySelectorAll(".mini-tab").forEach(function (t) {
-                  t.classList.toggle("on", t === tab);
-                  t.setAttribute("aria-selected", t === tab ? "true" : "false");
-               });
-               document.querySelectorAll(".mini-page").forEach(function (p) {
-                  p.classList.toggle("on", p.dataset.page === page);
-               });
+               activateMiniPage(tab.dataset.page);
+            });
+         });
+
+         document.querySelectorAll(".mini-dock span[data-tab]").forEach(function (item) {
+            item.addEventListener("click", function () {
+               activateMiniPage(item.dataset.tab);
             });
          });
 
