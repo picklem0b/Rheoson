@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+/* ════════════════════════════════════════════════════════════
+   Rheoson design tokens — ported 1:1 from web/src/index.css.
+
+     primitive  raw values (hex, channel triplets, curves)
+        ↓
+     semantic   purpose names consumed by components
+        ↓
+   component  per-component bindings (player height, nav, …)
+
+   Components read ONLY semantic names. The visual language —
+   tinted near-black surfaces, hairline borders, crimson accent,
+   no gradients, no glow — is the same product, new engine.
+   ════════════════════════════════════════════════════════════ */
+
+/* ─── Layer 1: Primitives ──────────────────────────────────── */
+:root {
+  /* Brand accent — Crimson, recalibrated (saturation/lightness held
+     below the 80% line so the accent sits with the neutrals). */
+  --accent-rgb: 228 37 59;
+  --accent-soft-rgb: 235 62 82;
+  --accent-deep-rgb: 165 29 45;
+
+  /* Neutral ramp — tinted near-blacks, never pure #000. */
+  --gray-0: 255 255 255;
+  --gray-25: 250 250 251;
+  --gray-50: 245 245 246;
+  --gray-100: 236 236 238;
+  --gray-200: 217 217 220;
+  --gray-300: 190 190 195;
+  --gray-400: 152 152 158;
+  --gray-500: 116 116 122;
+  --gray-600: 88 88 94;
+  --gray-700: 60 60 65;
+  --gray-800: 38 38 42;
+  --gray-850: 26 26 30;
+  --gray-900: 17 17 19;
+  --gray-925: 12 12 14;
+  --gray-950: 8 8 9;
+
+  /* Motion — one spring family for the whole product. */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+
+  /* Font stacks — Geist is the Rheoson voice. */
+  --font-stack-geist: "Geist Variable", system-ui, sans-serif;
+  --font-stack-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --font-stack-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-stack-inter: "Inter", system-ui, sans-serif;
+  --font-stack-system: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ─── Layer 2: Semantic — Dark (default) ───────────────────── */
+:root {
+  --accent: rgb(var(--accent-rgb));
+  --accent-bright: rgb(var(--accent-soft-rgb));
+  --accent-dim: rgb(var(--accent-deep-rgb));
+  --accent-subtle: rgb(var(--accent-rgb) / 0.14);
+  --accent-border: rgb(var(--accent-rgb) / 0.32);
+
+  /* Surfaces — four elevation steps; elevation = lighter surface,
+     not heavier shadow. */
+  --bg-base: rgb(var(--gray-950));
+  --bg-surface: rgb(var(--gray-900));
+  --bg-elevated: rgb(var(--gray-850));
+  --bg-overlay: rgb(var(--gray-800));
+  --bg-base-rgb: var(--gray-950);
+  --bg-surface-rgb: var(--gray-900);
+  --bg-elevated-rgb: var(--gray-850);
+  --bg-overlay-rgb: var(--gray-800);
+
+  --border: rgb(var(--gray-0) / 0.07);
+  --border-strong: rgb(var(--gray-0) / 0.14);
+  --border-strong-rgb: var(--gray-0);
+
+  --text-primary: rgb(var(--gray-25));
+  --text-secondary: rgb(var(--gray-400));
+  --text-muted: rgb(var(--gray-600));
+  --text-primary-rgb: var(--gray-25);
+  --text-secondary-rgb: var(--gray-400);
+  --text-muted-rgb: var(--gray-600);
+
+  --glass-bg: rgb(var(--gray-900) / 0.72);
+  --glass-border: rgb(var(--gray-0) / 0.08);
+  --glass-highlight: rgb(var(--gray-0) / 0.06);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.28);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.32);
+  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.4);
+
+  /* Component bindings */
+  --player-height: 80px;
+  --nav-height: 64px;
+  --sidebar-width: 240px;
+
+  /* Status hues — fixed across themes and accents. */
+  --danger: rgb(255 69 58);
+  --danger-rgb: 255 69 58;
+  --danger-text: rgb(255 105 97);
+  --danger-bg: rgb(var(--danger-rgb) / 0.12);
+  --success: rgb(48 209 88);
+  --success-rgb: 48 209 88;
+  --success-text: rgb(48 209 88);
+  --success-bg: rgb(var(--success-rgb) / 0.12);
+  --warning: rgb(255 159 10);
+  --warning-rgb: 255 159 10;
+  --warning-text: rgb(255 159 10);
+  --warning-bg: rgb(var(--warning-rgb) / 0.12);
+
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  --focus-ring: 0 0 0 2px rgb(var(--gray-950)), 0 0 0 4px rgb(var(--accent-rgb) / 0.7);
+}
+
+/* ─── Layer 2: Semantic — Light ────────────────────────────── */
+[data-surface="light"] {
+  --bg-base: rgb(var(--gray-50));
+  --bg-surface: rgb(var(--gray-0));
+  --bg-elevated: rgb(var(--gray-25));
+  --bg-overlay: rgb(var(--gray-100));
+  --bg-base-rgb: var(--gray-50);
+  --bg-surface-rgb: var(--gray-0);
+  --bg-elevated-rgb: var(--gray-25);
+  --bg-overlay-rgb: var(--gray-100);
+
+  --border: rgb(var(--gray-950) / 0.08);
+  --border-strong: rgb(var(--gray-950) / 0.16);
+  --border-strong-rgb: var(--gray-950);
+
+  --text-primary: rgb(var(--gray-925));
+  --text-secondary: rgb(var(--gray-600));
+  --text-muted: rgb(var(--gray-400));
+  --text-primary-rgb: var(--gray-925);
+  --text-secondary-rgb: var(--gray-600);
+  --text-muted-rgb: var(--gray-400);
+
+  --glass-bg: rgb(var(--gray-0) / 0.72);
+  --glass-border: rgb(var(--gray-950) / 0.08);
+  --glass-highlight: rgb(var(--gray-0) / 0.5);
+
+  --danger: rgb(215 40 50);
+  --danger-rgb: 215 40 50;
+  --danger-text: rgb(190 30 40);
+  --danger-bg: rgb(var(--danger-rgb) / 0.1);
+  --success: rgb(40 167 69);
+  --success-rgb: 40 167 69;
+  --success-text: rgb(32 142 59);
+  --success-bg: rgb(var(--success-rgb) / 0.1);
+  --warning: rgb(204 122 0);
+  --warning-rgb: 204 122 0;
+  --warning-text: rgb(150 90 0);
+  --warning-bg: rgb(var(--warning-rgb) / 0.1);
+
+  --shadow-sm: 0 1px 2px rgb(var(--gray-950) / 0.06);
+  --shadow-md: 0 4px 16px rgb(var(--gray-950) / 0.08);
+  --shadow-lg: 0 12px 40px rgb(var(--gray-950) / 0.12);
+
+  --focus-ring: 0 0 0 2px rgb(var(--gray-0)), 0 0 0 4px rgb(var(--accent-rgb) / 0.7);
+}
+
+/* ─── Layer 2: Accent theme variants ───────────────────────── */
+[data-theme="rose"] {
+  --accent-rgb: 240 62 88;
+  --accent-soft-rgb: 248 92 114;
+  --accent-deep-rgb: 178 34 56;
+}
+
+[data-theme="orange"] {
+  --accent-rgb: 235 110 45;
+  --accent-soft-rgb: 247 138 78;
+  --accent-deep-rgb: 178 76 26;
+}
+
+/* ─── Base ─────────────────────────────────────────────────── */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-stack-geist);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Keyboard users get the ring; pointer users get clean chrome. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
+}
+
+/* Honour the OS-level reduce-motion switch: transitions off. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
