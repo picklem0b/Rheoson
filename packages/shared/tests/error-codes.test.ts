@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 import {
   ALL_ERROR_CODES,
@@ -57,6 +61,14 @@ describe('DCCNN registry contract', () => {
     // Pinned so a silent port-drift is impossible: if the Python registry
     // grows, this number grows WITH it, in the same commit.
     expect(ALL_ERROR_CODES.length).toBe(122);
+  });
+
+  it('the committed JSON artifact matches the registry (drift is a test failure)', () => {
+    // The Python engine reads this file instead of re-declaring the registry.
+    // Regenerate it with `pnpm --filter @rheoson/shared export:error-registry`.
+    const here = dirname(fileURLToPath(import.meta.url));
+    const artifact = readFileSync(resolve(here, '../generated/error-codes.json'), 'utf8');
+    expect(JSON.parse(artifact)).toEqual(JSON.parse(errorRegistryJson()));
   });
 
   it('JSON export is parseable and carries the wire format', () => {
