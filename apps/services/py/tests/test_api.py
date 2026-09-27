@@ -92,6 +92,47 @@ def test_successful_resolve_payload(monkeypatch: pytest.MonkeyPatch, ytdlp_prese
     assert body["filename"].startswith("dQw4w9WgXcQ")
 
 
+def test_a_fresh_resolve_bypasses_the_url_cache(
+    monkeypatch: pytest.MonkeyPatch, ytdlp_present: None
+) -> None:
+    """`?fresh=1` is how a caller says "that URL is dead".
+
+    The cache lives for hours, so without this a re-mint after a CDN refusal
+    returns the refused URL and the caller's retry becomes a repeat. The
+    assertion is on the keyword the service receives, because that is the
+    contract between the route and the extractor.
+    """
+    seen: dict[str, object] = {}
+
+    async def fake_resolve(_track_id: str, **kwargs) -> str:
+        seen.update(kwargs)
+        return "https://cdn.example/fresh.m4a"
+
+    monkeypatch.setattr(resolve, "resolve_direct_url", fake_resolve)
+
+    body = client.get("/resolve/dQw4w9WgXcQ?fresh=1").json()
+
+    assert body["url"] == "https://cdn.example/fresh.m4a"
+    assert seen["use_cache"] is False
+
+
+def test_a_plain_resolve_still_uses_the_cache(
+    monkeypatch: pytest.MonkeyPatch, ytdlp_present: None
+) -> None:
+    seen: dict[str, object] = {}
+
+    async def fake_resolve(_track_id: str, **kwargs) -> str:
+        seen.update(kwargs)
+        return "https://cdn.example/cached.m4a"
+
+    monkeypatch.setattr(resolve, "resolve_direct_url", fake_resolve)
+
+    client.get("/resolve/dQw4w9WgXcQ")
+
+    # A replay must stay cheap: resolution costs a subprocess.
+    assert seen["use_cache"] is True
+
+
 def test_probe_reports_mime_and_length(monkeypatch: pytest.MonkeyPatch, ytdlp_present: None) -> None:
     async def fake_probe(_track_id: str, **_kwargs) -> dict:
         return {"url": "https://cdn.example/a", "mime": "audio/webm", "bytes": 4096}

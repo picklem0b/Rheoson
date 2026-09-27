@@ -2,7 +2,7 @@
 
 > Branch: `experiment/nextjs` · Status: **M0–M4 shipped, awaiting the Phase 8 human audit** (see `docs/migration/08-signoff.md` for the gate commands and the short list of things only a real deployment can prove) · `web/` + `api/` stay running and shippable until the parity verdict.
 >
-> Tags: `next-v0.1.0` … `next-v0.12.0` (14 slices, each a rollback point). `next-v1.0.0` is the promotion tag and is deliberately withheld until the audit signs off.
+> Tags: `next-v0.1.0` … `next-v0.13.0` (15 slices, each a rollback point). `next-v1.0.0` is the promotion tag and is deliberately withheld until the audit signs off.
 
 The migration: React → Next.js (full website + PWA, no APK), Python core → TypeScript, Python kept only as a slim engine. Polyglot services, each doing only what it is elite at.
 
@@ -119,7 +119,7 @@ Rules of the relay:
 | 0 | Skeleton: monorepo, Next boots with Rheoson design tokens, error-page system ported | ✅ `next-v0.4.0` — the new app opens and looks like Rheoson |
 | 1 | Play: stream/artwork/search/lyrics through go-relay + server; py-engine carved | ✅ `next-v0.9.0` — pressing play produces sound |
 | 2 | Sign in: Clerk + Postgres accounts, prefs, likes, history, follows, playlists | ✅ `next-v0.10.0` — likes and settings follow you in |
-| 3 | Download: engine queue, SSE progress, resume intact, shared DCCNN codes | ✅ `next-v0.11.0` — live progress + red fail toast with a code |
+| 3 | Download: engine queue, SSE progress, resume intact, shared DCCNN codes | ✅ `next-v0.11.0` — live progress + red fail toast with a code · ✅ `next-v0.13.0` — proven against real YouTube, and two range-gating defects fixed on the way |
 | 4 | The verdict: Redis fan-out live, parity checklist, sign-off → promote `apps/*`, remove `web/` + `api/` — or archive | ⏳ `next-v0.12.0` — documentation and seams complete; the decision is the audit's (`next-v1.0.0` is the promotion tag) |
 
 Skills (repo `skills/` folder, read fresh each session): design phases use

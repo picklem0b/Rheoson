@@ -398,6 +398,217 @@ func TestCachedEntrySupportsRanges(t *testing.T) {
 	}
 }
 
+// waitForCachedTrack polls until a tee has been promoted.
+//
+// The client can observe the end of the body before the relay has renamed the
+// staged file, so asserting on the cache immediately after ReadAll is a race —
+// the same race a real replay would lose by a millisecond and recover from on
+// the next request.
+func waitForCachedTrack(t *testing.T, c *cache.Cache, trackID string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, ok := c.Open(trackID); ok {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("the tee never promoted the entry")
+}
+
+// newRelayWithResolver builds a relay whose resolver behaviour the test
+// controls — the seam the re-mint tests need, because "a fresh resolution" is
+// the whole point and a stub that always returns one URL cannot show it.
+func newRelayWithResolver(t *testing.T, resolverHandler http.HandlerFunc, withCache bool) (*httptest.Server, *cache.Cache, *bytes.Buffer) {
+	t.Helper()
+	rs := httptest.NewServer(resolverHandler)
+	t.Cleanup(rs.Close)
+
+	cacheDir := ""
+	var c *cache.Cache
+	if withCache {
+		cacheDir = t.TempDir()
+		c = cache.New(cacheDir)
+	} else {
+		c = cache.New("")
+	}
+
+	cfg := config.Config{
+		Port:            0,
+		CacheDir:        cacheDir,
+		ResolverURL:     rs.URL,
+		UserAgent:       config.DefaultUserAgent,
+		ResolveTimeout:  5 * time.Second,
+		UpstreamTimeout: 5 * time.Second,
+	}
+	logs := &bytes.Buffer{}
+	handler := NewHandler(cfg, resolver.New(cfg.ResolverURL, "", cfg.ResolveTimeout), c,
+		slog.New(slog.NewJSONHandler(logs, nil)))
+	srv := httptest.NewServer(handler.Routes())
+	t.Cleanup(srv.Close)
+	return srv, c, logs
+}
+
+// ── range-gated upstreams ─────────────────────────────────────
+// These pin the behaviour that only a real CDN revealed: a request with no
+// Range header stalls or 403s, while `bytes=0-` answers with the whole file.
+
+func TestClientWithoutRangeStillGetsTheWholeFile(t *testing.T) {
+	// Exactly 25 bytes, so the stub's Content-Length and Content-Range describe
+	// the body it really sends — the tee's completeness check compares them.
+	payload := []byte("range-gated-track-bytes!!")
+
+	var seenRange atomic.Value
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenRange.Store(r.Header.Get("Range"))
+		w.Header().Set("Content-Type", "audio/mp4")
+		w.Header().Set("Content-Range", "bytes 0-24/25")
+		w.Header().Set("Content-Length", "25")
+		w.WriteHeader(http.StatusPartialContent)
+		_, _ = w.Write(payload)
+	}))
+	t.Cleanup(upstream.Close)
+
+	srv, c := newTestRelay(t, upstream.URL, "", true)
+	res, err := http.Get(srv.URL + "/relay/audio?track=abc123")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer res.Body.Close() // The relay asked for a range on the client's behalf...
+	if got := seenRange.Load().(string); got != bytesFromStart {
+		t.Fatalf("upstream saw Range %q, want %q", got, bytesFromStart)
+	}
+	// ...and the client, which asked for nothing, sees a plain complete 200.
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", res.StatusCode)
+	}
+	if got := res.Header.Get("Content-Range"); got != "" {
+		t.Fatalf("Content-Range = %q, want it dropped for an unasked-for full body", got)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if string(body) != string(payload) {
+		t.Fatalf("body = %q", body)
+	}
+	// A full-span 206 is a complete download, so it is still tee-eligible.
+	waitForCachedTrack(t, c, "abc123")
+}
+
+func TestCappedPartialIsPassedThroughUntouched(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The CDN answered `bytes=0-` with four bytes of a hundred: not the whole
+		// file, so it must never be dressed up as one.
+		w.Header().Set("Content-Range", "bytes 0-3/100")
+		w.Header().Set("Content-Length", "4")
+		w.WriteHeader(http.StatusPartialContent)
+		_, _ = w.Write([]byte("head"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	srv, c := newTestRelay(t, upstream.URL, "", true)
+	res, err := http.Get(srv.URL + "/relay/audio?track=abc123")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusPartialContent {
+		t.Fatalf("status = %d, want the 206 passed through", res.StatusCode)
+	}
+	if got := res.Header.Get("Content-Range"); got != "bytes 0-3/100" {
+		t.Fatalf("Content-Range = %q", got)
+	}
+	if _, ok := c.Open("abc123"); ok {
+		t.Fatal("a capped partial must never seed the cache")
+	}
+}
+
+// ── re-minting a refused URL ──────────────────────────────────
+
+func TestRefusedUpstreamIsRemintedOnce(t *testing.T) {
+	good := []byte("the-second-url-works")
+	var resolves atomic.Int32
+	var freshAsked atomic.Value
+
+	goodCDN := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "audio/mp4")
+		w.Header().Set("Content-Length", "20")
+		_, _ = w.Write(good)
+	}))
+	t.Cleanup(goodCDN.Close)
+
+	deadCDN := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(deadCDN.Close)
+
+	srv, _, logs := newRelayWithResolver(t, func(w http.ResponseWriter, r *http.Request) {
+		resolves.Add(1)
+		freshAsked.Store(r.URL.Query().Get("fresh"))
+		url := deadCDN.URL
+		if resolves.Load() > 1 {
+			url = goodCDN.URL
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"url": url, "contentType": "audio/mp4"})
+	}, true)
+
+	res, err := http.Get(srv.URL + "/relay/audio?track=abc123")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200 after the re-mint", res.StatusCode)
+	}
+	if string(body) != string(good) {
+		t.Fatalf("body = %q", body)
+	}
+	if resolves.Load() != 2 {
+		t.Fatalf("resolver called %d times, want exactly 2", resolves.Load())
+	}
+	// The retry must ask for a URL the resolver cannot serve from its cache:
+	// otherwise it hands back the URL that was just refused and the retry is a
+	// no-op wearing a retry's clothes.
+	if got := freshAsked.Load().(string); got != "1" {
+		t.Fatalf("second resolve sent fresh=%q, want \"1\"", got)
+	}
+	if !strings.Contains(logs.String(), "upstream_reminted") {
+		t.Fatalf("expected an upstream_reminted log line, logs = %s", logs.String())
+	}
+}
+
+func TestBothAttemptsRefusedReportsTheUpstreamStatus(t *testing.T) {
+	var resolves atomic.Int32
+	deadCDN := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(deadCDN.Close)
+
+	srv, _, _ := newRelayWithResolver(t, func(w http.ResponseWriter, r *http.Request) {
+		resolves.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"url": deadCDN.URL})
+	}, false)
+
+	res, err := http.Get(srv.URL + "/relay/audio?track=abc123")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", res.StatusCode)
+	}
+	if got := res.Header.Get("X-Relay-Status"); !strings.Contains(got, "upstream_status_403") {
+		t.Fatalf("status header = %q", got)
+	}
+	if resolves.Load() != 2 {
+		t.Fatalf("resolver called %d times, want exactly 2 (no retry loop)", resolves.Load())
+	}
+}
+
 func TestMethodNotAllowed(t *testing.T) {
 	srv, _ := newTestRelay(t, "", "", false)
 	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/relay/audio?track=abc", nil)

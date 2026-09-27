@@ -171,6 +171,85 @@ describe('direct tier', () => {
 
     expect(resolveCount).toBe(2);
     expect(await readPrepared(prepared.body)).toBe('second-try');
+
+    // And the retry must ask the engine for a URL it cannot serve from its own
+    // cache. Without the hint the engine returns the URL that was just
+    // refused, so the "re-mint" silently retries the thing that failed — which
+    // is exactly what it did before this assertion existed.
+    const resolves = calls.filter((c) => c.url.includes('/resolve/'));
+    expect(resolves[0]?.url).not.toContain('fresh=1');
+    expect(resolves[1]?.url).toContain('fresh=1');
+  });
+
+  it('asks the CDN for a range when the client asked for nothing', async () => {
+    stubFetch((url) => {
+      if (url.endsWith('/relay/health')) return null;
+      if (url.includes('/resolve/')) {
+        return Response.json({ url: 'https://cdn.example/a.m4a', contentType: 'audio/mp4', expiresAt: 0 });
+      }
+      if (url.startsWith('https://cdn.example/')) {
+        // The live CDN's shape: a full-span 206 answering `bytes=0-`.
+        return audioResponse(206, {
+          'content-type': 'audio/mp4',
+          'content-length': '11',
+          'content-range': 'bytes 0-10/11',
+        }, 'whole-track');
+      }
+      return null;
+    });
+
+    const prepared = await prepareStream('dQw4w9WgXcQ', undefined);
+
+    // Range-gated URLs stall when asked for everything in one unbounded
+    // request, so the server asks for a range on the client's behalf...
+    const cdn = calls.find((c) => c.url.startsWith('https://cdn.example/'));
+    expect(cdn?.range).toBe('bytes=0-');
+    // ...and presents the answer as the complete body the client asked for.
+    expect(prepared.status).toBe(200);
+    expect(prepared.headers['content-range']).toBeUndefined();
+    expect(await readPrepared(prepared.body)).toBe('whole-track');
+  });
+
+  it('passes a capped partial through untouched', async () => {
+    stubFetch((url) => {
+      if (url.endsWith('/relay/health')) return null;
+      if (url.includes('/resolve/')) {
+        return Response.json({ url: 'https://cdn.example/a.m4a', contentType: 'audio/mp4', expiresAt: 0 });
+      }
+      if (url.startsWith('https://cdn.example/')) {
+        // Four bytes of a hundred: not the whole file, and never presented as
+        // if it were.
+        return audioResponse(206, {
+          'content-type': 'audio/mp4',
+          'content-length': '4',
+          'content-range': 'bytes 0-3/100',
+        }, 'head');
+      }
+      return null;
+    });
+
+    const prepared = await prepareStream('dQw4w9WgXcQ', undefined);
+
+    expect(prepared.status).toBe(206);
+    expect(prepared.headers['content-range']).toBe('bytes 0-3/100');
+  });
+
+  it('forwards a client range verbatim rather than its own', async () => {
+    stubFetch((url) => {
+      if (url.endsWith('/relay/health')) return null;
+      if (url.includes('/resolve/')) {
+        return Response.json({ url: 'https://cdn.example/a.m4a', contentType: 'audio/mp4', expiresAt: 0 });
+      }
+      if (url.startsWith('https://cdn.example/')) {
+        return audioResponse(206, { 'content-range': 'bytes 5-9/20', 'content-length': '5' }, '56789');
+      }
+      return null;
+    });
+
+    await prepareStream('dQw4w9WgXcQ', 'bytes=5-9');
+
+    const cdn = calls.find((c) => c.url.startsWith('https://cdn.example/'));
+    expect(cdn?.range).toBe('bytes=5-9');
   });
 
   it('reports an unsatisfiable range with SVA01', async () => {

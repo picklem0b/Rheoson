@@ -150,13 +150,23 @@ async def root() -> dict:
 
 
 @app.get("/resolve/{track_id}")
-async def resolve_track(track_id: str, request: Request) -> JSONResponse:
+async def resolve_track(
+    track_id: str,
+    request: Request,
+    fresh: bool = Query(default=False),
+) -> JSONResponse:
     """Where are the bytes for this track?
 
     A local file is resolved to this engine's own ``/local`` endpoint — the
     first tier of playback, and the cheapest possible answer: seekable bytes
     from disk with no extraction and no network. Anything else is resolved to a
     signed CDN URL.
+
+    ``?fresh=1`` skips the resolved-URL cache. This is not a tuning knob: the
+    cache lives for hours, so a caller re-resolving after the CDN refused a URL
+    would be handed **the same refused URL**, and its "re-mint once" retry
+    would be a no-op that looks like a retry. A refresh is the whole reason the
+    parameter exists.
 
     Returns 404 with ``SUP01`` when every player client declines the track — a
     resolved-and-refused track is a real answer the caller can fall back from,
@@ -181,7 +191,7 @@ async def resolve_track(track_id: str, request: Request) -> JSONResponse:
     if not toolchain.ytdlp().available:
         return _fail(503, "DEN02")
 
-    url = await resolve.resolve_direct_url(track_id)
+    url = await resolve.resolve_direct_url(track_id, use_cache=not fresh)
     if not url:
         return _fail(404, "SUP01")
 

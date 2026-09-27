@@ -9,12 +9,13 @@
 | Suite | Command | Result |
 | --- | --- | --- |
 | Contracts (`packages/shared`) | `pnpm test` | **14 passed** |
-| Server (`apps/server`) | `pnpm test` | **62 passed**, 10 skipped (Postgres-gated) |
-| Server + Postgres | `RUN_DB_TESTS=1 pnpm test` | **72 passed** (CI job `server-integration`) |
+| Server (`apps/server`) | `pnpm test` | **65 passed**, 10 skipped (Postgres-gated) |
+| Server + Postgres | `RUN_DB_TESTS=1 pnpm test` | **75 passed** (CI job `server-integration`) |
 | Client (`apps/client`) | `pnpm test` | **71 passed** |
-| Engine (`apps/services/py`) | `uv run python -m pytest -q` | **118 passed** |
+| Engine (`apps/services/py`) | `uv run python -m pytest -q` | **120 passed**, 2 skipped (live-network-gated) |
+| Engine live | `RHEOSON_LIVE=1 uv run python -m pytest tests/test_live.py -q` | **2 passed** (ran locally, not in CI — §2.4) |
 | Relay (`apps/services/go`) | `go test ./...` | **20 passed** (CI adds `-race`) |
-| **Total** | | **295** (285 with the ten DB-gated cases skipped) |
+| **Total** | | **297** (285 with the ten DB-gated cases skipped) |
 
 Workspace gates: `turbo run typecheck lint test build` → **12/12 tasks**, no
 warnings. `pyflakes app tests conftest.py` clean. `gofmt -l` empty,
@@ -67,7 +68,38 @@ evidence that the race in §3.7 is gone.
 | Formatting | durations, byte sizes, ETAs, locale-independent dates |
 | Favourites | optimistic flip and rollback, `TEX01` on a failed like and on an uncoded one, the server list is read once and a failed read stays retryable |
 
-### 2.4 Contracts and relay
+### 2.4 Live network evidence (`next-v0.13.0`)
+
+The suite above is hermetic on purpose, which is exactly why it could not see the
+one failure class that actually breaks this app: YouTube, and the CDN it points
+at, changing shape. These runs were done against the real services on a real
+network. They are recorded with their commands because they are not reproducible
+from CI.
+
+**A. A real download, end to end** (`RHEOSON_LIVE=1 … tests/test_live.py`):
+resolution ends in playable bytes (a `206` whose body starts with an ISO
+base-media `ftyp` box, not a CDN error page), and a full download reaches
+`completed` with progress observed mid-flight, the file landed under
+`Artist/Title`, the videoId mapped to it, and the library listing it as
+`isDownloaded: true`.
+
+**B. The relay in front of the engine, against a real CDN URL** — the case that
+failed before this slice, a client that sends **no `Range`**:
+
+| Request | Before | After |
+| --- | --- | --- |
+| no `Range` | `502` · `X-Relay-Status: error=upstream_status_403` | **`200`**, `Content-Length: 3449447` — the whole file, `source=upstream` |
+| `Range: bytes=0-4095` | — | **`206`**, `Content-Range: bytes 0-4095/3449447`, 4096 bytes |
+| no `Range` again | — | **`200`** from `source=cache` — the no-`Range` response was whole-file, so it was tee'd and promoted |
+| `Range: bytes=3000000-3000099` | — | **`206`**, 100 bytes, `Content-Range: bytes 3000000-3000099/3449447`, `source=cache` |
+
+Two things this proves beyond "it downloaded": a no-`Range` request is now a
+**complete** response rather than a refused one, and it is tee-eligible — so the
+second play of that track resolves nothing and reads the disk. The cache file on
+disk was byte-for-byte the advertised length (`3449447`), which is what makes the
+mid-file range served from cache trustworthy rather than coincidental.
+
+### 2.5 Contracts and relay
 
 DCCNN uniqueness, section non-overlap and wire format; drift between the
 registry and its committed JSON export fails CI. The relay's range arithmetic,
@@ -112,7 +144,7 @@ Every one of these was a real defect, not a test-authoring mistake:
 
 | Gap | Why | Consequence |
 | --- | --- | --- |
-| **No end-to-end run against a real YouTube track** | the dev host has no network guarantee and no `yt-dlp` in CI; the tests drive a stub binary | the download *pipeline* is proven; the extraction ladder's live behaviour is not. It is ported verbatim from the version that works in production |
+| ~~**No end-to-end run against a real YouTube track**~~ **closed at `next-v0.13.0`** | was: the tests drove a stub binary | **now covered** by the live suite (§2.4): a real download landed a file the library trusts, and the relay served real CDN bytes with correct range semantics. Still *not* in CI — a network test that runs on every push fails for reasons that have nothing to do with the change |
 | **Docker image builds** | no Docker daemon on the dev host | they build for the first time in CI; a broken Dockerfile is a CI failure, not a local one |
 | **`go test -race`** | ThreadSanitizer rejects the Termux VMA range | plain `go test` passes locally; CI runs `-race` |
 | **Browser playback, Media Session, PWA install** | no browser automation available | the stores are unit-tested; the `<audio>` element wiring needs a device |

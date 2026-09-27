@@ -127,7 +127,13 @@ export async function resolveTrack(
 
   let res: Response;
   try {
-    res = await fetch(`${env.ENGINE_URL}/resolve/${encodeURIComponent(trackId)}`, {
+    // `fresh=1` is not a cache hint for this process — it is how the engine
+    // knows to skip *its* cache. Without it a re-mint after a refused URL hands
+    // back the same refused URL, and the retry below is a no-op that looks like
+    // a retry. (The engine's cache lives for hours; this one lives for
+    // minutes.)
+    const path = `/resolve/${encodeURIComponent(trackId)}${options.fresh ? '?fresh=1' : ''}`;
+    res = await fetch(`${env.ENGINE_URL}${path}`, {
       headers: authHeaders(env.ENGINE_TOKEN),
       signal: AbortSignal.timeout(30_000),
     });
@@ -198,9 +204,37 @@ export async function openRelayStream(
   });
 }
 
-/** Open a stream straight from the resolved CDN URL (the fallback path). */
+/**
+ * Open a stream straight from the resolved CDN URL (the fallback path).
+ *
+ * Two real-world details live here, both measured against a live CDN:
+ *
+ * 1. **The resolved URLs are range-gated.** A request with no `Range` header
+ *    gets no response at all until the client gives up, while `bytes=0-`
+ *    answers with the entire file in a single 206. A client that asks for
+ *    nothing therefore still has a range asked for on its behalf.
+ * 2. **A full-span 206 is presented as a plain 200.** The client did not ask
+ *    for a partial response, and handing it one it never requested makes some
+ *    players wait for a second range. A *capped* 206 is passed through
+ *    untouched — calling a truncated body complete would be a silent lie.
+ */
 export async function openDirectStream(url: string, range: string | undefined): Promise<UpstreamResponse | null> {
-  return openStream(url, range);
+  const implicitRange = range === undefined || range === '';
+  const response = await openStream(url, implicitRange ? 'bytes=0-' : range);
+  if (!response || !implicitRange || response.status !== 206) return response;
+  if (!spansWholeFile(response.headers.get('content-range'))) return response;
+
+  const headers = new Headers(response.headers);
+  headers.delete('content-range');
+  return { status: 200, headers, body: response.body };
+}
+
+/** True when `bytes 0-<size-1>/<size>` describes the whole file. */
+function spansWholeFile(contentRange: string | null): boolean {
+  const match = /^bytes\s+(\d+)-(\d+)\/(\d+)$/.exec((contentRange ?? '').trim());
+  if (!match) return false;
+  const [, start, end, total] = match;
+  return Number(start) === 0 && Number(total) > 0 && Number(end) === Number(total) - 1;
 }
 
 async function openStream(

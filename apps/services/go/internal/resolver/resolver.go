@@ -57,11 +57,31 @@ func New(base, token string, timeout time.Duration) *Resolver {
 func (r *Resolver) Configured() bool { return r != nil && r.base != "" }
 
 // Resolve asks the resolver for a track's media URL.
+//
+// The resolver is allowed to answer from its own cache; that is what makes a
+// replay cheap. Use ResolveFresh after the CDN has refused the URL it gave.
 func (r *Resolver) Resolve(ctx context.Context, trackID string) (Result, error) {
+	return r.resolve(ctx, trackID, false)
+}
+
+// ResolveFresh asks for a URL the resolver must not serve from its cache.
+//
+// This matters because the engine caches direct URLs for hours: after the CDN
+// refuses one, a plain re-resolve returns the same dead URL, so a caller's
+// "re-mint and retry" would silently retry the thing that just failed. The
+// freshness hint is the difference between a retry and a repeat.
+func (r *Resolver) ResolveFresh(ctx context.Context, trackID string) (Result, error) {
+	return r.resolve(ctx, trackID, true)
+}
+
+func (r *Resolver) resolve(ctx context.Context, trackID string, fresh bool) (Result, error) {
 	if !r.Configured() {
 		return Result{}, ErrUnavailable
 	}
 	endpoint := r.base + "/resolve/" + url.PathEscape(trackID)
+	if fresh {
+		endpoint += "?fresh=1"
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return Result{}, err

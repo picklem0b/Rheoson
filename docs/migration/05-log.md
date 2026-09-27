@@ -122,3 +122,28 @@ it means "a human ran the workspace gates, the compose stack and a device test
 and agrees with this document". Tagging it from inside the implementation would
 make the tag mean "the author says so", which is exactly the claim a sign-off
 is supposed to be independent of.
+
+## M3.1 — Live extraction (complete · `next-v0.13.0`)
+
+Done when **a real track downloads from real YouTube and plays from real CDN
+bytes**. This slice exists because every test up to `next-v0.12.0` drove a stub
+`yt-dlp`: the pipeline was proven, the extraction ladder was not, and the
+original report was a download failing in the user's hands.
+
+The run was done against the live services — engine on a temp data directory,
+relay in front of it, real `yt-dlp 2026.08.19` and `ffmpeg` present. It found
+two defects, both of which a stub could never have produced.
+
+| Tag | Slice | Deliverable | Proof |
+| --- | --- | --- | --- |
+| `next-v0.13.0` | live extraction | the range-gating fix in **both** byte paths (Go relay and the server's direct tier), re-mint-on-refusal with a cache-bypassing re-resolve (`?fresh=1`), and a network-gated live test suite | a real track downloads end to end, and the relay answers a no-`Range` request with the whole file instead of `502 upstream_status_403` (see `06-test-report.md` §2.4) |
+
+### Decisions made during the live slice
+
+| Decision | Why |
+| --- | --- |
+| A client that sends no `Range` still gets one | CDN audio URLs are **range-gated**: an unbounded request stalls until the client gives up, while `bytes=0-` answers with the entire file in one 206. A player that opens a track without asking for bytes (Safari does) was failing on a URL that works |
+| A full-span 206 is presented as a 200 | The client asked for nothing, so a 206 it never requested makes some players wait for a second range. A *capped* 206 passes through untouched — calling a truncated body complete would be a silent lie about the length |
+| A refusal is retried with a **fresh** resolve, not the same one | The resolved URL is the problem, not the moment, so a blind retry re-fetches the URL that just failed. The engine caches direct URLs for hours, so "re-mint" means re-resolution — without `?fresh=1` the retry is a no-op that looks like a retry |
+| The live tests are skipped unless `RHEOSON_LIVE=1` | They talk to YouTube, move megabytes and take ~15 s. Keeping them in the default suite would make CI honest about the wrong thing: a stub is what a hermetic suite needs, and the live suite is what a *release* needs |
+| The live test asserts a container, not a title | It checks the opening bytes are ISO base media (`ftyp`), never a specific video's metadata. A re-uploaded video is not a regression, and a test that says it is would be deleted the first time it cried wolf |

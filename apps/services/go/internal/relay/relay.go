@@ -183,47 +183,25 @@ func (h *Handler) serveUpstream(w http.ResponseWriter, r *http.Request, trackID,
 		writeStatusError(w, http.StatusServiceUnavailable, "resolver_unconfigured")
 		return
 	}
-	resolved, err := h.resolver.Resolve(r.Context(), trackID)
-	if err != nil {
-		h.logLine("resolve_failed", trackID, 0, 0, err)
-		if errors.Is(err, context.DeadlineExceeded) {
-			writeStatusError(w, http.StatusGatewayTimeout, "resolve_timeout")
-			return
-		}
-		writeStatusError(w, http.StatusBadGateway, "resolve_failed")
-		return
-	}
-	if resolved.Expired() {
-		h.logLine("resolved_url_expired", trackID, 0, 0, nil)
-		writeStatusError(w, http.StatusBadGateway, "resolved_url_expired")
-		return
+
+	// The CDN's audio URLs are range-gated. Measured against a real one: a
+	// request with no Range header stalls until the client gives up, while the
+	// same URL answers `bytes=0-` with the entire file in one 206. A player that
+	// opens a track without asking for bytes (Safari does) would therefore fail
+	// on a URL that works, so the relay always asks for a range and normalises
+	// the answer back into what the client actually asked for.
+	implicitRange := rangeHeader == ""
+	upstreamRange := rangeHeader
+	if implicitRange {
+		upstreamRange = bytesFromStart
 	}
 
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, resolved.URL, nil)
+	res, resolved, err := h.openUpstream(r.Context(), trackID, upstreamRange)
 	if err != nil {
-		writeStatusError(w, http.StatusBadGateway, "upstream_request_invalid")
-		return
-	}
-	req.Header.Set("User-Agent", h.cfg.UserAgent)
-	if rangeHeader != "" {
-		req.Header.Set("Range", rangeHeader)
-	}
-
-	res, err := h.upstream.Do(req)
-	if err != nil {
-		h.logLine("upstream_unreachable", trackID, 0, 0, err)
-		writeStatusError(w, http.StatusBadGateway, "upstream_unreachable")
+		h.reportUpstreamFailure(w, trackID, err)
 		return
 	}
 	defer res.Body.Close()
-
-	// 200 (whole file) and 206 (partial) are the only acceptable upstream
-	// outcomes; anything else is a resolver/CDN problem, not a client error.
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusPartialContent {
-		h.logLine("upstream_status", trackID, 0, 0, fmt.Errorf("status %d", res.StatusCode))
-		writeStatusError(w, http.StatusBadGateway, "upstream_status_"+strconv.Itoa(res.StatusCode))
-		return
-	}
 
 	contentType := firstNonEmpty(
 		res.Header.Get("Content-Type"),
@@ -231,9 +209,25 @@ func (h *Handler) serveUpstream(w http.ResponseWriter, r *http.Request, trackID,
 		DefaultContentType,
 	)
 	expected := contentLength(res)
-	wholeFile := IsWholeFile(rangeHeader) && res.StatusCode == http.StatusOK
 
-	copyHeader(w.Header(), res.Header, "Content-Range")
+	// A 206 that covers the whole file is the answer to our implicit range: it
+	// is a complete download, so it is tee-eligible, and a client that asked
+	// for nothing gets a 200 rather than a 206 it never requested. A *capped*
+	// 206 is passed through untouched — turning a truncated body into a 200
+	// would be a silent lie about the length.
+	wholeFile := false
+	normaliseToWhole := false
+	switch {
+	case IsWholeFile(rangeHeader) && res.StatusCode == http.StatusOK:
+		wholeFile = true
+	case implicitRange && res.StatusCode == http.StatusPartialContent && spansWholeFile(res.Header.Get("Content-Range")):
+		wholeFile = true
+		normaliseToWhole = true
+	}
+
+	if !normaliseToWhole {
+		copyHeader(w.Header(), res.Header, "Content-Range")
+	}
 	copyHeader(w.Header(), res.Header, "Accept-Ranges")
 	copyHeader(w.Header(), res.Header, "Cache-Control")
 	copyHeader(w.Header(), res.Header, "ETag")
@@ -259,7 +253,11 @@ func (h *Handler) serveUpstream(w http.ResponseWriter, r *http.Request, trackID,
 		w.Header().Set("Trailer", "X-Relay-Status")
 	}
 
-	w.WriteHeader(res.StatusCode)
+	statusOut := res.StatusCode
+	if normaliseToWhole {
+		statusOut = http.StatusOK
+	}
+	w.WriteHeader(statusOut)
 	if r.Method == http.MethodHead {
 		return
 	}
@@ -294,6 +292,117 @@ func (h *Handler) serveUpstream(w http.ResponseWriter, r *http.Request, trackID,
 	}
 	if canTrailer {
 		w.Header().Set("X-Relay-Status", statusHeader("upstream", "", relayed, expected))
+	}
+}
+
+// ── upstream opening ──────────────────────────────────────────
+
+// bytesFromStart is the range the relay asks for when the client asked for
+// nothing. See the note in serveUpstream: an unbounded request to a
+// range-gated CDN URL is answered with a stall or a 403.
+const bytesFromStart = "bytes=0-"
+
+// Errors that distinguish *how* opening an upstream failed, so the caller can
+// answer with the right status instead of one generic gateway failure.
+var (
+	errResolveFailed       = errors.New("resolve_failed")
+	errResolvedURLExpired  = errors.New("resolved_url_expired")
+	errUpstreamUnreachable = errors.New("upstream_unreachable")
+)
+
+// upstreamStatusError carries the CDN's own status through the layers.
+type upstreamStatusError struct{ Status int }
+
+func (e upstreamStatusError) Error() string { return "status " + strconv.Itoa(e.Status) }
+
+func acceptableUpstream(status int) bool {
+	return status == http.StatusOK || status == http.StatusPartialContent
+}
+
+// openUpstream resolves, fetches, and re-mints once when the CDN refuses.
+//
+// The refusal this exists for is the ordinary one: a resolved URL is signed for
+// a window and sometimes bound to the address that asked, so it can be refused
+// even though extraction worked. A blind retry would not help — the URL is the
+// problem, not the moment — so the retry is a *fresh resolution*. This is what
+// makes the relay behave like the server's direct tier instead of being the one
+// path that gives up on the first 403.
+func (h *Handler) openUpstream(ctx context.Context, trackID, upstreamRange string) (*http.Response, resolver.Result, error) {
+	resolved, err := h.resolver.Resolve(ctx, trackID)
+	if err != nil {
+		return nil, resolver.Result{}, errors.Join(errResolveFailed, err)
+	}
+	if resolved.Expired() {
+		return nil, resolved, errResolvedURLExpired
+	}
+
+	res, err := h.fetch(ctx, resolved.URL, upstreamRange)
+	if err == nil && acceptableUpstream(res.StatusCode) {
+		return res, resolved, nil
+	}
+	refused := 0
+	if err == nil {
+		refused = res.StatusCode
+		res.Body.Close()
+	}
+
+	fresh, freshErr := h.resolver.ResolveFresh(ctx, trackID)
+	if freshErr != nil {
+		if err != nil {
+			return nil, resolved, errors.Join(errUpstreamUnreachable, err)
+		}
+		return nil, resolved, upstreamStatusError{Status: refused}
+	}
+
+	retry, retryErr := h.fetch(ctx, fresh.URL, upstreamRange)
+	if retryErr != nil {
+		return nil, fresh, errors.Join(errUpstreamUnreachable, retryErr)
+	}
+	if acceptableUpstream(retry.StatusCode) {
+		// Worth a line of its own: "the second URL worked" is the evidence that
+		// re-minting is doing its job rather than hiding a failing track.
+		h.logLine("upstream_reminted", trackID, 0, 0, nil)
+		return retry, fresh, nil
+	}
+	status := retry.StatusCode
+	retry.Body.Close()
+	return nil, fresh, upstreamStatusError{Status: status}
+}
+
+func (h *Handler) fetch(ctx context.Context, upstreamURL, upstreamRange string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, upstreamURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", h.cfg.UserAgent)
+	if upstreamRange != "" {
+		req.Header.Set("Range", upstreamRange)
+	}
+	return h.upstream.Do(req)
+}
+
+// reportUpstreamFailure turns an opening failure into a response, with the
+// diagnosis in the status header and one log line.
+func (h *Handler) reportUpstreamFailure(w http.ResponseWriter, trackID string, err error) {
+	var statusErr upstreamStatusError
+	switch {
+	case errors.Is(err, errResolvedURLExpired):
+		h.logLine("resolved_url_expired", trackID, 0, 0, nil)
+		writeStatusError(w, http.StatusBadGateway, "resolved_url_expired")
+	case errors.As(err, &statusErr):
+		h.logLine("upstream_status", trackID, 0, 0, statusErr)
+		writeStatusError(w, http.StatusBadGateway, "upstream_status_"+strconv.Itoa(statusErr.Status))
+	case errors.Is(err, errResolveFailed):
+		if errors.Is(err, context.DeadlineExceeded) {
+			h.logLine("resolve_timeout", trackID, 0, 0, err)
+			writeStatusError(w, http.StatusGatewayTimeout, "resolve_timeout")
+			return
+		}
+		h.logLine("resolve_failed", trackID, 0, 0, err)
+		writeStatusError(w, http.StatusBadGateway, "resolve_failed")
+	default:
+		h.logLine("upstream_unreachable", trackID, 0, 0, err)
+		writeStatusError(w, http.StatusBadGateway, "upstream_unreachable")
 	}
 }
 
@@ -398,24 +507,39 @@ func contentLength(res *http.Response) int64 {
 }
 
 func parseContentRange(header string) (int64, int64, bool) {
-	header = strings.TrimSpace(header)
-	if !strings.HasPrefix(header, "bytes ") {
-		return 0, 0, false
-	}
-	span, _, found := strings.Cut(strings.TrimPrefix(header, "bytes "), "/")
+	start, end, _, ok := parseContentRangeFull(header)
+	return start, end, ok
+}
+
+// parseContentRangeFull reads `bytes START-END/TOTAL` in full. The total is
+// what tells a complete 206 apart from a capped one.
+func parseContentRangeFull(header string) (start, end, total int64, ok bool) {
+	rest, found := strings.CutPrefix(strings.TrimSpace(header), "bytes ")
 	if !found {
-		return 0, 0, false
+		return 0, 0, 0, false
+	}
+	span, totalRaw, found := strings.Cut(rest, "/")
+	if !found {
+		return 0, 0, 0, false
 	}
 	startRaw, endRaw, found := strings.Cut(span, "-")
 	if !found {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
-	start, err1 := strconv.ParseInt(strings.TrimSpace(startRaw), 10, 64)
-	end, err2 := strconv.ParseInt(strings.TrimSpace(endRaw), 10, 64)
-	if err1 != nil || err2 != nil {
-		return 0, 0, false
+	s, err1 := strconv.ParseInt(strings.TrimSpace(startRaw), 10, 64)
+	e, err2 := strconv.ParseInt(strings.TrimSpace(endRaw), 10, 64)
+	t, err3 := strconv.ParseInt(strings.TrimSpace(totalRaw), 10, 64)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return 0, 0, 0, false
 	}
-	return start, end, true
+	return s, e, t, true
+}
+
+// spansWholeFile reports whether a Content-Range covers the entire file:
+// `bytes 0-<size-1>/<size>`.
+func spansWholeFile(header string) bool {
+	start, end, total, ok := parseContentRangeFull(header)
+	return ok && start == 0 && total > 0 && end == total-1
 }
 
 func copyHeader(dst, src http.Header, key string) {
