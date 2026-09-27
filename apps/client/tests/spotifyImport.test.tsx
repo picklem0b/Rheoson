@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { usePopupStore } from '@/store/popup.store';
 import { useToastStore } from '@/store/toast.store';
 import { looksLikeSpotifyLink } from '@/lib/spotifyLink';
 import SearchPage from '@/app/(main)/search/page';
@@ -58,11 +59,13 @@ function routeFetch(handler: (url: string) => Response): void {
 
 beforeEach(() => {
   useToastStore.getState().clear();
+  usePopupStore.getState().close();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   useToastStore.getState().clear();
+  usePopupStore.getState().close();
 });
 
 describe('looksLikeSpotifyLink', () => {
@@ -142,7 +145,7 @@ describe('pasting a Spotify link', () => {
     expect(screen.getByRole('button', { name: /try again/i })).toBeTruthy();
   });
 
-  it('shows a coded toast when the link cannot be resolved at all', async () => {
+  it('shows a coded popup when the link cannot be resolved at all', async () => {
     routeFetch((url) =>
       url.includes('/api/spotify/resolve')
         ? jsonResponse(400, { error: 'Unsupported or unresolvable URL', code: 'RVA02', detail: null })
@@ -154,10 +157,9 @@ describe('pasting a Spotify link', () => {
       target: { value: 'https://open.spotify.com/episode/3IMucVoNyYDUmJIepQe3w8' },
     });
 
+    // Failures are popups — a toast never carries an error.
     await waitFor(() => {
-      const toasts = useToastStore.getState().toasts;
-      const error = toasts.find((toast) => toast.kind === 'error');
-      expect(error?.code).toBe('RVA02');
+      expect(usePopupStore.getState().popup?.code).toBe('RVA02');
     });
   });
 

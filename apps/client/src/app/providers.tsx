@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import ClerkBridge from '@/components/auth/ClerkBridge';
 import PlayerBar from '@/components/player/PlayerBar';
+import PopupHost from '@/components/popup/PopupHost';
 import ToastHost from '@/components/toast/ToastHost';
 import { useMediaSession } from '@/hooks/mediaSession.hook';
 import { isPageStatus, onPageError, type ApiError } from '@/lib/api';
@@ -72,6 +73,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <>
       {children}
       <PlayerBar />
+      <PopupHost />
       <ToastHost />
     </>
   );

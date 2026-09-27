@@ -2,36 +2,34 @@
 
 import { create } from 'zustand';
 
+import { usePopupStore } from '@/store/popup.store';
+
 /**
- * Toasts — the app's short-lived voice.
+ * Toasts — the app's quiet voice, for small confirmations only.
  *
- * Three variants, and the difference between them is not colour:
+ * The rule the whole app agrees to, and that this module *enforces*:
  *
- * * **success** — something finished. Green, no code, auto-dismisses.
- * * **error** — something failed. Red, **always carries a DCCNN code**, and
- *   keeps the detail that the ⓘ button reveals. Errors never auto-dismiss,
- *   because a failure the user never saw is a failure they will report as
- *   "it doesn't work".
- * * **info** — a neutral note that is not a completion ("Downloading…").
+ * * **success** — something finished ("Download complete"). Green, auto-dismisses.
+ * * **info** — a neutral note ("Staged parts are kept"). Neutral, auto-dismisses.
+ * * **errors are not toasts.** `toast.error` exists so the app's existing
+ *   call sites keep one voice for failures, but it forwards to the popup
+ *   store — a real dialog with the DCCNN code and the ⓘ detail. A failure
+ *   demands attention; a confirmation does not. The type system now makes an
+ *   error toast unwritable: `ToastKind` has no `'error'` member.
  *
- * The code requirement is enforced in the type, not by convention: an error
- * toast without a code is how the unhelpful "Download failed" message happened
- * in the first place.
+ * Pressing play, liking a song, saving a preference — none of these pop up.
+ * A failure someone must act on — always does.
  */
 
-export type ToastKind = 'success' | 'error' | 'info';
+export type ToastKind = 'success' | 'info';
 
 export interface Toast {
   id: string;
   kind: ToastKind;
   title: string;
-  /** One line of context. Never the only thing shown for an error. */
+  /** One line of context. */
   message?: string;
-  /** The DCCNN chip. Required for `error`, absent for `success`. */
-  code?: string;
-  /** What the ⓘ panel shows: the honest, unfiltered reason. */
-  detail?: string;
-  /** Milliseconds; `0` means "until dismissed". Errors default to 0. */
+  /** Milliseconds; toasts always auto-dismiss — that is what makes them quiet. */
   duration: number;
   createdAt: number;
 }
@@ -40,22 +38,17 @@ export interface ToastInput {
   kind: ToastKind;
   title: string;
   message?: string;
-  code?: string;
-  detail?: string;
-  duration?: number;
 }
 
-const AUTO_DISMISS = { success: 4000, info: 5000, error: 0 } as const;
+const AUTO_DISMISS = { success: 4000, info: 5000 } as const;
 
-/** Cap the stack: a burst of failures must not bury the newest one. */
+/** Cap the stack: a burst of confirmations must not bury the newest one. */
 const MAX_VISIBLE = 4;
 
 interface ToastState {
   toasts: Toast[];
   push: (input: ToastInput) => string;
   success: (title: string, message?: string) => string;
-  /** Errors keep the code and the detail — that is what makes them traceable. */
-  error: (args: { title: string; code?: string; detail?: string; message?: string }) => string;
   info: (title: string, message?: string) => string;
   dismiss: (id: string) => void;
   clear: () => void;
@@ -77,32 +70,19 @@ export const useToastStore = create<ToastState>((set, get) => ({
       kind: input.kind,
       title: input.title,
       message: input.message,
-      code: input.code,
-      detail: input.detail,
-      duration: input.duration ?? AUTO_DISMISS[input.kind],
+      duration: AUTO_DISMISS[input.kind],
       createdAt: Date.now(),
     };
 
     set((state) => ({ toasts: [toast, ...state.toasts].slice(0, MAX_VISIBLE) }));
 
-    if (toast.duration > 0 && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
       window.setTimeout(() => get().dismiss(toast.id), toast.duration);
     }
     return toast.id;
   },
 
   success: (title, message) => get().push({ kind: 'success', title, message }),
-
-  error: ({ title, code, detail, message }) =>
-    // A missing code is a programming error, and the toast says so rather than
-    // pretending the failure is ordinary: this is the traceability promise.
-    get().push({
-      kind: 'error',
-      title,
-      code: code ?? 'UNCODED',
-      detail: detail ?? undefined,
-      message,
-    }),
 
   info: (title, message) => get().push({ kind: 'info', title, message }),
 
@@ -111,12 +91,24 @@ export const useToastStore = create<ToastState>((set, get) => ({
   clear: () => set({ toasts: [] }),
 }));
 
-/** Imperative helpers for non-React callers (stores, hooks, event handlers). */
+/**
+ * Imperative helpers for non-React callers (stores, hooks, event handlers).
+ *
+ * `error` is the bridge: every failure in the app — wherever it was raised —
+ * becomes a popup with its DCCNN code. `detail ?? message` keeps the one-line
+ * context visible in the dialog body while the full explanation sits behind
+ * the "Why?" disclosure.
+ */
 export const toast = {
   success: (title: string, message?: string) => useToastStore.getState().success(title, message),
-  error: (args: { title: string; code?: string; detail?: string; message?: string }) =>
-    useToastStore.getState().error(args),
   info: (title: string, message?: string) => useToastStore.getState().info(title, message),
+  error: (args: { title: string; code?: string; detail?: string; message?: string; duration?: number }) =>
+    usePopupStore.getState().error({
+      title: args.title,
+      code: args.code,
+      detail: args.detail ?? args.message,
+      duration: args.duration,
+    }),
   dismiss: (id: string) => useToastStore.getState().dismiss(id),
   clear: () => useToastStore.getState().clear(),
 };

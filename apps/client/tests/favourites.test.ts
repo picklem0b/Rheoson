@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/lib/api';
 import { useFavouritesStore } from '@/store/favourites.store';
+import { usePopupStore } from '@/store/popup.store';
 import { useToastStore } from '@/store/toast.store';
 
 /**
  * A like is optimistic and reversible. These tests pin both halves: the heart
  * flips before the server answers (so it feels instant), and a rejection puts
- * it back with a coded toast (so it never lies quietly).
+ * it back with a coded popup (so it never lies quietly).
  */
 
 const like = vi.fn();
@@ -31,6 +32,7 @@ describe('favourites store', () => {
     vi.clearAllMocks();
     useFavouritesStore.setState({ liked: {}, loaded: false });
     useToastStore.setState({ toasts: [] });
+    usePopupStore.getState().close();
   });
 
   it('adds a track optimistically and keeps it on success', async () => {
@@ -63,10 +65,10 @@ describe('favourites store', () => {
     await useFavouritesStore.getState().toggle('track_1');
 
     expect(useFavouritesStore.getState().liked['track_1']).toBeUndefined();
-    const toast = useToastStore.getState().toasts[0];
-    expect(toast.kind).toBe('error');
-    expect(toast.code).toBe('TEX01');
-    expect(toast.detail).toContain('TEX01');
+    const failure = usePopupStore.getState().popup;
+    expect(failure?.kind).toBe('error');
+    expect(failure?.code).toBe('TEX01');
+    expect(failure?.detail).toContain('TEX01');
   });
 
   it('falls back to the registry code when the failure carries none', async () => {
@@ -75,7 +77,7 @@ describe('favourites store', () => {
     await useFavouritesStore.getState().toggle('track_1');
 
     // An uncoded failure is still traceable rather than a blank red box.
-    expect(useToastStore.getState().toasts[0].code).toBe('TEX01');
+    expect(usePopupStore.getState().popup?.code).toBe('TEX01');
   });
 
   it('loads the server list once and does not re-fetch on every call', async () => {

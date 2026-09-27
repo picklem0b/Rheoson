@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { DownloadJob } from '@/lib/api';
 import { useDownloadsStore } from '@/store/downloads.store';
+import { usePopupStore } from '@/store/popup.store';
 import { useToastStore } from '@/store/toast.store';
 
 /**
@@ -42,6 +43,7 @@ function job(overrides: Partial<DownloadJob> = {}): DownloadJob {
 beforeEach(() => {
   useDownloadsStore.setState({ jobs: [], loading: false, announced: new Set<string>() });
   useToastStore.getState().clear();
+  usePopupStore.getState().close();
 });
 
 describe('downloads store', () => {
@@ -73,10 +75,9 @@ describe('downloads store', () => {
     const [toast] = useToastStore.getState().toasts;
     expect(toast.kind).toBe('success');
     expect(toast.title).toBe('Download complete');
-    expect(toast.code).toBeUndefined();
   });
 
-  it('announces a failure with the code and the engine’s own reason', () => {
+  it('announces a failure as a popup with the code and the engine’s own reason', () => {
     useDownloadsStore.getState().applyEvent(
       'download:failed',
       job({
@@ -87,12 +88,12 @@ describe('downloads store', () => {
       }),
     );
 
-    const [toast] = useToastStore.getState().toasts;
-    expect(toast.kind).toBe('error');
-    expect(toast.code).toBe('DEX01');
-    expect(toast.detail).toContain('Sign in to confirm');
-    // Errors stay until dismissed.
-    expect(toast.duration).toBe(0);
+    // Failures are popups now — a toast never carries an error.
+    const popupState = usePopupStore.getState().popup;
+    expect(popupState?.kind).toBe('error');
+    expect(popupState?.code).toBe('DEX01');
+    expect(popupState?.detail).toContain('Sign in to confirm');
+    expect(useToastStore.getState().toasts).toHaveLength(0);
   });
 
   it('announces a terminal state once even if the engine re-sends it', () => {
@@ -102,14 +103,16 @@ describe('downloads store', () => {
     store.applyEvent('download:failed', failed);
     store.applyEvent('download:failed', failed);
 
-    // A duplicate "Download failed" toast reads as a second failure.
-    expect(useToastStore.getState().toasts).toHaveLength(1);
+    // A duplicate "Download failed" popup reads as a second failure: the
+    // store's announced-set is what suppresses the engine's re-sent event.
+    expect(useDownloadsStore.getState().announced.size).toBe(1);
   });
 
-  it('does not toast for progress events', () => {
+  it('does not announce for progress events', () => {
     useDownloadsStore.getState().applyEvent('download:progress', job());
 
     expect(useToastStore.getState().toasts).toHaveLength(0);
+    expect(usePopupStore.getState().popup).toBeNull();
   });
 
   it('ignores an event without a usable job id', () => {

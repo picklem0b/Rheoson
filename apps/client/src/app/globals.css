@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 /* ════════════════════════════════════════════════════════════
-   Rheoson design tokens — ported 1:1 from web/src/index.css.
+   Rheoson design tokens — neo-brutalist skin, iOS feel.
 
-     primitive  raw values (hex, channel triplets, curves)
-        ↓
-     semantic   purpose names consumed by components
-        ↓
-   component  per-component bindings (player height, nav, …)
+   The three-layer architecture is unchanged (primitive → semantic
+   → component); what changed is the visual language:
 
-   Components read ONLY semantic names. The visual language —
-   tinted near-black surfaces, hairline borders, crimson accent,
-   no gradients, no glow — is the same product, new engine.
+   * borders are STRUCTURAL — 2px, high-contrast, always visible
+   * shadows are HARD — an offset block, never a blur
+   * type is LOUD — heavy weights, tight tracking, uppercase eyebrows
+   * motion stays iOS — the same spring family, snappy and physical
+
+   Components read ONLY semantic names, so a page styled before this
+   reskin still renders — it just renders braver.
    ════════════════════════════════════════════════════════════ */
 
 /* ─── Layer 1: Primitives ──────────────────────────────────── */
 :root {
-  /* Brand accent — Crimson, recalibrated (saturation/lightness held
-     below the 80% line so the accent sits with the neutrals). */
+  /* Brand accent — Crimson. One loud colour, spent carefully. */
   --accent-rgb: 228 37 59;
   --accent-soft-rgb: 235 62 82;
   --accent-deep-rgb: 165 29 45;
@@ -48,9 +48,10 @@
   --duration-base: 200ms;
   --duration-slow: 320ms;
 
-  /* Font stacks — Geist is the Rheoson voice. */
+  /* Font stacks — Geist is the Rheoson voice; Archivo is the shout. */
   --font-stack-geist: "Geist Variable", system-ui, sans-serif;
   --font-stack-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --font-stack-display: "Archivo Black", "Geist Variable", system-ui, sans-serif;
   --font-stack-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-stack-inter: "Inter", system-ui, sans-serif;
   --font-stack-system: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -62,7 +63,7 @@
   --accent-bright: rgb(var(--accent-soft-rgb));
   --accent-dim: rgb(var(--accent-deep-rgb));
   --accent-subtle: rgb(var(--accent-rgb) / 0.14);
-  --accent-border: rgb(var(--accent-rgb) / 0.32);
+  --accent-border: rgb(var(--accent-rgb) / 0.5);
 
   /* Surfaces — four elevation steps; elevation = lighter surface,
      not heavier shadow. */
@@ -75,28 +76,37 @@
   --bg-elevated-rgb: var(--gray-850);
   --bg-overlay-rgb: var(--gray-800);
 
-  --border: rgb(var(--gray-0) / 0.07);
-  --border-strong: rgb(var(--gray-0) / 0.14);
+  /* Borders are structural now: high-contrast, always visible. */
+  --border: rgb(var(--gray-0) / 0.18);
+  --border-strong: rgb(var(--gray-0) / 0.42);
   --border-strong-rgb: var(--gray-0);
+  --border-hard: rgb(var(--gray-0) / 0.9);
 
   --text-primary: rgb(var(--gray-25));
   --text-secondary: rgb(var(--gray-400));
-  --text-muted: rgb(var(--gray-600));
+  --text-muted: rgb(var(--gray-500));
   --text-primary-rgb: var(--gray-25);
   --text-secondary-rgb: var(--gray-400);
-  --text-muted-rgb: var(--gray-600);
+  --text-muted-rgb: var(--gray-500);
 
-  --glass-bg: rgb(var(--gray-900) / 0.72);
-  --glass-border: rgb(var(--gray-0) / 0.08);
-  --glass-highlight: rgb(var(--gray-0) / 0.06);
+  --glass-bg: rgb(var(--gray-900) / 0.82);
+  --glass-border: rgb(var(--gray-0) / 0.2);
+  --glass-highlight: rgb(var(--gray-0) / 0.08);
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.28);
-  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.32);
-  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.4);
+  /* Hard shadows — offset blocks, never blurs. */
+  --hard-shadow-sm: 2px 2px 0 0 rgb(var(--gray-0) / 0.9);
+  --hard-shadow: 4px 4px 0 0 rgb(var(--gray-0) / 0.9);
+  --hard-shadow-lg: 7px 7px 0 0 rgb(var(--gray-0) / 0.9);
+  --hard-shadow-accent: 4px 4px 0 0 rgb(var(--accent-rgb));
+  /* Legacy names kept: existing components read these. */
+  --shadow-sm: var(--hard-shadow-sm);
+  --shadow-md: var(--hard-shadow);
+  --shadow-lg: var(--hard-shadow-lg);
+  --shadow-inset-top: inset 0 1px 0 0 rgb(var(--gray-0) / 0.14);
 
   /* Component bindings */
-  --player-height: 80px;
-  --nav-height: 64px;
+  --player-height: 84px;
+  --nav-height: 68px;
   --sidebar-width: 240px;
 
   /* Status hues — fixed across themes and accents. */
@@ -118,14 +128,20 @@
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
 
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  /* Brutalism keeps its edges: only pills and sheets round. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
   --radius-full: 9999px;
+  --radius-brut: 12px;
 
-  --focus-ring: 0 0 0 2px rgb(var(--gray-950)), 0 0 0 4px rgb(var(--accent-rgb) / 0.7);
+  --focus-ring: 0 0 0 2px rgb(var(--gray-950)), 0 0 0 4px rgb(var(--accent-rgb) / 0.8);
+
+  /* The press: every interactive surface answers the finger. */
+  --press-transform: translate(2px, 2px);
+  --press-shadow: 1px 1px 0 0 rgb(var(--gray-0) / 0.9);
 }
 
 /* ─── Layer 2: Semantic — Light ────────────────────────────── */
@@ -139,20 +155,30 @@
   --bg-elevated-rgb: var(--gray-25);
   --bg-overlay-rgb: var(--gray-100);
 
-  --border: rgb(var(--gray-950) / 0.08);
-  --border-strong: rgb(var(--gray-950) / 0.16);
-  --border-strong-rgb: var(--gray-950);
+  --border: rgb(var(--gray-950) / 0.24);
+  --border-strong: rgb(var(--gray-950) / 0.55);
+  --border-hard: rgb(var(--gray-950) / 0.92);
 
   --text-primary: rgb(var(--gray-925));
   --text-secondary: rgb(var(--gray-600));
-  --text-muted: rgb(var(--gray-400));
+  --text-muted: rgb(var(--gray-500));
   --text-primary-rgb: var(--gray-925);
   --text-secondary-rgb: var(--gray-600);
-  --text-muted-rgb: var(--gray-400);
+  --text-muted-rgb: var(--gray-500);
 
-  --glass-bg: rgb(var(--gray-0) / 0.72);
-  --glass-border: rgb(var(--gray-950) / 0.08);
+  --glass-bg: rgb(var(--gray-0) / 0.82);
+  --glass-border: rgb(var(--gray-950) / 0.24);
   --glass-highlight: rgb(var(--gray-0) / 0.5);
+
+  /* On paper, the hard shadow is ink. */
+  --hard-shadow-sm: 2px 2px 0 0 rgb(var(--gray-950) / 0.92);
+  --hard-shadow: 4px 4px 0 0 rgb(var(--gray-950) / 0.92);
+  --hard-shadow-lg: 7px 7px 0 0 rgb(var(--gray-950) / 0.92);
+  --hard-shadow-accent: 4px 4px 0 0 rgb(var(--accent-rgb));
+  --shadow-sm: var(--hard-shadow-sm);
+  --shadow-md: var(--hard-shadow);
+  --shadow-lg: var(--hard-shadow-lg);
+  --shadow-inset-top: inset 0 1px 0 0 rgb(var(--gray-0) / 0.6);
 
   --danger: rgb(215 40 50);
   --danger-rgb: 215 40 50;
@@ -167,11 +193,10 @@
   --warning-text: rgb(150 90 0);
   --warning-bg: rgb(var(--warning-rgb) / 0.1);
 
-  --shadow-sm: 0 1px 2px rgb(var(--gray-950) / 0.06);
-  --shadow-md: 0 4px 16px rgb(var(--gray-950) / 0.08);
-  --shadow-lg: 0 12px 40px rgb(var(--gray-950) / 0.12);
+  --focus-ring: 0 0 0 2px rgb(var(--gray-0)), 0 0 0 4px rgb(var(--accent-rgb) / 0.8);
 
-  --focus-ring: 0 0 0 2px rgb(var(--gray-0)), 0 0 0 4px rgb(var(--accent-rgb) / 0.7);
+  --press-transform: translate(2px, 2px);
+  --press-shadow: 1px 1px 0 0 rgb(var(--gray-950) / 0.92);
 }
 
 /* ─── Layer 2: Accent theme variants ───────────────────────── */
@@ -185,6 +210,98 @@
   --accent-rgb: 235 110 45;
   --accent-soft-rgb: 247 138 78;
   --accent-deep-rgb: 178 76 26;
+}
+
+/* ─── Layer 3: Component primitives ────────────────────────── */
+
+/* Brutal card: structural border, hard shadow, sharp voice. */
+.brut-card {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-brut);
+}
+
+.brut-panel {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-brut);
+  box-shadow: var(--hard-shadow);
+}
+
+/* Brutal button: the shadow is the press. */
+.brut-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-brut);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 700;
+  box-shadow: var(--hard-shadow-sm);
+  transition:
+    transform var(--duration-fast) var(--ease-ios),
+    box-shadow var(--duration-fast) var(--ease-ios),
+    background var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  user-select: none;
+}
+
+.brut-btn:hover {
+  background: var(--bg-overlay);
+}
+
+.brut-btn:active {
+  transform: var(--press-transform);
+  box-shadow: var(--press-shadow);
+}
+
+.brut-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.brut-btn[data-variant="accent"] {
+  background: var(--accent);
+  border-color: var(--border-hard);
+  color: rgb(255 255 255);
+}
+
+.brut-btn[data-variant="ghost"] {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+}
+
+.brut-btn[data-variant="ghost"]:active {
+  transform: scale(0.96);
+  box-shadow: none;
+}
+
+/* Eyebrow: the uppercase label that fronts every section. */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Display type: the loud voice. */
+.display {
+  font-family: var(--font-stack-display);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+/* Sheet: bottom sheet on mobile, centered dialog on desktop. */
+.sheet {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-strong);
+  box-shadow: var(--hard-shadow-lg);
 }
 
 /* ─── Base ─────────────────────────────────────────────────── */

@@ -1,46 +1,156 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
+import PopupHost from '@/components/popup/PopupHost';
 import ToastHost from '@/components/toast/ToastHost';
+import { popup, usePopupStore } from '@/store/popup.store';
 import { toast, useToastStore } from '@/store/toast.store';
 
 /**
- * Toasts carry the promise this app makes about failures: a red toast always
- * names a code, and the ⓘ control always reveals the reason behind it. Both are
- * asserted here rather than left to convention.
+ * The two-voice contract, enforced by the stores:
+ *
+ * * **failures are popups** — `toast.error` forwards to the popup store, so
+ *   every failure in the app arrives as a dialog carrying its DCCNN code and
+ *   an ⓘ-able detail. A toast can never carry an error again.
+ * * **toasts are quiet** — success and info only, always auto-dismissing.
  */
 
 beforeEach(() => {
   useToastStore.getState().clear();
+  usePopupStore.getState().close();
 });
 
-describe('toast store', () => {
-  it('creates a success toast with no code', () => {
-    toast.success('Download complete', 'Album — artist');
+afterEach(() => {
+  usePopupStore.getState().close();
+});
 
-    const [item] = useToastStore.getState().toasts;
-    expect(item.kind).toBe('success');
-    expect(item.title).toBe('Download complete');
-    expect(item.code).toBeUndefined();
-    expect(item.duration).toBeGreaterThan(0);
-  });
-
-  it('keeps an error on screen until it is dismissed', () => {
+describe('the error bridge (toast.error → popup)', () => {
+  it('opens a popup, not a toast', () => {
     toast.error({ title: 'Download failed', code: 'DEX01', detail: 'YouTube refused this track' });
 
-    const [item] = useToastStore.getState().toasts;
-    expect(item.kind).toBe('error');
-    // A failure the user never saw is a failure they report as "it doesn't work".
-    expect(item.duration).toBe(0);
+    expect(usePopupStore.getState().popup?.kind).toBe('error');
+    expect(usePopupStore.getState().popup?.code).toBe('DEX01');
+    expect(useToastStore.getState().toasts).toHaveLength(0);
+  });
+
+  it('keeps the one-line message as the detail when no explanation exists', () => {
+    toast.error({ title: 'Download failed', message: 'Fake Song' });
+
+    expect(usePopupStore.getState().popup?.detail).toBe('Fake Song');
+  });
+
+  it('prefers the full explanation over the short message', () => {
+    toast.error({ title: 'Download failed', code: 'DEX01', detail: 'the full reason', message: 'short' });
+
+    expect(usePopupStore.getState().popup?.detail).toBe('the full reason');
   });
 
   it('labels an uncoded error instead of pretending it is ordinary', () => {
     toast.error({ title: 'Something failed' });
 
-    expect(useToastStore.getState().toasts[0].code).toBe('UNCODED');
+    const popupState = usePopupStore.getState().popup;
+    expect(popupState?.kind).toBe('error');
+    expect(popupState?.code).toBeUndefined();
+  });
+});
+
+describe('PopupHost', () => {
+  it('renders an alertdialog with the code chip and the detail', () => {
+    toast.error({ title: 'Download failed', code: 'DEX01', detail: 'YouTube refused this track' });
+    render(<PopupHost />);
+
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(dialog.textContent).toContain('Download failed');
+    expect(dialog.textContent).toContain('ERROR_CODE: DEX01');
+    expect(dialog.textContent).toContain('YouTube refused this track');
   });
 
-  it('caps the stack so a burst cannot bury the newest failure', () => {
+  it('closes on Escape (captured at document level)', () => {
+    popup.error({ title: 'Failed', code: 'DEX01', detail: 'the reason' });
+    render(<PopupHost />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(usePopupStore.getState().popup).toBeNull();
+  });
+
+  it('closes on backdrop click but not on a click inside the dialog', () => {
+    popup.error({ title: 'Failed', code: 'DEX01' });
+    render(<PopupHost />);
+
+    fireEvent.click(screen.getByTestId('popup'));
+    expect(usePopupStore.getState().popup).not.toBeNull();
+
+    fireEvent.click(screen.getByTestId('popup-backdrop'));
+    expect(usePopupStore.getState().popup).toBeNull();
+  });
+
+  it('closes from the Got it button', () => {
+    popup.error({ title: 'Failed', code: 'DEX01' });
+    render(<PopupHost />);
+
+    fireEvent.click(screen.getByRole('button', { name: /got it/i }));
+
+    expect(usePopupStore.getState().popup).toBeNull();
+  });
+
+  it('renders confirm actions and runs the chosen one exactly once', () => {
+    const onConfirm = vi.fn();
+    popup.confirm({ title: 'Delete playlist?', confirmLabel: 'Delete', onConfirm });
+    render(<PopupHost />);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain('Delete playlist?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(usePopupStore.getState().popup).toBeNull();
+  });
+
+  it('keeps focus inside the dialog when Tab cycles', () => {
+    popup.error({ title: 'Failed', code: 'DEX01' });
+    render(<PopupHost />);
+
+    const dialog = screen.getByRole('alertdialog');
+    const focusable = dialog.querySelectorAll<HTMLElement>('button');
+    expect(focusable.length).toBeGreaterThan(1);
+
+    focusable[0].focus();
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('renders nothing when no popup is open', () => {
+    render(<PopupHost />);
+    expect(screen.queryByTestId('popup')).toBeNull();
+  });
+});
+
+describe('toasts stay quiet', () => {
+  it('carries success and info only, always auto-dismissing', () => {
+    toast.success('Download complete', 'Song — artist');
+    toast.info('Staged parts are kept');
+
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts).toHaveLength(2);
+    for (const item of toasts) {
+      expect(item.kind === 'success' || item.kind === 'info').toBe(true);
+      expect(item.duration).toBeGreaterThan(0);
+    }
+  });
+
+  it('renders success without any code chip', () => {
+    toast.success('Download complete', 'Song — artist');
+    render(<ToastHost />);
+
+    const card = screen.getByRole('status');
+    expect(card.textContent).toContain('Download complete');
+    expect(card.textContent).not.toContain('ERROR_CODE');
+  });
+
+  it('caps the stack so a burst cannot bury the newest note', () => {
     for (let index = 0; index < 8; index += 1) toast.info(`note ${index}`);
 
     const toasts = useToastStore.getState().toasts;
@@ -53,67 +163,5 @@ describe('toast store', () => {
     toast.dismiss(id);
 
     expect(useToastStore.getState().toasts).toHaveLength(0);
-  });
-});
-
-describe('ToastHost', () => {
-  it('renders a pass toast in the success accent without a code chip', () => {
-    toast.success('Download complete', 'Song — artist');
-    render(<ToastHost />);
-
-    const card = screen.getByRole('status');
-    expect(card.textContent).toContain('Download complete');
-    expect(card.textContent).not.toContain('ERROR_CODE');
-  });
-
-  it('renders a fail toast with the code chip and the reason behind ⓘ', () => {
-    toast.error({
-      title: 'Download failed',
-      code: 'DEX01',
-      detail: 'YouTube refused this track on every client',
-      message: 'Fake Song',
-    });
-    render(<ToastHost />);
-
-    const card = screen.getByRole('alert');
-    expect(card.textContent).toContain('ERROR_CODE: DEX01');
-    // The detail is hidden by default — that is the whole point of the control.
-    expect(card.textContent).not.toContain('refused this track');
-
-    const toggle = screen.getByRole('button', { name: /show details/i });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-
-    fireEvent.click(toggle);
-
-    expect(screen.getByRole('alert').textContent).toContain('YouTube refused this track on every client');
-    expect(screen.getByRole('button', { name: /hide details/i }).getAttribute('aria-expanded')).toBe('true');
-  });
-
-  it('closes the details panel on Escape', () => {
-    toast.error({ title: 'Failed', code: 'DEX01', detail: 'the reason' });
-    render(<ToastHost />);
-
-    fireEvent.click(screen.getByRole('button', { name: /show details/i }));
-    expect(screen.getByRole('alert').textContent).toContain('the reason');
-
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.getByRole('alert').textContent).not.toContain('the reason');
-  });
-
-  it('dismisses a toast from its close button', () => {
-    toast.info('A note');
-    render(<ToastHost />);
-
-    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
-
-    expect(screen.queryByText('A note')).toBeNull();
-  });
-
-  it('asks for details on a coded toast even when no detail text is present', () => {
-    toast.error({ title: 'Failed', code: 'DEX01' });
-    render(<ToastHost />);
-
-    // The code alone is worth revealing: it is the traceable identifier.
-    expect(screen.getByRole('button', { name: /show details/i })).toBeTruthy();
   });
 });

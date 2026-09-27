@@ -1,13 +1,36 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+import { LogoMark } from '@/components/auth/AuthVisual';
+import { isSignedInDev } from '@/lib/devAuth';
 
 /**
- * The root route is a redirect, not a landing page.
+ * The root route is a gate, not a landing page.
  *
- * Rheoson is an app, not a marketing site: someone who opens it wants their
- * library, and anyone who is not signed in is answered by the API with a 401,
- * which the error bridge turns into the sign-in error page. A marketing page
- * here would be a screen every returning user has to dismiss.
+ * Signed in (dev posture) → straight to the app. Not signed in → the welcome
+ * screen. With a Clerk key, middleware owns this decision and this component
+ * only renders the boot mark for the instant before the redirect resolves.
  */
 export default function RootPage() {
-  redirect('/home');
+  const router = useRouter();
+  const [decided, setDecided] = useState(false);
+
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+      router.replace('/home');
+      return;
+    }
+    router.replace(isSignedInDev() ? '/home' : '/welcome');
+    // Marked from the task queue so the effect's sync pass stays pure.
+    const task = setTimeout(() => setDecided(true), 0);
+    return () => clearTimeout(task);
+  }, [router]);
+
+  return (
+    <div className="grid min-h-dvh place-items-center" style={{ background: 'var(--bg-base)' }}>
+      {decided ? null : <LogoMark size={56} />}
+    </div>
+  );
 }

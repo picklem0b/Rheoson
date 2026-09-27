@@ -13,6 +13,7 @@ import { registerHealthRoutes } from './routes/health.routes.js';
 import { registerLibraryRoutes } from './routes/library.routes.js';
 import { registerMeRoutes } from './routes/me.routes.js';
 import { registerMessagingRoutes } from './routes/messaging.routes.js';
+import { registerOpsRoutes } from './routes/ops.routes.js';
 import { registerPlaylistRoutes } from './routes/playlists.routes.js';
 import { registerSearchRoutes } from './routes/search.routes.js';
 import { registerSpotifyRoutes } from './routes/spotify.routes.js';
@@ -28,11 +29,23 @@ import { closeBus, initBus } from './realtime/bus.js';
  * - no login/register proxy ever exists (Clerk components only).
  */
 
+// The ops log ring is a first-class pino stream: the console reads what was
+// actually written, dev-pretty or prod-raw.
+const { multistream } = await import('pino');
+const { logTap } = await import('./services/ops.service.js');
+const logStreams: Array<{ level: string; stream: NodeJS.WritableStream }> = [{ level: env.LOG_LEVEL, stream: logTap }];
+if (env.isDev) {
+  // Pretty logs are a dev convenience, never a prod dependency.
+  const pretty = (await import('pino-pretty')).default;
+  logStreams.push({ level: env.LOG_LEVEL, stream: pretty({ colorize: true }) as unknown as NodeJS.WritableStream });
+} else {
+  logStreams.push({ level: env.LOG_LEVEL, stream: process.stdout });
+}
+
 const app = Fastify({
   logger: {
     level: env.LOG_LEVEL,
-    // Pretty logs are a dev convenience, never a prod dependency.
-    transport: env.isDev ? { target: 'pino-pretty' } : undefined,
+    stream: multistream(logStreams),
   },
 });
 
@@ -54,6 +67,7 @@ await app.register(rateLimit, {
 registerAuth(app);
 registerClerkWebhook(app);
 registerHealthRoutes(app);
+registerOpsRoutes(app);
 // Order is a contract: `/api/me/likes/count` and `/api/me/preferences/defaults`
 // must register before any parameter route that could swallow them.
 registerMeRoutes(app);

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import NowPlayingSheet from '@/components/player/NowPlayingSheet';
 import { api, type Track } from '@/lib/api';
 import { usePlayerStore, PLAYBACK_RATES, startDownload } from '@/store/player.store';
 import { useQueueStore } from '@/store/queue.store';
@@ -107,6 +108,7 @@ export default function PlayerBar() {
   const toggleShuffle = useQueueStore((state) => state.toggleShuffle);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [likePending, setLikePending] = useState(false);
   const [sleepMinutes, setSleepMinutes] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -170,7 +172,9 @@ export default function PlayerBar() {
   const repeatLabel = repeat === 'off' ? 'Repeat off' : repeat === 'all' ? 'Repeat queue' : 'Repeat one';
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40" style={{ paddingBottom: 'var(--safe-area-bottom)' }}>
+    <>
+      <NowPlayingSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+      <div className="fixed inset-x-0 bottom-0 z-40" style={{ paddingBottom: 'var(--safe-area-bottom)' }}>
       <input
         type="range"
         aria-label="Seek"
@@ -179,25 +183,36 @@ export default function PlayerBar() {
         step={1}
         value={Math.min(position, duration || 0)}
         onChange={(event) => seek(Number(event.target.value))}
-        className="block h-1 w-full cursor-pointer appearance-none"
-        style={{ background: 'var(--border)' }}
+        className="block h-1.5 w-full cursor-pointer appearance-none"
+        style={{ background: 'var(--border-strong)', accentColor: 'var(--accent)' }}
       />
 
       <div
-        className="flex items-center gap-3 px-3 py-2.5"
-        style={{ background: 'var(--glass-bg)', borderTop: '1px solid var(--border)', backdropFilter: 'blur(12px)' }}
+        className="flex items-center gap-2.5 px-3 py-2.5"
+        style={{
+          background: 'var(--glass-bg)',
+          borderTop: '2px solid var(--border-strong)',
+          backdropFilter: 'blur(12px)',
+        }}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        {/* The body is the open-the-player button: tapping what you can see
+            opens the full screen; tapping a control never does. */}
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          aria-label={`Open Now Playing for ${current.title}`}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
           <Artwork track={current} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <p className="truncate text-sm font-extrabold" style={{ color: 'var(--text-primary)' }}>
               {current.title}
             </p>
             <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
               {current.artist?.name}
             </p>
           </div>
-        </div>
+        </button>
 
         <ControlButton label={liked ? 'Remove from favourites' : 'Add to favourites'} onClick={() => void toggleLike()} accent={liked}>
           <Heart filled={liked} />
@@ -231,8 +246,13 @@ export default function PlayerBar() {
           {menuOpen ? (
             <div
               role="menu"
-              className="absolute right-0 bottom-12 w-56 rounded-[14px] p-1.5 shadow-lg"
-              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
+              className="absolute right-0 bottom-12 w-56 p-1.5"
+              style={{
+                background: 'var(--bg-elevated)',
+                border: '2px solid var(--border-strong)',
+                borderRadius: 'var(--radius-brut)',
+                boxShadow: 'var(--hard-shadow)',
+              }}
             >
               <MenuItem
                 label="Download"
@@ -280,7 +300,8 @@ export default function PlayerBar() {
           ) : null}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
