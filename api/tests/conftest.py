@@ -50,7 +50,16 @@ os.environ["RATE_LIMIT_LYRICS"] = "99999"
 # ── Mock database ──────────────────────────────────────────────
 
 def _mock_matches(doc: dict, filter: dict) -> bool:
-    """Match a doc against a filter, supporting MongoDB comparison ops."""
+    """Match a doc against a filter, supporting MongoDB comparison ops.
+
+    Mongo semantics mirrored here (each added when a feature needed it):
+    ``$regex`` (+ ``$options: "i"``) for username search, and scalar-in-array
+    matching — ``find({"members": user_id})`` must match a doc whose
+    ``members`` list contains the value, which is how blends membership
+    queries work on real Mongo.
+    """
+    import re as _re
+
     for k, v in filter.items():
         if k not in doc:
             if k.startswith("$"):
@@ -75,8 +84,16 @@ def _mock_matches(doc: dict, filter: dict) -> bool:
                     return False
                 elif op == "$exists" and (val is True) != (dv is not None):
                     return False
+                elif op == "$regex":
+                    flags = _re.IGNORECASE if "i" in (v.get("$options") or "") else 0
+                    if not isinstance(dv, str) or not _re.search(val, dv, flags):
+                        return False
         elif v is None:
             if dv is not None:
+                return False
+        elif isinstance(dv, list) and not isinstance(v, list):
+            # Mongo array semantics: the scalar must be a member of the array.
+            if v not in dv:
                 return False
         elif dv != v:
             return False
@@ -168,7 +185,10 @@ class MockCollection:
                 return dict(doc)
         return None
 
-    async def find(self, filter: dict, sort=None):
+    def find(self, filter: dict, sort=None):
+        # NOTE: sync like Motor — Motor's find() returns a cursor without
+        # awaiting, so `.find(q).limit(n)` chains must work. The cursor is
+        # async-iterable, which is how all production code consumes it.
         matches = [dict(d) for d in self._docs if _mock_matches(d, filter)]
         return _MockAggCursor(matches)
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.21.4"
+    "version": "2.21.5"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -805,6 +805,485 @@
         ]
       }
     },
+    "/api/blends": {
+      "get": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "List Blends",
+        "description": "All blends the caller belongs to.",
+        "operationId": "list_blends_api_blends_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Create Blend",
+        "operationId": "create_blend_api_blends_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBlendSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/blends/{blend_id}": {
+      "get": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Get Blend",
+        "operationId": "get_blend_api_blends__blend_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blend_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blend Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Delete Blend",
+        "operationId": "delete_blend_api_blends__blend_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blend_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blend Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Rename Blend",
+        "operationId": "rename_blend_api_blends__blend_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blend_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blend Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameBlendSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/blends/{blend_id}/members": {
+      "post": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Add Member",
+        "operationId": "add_member_api_blends__blend_id__members_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blend_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blend Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/blends/{blend_id}/members/{member_id}": {
+      "delete": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Remove Member",
+        "operationId": "remove_member_api_blends__blend_id__members__member_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blend_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blend Id"
+            }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/blends/{blend_id}/tracks": {
+      "put": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Reorder Tracks",
+        "operationId": "reorder_tracks_api_blends__blend_id__tracks_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blend_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blend Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Add Track",
+        "operationId": "add_track_api_blends__blend_id__tracks_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blend_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blend Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackSchema-Input"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/blends/{blend_id}/tracks/{track_id}": {
+      "delete": {
+        "tags": [
+          "blends"
+        ],
+        "summary": "Remove Track",
+        "operationId": "remove_track_api_blends__blend_id__tracks__track_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blend_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blend Id"
+            }
+          },
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Track Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/downloads": {
       "get": {
         "tags": [
@@ -1493,6 +1972,278 @@
                 "schema": {
                   "$ref": "#/components/schemas/LyricsSchema"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/messages/conversations": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "List Conversations",
+        "description": "The caller's threads, most recently active first.",
+        "operationId": "list_conversations_api_messages_conversations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "Open Conversation",
+        "description": "Open (or fetch) the DM thread with a peer.",
+        "operationId": "open_conversation_api_messages_conversations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/messages/conversations/{peer_id}": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "List Messages",
+        "description": "One page of a thread, oldest \u2192 newest (`before` = ISO cursor).",
+        "operationId": "list_messages_api_messages_conversations__peer_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "peer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Peer Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/messages/presence": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "Presence",
+        "description": "Who is connected right now and what they are listening to.\n\nProfiles for connected users are resolved from Mongo (username/avatar)\nand handed to the socket layer's cache, so presence broadcasts carry\nreal names even though the socket layer itself never touches Mongo.",
+        "operationId": "presence_api_messages_presence_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/messages/send": {
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "Send Message",
+        "description": "Send a message/share. The socket path delivers the same payload.",
+        "operationId": "send_message_api_messages_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/messages/users/search": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "Search Users",
+        "description": "Find users by username prefix \u2014 powers the new-chat picker.",
+        "operationId": "search_users_api_messages_users_search_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -3671,7 +4422,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/TrackSchema"
+                    "$ref": "#/components/schemas/TrackSchema-Output"
                   },
                   "type": "array",
                   "title": "Response List Tracks Api Tracks  Get"
@@ -3725,7 +4476,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/TrackSchema"
+                    "$ref": "#/components/schemas/TrackSchema-Output"
                   },
                   "type": "array",
                   "title": "Response Get Liked Api Tracks Liked Get"
@@ -3780,7 +4531,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/TrackSchema"
+                    "$ref": "#/components/schemas/TrackSchema-Output"
                   },
                   "type": "array",
                   "title": "Response Get Recently Played Api Tracks Recently Played Get"
@@ -3922,7 +4673,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TrackSchema"
+                    "$ref": "#/components/schemas/TrackSchema-Output"
                   },
                   "title": "Response Get Trending Api Tracks Trending Get"
                 }
@@ -4017,7 +4768,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TrackSchema"
+                  "$ref": "#/components/schemas/TrackSchema-Output"
                 }
               }
             }
@@ -4497,6 +5248,21 @@
         ],
         "title": "BatchDownloadRequest"
       },
+      "CreateBlendSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateBlendSchema"
+      },
       "CreatePlaylistSchema": {
         "properties": {
           "title": {
@@ -4952,6 +5718,21 @@
         ],
         "title": "LyricsSchema"
       },
+      "MemberSchema": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "MemberSchema"
+      },
       "PlaylistResultSchema": {
         "properties": {
           "id": {
@@ -5010,7 +5791,7 @@
           },
           "tracks": {
             "items": {
-              "$ref": "#/components/schemas/TrackSchema"
+              "$ref": "#/components/schemas/TrackSchema-Output"
             },
             "type": "array",
             "title": "Tracks"
@@ -5076,6 +5857,38 @@
         "title": "PreferencesRequest",
         "description": "A partial patch of device-independent preferences.\n\nThe whitelist lives in services/preferences.py; unknown keys are dropped\nrather than rejected so a client that ships a newer toggle than this\nserver understands does not have its whole patch refused."
       },
+      "RenameBlendSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RenameBlendSchema"
+      },
+      "ReorderSchema": {
+        "properties": {
+          "track_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Track Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "track_ids"
+        ],
+        "title": "ReorderSchema"
+      },
       "RescanSchema": {
         "properties": {
           "dirs": {
@@ -5123,7 +5936,7 @@
           },
           "tracks": {
             "items": {
-              "$ref": "#/components/schemas/TrackSchema"
+              "$ref": "#/components/schemas/TrackSchema-Output"
             },
             "type": "array",
             "title": "Tracks"
@@ -5294,7 +6107,7 @@
           },
           "tracks": {
             "items": {
-              "$ref": "#/components/schemas/TrackSchema"
+              "$ref": "#/components/schemas/TrackSchema-Output"
             },
             "type": "array",
             "title": "Tracks"
@@ -5330,7 +6143,66 @@
           "tracks"
         ]
       },
-      "TrackSchema": {
+      "SendMessageSchema": {
+        "properties": {
+          "peer_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Peer Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "text"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "peer_id"
+        ],
+        "title": "SendMessageSchema"
+      },
+      "TrackSchema-Input": {
+        "properties": {
+          "track_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Track Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "track_id"
+        ],
+        "title": "TrackSchema"
+      },
+      "TrackSchema-Output": {
         "properties": {
           "id": {
             "type": "string",
@@ -5410,18 +6282,7 @@
           }
         },
         "type": "object",
-        "title": "TrackSchema",
-        "required": [
-          "addedAt",
-          "album",
-          "artist",
-          "filePath",
-          "playCount",
-          "spotifyId",
-          "streamUrl",
-          "trackNumber",
-          "youtubeId"
-        ]
+        "title": "TrackSchema"
       },
       "UpdatePlaylistSchema": {
         "properties": {

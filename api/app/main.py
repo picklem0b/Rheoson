@@ -45,6 +45,7 @@ from app.routers import (
 )
 from app.routers import equalizer_router, share_router, analytics_router, smart_playlist_router, clerk_webhook_router
 from app.routers import artist_router
+from app.routers import messaging_router, blends_router
 
 configure_logging()
 log = structlog.get_logger()
@@ -52,7 +53,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.21.5"
+VERSION = "2.22.0"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -498,6 +499,8 @@ app.include_router(smart_playlist_router.router, prefix="/api/smart-playlists", 
 # Registered before the /api/artists/{artist_id} detail route further down so
 # the reserved /api/artists/following path is matched by this router first.
 app.include_router(artist_router.router,   prefix="/api/artists",  tags=["artists"])
+app.include_router(messaging_router.router, prefix="/api/messages", tags=["messages"])
+app.include_router(blends_router.router,    prefix="/api/blends",   tags=["blends"])
 app.include_router(clerk_webhook_router.router, prefix="/api", tags=["webhooks"])
 
 

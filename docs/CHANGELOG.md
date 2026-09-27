@@ -6,6 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.22.0 — Messaging, Blends, and one Library
+
+- feat(messages): **direct messages with music shares** — threads carry tracks (tap to play), lyrics (tap to open the full player on that lyric), playlists, albums, artists and blends; REST is the always-works path and the Socket.IO `message:send` / `message:new` fast path delivers sub-second when online. Rate limit (30/min) returns the DCCNN `MLM01` code.
+- feat(presence): **"{username} listening to {song}"** — the existing `player:state` relay now feeds a presence snapshot broadcast on connect/disconnect and every play state change; the Messages header renders live chips (avatar + pulsing dot + track), and tapping one plays that song.
+- feat(blends): **collaborative playlists** — every member adds/removes tracks and invites friends; only the owner deletes. Mongo is the source of truth with a per-user JSON offline mirror (`.blends-*.json`) so a DB outage never strands your blends. New Library section with a start-a-blend flow and a full `/blend/:id` page.
+- feat(nav): **Messages replaces My Music in the bottom nav** — My Music (on-device tracks, live download jobs, manager link) merged into Library as its own section, beside a new Blends grid.
+- feat(share): **Share now means chat** — the universal track menu's Share (and a new NowPlaying menu item + lyrics-tab button) opens the share-to-chat picker with an optional note; the OS share sheet stays for links. Errors surface their `[ERROR_CODE: …]` chips.
+- feat(errors): DCCNN registry grows the **M (messaging)** and **B (blends)** domains — 24 new registered codes from `MNF01` to `BEN01`, docs updated.
+- chore: openapi regenerated (109 endpoints); mock-DB matcher gained Mongo `$regex` + array-membership semantics.
+
 ## v2.21.5 — Appearance shows appearance
 
 - fix(settings): **the Appearance section is only appearance** — the "Layout shortcuts" group (a duplicate of Layout's sidebar row) and "Keep screen awake" (playback behaviour, not looks) left the section; keep-awake moved to **Playback → Transport**.

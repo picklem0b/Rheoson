@@ -25,6 +25,8 @@ or grep the API source for it — to land on the single raise site.
 | E | sE=Settings, preferences, presets |
 | W | Webhooks |
 | F | Artist follows |
+| M | Messaging |
+| B | Blends (collaborative playlists) |
 | Y | plaYback (equalizer) |
 
 ## Categories
@@ -188,6 +190,40 @@ or grep the API source for it — to land on the single raise site.
 | [ERROR_CODE: FVA02] | Provide a list of artist names |
 | [ERROR_CODE: FVA03] | Provide at least one artist name |
 | [ERROR_CODE: FEX01] | Artist follow could not be saved |
+
+## Messaging (M)
+
+| Code | Message |
+| --- | --- |
+| [ERROR_CODE: MNF01] | Conversation not found |
+| [ERROR_CODE: MNF02] | That user isn't on Rheoson yet |
+| [ERROR_CODE: MVA01] | Message can't be empty |
+| [ERROR_CODE: MVA02] | Message is too long |
+| [ERROR_CODE: MVA03] | Invalid share |
+| [ERROR_CODE: MVA04] | Invalid conversation |
+| [ERROR_CODE: MEX01] | Message could not be sent |
+| [ERROR_CODE: MLM01] | Sending too fast — slow down a moment |
+| [ERROR_CODE: MEN01] | Messaging needs the database |
+
+## Blends (B)
+
+| Code | Message |
+| --- | --- |
+| [ERROR_CODE: BNF01] | Blend not found |
+| [ERROR_CODE: BNF02] | That member is not in this blend |
+| [ERROR_CODE: BVA01] | Blend name is required |
+| [ERROR_CODE: BVA02] | Blend name is too long |
+| [ERROR_CODE: BVA03] | Invalid blend id |
+| [ERROR_CODE: BVA04] | Invalid track list |
+| [ERROR_CODE: BVA05] | Invalid member list |
+| [ERROR_CODE: BCN01] | Already a member of this blend |
+| [ERROR_CODE: BCN02] | Track is already in this blend |
+| [ERROR_CODE: BCN03] | You already have a blend with that name |
+| [ERROR_CODE: BCF01] | Only the owner can delete a blend |
+| [ERROR_CODE: BCF02] | This track is not in the blend |
+| [ERROR_CODE: BEX01] | Could not add the track to the blend |
+| [ERROR_CODE: BEX02] | Could not remove the track from the blend |
+| [ERROR_CODE: BEN01] | Blends need the database |
 
 ## Playback (Y)
 

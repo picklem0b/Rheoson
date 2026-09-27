@@ -201,6 +201,22 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.22.0 — Messaging, Blends, and one Library
+
+Rheoson gains a social layer. Messages bring direct chats that carry music
+— a track card plays on tap, a lyrics card opens the song at its lyric,
+playlists and blends navigate — while presence rides the existing player
+relay to show who is listening to what, tappable to play along. Blends are
+playlists owned by everyone in them: every member curates, the owner
+controls deletion, and a JSON mirror keeps each member's blends readable
+when the database is down. The app shells swap My Music for Messages, and
+Library absorbs My Music as a section beside the new Blends grid. The
+DCCNN registry grows the M and B domains so every new failure — from an
+empty message (MVA01) to blends needing the database (BEN01) — traces to
+one raise site.
+
+---
+
 ## v2.21.5 — Appearance shows appearance
 
 Opening Appearance used to serve a grab-bag: a "Layout shortcuts" group

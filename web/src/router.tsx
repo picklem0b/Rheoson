@@ -14,6 +14,8 @@ import NowPlaying from '@/pages/nowplaying/NowPlaying'
 import Playlist from '@/pages/playlist/Playlist'
 import Album from '@/pages/album/Album'
 import Artist from '@/pages/artist/Artist'
+import Messages from '@/pages/messages/Messages'
+import Blend from '@/pages/blend/Blend'
 import NotFound from '@/pages/errors/NotFound'
 import ErrorRedirect from '@/pages/errors/ErrorRedirect'
 import Landing from '@/pages/landing/Landing'
@@ -42,6 +44,8 @@ export const routes = [
       { path: 'search',           element: <Search /> },
       { path: 'library',          element: <Library /> },
       { path: 'downloads',        element: <Downloads /> },
+      { path: 'messages',         element: <Messages /> },
+      { path: 'blend/:id',        element: <Blend /> },
       { path: 'settings',         element: <Settings /> },
       { path: 'profile',          element: <Profile /> },
       { path: 'stats',            element: <ListeningStats /> },

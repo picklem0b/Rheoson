@@ -11,6 +11,7 @@ import { DownloadModal } from "@/components/ui/DownloadModal";
 import DownloadProgressBar from "@/components/downloads/DownloadProgressBar";
 import { AddToPlaylistSheet } from "@/components/playlist/AddToPlaylistSheet";
 import { TrackContextMenu } from "@/components/track/TrackContextMenu";
+import ShareToChatModal from "@/components/share/ShareToChatModal";
 import UpdateNotification from "@/components/ui/UpdateNotification";
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
@@ -192,6 +193,9 @@ export default function RootLayout() {
 
             {/* ── Universal track context menu (right-click / long-press) ── */}
             <TrackContextMenu />
+
+            {/* ── Share-to-chat modal (tracks, lyrics, playlists, blends) ── */}
+            <ShareToChatModal />
 
             {/* ── Taste onboarding (pick-your-artists) ──────── */}
             <OnboardingGate />

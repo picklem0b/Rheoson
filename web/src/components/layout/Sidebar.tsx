@@ -1,6 +1,6 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useState } from 'react'
-import { House, MagnifyingGlass, Books, DownloadSimple, UserCircle } from '@phosphor-icons/react'
+import { House, MagnifyingGlass, Books, ChatCircleDots, UserCircle } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ProfileSheet from '@/components/layout/ProfileSheet'
 import { useUser } from '@clerk/clerk-react'
@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { to: '/', icon: House, label: 'Home' },
   { to: '/search', icon: MagnifyingGlass, label: 'Search' },
   { to: '/library', icon: Books, label: 'Library' },
-  { to: '/downloads', icon: DownloadSimple, label: 'My Music' },
+  { to: '/messages', icon: ChatCircleDots, label: 'Messages' },
 ]
 
 /** Sidebar icon size token — matches the BottomNav rhythm. */

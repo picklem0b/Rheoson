@@ -229,6 +229,44 @@ ARTIST = _Section(
     },
 )
 
+MESSAGING = _Section(
+    "MESSAGING",
+    "M",
+    {
+        "CHAT_NOT_FOUND": "MNF01",
+        "PEER_NOT_FOUND": "MNF02",
+        "MESSAGE_EMPTY": "MVA01",
+        "MESSAGE_TOO_LONG": "MVA02",
+        "SHARE_INVALID": "MVA03",
+        "CONVERSATION_INVALID": "MVA04",
+        "SEND_FAILED": "MEX01",
+        "RATE_LIMITED": "MLM01",
+        "SERVICE_UNAVAILABLE": "MEN01",
+    },
+)
+
+BLENDS = _Section(
+    "BLENDS",
+    "B",
+    {
+        "NOT_FOUND": "BNF01",
+        "MEMBER_NOT_FOUND": "BNF02",
+        "NAME_REQUIRED": "BVA01",
+        "NAME_TOO_LONG": "BVA02",
+        "ID_INVALID": "BVA03",
+        "TRACKS_INVALID": "BVA04",
+        "MEMBERS_INVALID": "BVA05",
+        "ALREADY_MEMBER": "BCN01",
+        "ALREADY_TRACK": "BCN02",
+        "NAME_CONFLICT": "BCN03",
+        "DELETE_FORBIDDEN": "BCF01",
+        "TRACK_REMOVED": "BCF02",
+        "ADD_FAILED": "BEX01",
+        "REMOVE_FAILED": "BEX02",
+        "DB_UNAVAILABLE": "BEN01",
+    },
+)
+
 PLAYBACK = _Section(
     "PLAYBACK",
     "Y",
@@ -347,6 +385,32 @@ _REGISTRY: dict[str, str] = {
     "FVA02": "Provide a list of artist names",
     "FVA03": "Provide at least one artist name",
     "FEX01": "Artist follow could not be saved",
+    # ── Messaging ─────────────────────────────────────────────
+    "MNF01": "Conversation not found",
+    "MNF02": "That user isn't on Rheoson yet",
+    "MVA01": "Message can't be empty",
+    "MVA02": "Message is too long",
+    "MVA03": "Invalid share",
+    "MVA04": "Invalid conversation",
+    "MEX01": "Message could not be sent",
+    "MLM01": "Sending too fast — slow down a moment",
+    "MEN01": "Messaging needs the database",
+    # ── Blends ────────────────────────────────────────────────
+    "BNF01": "Blend not found",
+    "BNF02": "That member is not in this blend",
+    "BVA01": "Blend name is required",
+    "BVA02": "Blend name is too long",
+    "BVA03": "Invalid blend id",
+    "BVA04": "Invalid track list",
+    "BVA05": "Invalid member list",
+    "BCN01": "Already a member of this blend",
+    "BCN02": "Track is already in this blend",
+    "BCN03": "You already have a blend with that name",
+    "BCF01": "Only the owner can delete a blend",
+    "BCF02": "This track is not in the blend",
+    "BEX01": "Could not add the track to the blend",
+    "BEX02": "Could not remove the track from the blend",
+    "BEN01": "Blends need the database",
     # ── Playback / equalizer ──────────────────────────────────
     "YEN01": "Equalizer is not supported on this device",
 }

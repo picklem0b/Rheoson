@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { House, MagnifyingGlass, Books, DownloadSimple } from '@phosphor-icons/react'
+import { House, MagnifyingGlass, Books, ChatCircleDots } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui.store'
@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { to: '/', icon: House, label: 'Home' },
   { to: '/search', icon: MagnifyingGlass, label: 'Search' },
   { to: '/library', icon: Books, label: 'Library' },
-  { to: '/downloads', icon: DownloadSimple, label: 'My Music' },
+  { to: '/messages', icon: ChatCircleDots, label: 'Messages' },
 ]
 
 /** Icon size tokens — one rhythm across the shell (Phosphor uses px numbers). */

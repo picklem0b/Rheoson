@@ -15,7 +15,11 @@ import {
    Shuffle,
    X,
    MagnifyingGlass,
-   Link as LinkIcon
+   Link as LinkIcon,
+   DownloadSimple,
+   HardDrives,
+   SpinnerGap,
+   Users
 } from '@phosphor-icons/react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -32,6 +36,8 @@ import { getPlaylists } from "@/api/playlists.api";
 import { getAlbums, getArtists } from "@/api/library.api";
 import { tracksApi } from "@/api/tracks.api";
 import { playlistsApi } from "@/api/playlists.api";
+import { blendsApi } from "@/api/blends.api";
+import { useDownloads } from "@/hooks/downloads.hook";
 import { useQueue } from "@/hooks/queue.hook";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { useAuthStore } from "@/store/auth.store";
@@ -759,6 +765,20 @@ export default function Library() {
    const filteredPlaylists = (playlists ?? []).filter(p => matches(p.title));
    const filteredAlbums    = (albums ?? []).filter(a => matches(a.title));
    const filteredArtists   = (artists ?? []).filter(a => matches(a.name));
+
+   // ── My Music (merged from the old /downloads page) ────────
+   const { data: localTracks, isLoading: loadingLocal } = useQuery({
+      queryKey: ['tracks', 'all'],
+      queryFn: tracksApi.getAll,
+      staleTime: 10_000,
+      retry: 1,
+   });
+   const { activeJobs, completedJobs, cancel, clearDone } = useDownloads();
+   const visibleLocal = (localTracks ?? []).filter(t => matches(t.title));
+   const recentDone = [...completedJobs].sort((a, b) =>
+      (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
+   );
+
    const noMatches = (what: string, icon: React.ReactNode) => (
       <EmptySection
          icon={icon}
@@ -828,6 +848,9 @@ export default function Library() {
 
          <ScrollArea className='flex-1 px-4 lg:px-8 pb-10'>
             <div className='space-y-10 lg:mx-auto lg:max-w-6xl'>
+               {/* ── Blends — collaborative playlists ───────── */}
+               <BlendsSection query={query} />
+
                {/* ── Liked Songs ─────────────────────────────── */}
                <section>
                   <SectionHeading
@@ -967,6 +990,78 @@ export default function Library() {
                      />
                   )}
                </section>
+
+               {/* ── My Music — on-device library + download jobs ── */}
+               <section>
+                  <SectionHeading
+                     icon={<DownloadSimple className='h-4 w-4' />}
+                     title='My Music'
+                     count={localTracks?.filter(t => t.isDownloaded).length}
+                     actions={
+                        <Button
+                           variant='secondary'
+                           size='sm'
+                           onClick={() => navigate('/downloads')}
+                           title='Open download manager'>
+                           <HardDrives className='h-4 w-4' />
+                           Manager
+                        </Button>
+                     }
+                  />
+                  {activeJobs.length > 0 && (
+                     <div className='mb-3 space-y-1.5'>
+                        {activeJobs.slice(0, 3).map((job) => (
+                           <div key={job.id} className='flex items-center gap-3 px-3 py-2 rounded-2xl
+                                                       bg-[var(--bg-elevated)] text-sm'>
+                              <SpinnerGap className='h-4 w-4 animate-spin text-[var(--accent)] flex-shrink-0' />
+                              <span className='truncate flex-1 text-[var(--text-primary)]'>
+                                 {job.title ?? 'Downloading…'}
+                              </span>
+                              <span className='text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0'>
+                                 {Math.round(job.progress ?? 0)}%
+                              </span>
+                              <button
+                                 onClick={() => cancel(job.id)}
+                                 className='text-xs text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors'>
+                                 Cancel
+                              </button>
+                           </div>
+                        ))}
+                     </div>
+                  )}
+                  {loadingLocal ? (
+                     <div className='space-y-1'>
+                        {Array.from({ length: 4 }).map((_, i) => (
+                           <Skeleton key={i} className='h-14 rounded-2xl' />
+                        ))}
+                     </div>
+                  ) : visibleLocal.length === 0 ? (
+                     q
+                        ? noMatches('My Music', <DownloadSimple className='h-6 w-6 text-[var(--text-muted)]' />)
+                        : <EmptySection
+                             icon={<DownloadSimple className='h-6 w-6 text-[var(--text-muted)]' />}
+                             title='Nothing on this device yet'
+                             note='Download a song and it lives here — even offline'
+                          />
+                  ) : (
+                     <div className='space-y-1'>
+                        {visibleLocal.map((track) => (
+                           <LocalTrackRow
+                              key={track.id}
+                              track={track}
+                              onPlay={() => playTrack(track, visibleLocal.filter(t => t.isDownloaded))}
+                           />
+                        ))}
+                     </div>
+                  )}
+                  {recentDone.length > 0 && activeJobs.length === 0 && (
+                     <button
+                        onClick={clearDone}
+                        className='mt-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors'>
+                        Clear {recentDone.length} completed download{recentDone.length === 1 ? '' : 's'}
+                     </button>
+                 )}
+               </section>
             </div>
          </ScrollArea>
 
@@ -977,5 +1072,191 @@ export default function Library() {
             )}
          </AnimatePresence>
       </div>
+   );
+}
+
+// ── Blends section (collaborative playlists) ─────────────────
+
+function BlendsSection({ query }: { query: string }) {
+   const navigate = useNavigate();
+   const { toast } = useToast();
+   const meId = useAuthStore((s) => s.user?.id ?? '');
+   const [showCreate, setShowCreate] = useState(false);
+   const [nameDraft, setNameDraft] = useState('');
+
+   const { data: blends, isLoading } = useQuery({
+      queryKey: qk.blends(),
+      queryFn: blendsApi.list,
+      staleTime: 15_000,
+   });
+
+   const filtered = (blends ?? []).filter(b => !query || b.name.toLowerCase().includes(query.trim().toLowerCase()));
+
+   const create = useMutation({
+      mutationFn: () => blendsApi.create(nameDraft.trim()),
+      onSuccess: (blend) => {
+         void queryClient.invalidateQueries({ queryKey: qk.blends() });
+         setShowCreate(false);
+         setNameDraft('');
+         toast(`Blend "${blend.name}" created`, 'success', 2500);
+         navigate(`/blend/${blend.id}`);
+      },
+      onError: () => toast('Could not create the blend', 'error', 4000),
+   });
+
+   const queryClient = useQueryClient();
+
+   return (
+      <section>
+         <SectionHeading
+            icon={<Users className='h-4 w-4' />}
+            title='Blends'
+            count={blends?.length}
+            actions={
+               <Button variant='primary' size='sm' onClick={() => setShowCreate(true)}>
+                  <Users className='h-4 w-4' />
+                  New blend
+               </Button>
+            }
+         />
+         {isLoading ? (
+            <div className='grid grid-cols-2 gap-4 pb-2 sm:grid-cols-3 lg:grid-cols-4'>
+               {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className='h-40 rounded-2xl' />
+               ))}
+            </div>
+         ) : filtered.length === 0 ? (
+            query
+               ? noMatchesSafe('blends')
+               : <EmptySection
+                    icon={<Users className='h-6 w-6 text-[var(--text-muted)]' />}
+                    title='No blends yet'
+                    note='Start one with a friend — everyone in it adds songs'
+                 />
+         ) : (
+            <div className='grid grid-cols-2 gap-4 pb-2 sm:grid-cols-3 lg:grid-cols-4'>
+               {filtered.map((b, i) => (
+                  <motion.button
+                     key={b.id}
+                     initial={{ opacity: 0, scale: 0.92 }}
+                     animate={{ opacity: 1, scale: 1 }}
+                     transition={{ delay: i * 0.04, type: 'spring', damping: 22, stiffness: 260 }}
+                     whileTap={{ scale: 0.96 }}
+                     onClick={() => navigate(`/blend/${b.id}`)}
+                     className='text-left group'>
+                     <div className='w-full aspect-square rounded-3xl mb-2.5 relative overflow-hidden
+                                     border border-[var(--border)] shadow-md
+                                     bg-gradient-to-br from-violet-600 via-fuchsia-500 to-rose-500
+                                     flex items-center justify-center'>
+                        <Users className='w-10 h-10 text-white/90' weight='duotone' />
+                        <span className='absolute bottom-2 right-2 px-2 py-0.5 rounded-full
+                                         bg-black/45 backdrop-blur text-[10px] font-bold text-white'>
+                           {b.members.length} {b.members.length === 1 ? 'member' : 'members'}
+                        </span>
+                     </div>
+                     <p className='text-sm font-bold text-[var(--text-primary)] truncate leading-tight'>
+                        {b.name}
+                     </p>
+                     <p className='text-xs text-[var(--text-muted)] truncate mt-0.5'>
+                        {b.tracks.length} songs · {b.members.some(m => m === meId) ? 'yours' : 'shared with you'}
+                     </p>
+                  </motion.button>
+               ))}
+            </div>
+         )}
+
+         {/* Create-blend dialog */}
+         <AnimatePresence>
+            {showCreate && (
+               <div className='fixed inset-0 z-[95] flex items-center justify-center'>
+                  <div className='absolute inset-0 bg-black/60 backdrop-blur-sm' onClick={() => setShowCreate(false)} />
+                  <motion.div
+                     initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                     animate={{ opacity: 1, scale: 1, y: 0 }}
+                     exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                     className='relative z-10 w-full sm:max-w-sm mx-4 rounded-3xl bg-[var(--bg-surface)]
+                                 border border-[var(--border)] p-5 space-y-4'>
+                     <h2 className='text-lg font-bold text-[var(--text-primary)]'>Start a blend</h2>
+                     <input
+                        autoFocus
+                        value={nameDraft}
+                        maxLength={80}
+                        onChange={(e) => setNameDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                           if (e.key === 'Enter' && nameDraft.trim()) create.mutate();
+                        }}
+                        placeholder='Blend name'
+                        aria-label='Blend name'
+                        className='w-full h-11 px-4 rounded-2xl bg-[var(--bg-elevated)] text-sm
+                                   text-[var(--text-primary)] outline-none focus:ring-2 ring-[var(--accent)]'
+                     />
+                     <p className='text-xs text-[var(--text-muted)]'>
+                        You&apos;ll invite friends on the next screen.
+                     </p>
+                     <div className='flex gap-2 justify-end'>
+                        <button
+                           onClick={() => setShowCreate(false)}
+                           className='px-4 h-10 rounded-2xl text-sm text-[var(--text-secondary)]
+                                      hover:bg-[var(--bg-elevated)] transition-colors'>
+                           Cancel
+                        </button>
+                        <button
+                           onClick={() => nameDraft.trim() && create.mutate()}
+                           disabled={!nameDraft.trim() || create.isPending}
+                           className='px-4 h-10 rounded-2xl bg-[var(--accent)] text-white text-sm font-semibold
+                                      disabled:opacity-40'>
+                           Create
+                        </button>
+                     </div>
+                  </motion.div>
+               </div>
+            )}
+         </AnimatePresence>
+      </section>
+   );
+}
+
+function noMatchesSafe(what: string): React.ReactNode {
+   return (
+      <EmptySection
+         icon={<Users className='h-6 w-6 text-[var(--text-muted)]' />}
+         title='No matches'
+         note={`Nothing in ${what} matches the search`}
+      />
+   );
+}
+
+// ── Local (downloaded) track row for the My Music section ────
+
+function LocalTrackRow({ track, onPlay }: { track: Track; onPlay: () => void }) {
+   return (
+      <motion.button
+         whileTap={{ scale: 0.99 }}
+         onClick={onPlay}
+         className='w-full flex items-center gap-3 px-2.5 py-2 rounded-2xl
+                    hover:bg-[var(--bg-elevated)] transition-colors text-left group'>
+         {track.artworkUrl ? (
+            <img src={track.artworkUrl} alt='' className='w-11 h-11 rounded-xl object-cover flex-shrink-0' />
+         ) : (
+            <div className='w-11 h-11 rounded-xl flex-shrink-0 bg-[var(--bg-elevated)] flex items-center justify-center'>
+               <MusicNotes className='w-4 h-4 text-[var(--text-muted)]' />
+            </div>
+         )}
+         <div className='flex-1 min-w-0'>
+            <p className='text-sm font-semibold text-[var(--text-primary)] truncate'>{track.title}</p>
+            <p className='text-xs text-[var(--text-secondary)] truncate'>
+               {track.artist?.name ?? 'Unknown Artist'}
+            </p>
+         </div>
+         {track.isDownloaded && (
+            <span className='text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                             bg-[var(--success-bg,rgba(34,197,94,0.15))] text-[var(--success)] flex-shrink-0'>
+               On device
+            </span>
+         )}
+         <span className='text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0'>
+            {formatDuration(track.duration)}
+         </span>
+      </motion.button>
    );
 }

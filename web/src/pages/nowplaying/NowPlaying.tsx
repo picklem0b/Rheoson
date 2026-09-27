@@ -12,6 +12,7 @@ import {
    DotsThreeOutline,
    DownloadSimple,
    Microphone,
+   ShareNetwork,
    Queue,
    Plus,
    Play,
@@ -27,6 +28,7 @@ import {
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { useQueueStore } from "@/store/queue.store";
+import { useShareStore } from "@/store/share.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useQueue } from "@/hooks/queue.hook";
 import { usePlayer } from "@/hooks/player.hook";
@@ -56,6 +58,7 @@ const MENU_ITEMS = [
    { icon: Heart, label: "Favourite", action: "like" },
    { icon: DownloadSimple, label: "Download", action: "download" },
    { icon: Plus, label: "Add to queue", action: "queue-add" },
+   { icon: ShareNetwork, label: "Share to chat", action: "share-chat" },
    { icon: LinkIcon, label: "Copy link", action: "copy-link" },
    { icon: Microphone, label: "View lyrics", action: "lyrics" }
 ];
@@ -163,7 +166,8 @@ function LyricsTab({
    synced,
    isLoading,
    isPlaying,
-   onSeek
+   onSeek,
+   track
 }: {
    lines: { text: string; time?: number }[];
    activeLine: number;
@@ -171,7 +175,21 @@ function LyricsTab({
    isLoading: boolean;
    isPlaying: boolean;
    onSeek?: (seconds: number) => void;
+   track: Track | null;
 }) {
+   const openShare = useShareStore((s) => s.openShare);
+
+   const shareLyrics = () => {
+      if (!track) return;
+      openShare({
+         kind: "lyrics",
+         id: track.id,
+         title: track.title,
+         subtitle: track.artist?.name,
+         artworkUrl: track.artworkUrl,
+         snippet: lines.slice(0, 4).map((l) => l.text).join("\n"),
+      });
+   };
    const [follow, setFollow] = useState(true);
    const lineRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
@@ -228,6 +246,16 @@ function LyricsTab({
                         : "bg-white/5 text-white/50"
                   )}>
                   {follow ? "Following lyrics" : "Auto-scroll off"}
+               </button>
+            )}
+            {track && (
+               <button
+                  onClick={shareLyrics}
+                  aria-label='Share these lyrics to chat'
+                  title='Share lyrics'
+                  className='w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center
+                             text-white/50 hover:text-white transition-colors'>
+                  <ShareNetwork className='w-3.5 h-3.5' />
                </button>
             )}
          </div>
@@ -762,6 +790,7 @@ export default function NowPlaying() {
    const isPlaying = usePlayerStore(s => s.isPlaying);
    const isLoading = usePlayerStore(s => s.isLoading);
    const { openDownloadModal } = useUIStore();
+   const openShare = useShareStore((s) => s.openShare);
    const { seek } = usePlayer();
 
    const {
@@ -819,6 +848,15 @@ export default function NowPlaying() {
             addToQueue(currentTrack);
             break;
          }
+         case "share-chat":
+            openShare({
+               kind: "track",
+               id: currentTrack.id,
+               title: currentTrack.title,
+               subtitle: currentTrack.artist?.name,
+               artworkUrl: currentTrack.artworkUrl,
+            });
+            break;
          case "copy-link": {
             const url = `${window.location.origin}/search?q=${encodeURIComponent(currentTrack.title + " " + (currentTrack.artist?.name ?? ''))}`;
             navigator.clipboard.writeText(url).catch(() => {});
@@ -1033,6 +1071,7 @@ export default function NowPlaying() {
                            isLoading={lyricsLoading}
                            isPlaying={isPlaying}
                            onSeek={seek}
+                           track={currentTrack}
                         />
                      )}
                      {tab === "creator" && (

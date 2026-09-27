@@ -4,6 +4,7 @@ import { Play, ListPlus, DownloadSimple, Heart, ShareNetwork, Radio, EyeSlash } 
 import { useQueryClient } from '@tanstack/react-query'
 import { invalidateLikeSurfaces } from '@/lib/queryInvalidation'
 import { useContextMenuStore } from '@/store/contextMenu.store'
+import { useShareStore } from '@/store/share.store'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayer } from '@/hooks/player.hook'
 import { usePlayerStore } from '@/store/player.store'
@@ -50,6 +51,7 @@ function useMenuActions(track: Track, onClose: () => void) {
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const openPlaylistMenu = usePlaylistMenuStore((s) => s.openForTrack)
   const openDownloadModal = useUIStore((s) => s.openDownloadModal)
+  const openShare = useShareStore((s) => s.openShare)
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
@@ -126,8 +128,16 @@ function useMenuActions(track: Track, onClose: () => void) {
       label: 'Share',
       icon: <ShareNetwork className="w-4 h-4" />,
       run: async () => {
-        await shareTrack(track)
         onClose()
+        // Send it straight to a friend (chat), with the OS share sheet
+        // still available from the NowPlaying overflow for links.
+        openShare({
+          kind: 'track',
+          id: track.id,
+          title: track.title,
+          subtitle: track.artist?.name,
+          artworkUrl: track.artworkUrl,
+        })
       },
     },
     {
@@ -166,25 +176,6 @@ function useMenuActions(track: Track, onClose: () => void) {
   ]
 
   return actions
-}
-
-async function shareTrack(track: Track) {
-  const text = `${track.title} — ${track.artist?.name ?? 'Unknown Artist'}`
-  const url = track.youtubeId
-    ? `https://music.youtube.com/watch?v=${track.youtubeId}`
-    : undefined
-
-  if (typeof navigator !== 'undefined' && navigator.share) {
-    try {
-      await navigator.share({ title: track.title, text, url })
-      return
-    } catch {
-      // user cancelled — fall through to clipboard
-    }
-  }
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-    await navigator.clipboard.writeText(url ? `${text}\n${url}` : text)
-  }
 }
 
 // ── Shared row rendering ──────────────────────────────────────
