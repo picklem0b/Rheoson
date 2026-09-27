@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "software-architecture-analysis": {
+      "source": "magnus919/agent-skills",
+      "sourceType": "github",
+      "skillPath": "software-architecture-analysis/SKILL.md",
+      "computedHash": "c883afad08be407374ee745b13f57dc20aabd32a0670cb6d70afd03711dc3a03"
+    }
+  }
+}
