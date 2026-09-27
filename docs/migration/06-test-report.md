@@ -18,7 +18,11 @@
 
 Workspace gates: `turbo run typecheck lint test build` → **12/12 tasks**, no
 warnings. `pyflakes app tests conftest.py` clean. `gofmt -l` empty,
-`go vet ./...` clean. `next build --webpack` prerenders 10 routes.
+`go vet ./...` clean. `next build --webpack` emits 11 app routes — 8 prerendered
+static (`/`, `/_not-found`, `/home`, `/search`, `/library`, `/downloads`,
+`/settings`, `/stats`) and 3 on demand (`/error/[code]`, `/playlists/[id]`,
+`/sign-in/[[...rest]]`) — plus the middleware proxy. Nothing is exported that no
+build reads.
 
 The engine suite was run **three times end to end** after the last fix, because
 it is the one suite that drives real subprocesses: a green single run is not
