@@ -303,6 +303,6 @@ Commits: Conventional Commits, one logical change each — `feat(scope)`, `fix(s
 
 Annotated tags are reserved for milestones and releases only — never per-phase, never per-commit. Format: `vMAJOR.MINOR.PATCH: Title`, then `Type`, `Scope`, `Impact`, `Status`, then only the sections that carry meaning (`Summary`, `Changes`, `Breaking Changes`, `Fixes`, `Security`, `Performance`, `Validation`, `Migration`, `Notes`). The tag message must stand alone as a durable record of what changed, why, and how it was validated.
 
-Semver: the experiment runs its own `v0.x.y` unstable lane — it never collides with the `v2.x` production line on `dev`/`main`. Promotion at Phase 8 sign-off becomes `v3.0.0`.
+Semver: the experiment runs its own **`next-vX.Y.Z`** tag lane (dedicated prefix — the repo's historical Shulker-era v0.x/v1.x tags are never reused); it never collides with the `v2.x` production line on `dev`/`main`. Promotion at Phase 8 sign-off becomes `v3.0.0`.
 
 Pushing is never automatic. Commits and tags stay local; pushing is an explicit manual action by the owner.
