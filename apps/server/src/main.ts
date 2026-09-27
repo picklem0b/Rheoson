@@ -15,6 +15,7 @@ import { registerMeRoutes } from './routes/me.routes.js';
 import { registerMessagingRoutes } from './routes/messaging.routes.js';
 import { registerPlaylistRoutes } from './routes/playlists.routes.js';
 import { registerSearchRoutes } from './routes/search.routes.js';
+import { registerSpotifyRoutes } from './routes/spotify.routes.js';
 import { registerTrackRoutes } from './routes/tracks.routes.js';
 import { closeBus, initBus } from './realtime/bus.js';
 
@@ -58,6 +59,7 @@ registerHealthRoutes(app);
 registerMeRoutes(app);
 registerLibraryRoutes(app);
 registerSearchRoutes(app);
+registerSpotifyRoutes(app);
 registerPlaylistRoutes(app);
 registerTrackRoutes(app);
 registerDownloadRoutes(app);

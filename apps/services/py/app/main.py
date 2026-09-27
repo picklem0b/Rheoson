@@ -10,6 +10,8 @@ One job per endpoint, no session state, no database of accounts:
 * ``GET /library/*`` — what is on this disk, grouped
 * ``GET /search`` — local + YouTube, one answer
 * ``GET /lyrics`` — plain and synced lyrics for a track
+* ``GET /spotify/resolve`` — a Spotify share link → matched YouTube tracks
+* ``POST /spotify/match`` — batch YouTube matching for Spotify track rows
 * ``/downloads/*`` — the queue, executed here because the tools live here
 
 Two rules hold across every route: a failure carries its DCCNN chip, and a
@@ -35,6 +37,7 @@ from app.core.errors import EngineError
 from app.services import downloads, identity, library, metadata, resolve
 from app.services import lyrics as lyrics_service
 from app.services import search as search_service
+from app.services import spotify as spotify_service
 
 log = structlog.get_logger()
 settings = engine_settings.load()
@@ -69,6 +72,7 @@ CHUNK = 64 * 1024
 async def lifespan(_app: FastAPI):
     """Boot the durable bits: the identity map and the persisted queue."""
     identity.init()
+    spotify_service.init()
     downloads.manager.load()
     log.info(
         "engine.ready",
@@ -450,6 +454,83 @@ async def search(
     take = max(1, min(limit, 50))
     result = search_service.search(query, include_remote=remote)
     return JSONResponse(content={**result, "limit": take})
+
+
+# ── Spotify share links ───────────────────────────────────────
+
+
+def _spotify_payload_error(exc: spotify_service.SpotifyError) -> JSONResponse:
+    """The service's coded failure on the wire — same shape as every route."""
+    return _fail(exc.status, exc.code, exc.detail)
+
+
+@app.get("/spotify/resolve")
+async def spotify_resolve(
+    request: Request,
+    url: str = Query(default=""),
+    match: bool = Query(default=True),
+) -> JSONResponse:
+    """A Spotify share link → the engine's Track shape.
+
+    ``match=false`` skips the YouTube lookups: the caller gets pure Spotify
+    metadata, fast, and can match later in a batch. Each track carries either
+    a ``videoId`` (playable, streamable, downloadable) or ``matchError``.
+    """
+    if not _authorized(request):
+        return _fail(401, "SUP01", "Engine access is not authorized")
+    if not url.strip():
+        return _fail(400, "RVA01")
+    try:
+        return JSONResponse(content=spotify_service.resolve_link(url, match=match))
+    except spotify_service.SpotifyError as exc:
+        return _spotify_payload_error(exc)
+
+
+@app.post("/spotify/match")
+async def spotify_match(request: Request) -> JSONResponse:
+    """Batch YouTube matching for Spotify track rows.
+
+    The client keeps unmatched rows locally (a playlist import may match 30
+    of 50); this fills the rest without re-fetching Spotify metadata that
+    has not changed.
+    """
+    if not _authorized(request):
+        return _fail(401, "SUP01", "Engine access is not authorized")
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _fail(400, "RVA03", "Body must be JSON with a tracks list")
+    rows = body.get("tracks") if isinstance(body, dict) else None
+    if not isinstance(rows, list) or not rows:
+        return _fail(400, "RVA03", "A non-empty tracks list is required")
+    if len(rows) > spotify_service.MAX_BATCH:
+        return _fail(400, "RVA03", f"At most {spotify_service.MAX_BATCH} tracks per batch")
+
+    clean: list[dict] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        spotify_id = str(row.get("spotifyId") or "").strip()
+        if not spotify_id or len(spotify_id) > spotify_service.MAX_ID_LEN:
+            continue
+        clean.append(
+            {
+                "spotifyId": spotify_id,
+                "title": str(row.get("title") or "")[:200],
+                "artist": str(row.get("artist") or "Unknown Artist")[:200],
+                "durationMs": row.get("durationMs") if isinstance(row.get("durationMs"), int) else None,
+                "artworkUrl": row.get("artworkUrl"),
+            }
+        )
+    if not clean:
+        return _fail(400, "RVA03", "No usable tracks in the batch")
+
+    return JSONResponse(content={"tracks": [_t(s) for s in spotify_service.match_tracks(clean)]})
+
+
+def _t(track: dict) -> dict:
+    """Wire dict for a matched Spotify row — id or the honest unmatched state."""
+    return spotify_service._to_track(track)
 
 
 # ── Lyrics ────────────────────────────────────────────────────

@@ -210,6 +210,31 @@ export interface Profile {
   createdAt: string;
 }
 
+export interface SpotifyTrack {
+  id: string;
+  videoId?: string;
+  title: string;
+  artist: { id: string; name: string };
+  album: { id: string; title: string };
+  duration?: number;
+  artworkUrl?: string | null;
+  source: string;
+  isDownloaded: boolean;
+  /** Set when the track exists in Spotify but has no YouTube match yet. */
+  unmatched?: boolean;
+  matchError?: string;
+}
+
+export type SpotifyResolve =
+  | { kind: 'track'; track: SpotifyTrack }
+  | {
+      kind: 'album' | 'playlist' | 'artist';
+      title: string;
+      subtitle: string;
+      artworkUrl?: string | null;
+      tracks: SpotifyTrack[];
+    };
+
 // ── Endpoints ─────────────────────────────────────────────────
 
 export const api = {
@@ -254,6 +279,14 @@ export const api = {
       `/api/search?q=${encodeURIComponent(query)}&remote=${remote ? 'true' : 'false'}`,
       { quiet: true },
     ),
+
+  /** A Spotify share link → matched, playable tracks. Quiet: the search
+   * page renders the failure with its code, not an error page. */
+  spotifyResolve: (url: string) =>
+    request<SpotifyResolve>(`/api/spotify/resolve?url=${encodeURIComponent(url)}`, { quiet: true }),
+  /** Batch YouTube matching for Spotify rows kept unmatched earlier. */
+  spotifyMatch: (tracks: Array<{ spotifyId: string; title: string; artist: string; durationMs?: number | null; artworkUrl?: string | null }>) =>
+    request<{ tracks: SpotifyTrack[] }>('/api/spotify/match', { method: 'POST', body: { tracks }, quiet: true }),
 
   lyrics: (title: string, artist: string, duration?: number) => {
     const params = new URLSearchParams({ title, artist });

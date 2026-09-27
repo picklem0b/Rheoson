@@ -147,3 +147,43 @@ two defects, both of which a stub could never have produced.
 | A refusal is retried with a **fresh** resolve, not the same one | The resolved URL is the problem, not the moment, so a blind retry re-fetches the URL that just failed. The engine caches direct URLs for hours, so "re-mint" means re-resolution — without `?fresh=1` the retry is a no-op that looks like a retry |
 | The live tests are skipped unless `RHEOSON_LIVE=1` | They talk to YouTube, move megabytes and take ~15 s. Keeping them in the default suite would make CI honest about the wrong thing: a stub is what a hermetic suite needs, and the live suite is what a *release* needs |
 | The live test asserts a container, not a title | It checks the opening bytes are ISO base media (`ftyp`), never a specific video's metadata. A re-uploaded video is not a regression, and a test that says it is would be deleted the first time it cried wolf |
+
+## M4 — Spotify import (complete · `next-v0.14.0`)
+
+Done when **a Spotify share link — track, album, playlist or artist — resolves
+to playable, downloadable tracks**. The engine grew a `spotify` service and two
+routes; the server grew a validating proxy; the search page grew an import flow.
+
+### Where the metadata comes from
+
+`open.spotify.com/embed/<kind>/<id>` — measured live, no credentials:
+
+| Kind | Payload | Notes |
+| --- | --- | --- |
+| `track` | name, artists[], duration, release date, cover (`visualIdentity.image[]`), 30 s preview | preview is **not** used — Rheoson plays YouTube audio |
+| `album` | + full `trackList` | every track with its `spotify:track:` URI |
+| `playlist` | + first **50** `trackList` rows | unplayable (market-restricted) rows are skipped |
+| `artist` | + **top 10** `trackList` rows | the embed payload's own cap |
+
+The anonymous token endpoint is blocked (403) — and irrelevant, because
+Rheoson never plays Spotify audio. A share link is *identity*, not bytes.
+
+### Decisions made during the Spotify slice
+
+| Decision | Why |
+| --- | --- |
+| Match on YouTube **lazily, per track, cached forever** in `.spotify_map.sqlite` | A matched recording is a fact, not a trend. Re-importing a playlist costs zero searches; a 50-track playlist spends exactly 50 one-result searches, once |
+| Matching runs in **chunks of 10 from the client** | One 50-track call would risk one long all-or-nothing timeout. Ten chunks surface progress and a partial success is a success |
+| The same DCCNN codes are reused (`RVA02` unsupported, `RUP01` upstream, `RNF01` no match, `PUP01` no playable tracks, `DEN02` no tool) | No new codes were needed; the search domain already owned every failure this feature can produce. Registry churn across two languages was not justified |
+| An unmatched track renders, flagged, with `matchError` | Hiding it would lie about the playlist's contents. `RNF01` ("no lyrics/match found") is the honest answer, and the row offers a retry |
+| `isDownloaded` is re-annotated from the identity map at answer time | A matched track that is already on disk must not present itself as stream-only |
+| The server proxies with validation, the engine does the work | Rows reach a subprocess's neighbourhood, so ids are length-bounded and titles trimmed server-side; the URL is length-capped and encoded once |
+
+### Surfaces
+
+| Layer | File | What |
+| --- | --- | --- |
+| engine | `apps/services/py/app/services/spotify.py` | parsing, embed resolution, matcher, cache |
+| engine | `/spotify/resolve`, `/spotify/match` | the two routes, `match=false` skips YouTube |
+| server | `spotify.service.ts` + `spotify.routes.ts` | validation, cleaning, translation |
+| client | `lib/spotifyLink.ts`, search page import flow | paste → metadata → progressive match → play |
