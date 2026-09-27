@@ -1,0 +1,36 @@
+[project]
+name = "rheoson-engine"
+version = "0.1.0"
+description = "Rheoson engine — the muscles only Python has: yt-dlp, ffmpeg, tagging"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "httpx>=0.27",
+    "structlog>=24.4",
+]
+
+[project.optional-dependencies]
+# yt-dlp is intentionally NOT a hard dependency: on a service host the engine
+# drives whatever binary the operator installed, and pinning it here would
+# fight the daily-update repair path the toolchain owns.
+dev = [
+    "pytest>=8.0",
+    "pyflakes>=3.2",
+    "yt-dlp>=2025.1.1",
+    # Starlette's TestClient deprecates httpx in favour of httpx2; installing
+    # it keeps the suite warning-free instead of silencing the warning.
+    "httpx2>=2.13.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
