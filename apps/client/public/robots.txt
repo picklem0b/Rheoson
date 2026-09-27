@@ -1,0 +1,4 @@
+# The migration candidate. Deliberately not indexed until Phase 8 sign-off —
+# the production site is the only Rheoson that should appear in search results.
+User-agent: *
+Disallow: /

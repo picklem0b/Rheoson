@@ -1,0 +1,66 @@
+# Rheoson Next — production overlay.
+#
+#   docker compose -f infra/compose.yml -f infra/compose.prod.yml up -d --build
+#
+# Differences from the development stack, and nothing else:
+#   * Caddy owns the edge and the only published ports.
+#   * Every other service is reachable only on the compose network.
+#   * Restart policies are `always`, not `unless-stopped`.
+#
+# Note: compose replaces lists rather than merging them, so an empty `ports`
+# list is what genuinely unpublishes a service.
+
+name: rheoson-next
+
+services:
+  postgres:
+    ports: []
+    restart: always
+
+  redis:
+    ports: []
+    restart: always
+
+  meilisearch:
+    ports: []
+    restart: always
+
+  engine:
+    ports: []
+    restart: always
+
+  relay:
+    ports: []
+    restart: always
+
+  server:
+    ports: []
+    environment:
+      NODE_ENV: production
+    restart: always
+
+  client:
+    ports: []
+    environment:
+      NODE_ENV: production
+    restart: always
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - client
+      - server
+    restart: always
+
+volumes:
+  caddy-data:
+  caddy-config:

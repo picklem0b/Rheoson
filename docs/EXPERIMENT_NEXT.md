@@ -1,6 +1,6 @@
 # Rheoson Next — the experiment plan
 
-> Branch: `experiment/nextjs` · Status: **PLANNING — approved, awaiting GO** (no code yet) · `web/` + `api/` stay running and shippable until the parity verdict.
+> Branch: `experiment/nextjs` · Status: **M1 in progress** (see `docs/migration/05-log.md` for the shipped slices and their tags) · `web/` + `api/` stay running and shippable until the parity verdict.
 
 The migration: React → Next.js (full website + PWA, no APK), Python core → TypeScript, Python kept only as a slim engine. Polyglot services, each doing only what it is elite at.
 

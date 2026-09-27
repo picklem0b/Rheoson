@@ -1,0 +1,218 @@
+name: Next CI
+
+# The migration lane. Deliberately separate from `ci.yml`, which still guards
+# the shipping app on main/dev — the experiment must not be able to block a
+# production release, and production must not be able to hide an experiment
+# failure. Nothing here pushes images; publishing is a manual, deliberate act.
+
+on:
+   push:
+      branches: [experiment/nextjs]
+      paths:
+         - "apps/**"
+         - "packages/**"
+         - "infra/**"
+         - ".github/workflows/next-ci.yml"
+         - "package.json"
+         - "pnpm-lock.yaml"
+         - "pnpm-workspace.yaml"
+         - "turbo.json"
+         - "tsconfig.base.json"
+   pull_request:
+      branches: [experiment/nextjs]
+   workflow_dispatch:
+
+concurrency:
+   group: next-ci-${{ github.ref }}
+   cancel-in-progress: true
+
+env:
+   # The server fails fast without a database URL; the tests never open a
+   # connection, so a placeholder is the honest value here.
+   DATABASE_URL: postgres://rheoson:rheoson@localhost:5432/rheoson
+
+jobs:
+   shared:
+      name: Shared — contracts, registry drift, validation
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up pnpm
+           uses: pnpm/action-setup@v4
+
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 22
+              cache: pnpm
+              cache-dependency-path: pnpm-lock.yaml
+
+         - name: Install workspace
+           run: pnpm install --frozen-lockfile
+
+         - name: Verify the exported error registry is current
+           # A committed artifact that drifted from the registry is a silent
+           # contract break, so regenerate and fail if anything moved.
+           run: |
+              pnpm --filter @rheoson/shared export:error-registry
+              git diff --exit-code -- packages/shared/generated/error-codes.json
+
+         - name: Typecheck, lint, test, build
+           run: pnpm exec turbo run typecheck lint test build --filter=@rheoson/shared
+
+   server:
+      name: Server — API core
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up pnpm
+           uses: pnpm/action-setup@v4
+
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 22
+              cache: pnpm
+              cache-dependency-path: pnpm-lock.yaml
+
+         - name: Install workspace
+           run: pnpm install --frozen-lockfile
+
+         - name: Typecheck, lint, test, build
+           run: pnpm exec turbo run typecheck lint test build --filter=@rheoson/server...
+
+   client:
+      name: Client — Next.js website
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up pnpm
+           uses: pnpm/action-setup@v4
+
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 22
+              cache: pnpm
+              cache-dependency-path: pnpm-lock.yaml
+
+         - name: Install workspace
+           run: pnpm install --frozen-lockfile
+
+         - name: Typecheck, lint, test, build
+           # The client typecheck depends on its own build, so route types
+           # exist before tsc reads them.
+           run: pnpm exec turbo run typecheck lint test build --filter=@rheoson/client...
+
+   relay:
+      name: Relay — Go
+      runs-on: ubuntu-latest
+      defaults:
+         run:
+            working-directory: apps/services/go
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up Go
+           uses: actions/setup-go@v5
+           with:
+              go-version: "1.26"
+              cache-dependency-path: apps/services/go/go.mod
+
+         - name: Formatting
+           run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+         - name: Vet
+           run: go vet ./...
+
+         - name: Test (race detector on)
+           run: go test -race ./...
+
+   engine:
+      name: Engine — Python
+      runs-on: ubuntu-latest
+      defaults:
+         run:
+            working-directory: apps/services/py
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up uv
+           uses: astral-sh/setup-uv@v6
+
+         - name: Install engine dependencies
+           run: uv sync --extra dev
+
+         - name: Lint (pyflakes)
+           run: uv run python -m pyflakes app tests conftest.py
+
+         - name: Test suite
+           # No network, no yt-dlp install required: the tests drive a stub.
+           run: uv run python -m pytest -q
+
+   docker:
+      name: Docker — image builds
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up Buildx
+           uses: docker/setup-buildx-action@v3
+
+         - name: Build relay image
+           uses: docker/build-push-action@v6
+           with:
+              context: .
+              file: infra/docker/relay.Dockerfile
+              push: false
+              cache-from: type=gha,scope=relay
+              cache-to: type=gha,scope=relay,mode=max
+
+         - name: Build engine image
+           uses: docker/build-push-action@v6
+           with:
+              context: .
+              file: infra/docker/engine.Dockerfile
+              push: false
+              cache-from: type=gha,scope=engine
+              cache-to: type=gha,scope=engine,mode=max
+
+         - name: Build server image
+           uses: docker/build-push-action@v6
+           with:
+              context: .
+              file: infra/docker/server.Dockerfile
+              push: false
+              cache-from: type=gha,scope=server
+              cache-to: type=gha,scope=server,mode=max
+
+         - name: Build client image
+           uses: docker/build-push-action@v6
+           with:
+              context: .
+              file: infra/docker/client.Dockerfile
+              push: false
+              cache-from: type=gha,scope=client
+              cache-to: type=gha,scope=client,mode=max
+
+   compose:
+      name: Compose — config validation
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Validate development stack
+           run: docker compose -f infra/compose.yml config --quiet
+
+         - name: Validate production overlay
+           run: docker compose -f infra/compose.yml -f infra/compose.prod.yml config --quiet

@@ -1,0 +1,131 @@
+# Rheoson Next — development parity stack.
+#
+#   docker compose -f infra/compose.yml up --build
+#
+# Every service is here so the optional-service discipline can actually be
+# tested: stop any one of them and the stack must still play music.
+#
+# Secrets come from infra/.env (copy infra/.env.example). Defaults below are
+# development values and are intentionally not secret.
+
+name: rheoson-next
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rheoson}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rheoson}
+      POSTGRES_DB: ${POSTGRES_DB:-rheoson}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rheoson} -d ${POSTGRES_DB:-rheoson}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    # Queue and cache only: nothing here is worth persisting, and a Redis that
+    # silently outlives a restart hides bugs in the code that should rebuild it.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-dev-master-key}
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meili:/meili_data
+    ports:
+      - "7700:7700"
+
+  engine:
+    build:
+      context: ..
+      dockerfile: infra/docker/engine.Dockerfile
+    environment:
+      ENGINE_PORT: 8081
+      ENGINE_DATA_DIR: /data
+      ENGINE_TOKEN: ${ENGINE_TOKEN:-dev-engine-token}
+    volumes:
+      - engine-data:/data
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  relay:
+    build:
+      context: ..
+      dockerfile: infra/docker/relay.Dockerfile
+    environment:
+      RELAY_PORT: 8080
+      CACHE_DIR: /cache
+      RELAY_TOKEN: ${RELAY_TOKEN:-dev-relay-token}
+      # The engine is the resolver: the relay asks it where the bytes are.
+      UPSTREAM_RESOLVER: http://engine:8081
+    volumes:
+      - relay-cache:/cache
+    ports:
+      - "8080:8080"
+    depends_on:
+      - engine
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ..
+      dockerfile: infra/docker/server.Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgres://${POSTGRES_USER:-rheoson}:${POSTGRES_PASSWORD:-rheoson}@postgres:5432/${POSTGRES_DB:-rheoson}
+      REDIS_URL: redis://redis:6379
+      ENGINE_URL: http://engine:8081
+      ENGINE_TOKEN: ${ENGINE_TOKEN:-dev-engine-token}
+      RELAY_URL: http://relay:8080
+      RELAY_TOKEN: ${RELAY_TOKEN:-dev-relay-token}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_WEBHOOK_SECRET: ${CLERK_WEBHOOK_SECRET:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ..
+      dockerfile: infra/docker/client.Dockerfile
+    environment:
+      NODE_ENV: production
+      # Browser-side calls go to the public origin; the server is a different
+      # origin by design, never proxied through Next.
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  meili:
+  relay-cache:
+  engine-data:

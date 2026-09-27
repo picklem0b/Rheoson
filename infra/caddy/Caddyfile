@@ -1,0 +1,43 @@
+# Caddy — the only public surface.
+#
+# Two upstreams, one origin: the API is a path rather than a hostname, which
+# is what keeps the browser same-origin and the CORS policy boring. TLS is
+# automatic once SITE_ADDRESS is a real domain.
+
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+
+	# Server-side request identity and logs, without the response bodies (the
+	# byte path is large and Caddy logging it would be the loudest thing here).
+	log {
+		output stdout
+		format console
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		# The byte path is proxied, so Caddy must not rewrite its range headers.
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy server:4000 {
+			# Streaming responses are long-lived: no buffering, no timeouts
+			# that would cut a track off mid-play.
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+		}
+	}
+
+	handle /health {
+		reverse_proxy server:4000
+	}
+
+	handle {
+		reverse_proxy client:3000
+	}
+}

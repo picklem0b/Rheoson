@@ -85,3 +85,6 @@ apps/desktop/src-tauri/gen/schemas/
 infra/postgres/data/
 infra/redis/data/
 infra/meilisearch/data/
+
+# apps/* (Rheoson Next) — local compose env
+infra/.env

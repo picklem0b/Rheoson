@@ -5,14 +5,16 @@ import type { NextConfig } from 'next';
  * (different origin) — client calls go to the public origin, never
  * proxied through Next.
  *
- * `output: 'standalone'` is deliberately NOT set here: combined with a
- * pnpm workspace it breaks Turbopack builds off-Docker (Invalid symlink /
- * distDirRoot). It gets re-enabled in the M1 Dockerfile, where the build
- * runs in-container against a hoisted layout — the environment it was
- * designed for.
+ * `output: 'standalone'` produces the self-contained server bundle the
+ * container image ships. It requires the build to run from the workspace
+ * root (where `next` can resolve pnpm's hoisted layout), so it is enabled
+ * only when `NEXT_STANDALONE=1` — which the Dockerfile sets. Local builds
+ * and turborepo keep the plain output, where a standalone bundle would only
+ * add tracing work for an artifact nothing reads.
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  output: process.env.NEXT_STANDALONE === '1' ? 'standalone' : undefined,
 };
 
 export default nextConfig;
