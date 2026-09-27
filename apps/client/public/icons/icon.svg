@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rheoson">
+  <rect width="512" height="512" rx="112" fill="#080809" />
+  <circle cx="256" cy="256" r="176" fill="none" stroke="#e4253b" stroke-width="28" />
+  <path d="M196 168h76a62 62 0 0 1 0 124h-76z" fill="#e4253b" />
+  <path d="M196 292h64l62 68h-84l-42-46z" fill="#e4253b" />
+</svg>
