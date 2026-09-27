@@ -9,6 +9,10 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "httpx>=0.27",
     "structlog>=24.4",
+    # Tag read/write for the library and the download path. Imported
+    # defensively (see services/metadata.py), so a host without it loses
+    # tagging and keeps everything else.
+    "mutagen>=1.47",
 ]
 
 [project.optional-dependencies]

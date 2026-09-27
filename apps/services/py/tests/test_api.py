@@ -99,7 +99,9 @@ def test_probe_reports_mime_and_length(monkeypatch: pytest.MonkeyPatch, ytdlp_pr
     monkeypatch.setattr(resolve, "probe_direct", fake_probe)
 
     body = client.get("/probe/dQw4w9WgXcQ").json()
-    assert body == {"mime": "audio/webm", "bytes": 4096}
+    # `local` tells the caller which tier answered: false means the length came
+    # from the CDN, true means it came from `stat` on this disk.
+    assert body == {"mime": "audio/webm", "bytes": 4096, "local": False}
 
 
 def test_probe_failure_is_bad_gateway(monkeypatch: pytest.MonkeyPatch, ytdlp_present: None) -> None:
