@@ -85,9 +85,34 @@ Termux is not a design constraint:
 - **GitHub Actions** — CI matrix across Node, Go, Python; images published on main.
 - **Scale path** — any Docker host (VPS, Fly.io, Railway, or bigger) with zero code changes; services-optional design kept for resilience, not device limits.
 
-## Phases — each ends with something visible
+## The eight-phase workflow (multi-model)
 
-| # | Phase | Done when |
+The migration runs as a structured relay between models. The user controls
+the model per session; **the repo is the baton** — every phase writes its
+output into `docs/migration/` so the next phase (and the next model) picks
+up files, not chat memory.
+
+| # | Phase | Work | Default model | Output (committed) |
+| --- | --- | --- | --- | --- |
+| 1 | Discover | inspect web, api, services, deps, configs, data flows, architecture relationships | GLM 5.3 Flash | `docs/migration/01-discovery.md` |
+| 2 | Architecture | constraints, risks, technology comparison, target architecture | GLM 5.3 Flash + Solar Pro 4 | `docs/migration/02-architecture.md` + ADRs |
+| 3 | Documentation | technical docs, dependency references, system specs, diagrams, conventions, runbooks | Solar Mini 4 + Solar Pro 4 | `docs/migration/03-*` |
+| 4 | Migration plan | dependency-aware sequencing, milestones, prerequisites, risks, rollback, acceptance conditions | GLM 5.3 Flash | `docs/migration/04-plan.md` |
+| 5 | Implementation | incremental execution, always-green, continuous validation | DeepSeek V4.1 Flash | code + `docs/migration/05-log.md` |
+| 6 | Testing | unit, integration, contract, e2e, regression, performance, migration-specific | DeepSeek V4.1 Flash | tests + `docs/migration/06-test-report.md` |
+| 7 | Adversarial review | hunt hidden failures in architecture, implementation, tests, security, performance, assumptions | GPT-6 Luna + GLM 5.3 Flash | `docs/migration/07-review.md` + filed issues |
+| 8 | Final validation | verify against requirements, plan, docs, tests, acceptance criteria, rollback readiness | GLM 5.3 Flash | `docs/migration/08-signoff.md` |
+
+Rules of the relay:
+
+- A phase is **done** when its output document is committed — not when a chat says so.
+- A phase may not start before its predecessor's output exists.
+- Findings from Phase 7 that block sign-off loop back into Phase 5 with the plan amended.
+- Model assignments are the user's; the agent cannot switch its own model. Sessions on other models are pointed at this file and the relevant phase output.
+
+## Build milestones (inside Phase 5)
+
+| # | Milestone | Done when |
 | --- | --- | --- |
 | 0 | Skeleton: monorepo, Next boots with Rheoson design tokens, error-page system ported | the new app opens and looks like Rheoson |
 | 1 | Play: stream/artwork/search/lyrics through go-relay + server; py-engine carved | pressing play produces sound |
@@ -95,7 +120,12 @@ Termux is not a design constraint:
 | 3 | Download: BullMQ + node workers, SSE progress, resume intact, shared DCCNN codes | live progress + red fail toast with a code |
 | 4 | The verdict: Redis everywhere, parity checklist, side-by-side run → promote `apps/*`, remove `web/` + `api/` — or archive | decision executed |
 
-Skills loaded per phase: `design-taste-frontend`, `ui-ux-pro-max`, `design-motion-principles`, `high-end-visual-design` (client) · `backend-architect` (server) · `product-manager` (scope discipline).
+Skills (repo `skills/` folder, read fresh each session): design phases use
+`design-taste-frontend`, `ui-ux-pro-max`, `design-motion-principles`,
+`high-end-visual-design`; implementation additionally uses
+`full-output-enforcement`; scope discipline uses `product-manager`.
+Engineering phases (1, 2, 4, 7, 8) run on plain analysis — design skills
+stay out of architecture documents.
 
 ## Integration contract for services/go
 
