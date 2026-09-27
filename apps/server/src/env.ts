@@ -20,8 +20,9 @@ const EnvSchema = z.object({
   ENGINE_URL: z.string().default('http://localhost:8001'),
   ENGINE_TOKEN: z.string().default(''),
 
-  /** Relay (ADR-3) — URL the client streams from. */
+  /** Relay (ADR-3) — the byte path; optional, the server falls back itself. */
   RELAY_URL: z.string().default('http://localhost:8002'),
+  RELAY_TOKEN: z.string().default(''),
 
   PG_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
 

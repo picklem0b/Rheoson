@@ -10,6 +10,7 @@ import { env } from './env.js';
 import { errorHandler } from './errors.js';
 import { registerHealthRoutes } from './routes/health.routes.js';
 import { registerMessagingRoutes } from './routes/messaging.routes.js';
+import { registerTrackRoutes } from './routes/tracks.routes.js';
 
 /**
  * Rheoson Next — API core (M2 skeleton).
@@ -47,6 +48,7 @@ registerAuth(app);
 registerClerkWebhook(app);
 registerHealthRoutes(app);
 registerMessagingRoutes(app);
+registerTrackRoutes(app);
 
 app.setErrorHandler(errorHandler);
 
