@@ -814,6 +814,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/messages/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Profiles Batch
+         * @description Batch display info for member lists and share cards.
+         *
+         *     POST (not GET) because the id list rides the body, and the id cap in
+         *     ``ProfilesBatchSchema`` mirrors the service's own — a client cannot
+         *     ask for the whole instance.
+         */
+        post: operations["profiles_batch_api_messages_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/messages/send": {
         parameters: {
             query?: never;
@@ -2230,6 +2254,16 @@ export interface components {
              */
             concurrency: number;
         };
+        /**
+         * BlendTrackSchema
+         * @description Named to avoid colliding with the existing openapi ``TrackSchema``
+         *     component — a name clash here renames schemas in the generated types
+         *     and breaks the frontend's imports.
+         */
+        BlendTrackSchema: {
+            /** Track Id */
+            track_id: string;
+        };
         /** CreateBlendSchema */
         CreateBlendSchema: {
             /** Name */
@@ -2504,7 +2538,7 @@ export interface components {
              */
             artworkUrl: string;
             /** Tracks */
-            tracks: components["schemas"]["TrackSchema-Output"][];
+            tracks: components["schemas"]["TrackSchema"][];
             /** Trackids */
             trackIds?: string[];
             /**
@@ -2555,6 +2589,11 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** ProfilesBatchSchema */
+        ProfilesBatchSchema: {
+            /** User Ids */
+            user_ids: string[];
+        };
         /** RenameBlendSchema */
         RenameBlendSchema: {
             /** Name */
@@ -2591,7 +2630,7 @@ export interface components {
              */
             type: string;
             /** Tracks */
-            tracks: components["schemas"]["TrackSchema-Output"][];
+            tracks: components["schemas"]["TrackSchema"][];
             /** Albums */
             albums: components["schemas"]["AlbumSchema"][];
             /** Artists */
@@ -2649,7 +2688,7 @@ export interface components {
              */
             query: string;
             /** Tracks */
-            tracks: components["schemas"]["TrackSchema-Output"][];
+            tracks: components["schemas"]["TrackSchema"][];
             /** Albums */
             albums: components["schemas"]["AlbumSchema"][];
             /** Artists */
@@ -2674,12 +2713,7 @@ export interface components {
             } | null;
         };
         /** TrackSchema */
-        "TrackSchema-Input": {
-            /** Track Id */
-            track_id: string;
-        };
-        /** TrackSchema */
-        "TrackSchema-Output": {
+        TrackSchema: {
             /**
              * Id
              * @default
@@ -2690,8 +2724,8 @@ export interface components {
              * @default
              */
             title: string;
-            artist?: components["schemas"]["ArtistSchema"];
-            album?: components["schemas"]["AlbumSchema"];
+            artist: components["schemas"]["ArtistSchema"];
+            album: components["schemas"]["AlbumSchema"];
             /**
              * Artworkurl
              * @default
@@ -3606,7 +3640,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TrackSchema-Input"];
+                "application/json": components["schemas"]["BlendTrackSchema"];
             };
         };
         responses: {
@@ -4249,6 +4283,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    profiles_batch_api_messages_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfilesBatchSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -5760,7 +5827,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrackSchema-Output"][];
+                    "application/json": components["schemas"]["TrackSchema"][];
                 };
             };
         };
@@ -5800,7 +5867,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrackSchema-Output"][];
+                    "application/json": components["schemas"]["TrackSchema"][];
                 };
             };
         };
@@ -5840,7 +5907,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrackSchema-Output"][];
+                    "application/json": components["schemas"]["TrackSchema"][];
                 };
             };
         };
@@ -5928,7 +5995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrackSchema-Output"][];
+                    "application/json": components["schemas"]["TrackSchema"][];
                 };
             };
             /** @description Validation Error */
@@ -5990,7 +6057,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrackSchema-Output"];
+                    "application/json": components["schemas"]["TrackSchema"];
                 };
             };
             /** @description Validation Error */

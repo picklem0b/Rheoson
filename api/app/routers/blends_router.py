@@ -26,7 +26,10 @@ class RenameBlendSchema(BaseModel):
     name: str = Field(min_length=1, max_length=80)
 
 
-class TrackSchema(BaseModel):
+class BlendTrackSchema(BaseModel):
+    """Named to avoid colliding with the existing openapi ``TrackSchema``
+    component — a name clash here renames schemas in the generated types
+    and breaks the frontend's imports."""
     track_id: str = Field(min_length=1, max_length=128)
 
 
@@ -92,7 +95,7 @@ async def delete_blend(
 @router.post("/{blend_id}/tracks")
 async def add_track(
     blend_id: str,
-    body: TrackSchema,
+    body: BlendTrackSchema,
     user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):

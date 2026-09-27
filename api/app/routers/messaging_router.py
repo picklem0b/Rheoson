@@ -25,6 +25,10 @@ class SendMessageSchema(BaseModel):
     payload: dict | None = None
 
 
+class ProfilesBatchSchema(BaseModel):
+    user_ids: list[str] = Field(max_length=50)
+
+
 @router.get("/users/search")
 async def search_users(
     q: str = Query(default="", max_length=64),
@@ -85,6 +89,22 @@ async def send_message(
     me = user["sub"]
     message = await ms.send_message(db, me, body.peer_id, body.kind, body.text, body.payload)
     return {"message": message}
+
+
+@router.post("/profiles")
+async def profiles_batch(
+    body: ProfilesBatchSchema,
+    user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Batch display info for member lists and share cards.
+
+    POST (not GET) because the id list rides the body, and the id cap in
+    ``ProfilesBatchSchema`` mirrors the service's own — a client cannot
+    ask for the whole instance.
+    """
+    profiles = await ms.profiles_batch(db, body.user_ids)
+    return {"profiles": profiles}
 
 
 @router.get("/presence")

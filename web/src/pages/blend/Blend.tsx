@@ -16,7 +16,7 @@ import {
 } from '@phosphor-icons/react'
 import { blendsApi, type Blend } from '@/api/blends.api'
 import { tracksApi } from '@/api/tracks.api'
-import { messagesApi } from '@/api/messages.api'
+import { messagesApi, type PeerInfo } from '@/api/messages.api'
 import { qk } from '@/lib/queryKeys'
 import { useAuthStore } from '@/store/auth.store'
 import { useQueue } from '@/hooks/queue.hook'
@@ -24,6 +24,23 @@ import { useToast } from '@/components/ui/Toaster'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { splitErrorCode } from '@/api/client.api'
 import type { Track } from '@/types/track.types'
+
+/**
+ * Batch profile lookup for member lists.
+ *
+ * One POST /messages/profiles per member set; a member-list query just
+ * maps ids → profiles. Unknown/deleted ids degrade to a placeholder on
+ * the server, so this never fails the page.
+ */
+function useProfiles(userIds: string[] | undefined) {
+   const key = (userIds ?? []).join(',')
+   return useQuery({
+      queryKey: ['messaging-profiles', key],
+      queryFn: () => messagesApi.getProfiles(key.split(',').filter(Boolean)),
+      enabled: key.length > 0,
+      staleTime: 5 * 60_000,
+   })
+}
 
 /**
  * Blend detail — a playlist owned by everyone in it.
@@ -59,6 +76,9 @@ export default function Blend() {
       enabled: !!id,
       retry: false,
    })
+
+   // Hooks before any early return — blend may be undefined while loading.
+   const { data: profiles } = useProfiles(blend?.members)
 
    const refresh = () => {
       void queryClient.invalidateQueries({ queryKey: qk.blend(id!) })
@@ -331,6 +351,7 @@ export default function Blend() {
             <MembersSheet
                blend={blend}
                meId={meId}
+               profiles={profiles ?? undefined}
                onClose={() => setShowMembers(false)}
                onChanged={refresh}
             />
@@ -344,14 +365,17 @@ export default function Blend() {
 function MembersSheet({
    blend,
    meId,
+   profiles,
    onClose,
    onChanged
 }: {
    blend: Blend
    meId: string
+   profiles?: PeerInfo[]
    onClose: () => void
    onChanged: () => void
 }) {
+   const byId = new Map((profiles ?? []).map((p) => [p.id, p]))
    const { toast } = useToast()
    const [userDraft, setUserDraft] = useState('')
 
@@ -419,15 +443,22 @@ function MembersSheet({
             </div>
 
             <div className='px-2 py-2 max-h-64 overflow-y-auto'>
-               {/* Current members */}
-               {blend.members.map((m) => (
+               {/* Current members — real names/avatars via the batch endpoint */}
+               {blend.members.map((m) => {
+                  const p = byId.get(m)
+                  const name = p?.username ?? m
+                  return (
                   <div key={m} className='flex items-center gap-3 px-3 py-2'>
-                     <span className='w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-500
-                                      flex items-center justify-center text-xs font-bold text-white'>
-                        {m.slice(0, 2).toUpperCase()}
-                     </span>
+                     {p?.image_url ? (
+                        <img src={p.image_url} alt='' className='w-9 h-9 rounded-full object-cover' />
+                     ) : (
+                        <span className='w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-500
+                                         flex items-center justify-center text-xs font-bold text-white'>
+                           {name.slice(0, 2).toUpperCase()}
+                        </span>
+                     )}
                      <span className='text-sm text-[var(--text-primary)] truncate flex-1'>
-                        {m === blend.owner ? `${m} (owner)` : m}
+                        {m === blend.owner ? `${name} (owner)` : name}
                      </span>
                      {isOwner && m !== blend.owner && (
                         <button
@@ -446,7 +477,8 @@ function MembersSheet({
                         </button>
                      )}
                   </div>
-               ))}
+                  )
+               })}
 
                {/* Search results (filtered to non-members) */}
                {userDraft.trim() && found

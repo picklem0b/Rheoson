@@ -201,6 +201,18 @@ belongs to the NetworkErrorBanner, whose polling makes recovery visible.
 
 ---
 
+## v2.22.1 — Blend members have faces
+
+Member management stopped reading like a debug screen. A batch profile
+endpoint (one `$in` fetch, order-preserving, capped, placeholder-degrading)
+lets the blend sheet render real usernames and avatars — and the fix that
+necessitated a patch: v2.22.0's regen collided the blends request model
+with the existing `TrackSchema` openapi component, which corrupted the
+generated types. Renamed to `BlendTrackSchema`; the generated surface is
+whole again.
+
+---
+
 ## v2.22.0 — Messaging, Blends, and one Library
 
 Rheoson gains a social layer. Messages bring direct chats that carry music

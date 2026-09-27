@@ -81,4 +81,9 @@ export const messagesApi = {
    getPresence: () =>
       api.get<{ presence: PresenceUser[] }>('/messages/presence')
          .then((r) => r.presence),
+
+   /** Batch display info — blend member lists, share cards. Order follows the input. */
+   getProfiles: (userIds: string[]) =>
+      api.post<{ profiles: PeerInfo[] }>('/messages/profiles', { user_ids: userIds })
+         .then((r) => r.profiles),
 }

@@ -230,6 +230,41 @@ async def test_socket_message_send_unauthenticated_rejected():
     assert sio.emitted[0][0] == "message:error"
 
 
+# ── Profiles batch ────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_profiles_batch_returns_ordered_profiles(client):
+    await _shared_mock_db.users.insert_one(
+        {"_id": _OTHER_SUB, "username": "other", "image_url": "http://x/y.png"}
+    )
+    await _shared_mock_db.users.insert_one({"_id": TEST_USER_SUB, "username": "testy"})
+    r = await client.post("/api/messages/profiles",
+                          json={"user_ids": [_OTHER_SUB, TEST_USER_SUB, "ghost-user"]})
+    assert r.status_code == 200, r.text
+    profiles = r.json()["profiles"]
+    # Input order preserved — member lists never scramble.
+    assert [p["id"] for p in profiles] == [_OTHER_SUB, TEST_USER_SUB, "ghost-user"]
+    assert profiles[0]["username"] == "other"
+    assert profiles[0]["image_url"] == "http://x/y.png"
+    # Unknown/deleted ids degrade to the placeholder instead of failing.
+    assert profiles[2]["username"] == "Rheoson user"
+    assert profiles[2]["image_url"] == ""
+
+
+@pytest.mark.asyncio
+async def test_profiles_batch_service_dedupes():
+    await _shared_mock_db.users.insert_one({"_id": _OTHER_SUB, "username": "other"})
+    out = await ms.profiles_batch(_shared_mock_db, [_OTHER_SUB, _OTHER_SUB])
+    assert [p["id"] for p in out] == [_OTHER_SUB]
+
+
+@pytest.mark.asyncio
+async def test_profiles_batch_requires_auth(client_anon):
+    r = await client_anon.post("/api/messages/profiles", json={"user_ids": []})
+    assert r.status_code == 401
+
+
 # ── Blends ────────────────────────────────────────────────────
 
 

@@ -6,6 +6,11 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.22.1 — Blend members have faces
+
+- feat(messages): **`POST /api/messages/profiles`** — batch display info for member lists and share cards. One `$in` fetch, input order preserved, unknown ids degrade to a placeholder, capped at 50 ids. Blend member sheets now show real usernames and avatars instead of id initials.
+- fix(openapi): **`BlendTrackSchema` renames the blends request model** that collided with the existing `TrackSchema` component during v2.22.0's regen — the clash corrupted `types/index.ts` imports and broke `tsc`. A name-clash guard note now lives on the model.
+
 ## v2.22.0 — Messaging, Blends, and one Library
 
 - feat(messages): **direct messages with music shares** — threads carry tracks (tap to play), lyrics (tap to open the full player on that lyric), playlists, albums, artists and blends; REST is the always-works path and the Socket.IO `message:send` / `message:new` fast path delivers sub-second when online. Rate limit (30/min) returns the DCCNN `MLM01` code.

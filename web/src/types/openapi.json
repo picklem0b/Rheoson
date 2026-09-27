@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.21.5"
+    "version": "2.22.0"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -1203,7 +1203,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TrackSchema-Input"
+                "$ref": "#/components/schemas/BlendTrackSchema"
               }
             }
           }
@@ -2144,6 +2144,51 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/messages/profiles": {
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "Profiles Batch",
+        "description": "Batch display info for member lists and share cards.\n\nPOST (not GET) because the id list rides the body, and the id cap in\n``ProfilesBatchSchema`` mirrors the service's own \u2014 a client cannot\nask for the whole instance.",
+        "operationId": "profiles_batch_api_messages_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilesBatchSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -4422,7 +4467,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/TrackSchema-Output"
+                    "$ref": "#/components/schemas/TrackSchema"
                   },
                   "type": "array",
                   "title": "Response List Tracks Api Tracks  Get"
@@ -4476,7 +4521,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/TrackSchema-Output"
+                    "$ref": "#/components/schemas/TrackSchema"
                   },
                   "type": "array",
                   "title": "Response Get Liked Api Tracks Liked Get"
@@ -4531,7 +4576,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/TrackSchema-Output"
+                    "$ref": "#/components/schemas/TrackSchema"
                   },
                   "type": "array",
                   "title": "Response Get Recently Played Api Tracks Recently Played Get"
@@ -4673,7 +4718,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TrackSchema-Output"
+                    "$ref": "#/components/schemas/TrackSchema"
                   },
                   "title": "Response Get Trending Api Tracks Trending Get"
                 }
@@ -4768,7 +4813,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TrackSchema-Output"
+                  "$ref": "#/components/schemas/TrackSchema"
                 }
               }
             }
@@ -5247,6 +5292,22 @@
           "track_ids"
         ],
         "title": "BatchDownloadRequest"
+      },
+      "BlendTrackSchema": {
+        "properties": {
+          "track_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Track Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "track_id"
+        ],
+        "title": "BlendTrackSchema",
+        "description": "Named to avoid colliding with the existing openapi ``TrackSchema``\ncomponent \u2014 a name clash here renames schemas in the generated types\nand breaks the frontend's imports."
       },
       "CreateBlendSchema": {
         "properties": {
@@ -5791,7 +5852,7 @@
           },
           "tracks": {
             "items": {
-              "$ref": "#/components/schemas/TrackSchema-Output"
+              "$ref": "#/components/schemas/TrackSchema"
             },
             "type": "array",
             "title": "Tracks"
@@ -5856,6 +5917,23 @@
         "type": "object",
         "title": "PreferencesRequest",
         "description": "A partial patch of device-independent preferences.\n\nThe whitelist lives in services/preferences.py; unknown keys are dropped\nrather than rejected so a client that ships a newer toggle than this\nserver understands does not have its whole patch refused."
+      },
+      "ProfilesBatchSchema": {
+        "properties": {
+          "user_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "User Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_ids"
+        ],
+        "title": "ProfilesBatchSchema"
       },
       "RenameBlendSchema": {
         "properties": {
@@ -5936,7 +6014,7 @@
           },
           "tracks": {
             "items": {
-              "$ref": "#/components/schemas/TrackSchema-Output"
+              "$ref": "#/components/schemas/TrackSchema"
             },
             "type": "array",
             "title": "Tracks"
@@ -6107,7 +6185,7 @@
           },
           "tracks": {
             "items": {
-              "$ref": "#/components/schemas/TrackSchema-Output"
+              "$ref": "#/components/schemas/TrackSchema"
             },
             "type": "array",
             "title": "Tracks"
@@ -6187,22 +6265,7 @@
         ],
         "title": "SendMessageSchema"
       },
-      "TrackSchema-Input": {
-        "properties": {
-          "track_id": {
-            "type": "string",
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Track Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "track_id"
-        ],
-        "title": "TrackSchema"
-      },
-      "TrackSchema-Output": {
+      "TrackSchema": {
         "properties": {
           "id": {
             "type": "string",
@@ -6282,7 +6345,18 @@
           }
         },
         "type": "object",
-        "title": "TrackSchema"
+        "title": "TrackSchema",
+        "required": [
+          "addedAt",
+          "album",
+          "artist",
+          "filePath",
+          "playCount",
+          "spotifyId",
+          "streamUrl",
+          "trackNumber",
+          "youtubeId"
+        ]
       },
       "UpdatePlaylistSchema": {
         "properties": {

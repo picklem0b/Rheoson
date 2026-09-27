@@ -44,6 +44,7 @@ MAX_MESSAGE_CHARS = 2000
 MAX_PAYLOAD_BYTES = 8 * 1024
 MAX_MESSAGES_PAGE = 100
 DEFAULT_MESSAGES_PAGE = 50
+MAX_PROFILES_BATCH = 50
 
 #: Kinds a share can carry. "text" is the plain chat bubble; everything
 #: else renders as a tappable music card in the client.
@@ -116,6 +117,38 @@ async def peer_info(db, user_id: str) -> dict:
         "username": doc.get("username") or "Rheoson user",
         "image_url": doc.get("image_url") or "",
     }
+
+
+async def profiles_batch(db, user_ids: list[str]) -> list[dict]:
+    """Display info for many users at once (blend member lists, share cards).
+
+    One ``$in`` fetch, unknown/deleted ids degrade to the same placeholder
+    ``peer_info`` uses, and the response follows the caller's input order —
+    so a member list never scrambles. Duplicates collapse; the batch caps
+    at ``MAX_PROFILES_BATCH`` because the UI surfaces at most a blend's
+    members (20) and a share picker's worth of ids.
+    """
+    ids = [u for u in dict.fromkeys(user_ids or []) if u][:MAX_PROFILES_BATCH]
+    if not ids:
+        return []
+    try:
+        cursor = db.users.find({"_id": {"$in": ids}})
+        docs: dict[str, dict] = {}
+        async for d in cursor:
+            uid = d.get("_id")
+            if uid is not None:
+                docs[uid] = d
+    except Exception:  # noqa: BLE001 — degrade to placeholders, never 500
+        log.warning("messaging.profiles_batch_failed")
+        docs = {}
+    return [
+        {
+            "id": uid,
+            "username": (docs.get(uid) or {}).get("username") or "Rheoson user",
+            "image_url": (docs.get(uid) or {}).get("image_url") or "",
+        }
+        for uid in ids
+    ]
 
 
 async def search_users(db, me_id: str, query: str, limit: int = 10) -> list[dict]:
