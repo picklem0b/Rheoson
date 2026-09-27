@@ -10,7 +10,6 @@ import * as schema from './schema.js';
  * heavy traffic goes to the Go relay and the py engine.
  */
 declare global {
-  // eslint-disable-next-line no-var
   var __rheosonPool: Pool | undefined;
 }
 

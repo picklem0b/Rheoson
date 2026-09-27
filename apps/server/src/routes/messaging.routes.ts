@@ -51,7 +51,7 @@ const ProfilesSchema = z.object({
 export const registerMessagingRoutes = (app: FastifyInstance): void => {
   /** Batch display info — order preserved, unknown ids degrade. */
   app.post('/api/messages/profiles', async (request, reply) => {
-    const userId = requireUser(request);
+    requireUser(request);
     const { ids } = ProfilesSchema.parse(request.body);
     const profiles = await getProfiles(ids);
     reply.send({ profiles });
