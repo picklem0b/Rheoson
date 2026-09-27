@@ -58,3 +58,67 @@ the server serves bytes, and the client plays them.
 | --- | --- |
 | Client playback wiring | The largest remaining surface: player store, audio cache, effects chain, transport UI. It is the only piece where "press play, hear sound" is decided, and it deserves its own verified slice rather than being rushed in behind the infrastructure |
 | Local-library tier (`_file_id`, `.track_map.sqlite`) | Remote playback must be honest first; the local tier arrives with the download engine in M3 so the identity contract is exercised once, not twice |
+
+## M1 — Play (complete · `next-v0.9.0`)
+
+| Tag | Slice | Deliverable | Proof |
+| --- | --- | --- | --- |
+| `next-v0.9.0` | library + playback | Engine grows library scan, tag reading, the identity table, `yt-dlp` search and lyrics; the server gains `/api/library/*`, `/api/search`, `/api/lyrics`, `/api/tracks/:id`; the client gets the API layer with coded errors, the toast system (pass/fail/code/ⓘ), the player and queue stores, the IndexedDB byte cache, the opt-in Web Audio graph, `PlayerBar`, the app shell, home/search/library/downloads/settings/stats pages and the PWA manifest | **118** engine tests · **62** server (10 DB-gated skipped) · **71** client · **14** shared · **20** relay · 12/12 turbo tasks · production build |
+
+### Decisions made during the playback slice
+
+| Decision | Why |
+| --- | --- |
+| The **error bridge** lives in one provider | A 5xx is not something a toast can fix, so `onPageError` navigates to `/error/{status}` with the DCCNN code. 404 and 429 deliberately do not navigate: a missing track is not a reason to take the screen away |
+| The queue never lists the playing track twice | The current track is the queue's first entry, not a copy of it. The client test that caught the duplicate is now the regression guard |
+| Favourites are a store, not local state | The same track is drawn by the library, a search result and the player bar; a heart that only flips where it was clicked is why people click twice |
+| Optimistic like with a coded rollback | The heart moves immediately because that is what the user meant, and reverts with `TEX01` if the server disagrees — a silent revert is worse than a delay |
+| `GET /api/tracks/:id` exists | Playlists, history rows and deep links hold an id and nothing else; without it, opening a playlist means reading the whole (paginated) library, where a track past the page would look deleted |
+
+## M2 — Sign in (complete · `next-v0.10.0`)
+
+Done when **likes and settings follow you in**: accounts, preferences, liked
+songs, history, follows and playlists are server-owned and per-user.
+
+| Tag | Slice | Deliverable | Proof |
+| --- | --- | --- | --- |
+| `next-v0.10.0` | accounts + auth surface | Drizzle schema for users, preferences, likes, history, follows, playlists; `account.service` / `preferences.service` / `session.service`; the `/api/me/*` route family with likes and history before the parameter routes; the client mounts `ClerkProvider` + the session bridge + `clerkMiddleware` **only when a publishable key exists**, with `/sign-in` and an account control in Settings | 72 server tests (incl. 10 against Postgres in CI) · provider swap unit-tested · `ClerkProvider` never rendered without a key |
+
+### Decisions made during the sign-in slice
+
+| Decision | Why |
+| --- | --- |
+| No server-side sign-in route, ever | A route that mints a session from a user id is an account-takeover primitive. Clerk's hosted components collect the credential; the API only verifies a token |
+| The client's session layer is an **interface with two mounts** | `devSession` (allow-listed dev header) and Clerk's `useAuth` are the same `Session` object to every caller, so no store or route knows which one is live — and the app still boots with no keys |
+| Middleware degrades instead of failing | Clerk's middleware throws without a key; a construction failure falls back to pass-through, which is safe because middleware is convenience, not the security boundary — every data route checks the session itself |
+| Static preference paths register first | `/api/me/preferences/defaults` and `/api/me/likes/count` must never be swallowed by a parameter route. Same ordering rule the track router has carried since the current stack |
+
+## M3 — Download (complete · `next-v0.11.0`)
+
+Done when **a progress bar moves and a failure is readable**: the engine owns the
+queue, the server owns ownership, the client shows both.
+
+| Tag | Slice | Deliverable | Proof |
+| --- | --- | --- | --- |
+| `next-v0.11.0` | queue + progress + failures | Engine download manager (subprocess, progress regex with speed and ETA, per-job staging, resume read from disk, tagging, identity recording, library invalidation); owner-scoped server routes; SSE progress; the downloads page and the fail toast carrying the engine's own words plus its DCCNN code | download tests drive a **real subprocess**: success, refusal, staged bytes, 4+4 byte resume, fresh retry, owner scoping, duplicate refusal, queue ceiling |
+
+### Decisions made during the download slice
+
+| Decision | Why |
+| --- | --- |
+| `resume` is tri-state | `undefined` (continue if staged bytes exist) is not `false` (throw them away). Collapsing them loses the user's bytes or their intent |
+| The owner comes from the session header, never the body | A client that can name an owner can name someone else's. The engine scopes every read and mutation by the header the server attaches |
+| Another user's job answers `DNF01` | "Not found", never "forbidden", so the response does not confirm that the job exists |
+| A job snapshot is read under one lock | The status and `active` flag are derived from a single read; the previous two-read version could answer `running` + `active: false` (see `06-test-report.md` §3.7) |
+
+## M4 — The verdict (documentation complete · `next-v0.12.0`)
+
+| Tag | Slice | Deliverable |
+| --- | --- | --- |
+| `next-v0.12.0` | docs + seam + verdict | Redis-backed realtime fan-out with a documented fallback (the last reserved seam, now live), the reserved search slot documented rather than implied, Phase 8 sign-off, and the honest list of what only a human audit can close |
+
+`next-v1.0.0` is deliberately **not** tagged here. It is the promotion tag, and
+it means "a human ran the workspace gates, the compose stack and a device test
+and agrees with this document". Tagging it from inside the implementation would
+make the tag mean "the author says so", which is exactly the claim a sign-off
+is supposed to be independent of.

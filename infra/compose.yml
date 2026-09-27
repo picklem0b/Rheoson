@@ -59,10 +59,20 @@ services:
       ENGINE_PORT: 8081
       ENGINE_DATA_DIR: /data
       ENGINE_TOKEN: ${ENGINE_TOKEN:-dev-engine-token}
+      # The address the compose network knows this container by. It appears in
+      # the local URLs the relay fetches for downloaded tracks, so it must not
+      # be localhost.
+      ENGINE_PUBLIC_URL: http://engine:8081
+      # Where download progress is reported. Empty disables live progress;
+      # jobs still run and still complete.
+      ENGINE_EVENTS_URL: http://server:4000/internal/events
+      ENGINE_DOWNLOAD_CONCURRENCY: ${ENGINE_DOWNLOAD_CONCURRENCY:-3}
     volumes:
       - engine-data:/data
     ports:
       - "8081:8081"
+    depends_on:
+      - server
     restart: unless-stopped
 
   relay:
@@ -91,7 +101,11 @@ services:
       NODE_ENV: development
       PORT: 4000
       DATABASE_URL: postgres://${POSTGRES_USER:-rheoson}:${POSTGRES_PASSWORD:-rheoson}@postgres:5432/${POSTGRES_DB:-rheoson}
+      # Live: the realtime bus fans out over Redis pub/sub when this is set
+      # (bus.ts reports which transport it chose at /health). Still reserved:
+      # the rate-limit store, which is in-process and correct for one server.
       REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${PUBLIC_CLIENT_URL:-http://localhost:3000}
       ENGINE_URL: http://engine:8081
       ENGINE_TOKEN: ${ENGINE_TOKEN:-dev-engine-token}
       RELAY_URL: http://relay:8080
@@ -114,6 +128,7 @@ services:
       dockerfile: infra/docker/client.Dockerfile
     environment:
       NODE_ENV: production
+      # Browser-side calls go to the public origin the API is served from.
       # Browser-side calls go to the public origin; the server is a different
       # origin by design, never proxied through Next.
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}

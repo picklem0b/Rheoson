@@ -88,3 +88,10 @@ infra/meilisearch/data/
 
 # apps/* (Rheoson Next) — local compose env
 infra/.env
+
+# ── Rheoson Next local state ──────────────────────────────────
+# Test residue: the engine's tests write a sidecar into their data dir.
+apps/services/py/.test-data/
+apps/services/py/.venv/
+# Drizzle Kit's generated client output (the SQL under drizzle/ IS committed).
+apps/server/drizzle/meta/_journal.json.bak

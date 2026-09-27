@@ -1,6 +1,8 @@
 # Rheoson Next — the experiment plan
 
-> Branch: `experiment/nextjs` · Status: **M1 in progress** (see `docs/migration/05-log.md` for the shipped slices and their tags) · `web/` + `api/` stay running and shippable until the parity verdict.
+> Branch: `experiment/nextjs` · Status: **M0–M4 shipped, awaiting the Phase 8 human audit** (see `docs/migration/08-signoff.md` for the gate commands and the short list of things only a real deployment can prove) · `web/` + `api/` stay running and shippable until the parity verdict.
+>
+> Tags: `next-v0.1.0` … `next-v0.12.0` (14 slices, each a rollback point). `next-v1.0.0` is the promotion tag and is deliberately withheld until the audit signs off.
 
 The migration: React → Next.js (full website + PWA, no APK), Python core → TypeScript, Python kept only as a slim engine. Polyglot services, each doing only what it is elite at.
 
@@ -43,8 +45,8 @@ infra            docker-compose: postgres · redis · meilisearch · caddy
 | server | Node/TS + Postgres (Drizzle) | accounts, auth glue, playlists, prefs, history — the JSON brain |
 | services/go | Go | byte relay: range, cache-tee, upstream-death handling — the hot path |
 | services/py | Python | the muscles only Python has: yt-dlp, ffmpeg, mutagen |
-| services/node | Node | SSE gateway + BullMQ workers (live download progress, job state) |
-| services/search | Meilisearch | typo-tolerant instant search — configure, don't write |
+| services/node | Node | **reserved** — the server's SSE route and the Python engine's queue already do this job for one process; the slot is documented rather than implied |
+| services/search | Meilisearch | **reserved** — today search runs in the engine (local index + yt-dlp); the compose service and `MEILI_MASTER_KEY` are present for the moment a full-text index earns a service |
 | services/analyze | Java (later phase) | EBU R128 loudness, waveforms, fingerprints |
 | infra | Redis · Caddy | Redis: cache/queue/rate-limit/pubsub. Caddy: edge TLS + headers |
 
@@ -114,11 +116,11 @@ Rules of the relay:
 
 | # | Milestone | Done when |
 | --- | --- | --- |
-| 0 | Skeleton: monorepo, Next boots with Rheoson design tokens, error-page system ported | the new app opens and looks like Rheoson |
-| 1 | Play: stream/artwork/search/lyrics through go-relay + server; py-engine carved | pressing play produces sound |
-| 2 | Sign in: Clerk + Postgres accounts, prefs, history, playlists | likes and settings follow you in |
-| 3 | Download: BullMQ + node workers, SSE progress, resume intact, shared DCCNN codes | live progress + red fail toast with a code |
-| 4 | The verdict: Redis everywhere, parity checklist, side-by-side run → promote `apps/*`, remove `web/` + `api/` — or archive | decision executed |
+| 0 | Skeleton: monorepo, Next boots with Rheoson design tokens, error-page system ported | ✅ `next-v0.4.0` — the new app opens and looks like Rheoson |
+| 1 | Play: stream/artwork/search/lyrics through go-relay + server; py-engine carved | ✅ `next-v0.9.0` — pressing play produces sound |
+| 2 | Sign in: Clerk + Postgres accounts, prefs, likes, history, follows, playlists | ✅ `next-v0.10.0` — likes and settings follow you in |
+| 3 | Download: engine queue, SSE progress, resume intact, shared DCCNN codes | ✅ `next-v0.11.0` — live progress + red fail toast with a code |
+| 4 | The verdict: Redis fan-out live, parity checklist, sign-off → promote `apps/*`, remove `web/` + `api/` — or archive | ⏳ `next-v0.12.0` — documentation and seams complete; the decision is the audit's (`next-v1.0.0` is the promotion tag) |
 
 Skills (repo `skills/` folder, read fresh each session): design phases use
 `design-taste-frontend`, `ui-ux-pro-max`, `design-motion-principles`,

@@ -85,6 +85,63 @@ jobs:
          - name: Typecheck, lint, test, build
            run: pnpm exec turbo run typecheck lint test build --filter=@rheoson/server...
 
+   server-integration:
+      name: Server — Postgres integration
+      runs-on: ubuntu-latest
+      # SQL is the one thing unit tests cannot honestly cover: unique
+      # constraints, ON CONFLICT, count(*) and ownership scoping all live in
+      # the database. This job gives the account suite a real one.
+      services:
+         postgres:
+            image: postgres:17-alpine
+            env:
+               POSTGRES_USER: rheoson
+               POSTGRES_PASSWORD: rheoson
+               POSTGRES_DB: rheoson
+            ports:
+               - 5432:5432
+            options: >-
+               --health-cmd "pg_isready -U rheoson"
+               --health-interval 5s
+               --health-timeout 5s
+               --health-retries 10
+      env:
+         DATABASE_URL: postgres://rheoson:rheoson@localhost:5432/rheoson
+         NODE_ENV: test
+         RUN_DB_TESTS: "1"
+      steps:
+         - name: Checkout repo
+           uses: actions/checkout@v4
+
+         - name: Set up pnpm
+           uses: pnpm/action-setup@v4
+
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 22
+              cache: pnpm
+              cache-dependency-path: pnpm-lock.yaml
+
+         - name: Install workspace
+           run: pnpm install --frozen-lockfile
+
+         - name: Apply migrations to the throwaway database
+           working-directory: apps/server
+           run: pnpm db:migrate
+
+         - name: Account integration suite
+           working-directory: apps/server
+           run: pnpm test
+
+         - name: Fail if the committed migrations are stale
+           # A schema change without a regenerated migration deploys a server
+           # whose queries reference columns the database does not have.
+           working-directory: apps/server
+           run: |
+              pnpm db:generate
+              git diff --exit-code -- drizzle
+
    client:
       name: Client — Next.js website
       runs-on: ubuntu-latest
