@@ -141,6 +141,41 @@ export const blendTracks = pgTable(
   (t) => [uniqueIndex('blend_tracks_key').on(t.blendId, t.trackId), index('blend_tracks_order_idx').on(t.blendId, t.position)],
 );
 
+/**
+ * Playlists. Owner-scoped, ordered by `position`; a track may appear once.
+ * Smart playlists are client-side in this stack — the schema stores order and
+ * membership, and the rules that generate them live where the UI can show
+ * them, so nothing here has to be migrated when a rule changes.
+ */
+export const playlists = pgTable(
+  'playlists',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('playlists_owner_idx').on(t.ownerId, t.createdAt)],
+);
+
+/** Playlist membership + order. `position` is reassigned on insert/remove. */
+export const playlistTracks = pgTable(
+  'playlist_tracks',
+  {
+    playlistId: uuid('playlist_id')
+      .notNull()
+      .references(() => playlists.id, { onDelete: 'cascade' }),
+    trackId: text('track_id').notNull(), // videoId — normalized identity
+    position: integer('position').notNull(),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('playlist_tracks_key').on(t.playlistId, t.trackId), index('playlist_tracks_order_idx').on(t.playlistId, t.position)],
+);
+
 /** Liked tracks (favourites), per user. */
 export const likes = pgTable(
   'likes',
@@ -199,6 +234,16 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   likes: many(likes),
   history: many(playHistory),
   follows: many(followedArtists),
+  playlists: many(playlists),
+}));
+
+export const playlistsRelations = relations(playlists, ({ one, many }) => ({
+  owner: one(users, { fields: [playlists.ownerId], references: [users.id] }),
+  tracks: many(playlistTracks),
+}));
+
+export const playlistTracksRelations = relations(playlistTracks, ({ one }) => ({
+  playlist: one(playlists, { fields: [playlistTracks.playlistId], references: [playlists.id] }),
 }));
 
 export const conversationsRelations = relations(conversations, ({ many }) => ({

@@ -8,9 +8,15 @@ import { registerClerkWebhook } from './auth/clerk-webhook.js';
 import { registerAuth } from './auth/plugin.js';
 import { env } from './env.js';
 import { errorHandler } from './errors.js';
+import { registerDownloadRoutes, registerInternalRoutes } from './routes/downloads.routes.js';
 import { registerHealthRoutes } from './routes/health.routes.js';
+import { registerLibraryRoutes } from './routes/library.routes.js';
+import { registerMeRoutes } from './routes/me.routes.js';
 import { registerMessagingRoutes } from './routes/messaging.routes.js';
+import { registerPlaylistRoutes } from './routes/playlists.routes.js';
+import { registerSearchRoutes } from './routes/search.routes.js';
 import { registerTrackRoutes } from './routes/tracks.routes.js';
+import { closeBus, initBus } from './realtime/bus.js';
 
 /**
  * Rheoson Next — API core (M2 skeleton).
@@ -47,8 +53,16 @@ await app.register(rateLimit, {
 registerAuth(app);
 registerClerkWebhook(app);
 registerHealthRoutes(app);
-registerMessagingRoutes(app);
+// Order is a contract: `/api/me/likes/count` and `/api/me/preferences/defaults`
+// must register before any parameter route that could swallow them.
+registerMeRoutes(app);
+registerLibraryRoutes(app);
+registerSearchRoutes(app);
+registerPlaylistRoutes(app);
 registerTrackRoutes(app);
+registerDownloadRoutes(app);
+registerInternalRoutes(app);
+registerMessagingRoutes(app);
 
 app.setErrorHandler(errorHandler);
 
@@ -56,6 +70,10 @@ app.setErrorHandler(errorHandler);
 
 const start = async (): Promise<void> => {
   try {
+    // Realtime fan-out first (ADR-6): with Redis configured, a subscription
+    // opened in the first millisecond after boot must already be reachable.
+    const bus = await initBus();
+    app.log.info(`realtime bus: ${bus}`);
     await app.listen({ port: env.PORT, host: '0.0.0.0' });
   } catch (err) {
     app.log.error(err);
@@ -66,7 +84,9 @@ const start = async (): Promise<void> => {
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     app.log.info(`${signal} received — shutting down`);
-    app.close().finally(() => process.exit(0));
+    void closeBus().finally(() => {
+      app.close().finally(() => process.exit(0));
+    });
   });
 }
 

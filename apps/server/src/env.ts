@@ -26,6 +26,12 @@ const EnvSchema = z.object({
 
   PG_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
 
+  /**
+   * Realtime fan-out across instances (ADR-6). Empty means in-process fan-out,
+   * which is correct for one container and for every test.
+   */
+  REDIS_URL: z.string().default(''),
+
   /** Messaging rate limit — mirrors MLM01 on the current stack (30/min). */
   MESSAGE_RATE_PER_MIN: z.coerce.number().int().min(1).default(30),
 

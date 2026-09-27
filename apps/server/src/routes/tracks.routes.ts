@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify';
 
 import { requireUser } from '../auth/plugin.js';
 import { badRequest } from '../errors.js';
+import { getTrack } from '../services/library.service.js';
 import { prepareStream } from '../services/stream.service.js';
 import { probeTrack, relayAvailable } from '../services/upstream.service.js';
 
@@ -59,4 +60,17 @@ export const registerTrackRoutes = (app: FastifyInstance): void => {
       });
     },
   );
+
+  /**
+   * One track's metadata. Registered last on purpose: the more specific
+   * `/stream`, `/info` and `/artwork` paths must win, and while Fastify's
+   * radix router prefers the literal segment regardless, keeping the bare
+   * parameter route at the end means the intent is readable too.
+   */
+  app.get<{ Params: { trackId: string } }>('/api/tracks/:trackId', async (request, reply) => {
+    const userId = requireUser(request);
+    const { trackId } = request.params;
+    if (!isTrackId(trackId)) throw badRequest('TVA01');
+    reply.send(await getTrack(userId, trackId));
+  });
 };
