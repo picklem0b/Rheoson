@@ -74,3 +74,14 @@ music/**/*.flac
 music/**/*.wav
 music/.track_map.sqlite
 music/.cache/
+
+# ── apps/* (Rheoson Next experiment) ──────────────────────────
+.next/
+.turbo/
+apps/*/dist/
+apps/client/.next/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/schemas/
+infra/postgres/data/
+infra/redis/data/
+infra/meilisearch/data/
