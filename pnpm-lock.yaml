@@ -145,6 +145,12 @@ importers:
 
   packages/shared:
     devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.4
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.15
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
