@@ -13,7 +13,7 @@ import re
 import structlog
 from datetime import datetime, timezone
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.config import settings
 from app.core.database import db_available, get_db
@@ -33,6 +33,7 @@ from app.services.ytmusic_service import get_track as yt_get_track
 from app.services.signal_service import record_signal
 from app.models.recommendation import SignalType
 from app.schemas.track_schema import TrackSchema
+from app.core import error_codes
 
 log = structlog.get_logger()
 router = APIRouter()
@@ -187,8 +188,10 @@ async def get_liked_count(user: dict = Depends(get_current_user)):
     try:
         if db_available():
             return {"count": len(await _liked_ids_mongo(get_db(), user_id))}
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — the local sidecar is the fallback
+        # The fallback can disagree with the database, so a wrong pinned count
+        # needs a trace rather than looking like the truth.
+        log.debug("tracks.liked.count.mongo_failed", user_id=user_id, error=str(e))
     return {"count": len(await read_liked_local(user_id))}
 
 
@@ -279,8 +282,10 @@ async def clear_history(user: dict = Depends(get_current_user)):
     try:
         if db_available():
             await get_db().listening_history.delete_one({"user_id": user_id})
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — local history is cleared regardless
+        # The endpoint still reports success, so an un-cleared server-side
+        # history would otherwise return on the next sync with no explanation.
+        log.debug("tracks.history.clear.mongo_failed", user_id=user_id, error=str(e))
     return {"ok": True}
 
 
@@ -302,7 +307,7 @@ async def report_signal(
     try:
         signal_type = SignalType(signal_str)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Unknown signal: {signal_str}")
+        raise error_codes.fail(error_codes.TRACK.SIGNAL_UNKNOWN, 400, append=f": {signal_str}")
 
     artist = body.get("artist")
     if not artist and body.get("track_id"):
@@ -367,7 +372,7 @@ async def get_track_stats(
 async def get_track(track_id: str, _user: dict = Depends(get_current_user)):
     t = await _hydrate_track(track_id)
     if not t:
-        raise HTTPException(status_code=404, detail=f"Track not found: {track_id}")
+        raise error_codes.fail(error_codes.TRACK.NOT_FOUND, 404, append=f": {track_id}")
     return t
 
 

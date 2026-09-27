@@ -87,6 +87,94 @@ def test_install_hint_names_the_host_package_manager(monkeypatch):
     assert "apt-get install" in toolchain.install_hint("ffmpeg")
 
 
+class _Result:
+    """Minimal stand-in for subprocess.CompletedProcess."""
+
+    def __init__(self, rc: int, out: str = "", err: str = "") -> None:
+        self.returncode, self.stdout, self.stderr = rc, out, err
+
+
+_PIP_REFUSAL = "ERROR: You installed yt-dlp with pip or using the wheel from PyPi"
+
+
+def test_ytdlp_self_update_falls_back_to_pip(tmp_path, monkeypatch):
+    """`yt-dlp -U` cannot update a pip/wheel install, so pip must be used.
+
+    yt-dlp refuses the self-update for anything installed through pip — which
+    on Termux is every install (the binary is a console script into the
+    prefix's site-packages). Without this fallback the daily update cron
+    reported success-shaped failure forever while the extractor aged out.
+    """
+    script = _fake_binary(tmp_path, "yt-dlp", "#!/usr/bin/env python3\n")
+    monkeypatch.setenv("YTDLP_BIN", str(script))
+    toolchain.refresh()
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(list(cmd))
+        if cmd[1:2] == ["-U"]:
+            return _Result(1, "", _PIP_REFUSAL)
+        return _Result(0, "Successfully installed yt-dlp-2027.1.1")
+
+    monkeypatch.setattr(toolchain.subprocess, "run", fake_run)
+
+    ok, output = toolchain.upgrade_ytdlp()
+
+    assert ok is True
+    assert "Successfully installed" in output
+    pip_calls = [c for c in calls if "pip" in c]
+    assert pip_calls, f"pip was never invoked: {calls}"
+    assert "install" in pip_calls[0] and "yt-dlp" in pip_calls[0]
+
+
+def test_ytdlp_pip_upgrade_retries_when_the_host_is_externally_managed(
+    tmp_path, monkeypatch
+):
+    """PEP 668 hosts refuse a plain pip install; the override must be retried."""
+    script = _fake_binary(tmp_path, "yt-dlp", "#!/usr/bin/env python3\n")
+    monkeypatch.setenv("YTDLP_BIN", str(script))
+    toolchain.refresh()
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(list(cmd))
+        if cmd[1:2] == ["-U"]:
+            return _Result(1, "", _PIP_REFUSAL)
+        if "--break-system-packages" in cmd:
+            return _Result(0, "Successfully installed yt-dlp-2027.1.1")
+        return _Result(1, "", "error: externally-managed-environment")
+
+    monkeypatch.setattr(toolchain.subprocess, "run", fake_run)
+
+    ok, _output = toolchain.upgrade_ytdlp()
+
+    assert ok is True
+    flattened = [arg for c in calls for arg in c]
+    assert "--break-system-packages" in flattened
+
+
+def test_frozen_ytdlp_updates_without_pip(tmp_path, monkeypatch):
+    """A standalone build has no shebang and must not be pushed through pip."""
+    monkeypatch.setenv("YTDLP_BIN", str(_fake_binary(tmp_path, "yt-dlp", "\x7fELF\n")))
+    toolchain.refresh()
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(list(cmd))
+        return _Result(0, "yt-dlp is up to date (2027.1.1)")
+
+    monkeypatch.setattr(toolchain.subprocess, "run", fake_run)
+
+    ok, output = toolchain.upgrade_ytdlp()
+
+    assert ok is True
+    assert "up to date" in output
+    assert not [c for c in calls if "pip" in c], "pip must not run for a frozen build"
+
+
 def test_raw_audio_mime_sniffing():
     from app.routers.stream_router import _sniff_audio_mime
 
@@ -166,6 +254,10 @@ async def test_download_with_ffmpeg_asks_for_the_full_ladder(download_job, monke
     cmd = seen[0]
     assert stream_service.FORMAT_SELECTOR in cmd
     assert "-x" in cmd and "--audio-format" in cmd
+    # `--quiet` suppresses the progress lines the job reports on, which left
+    # every download stuck at 0% until it completed; progress must stay on.
+    assert "--quiet" not in cmd
+    assert "--progress" in cmd
     # Tagging and artwork belong to our own mutagen pass, which covers every
     # container; yt-dlp's CLI embedders are MP3-only and redundant with it.
     assert "--add-metadata" not in cmd

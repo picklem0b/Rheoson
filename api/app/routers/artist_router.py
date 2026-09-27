@@ -16,10 +16,11 @@ without re-fetching the whole artist page every render.
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 
 from app.core.deps import get_current_user
 from app.services import artist_follows
+from app.core import error_codes
 
 log = structlog.get_logger()
 router = APIRouter()
@@ -111,7 +112,7 @@ async def follow_artist(
     # Only accept real artist ids — "unknown" and "local" are synthetic ids
     # the library aggregate uses and must never be persisted as follows.
     if not artist_id or artist_id in {"unknown", "local"}:
-        raise HTTPException(status_code=400, detail="Invalid artist id")
+        raise error_codes.fail(error_codes.ARTIST.INVALID_ID, 400)
 
     name = str(body.get("name") or "")
     image_url = str(body.get("imageUrl") or "")

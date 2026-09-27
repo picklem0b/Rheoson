@@ -14,7 +14,7 @@ from pathlib import Path
 import httpx
 import socketio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
@@ -22,12 +22,13 @@ from app.core.deps import get_current_user, get_optional_user
 from app.core import health as healthmod
 
 from app.core.config import settings, validate_startup
-from app.core.logging_config import configure_logging
+from app.core.logging_config import configure_logging, maybe_reload
 from app.core.database import connect_db, close_db, db_available
 from app.core.exceptions import (
     RheosonException,
     Rheoson_exception_handler,
     generic_exception_handler,
+    http_exception_handler,
 )
 from app.websocket.ws_manager import ws_manager
 from app.websocket.ws_events import register_events
@@ -44,6 +45,7 @@ from app.routers import (
 )
 from app.routers import equalizer_router, share_router, analytics_router, smart_playlist_router, clerk_webhook_router
 from app.routers import artist_router
+from app.routers import messaging_router, blends_router
 
 configure_logging()
 log = structlog.get_logger()
@@ -51,7 +53,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.19.14"
+VERSION = "2.22.1"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -302,9 +304,24 @@ async def lifespan(_app: FastAPI):
 
     _health_task = asyncio.create_task(_health_probe_loop())
 
+    # Smart-logging reload loop: touching rheoson.logconfig.json (or flipping
+    # a RHEOSON_LOG_* env var in-process) applies new floors without a
+    # restart. Same cadence as the health probes — this is a file mtime
+    # stat, not a scan.
+    async def _log_reload_loop():
+        while True:
+            try:
+                maybe_reload()
+            except Exception:
+                log.error("logging.reload.failed", exc_info=True)
+            await asyncio.sleep(15)
+
+    _log_reload_task = asyncio.create_task(_log_reload_loop())
+
     log.info("Rheoson.api.ready", cron_jobs=[j.id for j in scheduler.get_jobs()])
     yield
     _health_task.cancel()
+    _log_reload_task.cancel()
     scheduler.shutdown(wait=False)
     await close_db()
     log.info("Rheoson.api.stopped")
@@ -458,6 +475,9 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 app.add_middleware(MetricsMiddleware)
 
 app.add_exception_handler(RheosonException, Rheoson_exception_handler)
+# HTTPException needs its own registration: Starlette's built-in handler would
+# otherwise render these without the ``code`` field the frontend reads.
+app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(Exception,        generic_exception_handler)
 
 
@@ -479,6 +499,8 @@ app.include_router(smart_playlist_router.router, prefix="/api/smart-playlists", 
 # Registered before the /api/artists/{artist_id} detail route further down so
 # the reserved /api/artists/following path is matched by this router first.
 app.include_router(artist_router.router,   prefix="/api/artists",  tags=["artists"])
+app.include_router(messaging_router.router, prefix="/api/messages", tags=["messages"])
+app.include_router(blends_router.router,    prefix="/api/blends",   tags=["blends"])
 app.include_router(clerk_webhook_router.router, prefix="/api", tags=["webhooks"])
 
 
@@ -545,7 +567,12 @@ async def health_ready(request: Request):
     return await healthmod.ready(request.headers.get("x-request-id", ""))
 
 
-@app.api_route("/api/health", methods=["GET", "HEAD"], tags=["health"], operation_id="health_api_health")
+# Two decorators rather than `api_route(methods=["GET", "HEAD"])`: FastAPI
+# derives one operationId per registered route, so the multi-method form with
+# an explicit `operation_id` emitted the same id twice and made the generated
+# schema violate OpenAPI's operationId uniqueness rule.
+@app.get("/api/health", tags=["health"], operation_id="health_api_health")
+@app.head("/api/health", tags=["health"], operation_id="health_api_health_head")
 async def health(request: Request):
     """Full cheap health snapshot with per-subsystem checks.
 
@@ -562,7 +589,15 @@ async def health(request: Request):
         "services": {
             "mongodb": db_available(),
             "clerk":   settings.has_clerk,
-            "redis":   settings.has_redis,
+            # Split configuration from reachability. The old flat boolean was
+            # `bool(REDIS_URL)` — a string check — so setting the variable made
+            # this endpoint assert a working cache that did not exist (no code
+            # path imported a Redis client). `reachable` now comes from the
+            # bounded PING in core.health.
+            "redis": {
+                "configured": settings.has_redis,
+                "reachable":  payload.get("checks", {}).get("redis", {}).get("status") == "passing",
+            },
             "spotify": settings.has_spotify,
         },
         "spotify": {

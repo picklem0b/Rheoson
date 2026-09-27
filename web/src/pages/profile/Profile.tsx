@@ -307,7 +307,7 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
           </p>
           <div className="grid grid-cols-3 gap-2">
             <ProfileStat icon={MusicNotes} label="Library" value={formatCount(trackCount)} />
-            <ProfileStat icon={Heart} label="Liked" value={formatCount(likedCount ?? 0)} />
+            <ProfileStat icon={Heart} label="Favourites" value={formatCount(likedCount ?? 0)} />
             <ProfileStat icon={TrendUp} label="Plays" value={formatCount(stats?.total_plays ?? 0)} />
             <ProfileStat icon={Clock} label="Hours" value={stats?.estimated_listening_hours ?? 0} />
             <ProfileStat icon={ChartLineUp} label="7-day plays" value={stats?.plays_7d ?? 0} />

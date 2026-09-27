@@ -63,3 +63,14 @@ graphify-out/.graphify_*
 .claude/
 .agent/
 ci-err.file.txt
+
+# Runtime media data — never commit the user's library or its caches
+music/**/*.mp3
+music/**/*.m4a
+music/**/*.mp4
+music/**/*.webm
+music/**/*.opus
+music/**/*.flac
+music/**/*.wav
+music/.track_map.sqlite
+music/.cache/

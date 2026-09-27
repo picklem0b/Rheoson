@@ -60,7 +60,7 @@ cd web && npx tsc --noEmit && npm run lint && npm test && npm run build
 cd api && uv run python -m pytest -q
 ```
 
-Current baseline: 109 frontend + 281 backend tests, lint/tsc/pyflakes clean. Backend tests patch `app.core.database.get_db` as a FastAPI dependency; a mock-DB round trip in a test means the fixture resets `_shared_mock_db` state (see `tests/conftest.py::_clean_state`).
+Current baseline: 158 frontend + 406 backend tests, lint/tsc/pyflakes clean. Backend tests patch `app.core.database.get_db` as a FastAPI dependency; a mock-DB round trip in a test means the fixture resets `_shared_mock_db` state (see `tests/conftest.py::_clean_state`). The mock's `find()` is sync (Motor-shaped) and supports `$regex` + scalar-in-array matching — messaging/blends membership queries rely on it.
 
 ## Data map
 

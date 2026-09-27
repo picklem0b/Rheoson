@@ -17,6 +17,8 @@ like a CDN response.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from app.services import stream_service as ss
@@ -114,6 +116,26 @@ def test_client_ladder_starts_with_default_and_avoids_the_js_challenge():
     assert "youtube:player_client=android_vr" in flat
 
 
+def test_ladder_drops_clients_that_can_no_longer_return_a_format():
+    """Clients that only answer with SABR/PO-token formats are dead weight.
+
+    Measured against two tracks, `ios`, `mweb` and `web` failed every attempt
+    with "Requested format is not available" — no `-f` selector can pick a
+    SABR-only answer. Each one still cost a subprocess spawn and a full
+    extraction before the ladder moved on, so they only made the failure path
+    slower. Pin their absence so they cannot creep back without evidence.
+    """
+    flat = [a[0] for a in ss.client_attempts() if a]
+    for dead in ("youtube:player_client=ios", "youtube:player_client=mweb",
+                 "youtube:player_client=web"):
+        assert dead not in flat, f"{dead} cannot return a selectable format"
+
+
+def test_ladder_stays_bounded():
+    """Every rung is a subprocess; the ladder must not grow without limit."""
+    assert len(ss.client_attempts()) <= 5
+
+
 @pytest.mark.parametrize(
     "text,expected",
     [
@@ -130,6 +152,36 @@ def test_client_ladder_starts_with_default_and_avoids_the_js_challenge():
 def test_is_extractor_failure(text, expected):
     """Only client-level refusals are worth another subprocess."""
     assert ss.is_extractor_failure(text) is expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("ERROR: unable to download video data: HTTP Error 403: Forbidden", True),
+        ("ERROR: HTTP Error 429: Too Many Requests", True),
+        ("ERROR: HTTP Error 503: Service Unavailable", True),
+        ("ERROR: [youtube] x: Requested format is not available.", False),
+        ("ERROR: Sign in to confirm you're not a bot.", False),
+        ("ERROR: unable to write data to disk: No space left on device", False),
+        ("", False),
+    ],
+)
+def test_is_transient_media_refusal(text, expected):
+    """A refused transfer is a retry, not a reason to change player client."""
+    assert ss.is_transient_media_refusal(text) is expected
+
+
+def test_the_two_failure_readings_overlap_on_a_refused_transfer():
+    """Pin the overlap that decides which remedy runs first.
+
+    `http error 403` is deliberately in both marker sets, so callers have to
+    choose: retry the same client, or switch. The download ladder checks this
+    one first, and if the overlap ever disappears silently that ordering would
+    become dead code rather than the fix it is.
+    """
+    text = "ERROR: unable to download video data: HTTP Error 403: Forbidden"
+    assert ss.is_transient_media_refusal(text) is True
+    assert ss.is_extractor_failure(text) is True
 
 
 # ── Fake CDN ──────────────────────────────────────────────────
@@ -292,10 +344,23 @@ async def test_relay_discards_a_body_that_fails_midway(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_relay_propagates_a_genuine_upstream_failure(monkeypatch):
-    """A real relay error surfaces (so the client retries) and caches nothing."""
-    import app.routers.stream_router as sr
+async def test_relay_diagnoses_a_genuine_upstream_failure(monkeypatch, caplog):
+    """A real relay error is diagnosed, not thrown at the client.
 
+    Updated contract (the traceback.log incident): the old relay let the
+    exception escape, so uvicorn flagged a Content-Length shortfall and the
+    operator got a giant raw traceback (twice) for what is an upstream
+    failure, not an app bug. The guard now logs one structured warning —
+    stream.relay.upstream_died — arms the duplicate-traceback suppression,
+    and ends the response cleanly. The delivered bytes still flow; nothing
+    partial is cached.
+    """
+    import logging
+
+    import app.routers.stream_router as sr
+    from app.core import logging_config as lc
+
+    lc._suppress_until[0] = 0.0
     upstream = _FakeUpstream(
         PAYLOAD,
         status_code=206,
@@ -304,8 +369,15 @@ async def test_relay_propagates_a_genuine_upstream_failure(monkeypatch):
     )
     resp, _ = await _relay(monkeypatch, upstream)
 
-    with pytest.raises(RuntimeError):
-        _ = b"".join([chunk async for chunk in resp.body_iterator])
+    consumed = bytearray()
+    with caplog.at_level(logging.WARNING):
+        _ = b"".join([chunk async for chunk in resp.body_iterator if chunk and (consumed.extend(chunk) or True)])
+
+    assert bytes(consumed) == PAYLOAD[: len(PAYLOAD) // 2], "delivered bytes must still flow before the clean end"
+    assert any(
+        "stream.relay.upstream_died" in r.getMessage() for r in caplog.records
+    ), "the upstream death was never diagnosed in the log"
+    assert lc._suppress_until[0] > time.monotonic(), "duplicate-traceback suppression was not armed"
 
     assert sr._remote_cache_get(ID) is None
     assert list(sr._buffer_dir.glob(f"{ID}.*.relay")) == []

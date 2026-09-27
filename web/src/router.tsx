@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { applyRouteSeo } from '@/lib/seo'
 import RootLayout from '@/components/layout/RootLayout'
 import AuthGuard from '@/components/layout/AuthGuard'
 import Home from '@/pages/home/Home'
@@ -13,7 +14,10 @@ import NowPlaying from '@/pages/nowplaying/NowPlaying'
 import Playlist from '@/pages/playlist/Playlist'
 import Album from '@/pages/album/Album'
 import Artist from '@/pages/artist/Artist'
+import Messages from '@/pages/messages/Messages'
+import Blend from '@/pages/blend/Blend'
 import NotFound from '@/pages/errors/NotFound'
+import ErrorRedirect from '@/pages/errors/ErrorRedirect'
 import Landing from '@/pages/landing/Landing'
 import AuthPage from '@/pages/auth/AuthPage'
 
@@ -40,6 +44,8 @@ export const routes = [
       { path: 'search',           element: <Search /> },
       { path: 'library',          element: <Library /> },
       { path: 'downloads',        element: <Downloads /> },
+      { path: 'messages',         element: <Messages /> },
+      { path: 'blend/:id',        element: <Blend /> },
       { path: 'settings',         element: <Settings /> },
       { path: 'profile',          element: <Profile /> },
       { path: 'stats',            element: <ListeningStats /> },
@@ -67,6 +73,9 @@ export const routes = [
   { path: '/now-playing', element: <Navigate to="/full-player" replace /> },
   { path: '/login',       element: <AuthPage mode="sign-in" /> },
   { path: '/register',    element: <AuthPage mode="sign-up" /> },
+  // API failures routed here carry { state: { status, message } }. Direct
+  // navigation renders the 500 fallback — see ErrorRedirect.
+  { path: '/error',       element: <ErrorRedirect /> },
   // /auth/* is as important as /auth itself: Clerk's path-routed
   // <SignUp>/<SignIn> navigate their multi-step flows to sub-paths of the
   // mount path (email-code verification, factor-one for MFA, SSO callback).
@@ -82,3 +91,27 @@ export const routes = [
 ]
 
 export const router = createBrowserRouter(routes)
+
+// Per-route head updates (title / canonical / og:url) on every navigation —
+// the SPA's SEO surface without any page importing anything. The immediate
+// call covers deep links (direct /landing hits), where no navigation event
+// ever fires.
+if (typeof window !== 'undefined') {
+  applyRouteSeo(router.state.location.pathname)
+  router.subscribe((state) => {
+    applyRouteSeo(state.location.pathname)
+  })
+}
+
+// Expose the live router for navigation from outside React — the API
+// client's fatal-5xx path (lib/fatalApiError.ts) navigates to /error from
+// an interceptor with no component in sight. Optional and checked, so the
+// module stays a no-op in tests and non-browser contexts.
+declare global {
+  interface Window {
+    __rheosonRouter?: typeof router
+  }
+}
+if (typeof window !== 'undefined') {
+  window.__rheosonRouter = router
+}

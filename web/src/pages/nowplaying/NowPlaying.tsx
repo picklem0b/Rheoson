@@ -3,9 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
    motion,
-   AnimatePresence,
-   useMotionValue,
-   useTransform
+   AnimatePresence
 } from "framer-motion";
 import {
    CaretDown,
@@ -14,6 +12,7 @@ import {
    DotsThreeOutline,
    DownloadSimple,
    Microphone,
+   ShareNetwork,
    Queue,
    Plus,
    Play,
@@ -29,6 +28,7 @@ import {
 import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { useQueueStore } from "@/store/queue.store";
+import { useShareStore } from "@/store/share.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useQueue } from "@/hooks/queue.hook";
 import { usePlayer } from "@/hooks/player.hook";
@@ -46,7 +46,6 @@ import { qk } from "@/lib/queryKeys";
 import { invalidateArtistFollowSurfaces } from "@/lib/queryInvalidation";
 import PlayerControls from "@/components/player/PlayerControls";
 import ProgressBar from "@/components/player/ProgressBar";
-import { Spinner } from "@/components/ui/Spinner";
 import { formatDuration } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { Track } from "@/types/track.types";
@@ -56,9 +55,10 @@ type Tab = "queue" | "lyric" | "creator";
 // ── Context menu ──────────────────────────────────────────────
 
 const MENU_ITEMS = [
-   { icon: Heart, label: "Like", action: "like" },
+   { icon: Heart, label: "Favourite", action: "like" },
    { icon: DownloadSimple, label: "Download", action: "download" },
    { icon: Plus, label: "Add to queue", action: "queue-add" },
+   { icon: ShareNetwork, label: "Share to chat", action: "share-chat" },
    { icon: LinkIcon, label: "Copy link", action: "copy-link" },
    { icon: Microphone, label: "View lyrics", action: "lyrics" }
 ];
@@ -78,7 +78,7 @@ function ContextSheet({
       item.action === "like"
          ? {
               ...item,
-              label: liked ? "Remove from liked" : "Like",
+              label: liked ? "Remove from favourites" : "Favourite",
               icon: Heart
            }
          : item
@@ -166,7 +166,8 @@ function LyricsTab({
    synced,
    isLoading,
    isPlaying,
-   onSeek
+   onSeek,
+   track
 }: {
    lines: { text: string; time?: number }[];
    activeLine: number;
@@ -174,7 +175,21 @@ function LyricsTab({
    isLoading: boolean;
    isPlaying: boolean;
    onSeek?: (seconds: number) => void;
+   track: Track | null;
 }) {
+   const openShare = useShareStore((s) => s.openShare);
+
+   const shareLyrics = () => {
+      if (!track) return;
+      openShare({
+         kind: "lyrics",
+         id: track.id,
+         title: track.title,
+         subtitle: track.artist?.name,
+         artworkUrl: track.artworkUrl,
+         snippet: lines.slice(0, 4).map((l) => l.text).join("\n"),
+      });
+   };
    const [follow, setFollow] = useState(true);
    const lineRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
@@ -187,8 +202,15 @@ function LyricsTab({
 
    if (isLoading) {
       return (
-         <div className='flex items-center justify-center py-16'>
-            <Spinner size='md' />
+         <div className='flex items-end justify-center py-16 gap-1 h-fit' role='status' aria-label='Loading lyrics'>
+            {[0, 1, 2].map(i => (
+               <motion.span
+                  key={i}
+                  className='w-1.5 bg-[var(--accent)] rounded-full h-6 origin-bottom'
+                  animate={{ scaleY: [0.3, 1, 0.6] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+               />
+            ))}
          </div>
       );
    }
@@ -224,6 +246,16 @@ function LyricsTab({
                         : "bg-white/5 text-white/50"
                   )}>
                   {follow ? "Following lyrics" : "Auto-scroll off"}
+               </button>
+            )}
+            {track && (
+               <button
+                  onClick={shareLyrics}
+                  aria-label='Share these lyrics to chat'
+                  title='Share lyrics'
+                  className='w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center
+                             text-white/50 hover:text-white transition-colors'>
+                  <ShareNetwork className='w-3.5 h-3.5' />
                </button>
             )}
          </div>
@@ -626,7 +658,14 @@ function CreatorTrackRow({
 
 function PlaylistTab({ currentTrack }: { currentTrack: Track }) {
    const { queue, history, playTrack } = useQueue();
-   const all = [...history, currentTrack, ...queue];
+   // history's last entry IS the current track (queue.store semantics) —
+   // appending currentTrack again is what made the playing song show twice.
+   const seen = new Set<string>();
+   const all = [...history, currentTrack, ...queue].filter(t => {
+      if (!t || seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+   });
 
    if (all.length === 0) {
       return (
@@ -751,6 +790,7 @@ export default function NowPlaying() {
    const isPlaying = usePlayerStore(s => s.isPlaying);
    const isLoading = usePlayerStore(s => s.isLoading);
    const { openDownloadModal } = useUIStore();
+   const openShare = useShareStore((s) => s.openShare);
    const { seek } = usePlayer();
 
    const {
@@ -763,6 +803,9 @@ export default function NowPlaying() {
    const [tab, setTab] = useState<Tab>("queue");
    const [showMenu, setShowMenu] = useState(false);
    const [liked, setLiked] = useState(currentTrack?.isLiked ?? false);
+   const playSource = usePlayerStore(s => s.playSource);
+   // (Lyrics are preloaded by construction: the useLyrics query above runs
+   // unconditionally on mount — the Lyrics tab reads the warmed cache.)
 
    // The PlayerBar lyrics button opens this view on the Lyrics tab
    useEffect(() => {
@@ -772,11 +815,6 @@ export default function NowPlaying() {
       window.addEventListener("rheoson:show-tab", handler);
       return () => window.removeEventListener("rheoson:show-tab", handler);
    }, []);
-
-   // Swipe-down-to-dismiss
-   const dragY = useMotionValue(0);
-   const opacity = useTransform(dragY, [0, 200], [1, 0]);
-   const scale = useTransform(dragY, [0, 200], [1, 0.94]);
 
    const handleLike = async () => {
       if (!currentTrack) return;
@@ -810,6 +848,15 @@ export default function NowPlaying() {
             addToQueue(currentTrack);
             break;
          }
+         case "share-chat":
+            openShare({
+               kind: "track",
+               id: currentTrack.id,
+               title: currentTrack.title,
+               subtitle: currentTrack.artist?.name,
+               artworkUrl: currentTrack.artworkUrl,
+            });
+            break;
          case "copy-link": {
             const url = `${window.location.origin}/search?q=${encodeURIComponent(currentTrack.title + " " + (currentTrack.artist?.name ?? ''))}`;
             navigator.clipboard.writeText(url).catch(() => {});
@@ -825,7 +872,6 @@ export default function NowPlaying() {
 
    return (
       <motion.div
-         style={{ opacity, scale }}
          className='fixed inset-0 z-50 flex flex-col bg-[rgb(var(--gray-950))] overflow-hidden'>
          {/* Blurred artwork background */}
          <div className='absolute inset-0 pointer-events-none'>
@@ -837,20 +883,6 @@ export default function NowPlaying() {
             />
             <div className='absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-black/95' />
          </div>
-
-         {/* Drag-to-dismiss handle */}
-         <motion.div
-            drag='y'
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.4 }}
-            style={{ y: dragY }}
-            onDragEnd={(_, info) => {
-               if (info.offset.y > 120) navigate(-1);
-               else dragY.set(0);
-            }}
-            className='absolute inset-x-0 top-0 h-12 z-20 flex items-start justify-center pt-2.5 cursor-grab active:cursor-grabbing'>
-            <div className='w-10 h-1 rounded-full bg-white/25' />
-         </motion.div>
 
          {/* Scrollable main content — desktop centers the player column */}
          <div className='relative z-10 flex flex-col h-full overflow-y-auto no-scrollbar lg:max-w-2xl lg:mx-auto lg:w-full'>
@@ -873,8 +905,8 @@ export default function NowPlaying() {
                         </span>
                      </div>
                   )}
-                  <p className='text-[10px] font-bold uppercase tracking-widest text-white/50'>
-                     Now Playing
+                  <p className='text-[10px] font-bold uppercase tracking-widest text-white/50 truncate max-w-[180px]'>
+                     Playing from {playSource}
                   </p>
                </div>
 
@@ -922,7 +954,17 @@ export default function NowPlaying() {
                            animate={{ opacity: 1 }}
                            exit={{ opacity: 0 }}
                            className='absolute inset-0 rounded-3xl bg-black/50 flex items-center justify-center'>
-                           <Spinner size='lg' className='border-white' />
+                           {/* EQ-style loader — the app's playing motif, repurposed for buffering */}
+                           <div className='flex items-end gap-1 h-6' role='status' aria-label='Loading'>
+                              {[0, 1, 2].map(i => (
+                                 <motion.span
+                                    key={i}
+                                    className='w-1 bg-white rounded-full h-full origin-bottom'
+                                    animate={{ scaleY: [0.3, 1, 0.6] }}
+                                    transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+                                 />
+                              ))}
+                           </div>
                         </motion.div>
                      )}
                   </AnimatePresence>
@@ -1029,6 +1071,7 @@ export default function NowPlaying() {
                            isLoading={lyricsLoading}
                            isPlaying={isPlaying}
                            onSeek={seek}
+                           track={currentTrack}
                         />
                      )}
                      {tab === "creator" && (

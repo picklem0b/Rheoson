@@ -16,7 +16,9 @@ async def test_download_custom_path_outside_music_dirs_rejected(client):
         "customPath": "/etc/evil",
     })
     assert resp.status_code == 400
-    assert "customPath" in resp.json().get("detail", "")
+    body = resp.json()
+    assert body.get("code") == "DFS02", "the registry code must reach the client"
+    assert "outside" in body.get("detail", "").lower()
 
     # .. traversal out of the music dir must also be rejected
     resp2 = await client.post("/api/downloads", json={

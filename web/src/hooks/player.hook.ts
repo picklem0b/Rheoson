@@ -45,6 +45,22 @@ import type { Track } from '@/types/track.types';
 // actions target the same Howl, never accidentally spawning a second one.
 
 let _howl: Howl | null = null;
+
+// Playback speed. Applied to every Howl we build and re-applied on load, so
+// it survives track changes. Persisted alongside the other rheoson-* prefs.
+let _playbackRate: number =
+    parseFloat(localStorage.getItem('rheoson-playback-rate') ?? '1') || 1;
+
+export function getPlaybackRate(): number {
+    return _playbackRate;
+}
+
+export function setPlaybackRate(rate: number): void {
+    const clamped = Math.min(2, Math.max(0.5, rate));
+    _playbackRate = clamped;
+    localStorage.setItem('rheoson-playback-rate', String(clamped));
+    try { _howl?.rate(clamped); } catch { /* howl not loaded yet — onload applies it */ }
+}
 let _loadedId: string | null = null;
 let _timer: number | null = null;
 // Set when the current Howl failed to load/decode. A failed Howl still
@@ -388,6 +404,10 @@ export function usePlayer() {
                     const dur = _howl?.duration() ?? 0;
                     if (dur > 0) setDuration(dur);
                     setLoading(false);
+                    // Re-apply the persisted playback speed to the fresh Howl.
+                    if (_playbackRate !== 1) {
+                        try { _howl?.rate(_playbackRate); } catch { /* cosmetic */ }
+                    }
                     // Path audio through the DSP graph (EQ/bass/mono/pre-amp/normalise).
                     // Wrapped so a graph problem can never skip the play() below.
                     try { ensureEffectsChain(); } catch { /* direct output */ }

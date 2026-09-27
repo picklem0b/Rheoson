@@ -27,6 +27,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -221,11 +222,79 @@ def install_ffmpeg(timeout: float = 600.0) -> tuple[bool, str]:
     return False, output[-400:] or f"pkg exited with code {res.returncode}"
 
 
+def _script_interpreter(path: str) -> str | None:
+    """The Python that owns a script-based install at ``path``, or None.
+
+    A pip/wheel install of yt-dlp is a console script with a
+    ``#!/path/to/python`` shebang, so the interpreter that can upgrade the
+    package is written in the file. Frozen builds (a real ELF/Mach-O binary)
+    have no shebang and are handled by ``yt-dlp -U`` instead.
+    """
+    try:
+        with open(path, "rb") as handle:
+            first = handle.readline(256)
+    except OSError:
+        return None
+    if not first.startswith(b"#!"):
+        return None
+    parts = first[2:].decode("utf-8", "replace").strip().split()
+    if not parts:
+        return None
+    # `#!/usr/bin/env python3` names the interpreter as an argument.
+    if Path(parts[0]).name == "env":
+        return shutil.which(parts[-1]) if len(parts) > 1 else None
+    return parts[0]
+
+
+def _pip_upgrade_ytdlp(binary_path: str, timeout: float) -> tuple[bool, str]:
+    """Upgrade a pip/wheel yt-dlp through the interpreter that installed it."""
+    python = _script_interpreter(binary_path) or sys.executable
+    if not python:
+        return False, "no Python interpreter found to run pip"
+
+    base = [python, "-m", "pip", "install", "--upgrade"]
+    cmd = [*base, "yt-dlp"]
+    log.info("toolchain.upgrade_ytdlp.pip", cmd=" ".join(cmd))
+
+    for args in ([*base, "yt-dlp"], [*base, "--break-system-packages", "yt-dlp"]):
+        try:
+            res = subprocess.run(
+                args, capture_output=True, text=True, timeout=timeout, check=False
+            )
+        except subprocess.TimeoutExpired:
+            return False, "pip install yt-dlp timed out"
+        except FileNotFoundError:
+            return False, f"pip is not available for {python}"
+        except Exception as e:  # noqa: BLE001
+            return False, str(e)[:200]
+
+        output = ((res.stdout or "") + (res.stderr or "")).strip()
+        if res.returncode == 0:
+            return True, output[-400:] or f"updated yt-dlp via {python}"
+
+        # PEP 668 hosts (including Termux) refuse a plain install; retrying
+        # with the explicit override is what lets the upgrade land at all.
+        if "externally-managed-environment" not in output:
+            return False, output[-400:] or f"pip exited with code {res.returncode}"
+
+    return False, "pip refused the upgrade even with --break-system-packages"
+
+
 def upgrade_ytdlp(timeout: float = 180.0) -> tuple[bool, str]:
-    """Self-update yt-dlp through the resolved binary."""
+    """Update yt-dlp, falling back to pip when it was pip-installed.
+
+    ``yt-dlp -U`` refuses to run for a pip/wheel install — it reports "You
+    installed yt-dlp with pip or using the wheel from PyPi" and exits non-zero.
+    On Termux that is *every* install (the binary is a console script into the
+    prefix's site-packages), so the daily update cron had never actually
+    updated anything: yt-dlp silently aged out while YouTube changed its player
+    clients, and downloads started failing on tracks the current release
+    handles fine.
+    """
     binary = ytdlp()
     if not binary.available:
         return False, f"yt-dlp is not installed — {install_hint('yt-dlp')}"
+
     try:
         res = subprocess.run(
             [binary.path, "-U"], capture_output=True, text=True, timeout=timeout, check=False
@@ -234,9 +303,18 @@ def upgrade_ytdlp(timeout: float = 180.0) -> tuple[bool, str]:
         return False, "yt-dlp -U timed out"
     except Exception as e:  # noqa: BLE001
         return False, str(e)[:200]
+
     output = ((res.stdout or "") + (res.stderr or "")).strip()
+    if res.returncode == 0:
+        refresh()
+        return True, output[-400:] or "no output"
+
+    # `-U` declined; the install is probably pip-managed, so upgrade it there.
+    first_line = output or f"yt-dlp -U exited with code {res.returncode}"
+    ok, pip_output = _pip_upgrade_ytdlp(binary.path or "yt-dlp", timeout)
     refresh()
-    return res.returncode == 0, (output[-400:] or "no output")
+    combined = f"{first_line}\n{pip_output}"
+    return ok, combined[-400:]
 
 
 def refresh() -> None:

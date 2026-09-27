@@ -1,0 +1,15 @@
+# Rheoson — https://rheoson.onrender.com
+# App shell routes that need a session or are personal data are excluded;
+# everything public is crawlable.
+
+User-agent: *
+Allow: /
+Disallow: /settings
+Disallow: /profile
+Disallow: /stats
+Disallow: /wrapped
+Disallow: /full-player
+Disallow: /error
+Disallow: /auth
+
+Sitemap: https://rheoson.onrender.com/sitemap.xml

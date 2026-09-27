@@ -7,10 +7,10 @@ export const downloadsApi = {
     api.post<DownloadJob>('/downloads', payload),
 
   getDownloads: () =>
-    api.get<DownloadJob[]>('/downloads'),
+    api.get<DownloadJob[]>('/downloads', NO_FATAL),
 
   getDownload: (id: string) =>
-    api.get<DownloadJob>(`/downloads/${id}`),
+    api.get<DownloadJob>(`/downloads/${id}`, NO_FATAL),
 
   cancelDownload: (id: string) =>
     api.post<void>(`/downloads/${id}/cancel`),
@@ -22,7 +22,7 @@ export const downloadsApi = {
     api.post<DownloadJob>(`/downloads/${id}/retry`, { resume }),
 
   deleteDownload: (id: string) =>
-    api.delete<void>(`/downloads/${id}`),
+    api.delete<void>(`/downloads/${id}`, NO_FATAL),
 
   /** Start many downloads at once (backend caps at 20 per call). */
   batchDownload: (payload: {
@@ -30,3 +30,5 @@ export const downloadsApi = {
   } & DownloadOptions) =>
     api.post<DownloadJob[]>('/downloads/batch', payload),
 }
+
+const NO_FATAL = { _noFatalRedirect: true } as const

@@ -11,7 +11,7 @@
 let _wakeLock: WakeLockSentinel | null = null
 let _active = false
 
-/** Settings → Appearance → Keep screen awake. Read per request so a change
+/** Settings → Playback → Keep screen awake. Read per request so a change
  *  applies on the next play without a reload; defaults on. */
 function _keepAwakeEnabled(): boolean {
   try {

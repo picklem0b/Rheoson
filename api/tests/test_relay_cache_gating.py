@@ -5,11 +5,16 @@ cache: its bytes are a slice of the track, and promoting them produces a
 truncated "durable" file that answers later plays — and every seek beyond
 its end — with 416 forever. Only whole-file responses may be cached, and
 a body that ends short of its promised size is discarded at publish time.
+
+Also pins the upstream-death contract: a CDN that dies mid-body is
+diagnosed with one structured warning and a clean end of stream — never a
+raw traceback at the ASGI boundary (the traceback.log incident).
 """
 
 from __future__ import annotations
 
-import asyncio
+import logging
+import time
 
 import pytest
 
@@ -156,3 +161,82 @@ async def test_truncated_body_is_not_published(monkeypatch):
     # the same run legitimately holds its file open on disk).
     after = set(sr._buffer_dir.glob(f"{TRACK_ID}.*.relay"))
     assert after <= before, f"abort() left temp files behind: {after - before}"
+
+
+# ── Upstream death mid-relay ─────────────────────────────────────────────
+
+
+class _DyingUpstream(_FakeUpstream):
+    """Yields a burst of bytes, then the CDN connection blows up mid-body."""
+
+    def __init__(self, *, clen: int, burst: bytes, boom: Exception) -> None:
+        super().__init__(status=200, mime="audio/mp4", rng=None, clen=clen, payload=burst)
+        self.boom = boom
+
+    async def iter_bytes(self):
+        yield self._payload
+        raise self.boom
+
+
+def _wire_dying_upstream(monkeypatch, boom: Exception) -> None:
+    async def fake_open(url, range_header=None, timeout=30.0, read_timeout=60.0):
+        return _DyingUpstream(clen=10_000_000, burst=b"x" * 4096, boom=boom)
+
+    async def some_resolve(tid):
+        return "https://cdn.example/audio"
+
+    monkeypatch.setattr(ss, "open_upstream", fake_open)
+    monkeypatch.setattr(sr, "_resolve_direct_url", some_resolve)
+
+
+@pytest.mark.asyncio
+async def test_upstream_death_is_diagnosed_not_raised(monkeypatch, caplog):
+    """A CDN dying mid-body must yield one structured warning and a clean end.
+
+    Regression guard for the traceback.log incident: the old code let the
+    exception escape, uvicorn flagged a Content-Length shortfall at the send
+    boundary, and the operator got a giant raw traceback (twice) for what is
+    an upstream failure — not an app bug.
+    """
+    from app.core import logging_config as lc
+
+    sr._remote_cache.clear()
+    sr._failure_cache.clear()
+    lc._suppress_until[0] = 0.0
+    _wire_dying_upstream(monkeypatch, ss.UpstreamError("read timeout"))
+
+    response = await sr._serve_direct_relay(TRACK_ID, _FakeRequest(None))
+    assert response is not None
+
+    chunks = 0
+    with caplog.at_level(logging.WARNING):
+        # The guard converts the upstream failure into a clean end of
+        # stream: the burst already yielded still plays, then the iterator
+        # stops without raising.
+        async for _chunk in response.body_iterator:
+            chunks += 1
+
+    assert chunks >= 1, "the burst never made it out of the relay"
+    assert any(
+        "stream.relay.upstream_died" in record.getMessage() for record in caplog.records
+    ), "the upstream death was never diagnosed in the log"
+    # The suppression window must be armed so the ASGI layer's duplicate
+    # traceback never prints for this already-diagnosed failure.
+    assert lc._suppress_until[0] > time.monotonic(), "suppression was not armed"
+
+
+@pytest.mark.asyncio
+async def test_upstream_death_aborts_cache_tee(monkeypatch):
+    """A relay that dies mid-body must not publish partial bytes to the cache."""
+    sr._remote_cache.clear()
+    sr._failure_cache.clear()
+    _wire_dying_upstream(monkeypatch, ss.UpstreamError("connection reset"))
+
+    response = await sr._serve_direct_relay(TRACK_ID, _FakeRequest(None))
+    assert response is not None
+    async for _chunk in response.body_iterator:
+        pass
+
+    assert sr._remote_cache_get(TRACK_ID) is None, (
+        "partial bytes from a dead upstream were published as a complete track"
+    )

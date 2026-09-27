@@ -9,8 +9,6 @@ export default function LayoutSection() {
       fontSize,
       sidebarCollapsed,
       toggleSidebar,
-      reduceMotion,
-      setReduceMotion,
       setNavStyle,
       setNavPosition,
       setFontFamily,
@@ -127,14 +125,6 @@ export default function LayoutSection() {
                onClick={toggleSidebar}>
                <span className='text-[13px] text-[var(--text-muted)]'>
                   {sidebarCollapsed ? 'Collapsed' : 'Expanded'}
-               </span>
-            </SettingsRow>
-            <SettingsRow
-               label='Reduce motion'
-               description='Also in Appearance — stops every animation app-wide'
-               onClick={() => setReduceMotion(!reduceMotion)}>
-               <span className='text-[13px] text-[var(--text-muted)]'>
-                  {reduceMotion ? 'On' : 'Off'}
                </span>
             </SettingsRow>
          </SettingsGroup>

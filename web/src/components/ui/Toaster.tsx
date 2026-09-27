@@ -15,11 +15,18 @@ import { playChime } from "@/lib/sounds";
 
 interface ToasterContextValue {
     toast: (message: string, type?: ToastType, duration?: number) => string;
+    /** Toast with a backend DCCNN code and an expandable full message. */
+    toastWithCode: (
+        message: string,
+        type: ToastType,
+        opts?: { code?: string; fullDetail?: string; duration?: number }
+    ) => string;
     dismiss: (id: string) => void;
 }
 
 const ToasterContext = createContext<ToasterContextValue>({
     toast: () => "",
+    toastWithCode: () => "",
     dismiss: () => {}
 });
 
@@ -66,6 +73,19 @@ export function Toaster({ children }: { children: React.ReactNode }) {
         [dismiss]
     );
 
+    const toastWithCode = useCallback<ToasterContextValue["toastWithCode"]>(
+        (message, type, opts = {}) => {
+            const id = toast(message, type, opts.duration ?? (type === "error" ? 6000 : 3000));
+            // Attach the code/detail to the toast we just pushed. Errors stay
+            // up longer (6s) and the full detail is one tap away on the ⓘ.
+            setToasts(prev => prev.map(t =>
+                t.id === id ? { ...t, code: opts.code, fullDetail: opts.fullDetail } : t
+            ));
+            return id;
+        },
+        [toast]
+    );
+
     // Clear all timers on unmount
     useEffect(
         () => () => {
@@ -76,7 +96,7 @@ export function Toaster({ children }: { children: React.ReactNode }) {
     );
 
     return (
-        <ToasterContext.Provider value={{ toast, dismiss }}>
+        <ToasterContext.Provider value={{ toast, toastWithCode, dismiss }}>
             {children}
 
             {/*

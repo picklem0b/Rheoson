@@ -1,10 +1,13 @@
 import { API_BASE, isClerkEnabled } from "@/lib/constants";
 import { isOnline } from "@/lib/network";
 import { queueMutation, initAutoSync } from "@/lib/offlineQueue";
+import { reportFatalApiError } from "@/lib/fatalApiError";
 
 export interface ApiError extends Error {
    status: number;
    detail: string;
+   /** Backend DCCNN error code (e.g. "DEX01") when the response carried one. */
+   code?: string;
 }
 
 interface RequestOptions extends RequestInit {
@@ -15,6 +18,12 @@ interface RequestOptions extends RequestInit {
    _skipTokenCache?: boolean;
    /** If true, this request will be queued locally when offline instead of throwing. */
    _offlineQueue?: boolean;
+   /**
+    * Opt out of the fatal-5xx redirect to /error. For callers whose job is
+    * probing a possibly-dead backend (Doctor, health checks): they present
+    * the failure inline instead of being swept off their own page.
+    */
+   _noFatalRedirect?: boolean;
 }
 
 const BODY_FREE = new Set(["GET", "HEAD", "DELETE"]);
@@ -30,11 +39,27 @@ function buildUrl(endpoint: string, params?: RequestOptions["params"]): string {
    return s ? `${url}?${s}` : url;
 }
 
-function makeError(status: number, detail: string): ApiError {
+function makeError(status: number, detail: string, code?: string): ApiError {
    const err = new Error(detail) as ApiError;
    err.status = status;
    err.detail = detail;
+   if (code) err.code = code;
    return err;
+}
+
+/**
+ * Split a detail that carries the backend's DCCNN suffix
+ * ("Download failed — … [ERROR_CODE: DEX01]") into message + code.
+ * Accepts the older "[ERR DEX01]" / "[ERR: DEX01]" renderings so a response
+ * already in flight across an upgrade still parses. No suffix (older
+ * backends, non-API errors) leaves `code` undefined and the caller falls
+ * back to the HTTP status.
+ */
+export function splitErrorCode(detail: string): { message: string; code?: string } {
+   const m = /\s*\[ERROR_CODE: ([A-Z]{3}\d{2})\]\s*$/.exec(detail ?? "")
+      ?? /\s*\[ERR:? ([A-Z]{3}\d{2})\]\s*$/.exec(detail ?? "");
+   if (!m) return { message: detail };
+   return { message: detail.slice(0, m.index).trimEnd(), code: m[1] };
 }
 
 let _clerkToken: string | null = null;
@@ -127,7 +152,7 @@ async function request<T>(
    endpoint: string,
    options: RequestOptions = {}
 ): Promise<T> {
-   const { params, signal, _retryCount = 0, _offlineQueue = false, _skipTokenCache = false, ...init } = options;
+   const { params, signal, _retryCount = 0, _offlineQueue = false, _skipTokenCache = false, _noFatalRedirect = false, ...init } = options;
    const method = (init.method ?? "GET").toUpperCase();
 
    const headers: Record<string, string> = {
@@ -187,15 +212,31 @@ async function request<T>(
       // WebView), or a host whose catch-all route answers every path with
       // index.html. Both are configuration, not outages, so the message
       // names the base that was actually used instead of blaming the server.
-      throw makeError(
+      // A 5xx status here is a gateway error page — same fatal semantics
+      // as a JSON 5xx below.
+      const err = makeError(
          res.status,
          res.ok
             ? `The API base is misconfigured — ${API_BASE} served a web page, not JSON. Check Settings → Doctor → Diagnosis.`
             : `Backend offline (${res.status}) — nothing reachable at ${API_BASE}`
       );
+      if (res.status >= 500 && !_noFatalRedirect) reportFatalApiError(err);
+      throw err;
    }
 
    if (!res.ok) {
+      // Gateway-class failures (502/503/504) usually mean the backend is
+      // still waking up. One quiet retry after a short wait before treating
+      // the failure as fatal — probe callers opt out via _noFatalRedirect.
+      if (
+         (res.status === 502 || res.status === 503 || res.status === 504) &&
+         !_noFatalRedirect &&
+         method === "GET" &&
+         _retryCount < 1
+      ) {
+         await new Promise((r) => setTimeout(r, 1500));
+         return request<T>(endpoint, { ...options, _retryCount: _retryCount + 1 });
+      }
       // 401 handling — auth endpoints must surface 401s to the form, never
       // redirect. Everything else depends on the auth mode:
       //
@@ -233,13 +274,22 @@ async function request<T>(
          }
       }
       let detail = `HTTP ${res.status}`;
+      let code: string | undefined;
       try {
          const body = await res.json();
          detail = body?.detail ?? body?.message ?? detail;
+         if (typeof body?.code === "string") code = body.code;
       } catch {
          /* ignore */
       }
-      throw makeError(res.status, detail);
+      // Older backends embed the code in the detail text; prefer the
+      // structured field, fall back to the suffix.
+      const parsed = splitErrorCode(detail);
+      const err = makeError(res.status, parsed.message, code ?? parsed.code);
+      // An unhandled server failure takes the error page, not a toast —
+      // unless the caller is a probe that handles failures itself.
+      if (res.status >= 500 && !_noFatalRedirect) reportFatalApiError(err);
+      throw err;
    }
 
    if (res.status === 204 || res.headers.get("content-length") === "0") {

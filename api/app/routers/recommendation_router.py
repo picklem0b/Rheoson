@@ -17,11 +17,12 @@ from __future__ import annotations
 import structlog
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.core.database import db_available, get_db
 from app.core.deps import get_current_user
 from app.services.taste_utils import compute_persona
+from app.core import error_codes
 
 log = structlog.get_logger()
 router = APIRouter()
@@ -625,7 +626,7 @@ async def onboard_artists(
     user_id = user["sub"]
     raw = body.get("artists")
     if not isinstance(raw, list) or not raw:
-        raise HTTPException(status_code=400, detail="Provide an artists list")
+        raise error_codes.fail(error_codes.ARTIST.ONBOARD_LIST_REQUIRED, 400)
 
     names: list[str] = []
     for a in raw[:8]:
@@ -634,7 +635,7 @@ async def onboard_artists(
         if name and name not in names:
             names.append(name)
     if not names:
-        raise HTTPException(status_code=400, detail="Provide at least one artist name")
+        raise error_codes.fail(error_codes.ARTIST.ONBOARD_NAME_REQUIRED, 400)
 
     seeded = 0
     for name in names:

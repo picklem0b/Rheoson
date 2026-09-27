@@ -8,8 +8,6 @@ must NOT delete staged data for a still-running job.
 
 from __future__ import annotations
 
-import asyncio
-from pathlib import Path
 
 import pytest
 

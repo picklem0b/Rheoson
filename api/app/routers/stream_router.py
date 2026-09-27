@@ -15,6 +15,8 @@ from app.core.deps import get_current_user, get_optional_user
 from app.services.artwork_service import extract_artwork, fetch_remote_artwork
 from app.services.metadata_service import _file_id
 from app.services import stream_service
+from app.core import error_codes
+from app.core.logging_config import arm_traceback_suppression
 
 # NOTE on auth for byte routes: the four content routes below (audio,
 # artwork, artwork-proxy) must stay reachable by <audio>/<img> elements,
@@ -227,7 +229,7 @@ def _remote_cache_clear() -> None:
 # ── Durable warm cache ────────────────────────────────────────
 # The in-memory remote cache dies with the process; a restart throws away
 # every warmed track. When STREAM_CACHE_DIR is set, completed buffers are
-# also hard-linked/copied into that directory and reused across restarts —
+# also copied into that directory and reused across restarts —
 # a track played once this week starts instantly next week.
 
 
@@ -250,9 +252,16 @@ def _warm_enforce_limit() -> None:
         return
     max_bytes = max(0, settings.STREAM_CACHE_MAX_MB) * 1024 * 1024
     try:
+        # Evict oldest-first, with the name as a tiebreak. Timestamps are only
+        # as fine-grained as the filesystem makes them, so two entries can
+        # compare equal; sorting on the stamp alone then inherits directory
+        # order, which differs between filesystems — the eviction assertions in
+        # tests/test_stream_warm_cache.py passed on this device and failed on the
+        # CI runner from the same commit. In-flight temp files are skipped: they
+        # are not entries yet.
         files = sorted(
-            (f for f in d.iterdir() if f.is_file()),
-            key=lambda f: f.stat().st_mtime,
+            (f for f in d.iterdir() if f.is_file() and not f.name.startswith(".")),
+            key=lambda f: (f.stat().st_mtime, f.name),
         )
         total = sum(f.stat().st_size for f in files)
         for f in files:
@@ -274,28 +283,34 @@ def _warm_promote(track_id: str, src: Path, mime: Optional[str]) -> None:
     if d is None:
         return
     dest = d / f"{track_id}.audio"
+    tmp = d / f".{track_id}.audio.tmp"
     try:
-        # A hard link is instant and copies nothing, but `os.link` is not
-        # available on every POSIX platform this runs on (Termux/Android, for
-        # one), so probe for it instead of trusting the os.name check — the
-        # AttributeError that produced is swallowed below and silently left the
-        # durable cache empty.
-        _link = getattr(os, "link", None)
-        linked = False
-        if _link is not None:
-            try:
-                _link(src, dest)
-                linked = True
-            except OSError:
-                linked = False
-        if not linked:
-            shutil.copyfile(src, dest)
+        # Copy rather than hard-link. Both this directory and the session
+        # buffer directory sit under the system temp dir, so `os.link`
+        # *succeeded* on the default configuration and the cache entry shared
+        # an inode with the buffer it was promoted from. That cost three
+        # things: the entry's mtime was the buffer's, so every entry promoted
+        # from one buffer tied in the LRU sort and eviction order fell back to
+        # directory order; the `os.utime` LRU touch in `_warm_lookup` rewrote
+        # the buffer's stamp; and refilling that buffer truncated the cached
+        # copy. The comment above this section already promises "exact copies".
+        #
+        # Staged under a temp name and moved into place so a concurrent reader
+        # can never open a half-copied entry, and so re-promoting an
+        # already-cached track replaces it — with a hard link, destination and
+        # source were the same inode, `copyfile` raised SameFileError and the
+        # swallowed error left the entry untouched.
+        shutil.copyfile(src, tmp)
+        os.replace(tmp, dest)
         if mime:
             (d / f"{track_id}.mime").write_text(mime)
         _warm_enforce_limit()
         log.info("stream.warm.promoted", track_id=track_id)
     except OSError:
-        pass
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _warm_lookup(track_id: str) -> Optional[Path]:
@@ -607,7 +622,7 @@ async def _ensure_remote_session(track_id: str) -> dict | None:
                 _remote_sessions[track_id] = session
                 return session
         await asyncio.sleep(0.1)
-    raise HTTPException(status_code=503, detail="Too many concurrent streams, try again shortly")
+    raise error_codes.fail(error_codes.STREAM.TOO_MANY_STREAMS, 503)
 
 
 @router.post("/{track_id}/warm")
@@ -618,7 +633,7 @@ async def warm_stream(track_id: str, _user: dict | None = Depends(get_optional_u
     warm request and a concurrent play request share one yt-dlp process.
     """
     if len(track_id) != 11:
-        raise HTTPException(status_code=404, detail="Invalid track ID")
+        raise error_codes.fail(error_codes.STREAM.INVALID_TRACK_ID, 404)
 
     await _ensure_cache()
     if _find_local(track_id):
@@ -645,7 +660,12 @@ async def warm_stream(track_id: str, _user: dict | None = Depends(get_optional_u
 
 # ── Routes ────────────────────────────────────────────────────
 
-@router.api_route("/{track_id}/audio", methods=["GET", "HEAD"], operation_id="stream_audio")
+# One route per method, not `api_route(methods=[...])`: FastAPI derives one
+# operationId per registered route, so a single multi-method declaration with
+# an explicit `operation_id` emits the same id twice and produces a schema that
+# violates OpenAPI's uniqueness requirement — codegen silently keeps only one.
+@router.get("/{track_id}/audio", operation_id="stream_audio")
+@router.head("/{track_id}/audio", operation_id="stream_audio_head")
 async def stream_audio(track_id: str, request: Request):
     await _ensure_cache()
     local = _find_local(track_id)
@@ -662,7 +682,7 @@ async def stream_audio(track_id: str, request: Request):
 
     if request.method == "HEAD":
         if len(track_id) != 11:
-            raise HTTPException(status_code=404, detail="Invalid track ID")
+            raise error_codes.fail(error_codes.STREAM.INVALID_TRACK_ID, 404)
         headers = {"Accept-Ranges": "bytes", "Content-Type": "audio/mp4"}
         # When the CDN URL is already resolved, ask it what a GET would really
         # deliver so the answer carries a truthful content type and total
@@ -700,7 +720,7 @@ async def stream_audio(track_id: str, request: Request):
     # YouTube URL. Fail fast on malformed remote ids instead of burning a
     # yt-dlp process (and a 30 s spawn timeout) for garbage input.
     if len(track_id) != 11:
-        raise HTTPException(status_code=404, detail="Track not found locally and id is not a valid remote track")
+        raise error_codes.fail(error_codes.STREAM.NOT_FOUND_REMOTE_INVALID, 404)
 
     return await _serve_ytdlp(track_id, request)
 
@@ -715,7 +735,7 @@ async def get_artwork(track_id: str):
     await _ensure_cache()
     local = _find_local(track_id)
     if not local:
-        raise HTTPException(status_code=404, detail="Not downloaded locally")
+        raise error_codes.fail(error_codes.STREAM.NOT_DOWNLOADED_LOCALLY, 404)
     art = extract_artwork(local)
     return art if art else Response(status_code=204)
 
@@ -765,7 +785,7 @@ async def proxy_artwork(
     if not url:
         return Response(status_code=204)
     if not _artwork_url_allowed(url):
-        raise HTTPException(status_code=400, detail="Artwork URL not allowed")
+        raise error_codes.fail(error_codes.STREAM.ARTWORK_HOST_DENIED, 400)
 
     data = await fetch_remote_artwork(url)
     if not data:
@@ -846,9 +866,9 @@ def _parse_range(rng: str, file_size: int) -> tuple[int, int]:
         start = int(s)
         end   = int(e) if e else file_size - 1
     except Exception:
-        raise HTTPException(status_code=416, detail="Bad Range header")
+        raise error_codes.fail(error_codes.STREAM.RANGE_INVALID, 416, append=" — malformed Range header")
     if start >= file_size or start > end:
-        raise HTTPException(status_code=416, detail="Range not satisfiable")
+        raise error_codes.fail(error_codes.STREAM.RANGE_INVALID, 416)
     end = min(end, file_size - 1)
     return (start, end)
 
@@ -1031,10 +1051,7 @@ async def _fill_buffer_ytdlp(track_id: str, dest: Path, on_mime=None) -> str:
     # All attempts failed
     if dest.exists():
         dest.unlink()
-    raise HTTPException(
-        status_code=502,
-        detail="Could not stream this track. YouTube may be rate-limiting.",
-    )
+    raise error_codes.fail(error_codes.STREAM.UPSTREAM_REFUSED, 502)
 
 
 # ── Remote live streaming (session-backed) ────────────────────
@@ -1150,7 +1167,7 @@ async def _serve_session_stream(track_id: str, session: dict) -> Response:  # no
             if total == 0:
                 # Fill produced nothing (failed) — surface an error so the
                 # client retries through the normal path.
-                raise HTTPException(status_code=502, detail="Stream warm-up failed")
+                raise error_codes.fail(error_codes.STREAM.WARMUP_FAILED, 502)
 
             if session["ok"] and path.exists() and path.stat().st_size > 0:
                 await _complete_session(track_id, session)
@@ -1315,10 +1332,12 @@ async def _serve_direct_relay(track_id: str, request: Request) -> Optional[Respo
     )
 
     async def _relay():
+        sent = 0
         try:
             async for chunk in upstream.iter_bytes():
                 if tee is not None:
                     tee.feed(chunk)
+                sent += len(chunk)
                 yield chunk
             if tee is not None:
                 await tee.finish()
@@ -1328,10 +1347,26 @@ async def _serve_direct_relay(track_id: str, request: Request) -> Optional[Respo
             if tee is not None:
                 await tee.abort()
             return
-        except Exception:
+        except Exception as e:
             if tee is not None:
                 await tee.abort()
-            raise
+            # The CDN died mid-body (timeout, protocol error, reset). This is
+            # the one relay failure worth a line: what died, how much arrived,
+            # what was promised. The response now ends short of its mirrored
+            # Content-Length; uvicorn flags that shortfall at the send
+            # boundary and the ASGI layer would print a full traceback for it,
+            # so suppression is armed — the diagnosis above is the record, and
+            # generic_exception_handler renders the shortfall as one compact
+            # warning instead of the unhandled-exception treatment.
+            arm_traceback_suppression()
+            log.warning(
+                "stream.relay.upstream_died",
+                track_id=track_id,
+                relayed=sent,
+                expected=_expect,
+                error=str(e),
+            )
+            return
         finally:
             await upstream.aclose()
 
@@ -1367,10 +1402,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
     now = time.monotonic()
     if track_id in _failure_cache:
         if _failure_cache[track_id] > now:
-            raise HTTPException(
-                status_code=502,
-                detail="Track temporarily unavailable (recent failure cached).",
-            )
+            raise error_codes.fail(error_codes.STREAM.FAILURE_CACHED, 502)
         del _failure_cache[track_id]
 
     # ── Case 1: durable cache hit ──────────────────────────────
@@ -1390,7 +1422,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
         cached = _remote_cache_get(track_id)
         if cached is not None and cached.exists():
             return _serve_local(cached, request, _remote_cache_mime(track_id))
-        raise HTTPException(status_code=502, detail="Track not available")
+        raise error_codes.fail(error_codes.STREAM.NOT_AVAILABLE, 502)
 
     if session["done"].is_set():
         # Fill finished while we were waiting for a slot
@@ -1406,10 +1438,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
         async with _session_lock:
             _remote_sessions.pop(track_id, None)
         _failure_cache[track_id] = time.monotonic() + _FAILURE_TTL
-        raise HTTPException(
-            status_code=502,
-            detail="Could not stream this track. YouTube may be rate-limiting.",
-        )
+        raise error_codes.fail(error_codes.STREAM.UPSTREAM_REFUSED, 502)
 
     # ── Case 4: fill in progress ──────────────────────────────
     # A `bytes=0-` range is not a seek — it is what every media element sends
@@ -1439,7 +1468,7 @@ async def _serve_ytdlp(track_id: str, request: Request) -> Response:
         async with _session_lock:
             _remote_sessions.pop(track_id, None)
         _failure_cache[track_id] = time.monotonic() + _FAILURE_TTL
-        raise HTTPException(status_code=502, detail="Stream not ready for seeking yet")
+        raise error_codes.fail(error_codes.STREAM.NOT_SEEKABLE_YET, 502)
 
     log.info("stream.ytdlp.live_stream", track_id=track_id)
     return await _serve_session_stream(track_id, session)

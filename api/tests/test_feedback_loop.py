@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 
 # ── Dislike / hide ────────────────────────────────────────────
@@ -124,7 +124,6 @@ async def test_mixes_builds_one_mix_per_top_genre(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_radio_seed_excluded_and_disliked_filtered(client, monkeypatch):
-    import app.routers.recommendation_router as rr
     import app.routers.track_router as tr
     import app.services.ytmusic_service as ytm
 

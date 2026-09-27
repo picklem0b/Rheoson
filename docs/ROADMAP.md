@@ -1,4 +1,406 @@
-# Roadmap — Milestone 2.19
+# Roadmap — Milestone 2.20
+
+Milestone 2.19 made playback and downloads work on a bare host. Milestone 2.20
+is about the **failure surface**: what the product says, and stops saying, when
+something upstream breaks.
+
+The trigger was a real report — a download failing with *"YouTube refused this
+track on every client we tried"* on a host whose `yt-dlp` was already the newest
+release. The engine was current, the track was fine, and the sentence was false
+on both counts. Tracing it found six defects behind that one message, none of
+them about `yt-dlp`: the failure was misattributed, progress was never reported,
+and the sentence explaining it was truncated on every surface that could have
+shown it. A product that cannot explain its own failures cannot be operated,
+and this milestone treats that as a defect class rather than a copy problem.
+
+Phases ship one per commit and are annotated-tagged `v2.20.N`, per
+`GIT_WORKFLOW.md`.
+
+---
+
+## v2.20.0 — Download and failure-surface correctness
+
+**Progress that is reported.** `yt-dlp` writes progress to *stdout* and
+diagnostics to *stderr*. The download read only stderr **and** passed `--quiet`,
+which suppresses the progress lines outright — two independent causes with one
+symptom, so every download sat at 0% until it finished. Both pipes are now
+drained concurrently and progress is parsed from the stream that carries it.
+
+**Failures that say what happened.** `_friendly_download_error` had a single
+extractor branch, so a transient CDN 403, a bot check, a deleted video and a
+genuinely refused track all produced the same sentence — one that advised
+updating an engine already at the latest release. There are now four branches,
+each naming the action that actually helps.
+
+**A message the user can read.** The activity pill clipped the error at 240px
+and the Downloads row clipped it again, so no surface showed the full sentence —
+including the action at its end. Both wrap now, the pill carries the message in
+its `title` and leads to Downloads, where retry lives.
+
+**A failure that stays dismissed.** Failed jobs persist so the Downloads list
+stays a durable record, but the pill re-announced an older failure on every
+launch and had no dismiss handler. Acknowledgements now persist alongside them,
+so a dismissal sticks without deleting the record.
+
+**An update path that can update.** `yt-dlp -U` refuses a pip/wheel install —
+`is_non_updateable()` returns *"You installed yt-dlp with pip or using the wheel
+from PyPi"* — and on Termux every install is one, so the daily update cron had
+never updated anything. It falls back to pip through the interpreter named in
+the binary's own shebang, with a PEP 668 retry.
+
+**A ladder without dead rungs.** `ios`, `mweb` and `web` failed on every attempt
+against every track measured (6/6) with "Requested format is not available",
+because those clients now answer with SABR formats that no `-f` selector can
+pick. Each one cost a subprocess spawn and a full extraction while never
+producing a format.
+
+**Health that does not lie.** `/api/health` reported `services.redis` as
+`bool(REDIS_URL)` — a string check — while no module imported a Redis client, so
+setting the variable asserted a working cache that did not exist. Configuration
+and reachability are now separate, reachability from a bounded PING that never
+echoes the URL: a Redis URL carries its password in the authority, and health is
+served unauthenticated.
+
+**A schema codegen can consume.** `api_route(methods=["GET", "HEAD"], …)` emits
+one operationId per registered route, so `stream_audio` and `health_api_health`
+each appeared twice and the generated schema broke OpenAPI's uniqueness rule.
+
+**Deployment that serves what it claims.** The Search Console verification file
+sat at the repository root, outside `web/public/` — the only directory Vite
+copies into the build — so it was never in `dist/` and the verification could
+not have succeeded.
+
+- Seven silent dual-store fallbacks (liked count, history clear, playlist
+  mirror and delete, profile hydrate) now trace the primary-path failure at
+debug level. They still fall back.
+
+---
+
+## v2.20.1 — Transient refusal recovery
+
+**A refused transfer is retried, not answered with another client.**
+`unable to download video data: HTTP Error 403` means extraction *succeeded* and
+the CDN then refused the bytes — typically a signature that expired or is bound
+to the IP it was minted for. It was also listed in `_EXTRACTOR_FAILURE_MARKERS`,
+so the ladder read the one failure a retry fixes as a reason to switch player
+client: it spent every rung and only then reported *"refused this track on every
+client we tried"*. Nothing anywhere retried. Measured on a track failing this
+way, an immediate re-run succeeded 5/5 — re-running re-extracts, which mints a
+fresh URL, which is the actual remedy.
+
+The ladder now checks a refused transfer first and retries the **same** client
+with a bounded backoff (two tries, 1s then 3s) before any client switch, so the
+worst case stays bounded and a cancelled job still aborts between attempts.
+
+**One marker list, not two.** `download_service` carried its own
+`_MEDIA_REFUSED_MARKERS` alongside `stream_service._EXTRACTOR_FAILURE_MARKERS` —
+the same four strings in two places, disagreeing about what `http error 403`
+means. The list now lives once, in `stream_service`, beside
+`is_transient_media_refusal()`, with a test pinning the deliberate overlap so
+the ordering that resolves it cannot silently become dead code.
+
+---
+
+## v2.20.2 — A test run that tells the truth
+
+**Zero warnings.** On Python 3.14 the suite emitted 17,909 warnings — every
+one from third-party code calling `asyncio` APIs deprecated in 3.14
+(`pytest-asyncio` 0.23 drove the loop through `get/set_event_loop_policy`; FastAPI and
+Starlette called `asyncio.iscoroutinefunction`). Nothing came from `app/` or
+`tests/`, and Python 3.16 will remove the calls outright. Upgraded
+`pytest-asyncio` 0.23.7 → 1.4.0 (needs pytest ≥ 8.4, so pytest 8.2.2 → 9.1.1)
+and FastAPI 0.111 → 0.141 / Starlette 0.37 → 1.7, whose floors stopped calling
+the deprecated APIs. The suite now prints **343 passed** and nothing else.
+
+**A guard rail that had gone blind.** The upgrade failed
+`test_route_count_sane_and_health_exported`, and for a good reason: FastAPI
+0.141 no longer flattens `include_router` children into `app.routes` — it adds
+a lazy wrapper holding the handlers and the mount prefix. The endpoint
+inventory's `_routes()` filtered `app.routes` for `APIRoute` instances and had
+been iterating **13 of the 108 registered routes**, so `test_openapi_covers_registered_routes`,
+`test_every_mutating_route_requires_auth` and `test_public_get_routes_never_500`
+were passing while checking almost nothing. `_routes()` now walks the wrappers
+(`original_router` + `include_context.prefix`), re-attaches the effective path,
+and the auth/OpenAPI guards see the full surface again.
+
+---
+
+## v2.20.3 — DCCNN error codes
+
+**A code on every failure.** Users reporting a problem now have something to
+quote: `Download failed [ERROR_CODE: DEX01]`. Codes are five characters — domain
+letter, two-letter category, two-digit sequence — so the code itself carries
+meaning: D=downloads, A=auth, P=playlists…; VA=validation, NF=not-found,
+EX=execution failed. One registry owns every code (`app/core/error_codes.py`),
+`fail()` refuses to raise an unregistered code, and a contract test pins
+uniqueness, domain-letter consistency, DCCNN shape and the sync of
+`docs/ERROR_CODES.md`. Every `HTTPException` in the routers now goes through
+the registry, and the response handler emits a structured `code` field so the
+frontend never parses it out of the message text.The download failure path attaches its registry code to the job's error message.
+
+---
+
+## v2.20.4 — One error surface, everywhere
+
+**An error page that is an app surface, not a browser default.** Unknown routes
+(404), failed API calls routed through `/error`, auth guards and React render
+crashes all land on the same `ErrorPage`: an "ERROR PAGE" eyebrow, the big
+code, the short label, and an ⓘ control. The long explanation is never shown
+by default — tapping ⓘ opens an accessible panel with the error-specific title
+and subtitle (404 → "Not Found / We couldn't find the page you're looking
+for.", 401 → "Sign in first", 503 → "We'll be back shortly", and so on). The
+config is data-driven (`lib/errorPages.ts`): adding a status is an entry, not
+a component. Mouse, keyboard and touch all work — the ⓘ is a real button with
+`aria-expanded`/`aria-controls`, Escape closes, focus returns to the control
+that opened the panel. Unknown error codes render the 500-shaped fallback.
+
+**The ErrorBoundary stopped having its own visual style.** It used to render a
+private card with its own icon, buttons and typography — a second, worse error
+design. It now renders the same `ErrorPage` (500-shaped — a render crash *is*
+"something broke"), with the underlying exception message behind ⓘ. Because
+the boundary mounts above the router, `ErrorPage` is purely presentational and
+the router-aware action row is a separate export used by the routed wrappers.
+
+**Toasts that carry the code.** Toasts gained success (green, check) and error
+(red, cross) variants — downloads announce "Download complete — “Title”" in
+green and failures in red — plus a code chip and an ⓘ control that expands to
+the full untruncated message. The API client's `ApiError` now carries the
+backend's DCCNN code as a field, parsed from the structured `code` the backend
+emits with a suffix fallback for older servers, so the UI never has to regex a
+code out of a sentence.
+
+**A test run that stops lying about coverage.** Full-suite runs on Termux
+flaked: Vitest's default pool fans out across fork workers, and parallel
+jsdom+React imports outran the worker startup timeout — a worker died, its
+file silently vanished from the run, and the suite reported "passed" over
+fewer files than exist (observed: 14 files → 13 → 12 across consecutive runs
+with zero test failures). The pool is now pinned to one worker: the run is
+deterministic at **15 files / 141 tests**, every file every time.
+
+---
+
+## v2.20.5 — Server failures take the page
+
+**An unhandled 5xx now navigates to the error page instead of evaporating in a
+toast.** The API client funnels every call, so it is the one place that can
+route a server failure to the `/error` surface built in v2.20.4: the failure's
+status, message and DCCNN code travel in router state, the navigation replaces
+(not pushes — the failed screen is not a destination), and repeated failures
+collapse into one navigation. The error page's ⓘ panel now also renders the
+`[ERROR_CODE: …]` chip.
+
+**Failures that are somebody's job stay somebody's job.** Gateway-class
+responses (502/503/504) get one silent retry after 1.5 s before anything is
+declared fatal — Render free-tier instances wake slowly, and one probe round
+absorbs most of them. Probe callers opt out entirely via `_noFatalRedirect`:
+the health endpoints and the Doctor present a failing backend as findings
+(that is their whole purpose), the version poller is background best-effort,
+and download failures stay in the Downloads list where retry lives — the same
+reason v2.20.0 kept failed job records durable. Status 0 (unreachable) still
+belongs to the NetworkErrorBanner, whose polling makes recovery visible.
+
+---
+
+## v2.22.1 — Blend members have faces
+
+Member management stopped reading like a debug screen. A batch profile
+endpoint (one `$in` fetch, order-preserving, capped, placeholder-degrading)
+lets the blend sheet render real usernames and avatars — and the fix that
+necessitated a patch: v2.22.0's regen collided the blends request model
+with the existing `TrackSchema` openapi component, which corrupted the
+generated types. Renamed to `BlendTrackSchema`; the generated surface is
+whole again.
+
+---
+
+## v2.22.0 — Messaging, Blends, and one Library
+
+Rheoson gains a social layer. Messages bring direct chats that carry music
+— a track card plays on tap, a lyrics card opens the song at its lyric,
+playlists and blends navigate — while presence rides the existing player
+relay to show who is listening to what, tappable to play along. Blends are
+playlists owned by everyone in them: every member curates, the owner
+controls deletion, and a JSON mirror keeps each member's blends readable
+when the database is down. The app shells swap My Music for Messages, and
+Library absorbs My Music as a section beside the new Blends grid. The
+DCCNN registry grows the M and B domains so every new failure — from an
+empty message (MVA01) to blends needing the database (BEN01) — traces to
+one raise site.
+
+---
+
+## v2.21.5 — Appearance shows appearance
+
+Opening Appearance used to serve a grab-bag: a "Layout shortcuts" group
+that duplicated the sidebar row living one section over, and "Keep screen
+awake" — playback behaviour wearing a looks costume. The section now
+holds exactly its four appearance controls: accent colour, theme,
+transparency, motion. Keep-awake moved to Playback → Transport, the
+sidebar row keeps only its Layout home, and the nav row that was
+confusingly labelled "Layout" while pointing at Appearance now says
+"Appearance". Every toggle still has a live consumer; none has two homes.
+
+---
+
+## v2.21.4 — The console you can read
+
+The traceback.log told the whole story in one screen: ninety-two lines where
+two mattered. The `200 OK` flood buried a real fault — an upstream CDN dying
+mid-relay, reported as a raw `Response content shorter than Content-Length`
+traceback, twice, by layers that never knew what the bytes were for.
+
+Smart logging fixes the surface and the source. Log output is organized
+into **channels** (access, stream, download, library, lyrics, lifecycle,
+core) with per-channel severity floors, grouped into **profiles** —
+`default` drops successful request lines and keeps every failure; `quiet`
+shows application-breaking errors only; `debug` is the firehose for
+tracing one flow. A **`rheoson.logconfig.json`** debug-config in `MUSIC_DIR`
+takes effect within seconds of a touch — no restart — and env vars
+(`RHEOSON_LOG_PROFILE`, `RHEOSON_LOG_LEVEL`, `RHEOSON_LOG_CHANNELS`) sit on
+top; `/api/health/diag` reports which profile is live and where it came
+from. The relay now **diagnoses upstream death** with one structured
+warning instead of propagating it, and the ASGI layer's duplicate
+traceback is suppressed after the app has logged the real record.
+
+The same log exposed a quieter bug: the error-code wire format was
+`[ERR: DEX01]` on the backend but `[ERR DEX01]` in the frontend parser, so
+live toasts never extracted the code at all. The format is now
+**`[ERROR_CODE: DEX01]`** end to end — distinct at a glance, unambiguous to
+grep — with the parser accepting the legacy renderings across an upgrade.
+
+---
+
+## v2.21.3 — Everything personal behind your face
+
+The gear icon left the navigation; the profile picture opens a sheet
+that carries **Settings, Listening stats, About, Privacy and Account**.
+Settings regrouped to match how listeners think: Sound & playback
+(Notifications, Audio quality, Playback — with the real speed control,
+gapless, seek step and haptics), App & data (Layout, Navigation &
+fonts, **Streaming** for autoplay and warm-ahead, **Data-saving &
+offline** for the offline cache, Downloads, Storage). About replaced
+the tag-chip strip with a real changelog reader and gained a
+**Contributing** button beside the stars. The Privacy section now
+contains the full documentation in-app — what data exists, where it
+lives, who receives it, and how to remove each kind — not just a link.
+Every section keeps a live consumer; nothing decorative survived the
+move.
+
+---
+
+## v2.21.2 — The library answers back
+
+A library-wide search field filters favourites, playlists, albums and
+artists live, and a section with no matches says so instead of sitting
+silent. Empty sections render their message the moment data lands
+rather than loading forever. Playlists render as thumbnail cards with
+provenance — created by the signed-in user on the date, 22 sep format —
+in a horizontal scroller with a nudge button, and the artist skeleton
+is circular to match what it becomes.
+
+---
+
+## v2.21.1 — The player tells the truth about speed, source and favourites
+
+The playback surface caught up with its own engine. The ••• menu's
+playback settings became a real sheet: speed (0.75× to 2×, persisted,
+applied to the live Howl and re-applied on every load), repeat, shuffle
+and a playthrough choice — keep going when the queue ends, or stop. The
+full player's header now says **Playing from …** instead of the static
+"Now Playing" label, derived once at play time from wherever the track
+was started (search, trending, a playlist, an album, an artist). The
+fake drag handle is gone; a working dismissal path (back, chevron) was
+already there. The buffering spinner became the app's EQ motif, and the
+queue no longer lists the playing song twice — history's last entry IS
+the current track, and the queue tab now dedupes on id. Lyrics warm the
+cache on mount, so the Lyrics tab never opens cold. Like became
+**Favourite** across the player, context menu, album page, downloads
+rows, profile stat and library section.
+
+---
+
+## v2.21.0 — The home page picks a lane
+
+Home carried eight stacked surfaces; a listener had to parse them all.
+It now renders four, each answering one question: **Last played** as a
+plain list, **Recommended artists** derived from the thirty-day
+listening profile (circular cards, resolved through search so every
+tap routes to the artist page), **Trending this week** as five rows
+that expand to ten in place with a See all route to the full chart,
+and **Made for you** as a grid of daily-mix playlist cards. The hero,
+quick-pick tiles, featured carousel and recommendation rails retired.
+
+---
+
+## v2.20.9 — The preview toast fails honestly
+
+The mini preview only ever showed the happy path. Its downloads tab
+now carries the app's red failure toast with the [ERROR_CODE: DEX01] chip and
+an accessible ⓘ toggle that expands the full plain-language message,
+so the site demonstrates the promise the product makes about errors.
+
+---
+
+## v2.20.8 — The preview shows the receipts
+
+The landing page's phone preview demonstrated streaming but never the
+feature this project is named for: downloads. The preview gains a fourth
+tab, **Downloads**, showing the completed state — three tracks with the
+logo placeholder art, format and duration lines, and green check chips —
+plus the app's signature green **"Download complete"** toast floating
+above the player bar, exactly as the real app announces a finished job.
+The bottom dock was decorative; every dock item now switches tabs too,
+mirroring the tab strip like the real nav would.
+
+---
+
+## v2.20.7 — The preview wears the real mark
+
+The landing page's mini app preview showed gradient tiles with a single
+letter standing in for album art. The real app never does that — its
+placeholder for missing artwork is the Rheoson logo itself. The preview now
+uses the actual logo asset (copied to `docs/assets/` so Pages serves it
+without touching `web/`), framed like the app's placeholder tiles: rounded,
+hairline border, cover-fit. Same fix across all eleven tiles on the Home,
+Search and Library tabs.
+
+---
+
+## v2.20.6 — The website, findable
+
+**Google had never heard of us.** A site search returned zero results — not
+low ranking, *absent*. The cause was structural: the repo had no robots.txt,
+no sitemap, no canonical URL, no og:url, no structured data, and a bare
+`<title>Rheoson</title>` that gave crawlers one word to work with. The
+verification file deployed in v2.20.0 only proves ownership to Search
+Console; nothing since told any crawler the site exists or what it is.
+
+The whole discovery layer now ships:
+
+- **robots.txt** — public routes crawlable; session/personal surfaces
+  (settings, profile, stats, wrapped, auth) disallowed; sitemap declared.
+- **sitemap.xml** — the SPA's public routes with priorities that reflect
+  reality (home 1.0, landing 0.7, session-gated app pages low).
+- **Head overhaul** — descriptive title and meta description, keywords,
+  canonical URL, `og:url`/`og:site_name`/`og:image:alt`, Twitter summary
+  card, `robots` meta, and JSON-LD `WebApplication` structured data so the
+  results page can render what the product is.
+- **Per-route head updates** (`lib/seo.ts`) — every navigation rewrites
+  title/canonical/og:url ("Search — Rheoson", "Your Library — Rheoson", …),
+  wired via the router's subscription so no page imports anything; deep
+  links are covered by an immediate first call. Six tests pin the mapping
+  and idempotency.
+
+Honest expectation: this makes the site *crawlable and describable*, which
+is the precondition for ranking — not ranking itself. Indexing a new domain
+takes days-to-weeks after Search Console sees the sitemap, and a one-page
+SPA with no public catalog has thin content to rank. The follow-up that
+actually earns traffic is public, signed-out catalog pages (artists,
+albums) — that is when this layer starts paying.
+
+---
+
+## Milestone 2.19 — reliability arc (complete)
 
 Milestone 2.18 rebuilt the presentation layer. Milestone 2.19 is about the
 things a user actually notices when they break: **playback and downloads that

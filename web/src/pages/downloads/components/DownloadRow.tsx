@@ -120,7 +120,13 @@ export default function DownloadRow({ job: jobProp, index, onCancel, onRetry, on
             </p>
           )}
           {isError && job.error && (
-            <p className="text-xs text-[var(--danger-text)] mt-0.5 truncate">{job.error}</p>
+            // Wraps rather than truncating. The whole value of this sentence
+            // is the action at its end ("…retry to resume", "…run the Doctor"),
+            // which a single-line ellipsis cut off — leaving the user with a
+            // failure they could not read and so could not act on.
+            <p className="text-xs text-[var(--danger-text)] mt-1 leading-snug">
+              {job.error}
+            </p>
           )}
         </div>
 

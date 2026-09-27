@@ -6,9 +6,10 @@ preset configurations are managed server-side so they sync across devices.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from app.core.deps import get_optional_user
+from app.core import error_codes
 
 router = APIRouter()
 
@@ -156,5 +157,5 @@ async def get_preset(preset_id: str, _user: dict | None = Depends(get_optional_u
     """Return full band configuration for a preset."""
     preset = PRESETS.get(preset_id)
     if not preset:
-        raise HTTPException(status_code=404, detail=f"Preset not found: {preset_id}")
+        raise error_codes.fail(error_codes.SETTINGS.PRESET_NOT_FOUND, 404, append=f": {preset_id}")
     return {"id": preset_id, **preset}

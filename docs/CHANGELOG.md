@@ -6,6 +6,115 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.22.1 — Blend members have faces
+
+- feat(messages): **`POST /api/messages/profiles`** — batch display info for member lists and share cards. One `$in` fetch, input order preserved, unknown ids degrade to a placeholder, capped at 50 ids. Blend member sheets now show real usernames and avatars instead of id initials.
+- fix(openapi): **`BlendTrackSchema` renames the blends request model** that collided with the existing `TrackSchema` component during v2.22.0's regen — the clash corrupted `types/index.ts` imports and broke `tsc`. A name-clash guard note now lives on the model.
+
+## v2.22.0 — Messaging, Blends, and one Library
+
+- feat(messages): **direct messages with music shares** — threads carry tracks (tap to play), lyrics (tap to open the full player on that lyric), playlists, albums, artists and blends; REST is the always-works path and the Socket.IO `message:send` / `message:new` fast path delivers sub-second when online. Rate limit (30/min) returns the DCCNN `MLM01` code.
+- feat(presence): **"{username} listening to {song}"** — the existing `player:state` relay now feeds a presence snapshot broadcast on connect/disconnect and every play state change; the Messages header renders live chips (avatar + pulsing dot + track), and tapping one plays that song.
+- feat(blends): **collaborative playlists** — every member adds/removes tracks and invites friends; only the owner deletes. Mongo is the source of truth with a per-user JSON offline mirror (`.blends-*.json`) so a DB outage never strands your blends. New Library section with a start-a-blend flow and a full `/blend/:id` page.
+- feat(nav): **Messages replaces My Music in the bottom nav** — My Music (on-device tracks, live download jobs, manager link) merged into Library as its own section, beside a new Blends grid.
+- feat(share): **Share now means chat** — the universal track menu's Share (and a new NowPlaying menu item + lyrics-tab button) opens the share-to-chat picker with an optional note; the OS share sheet stays for links. Errors surface their `[ERROR_CODE: …]` chips.
+- feat(errors): DCCNN registry grows the **M (messaging)** and **B (blends)** domains — 24 new registered codes from `MNF01` to `BEN01`, docs updated.
+- chore: openapi regenerated (109 endpoints); mock-DB matcher gained Mongo `$regex` + array-membership semantics.
+
+## v2.21.5 — Appearance shows appearance
+
+- fix(settings): **the Appearance section is only appearance** — the "Layout shortcuts" group (a duplicate of Layout's sidebar row) and "Keep screen awake" (playback behaviour, not looks) left the section; keep-awake moved to **Playback → Transport**.
+- fix(settings): de-duplicated — Layout's redundant "Reduce motion" row is gone (Appearance holds the canonical one); the nav row formerly labelled "Layout" is now honestly **"Appearance — theme, accent, transparency"**, so the two sections stop trading names.
+
+## v2.21.4 — The console you can read
+
+- feat(logging): **smart logging** — channels (access, stream, download, library, lyrics, lifecycle, core) with per-channel severity floors, profiles (`default` / `quiet` / `debug`), and an access gate that drops the `200 OK` flood while 4xx/5xx still print.
+- feat(logging): **`rheoson.logconfig.json`** debug-config — drop it in `MUSIC_DIR` (or CWD, or `api/`) and the running server applies new floors within ~15 s, no restart; `RHEOSON_LOG_PROFILE` / `RHEOSON_LOG_LEVEL` / `RHEOSON_LOG_CHANNELS` env overrides; `/api/health/diag` now reports the live logging state.
+- fix(stream): **a CDN dying mid-relay is diagnosed, not thrown** — one structured `stream.relay.upstream_died` warning (track, bytes relayed, bytes promised) and a clean end of stream, replacing the raw `Response content shorter than Content-Length` traceback printed twice by the ASGI layer. Suppression is armed so an incident is logged once, where the request id can trace it.
+- fix(errors): **the error-code chip actually renders now** — the backend emitted `[ERR: DEX01]` (colon) while the frontend parser expected `[ERR DEX01]`, so live toasts never extracted the code. Wire format is now **`[ERROR_CODE: DEX01]`** everywhere (backend, chips, docs site); the parser still accepts the legacy renderings across an upgrade.
+- chore(logging): third-party chatter silenced — syncedlyrics gated at WARNING, driver libraries capped as before; duplicate ASGI tracebacks suppressed after the app's own handler has logged the exception.
+- docs: `docs/LOGGING.md` — profiles, channels, the config file, env vars, and the no-restart debug workflow.
+
+## v2.21.3 — Everything personal behind your face
+
+- feat(nav): **the profile picture replaces the gear icon** in both navs, opening a sheet with Settings, Listening stats, About, Privacy and Account (the last three deep-link into their settings sections).
+- feat(settings): regrouped — Notifications, **Audio quality**, **Playback** (speed, gapless, seek step, haptics), Layout, Navigation & fonts, **Streaming** (autoplay, warm-ahead), **Data-saving & offline** (offline cache), Downloads, Storage.
+- feat(about): a real **changelog reader** replaces the release tag chips; **Contributing** button added beside the GitHub star button.
+- feat(privacy): **the full privacy documentation renders in the app** — what data exists, where it lives, who receives it, how to remove it.
+
+## v2.21.2 — The library answers back
+
+- feat(library): a **library-wide search field** filters favourites, playlists, albums and artists live, with per-section no-matches states.
+- fix(library): empty sections render their empty state instead of skeletons when there is nothing to show.
+- feat(library): playlist cards show thumbnail, name, created by the user on the date (22 sep), in a scroller with a nudge button; artist skeletons are circular.
+
+## v2.21.1 — The player tells the truth about speed, source and favourites
+
+- feat(player): **playback settings sheet gains speed (0.75×–2×, persisted, applied live), repeat, shuffle and playthrough (keep going / stop)** — controls the engine already had, finally reachable.
+- feat(player): the full-player header reads **"Playing from …"**, set from the route at play time; the fake drag handle is removed; buffering shows the EQ motif; the queue tab dedupes the current track (history's last entry is the current track).
+- feat(library): lyrics preload on mount so the Lyrics tab never opens cold.
+- refactor(naming): **Like → Favourite** across player, context menu, album, downloads rows, profile and library.
+
+## v2.21.0 — The home page picks a lane
+
+- feat(home): Last played renders as a list; Recommended artists derives from real listening (top artists) and resolves to artist pages; Trending this week shows 5 with an in-place expand to 10 plus See all; Made for you is a grid of daily-mix playlist cards. The hero, quick picks, featured carousel and rec rails were retired.
+
+## v2.20.9 — The preview toast fails honestly
+
+- docs(site): the mini preview's downloads tab now shows the red failure toast with the [ERROR_CODE: DEX01] chip and an accessible i toggle that expands the full error message.
+
+## v2.20.8 — The preview shows the receipts
+
+- feat(site): **the mini preview gains a Downloads tab** showing the completed state — three tracks with logo placeholder art, format/duration lines, green check chips — and the app's green "Download complete" toast above the player bar. The bottom dock is now functional: every item switches tabs, mirroring the tab strip.
+
+## v2.20.7 — The preview wears the real mark
+
+- fix(site): **the mini preview's eleven fake album-art gradients are now the real Rheoson logo** — the asset the app itself uses as its artwork placeholder, served from `docs/assets/`, framed with the app's tile chrome (rounded corners, hairline border) instead of saturated gradients with a letter.
+
+## v2.20.6 — The website, findable
+
+- feat(seo): **robots.txt, sitemap.xml, canonical URL, og:url/site_name, Twitter card, JSON-LD WebApplication and a descriptive title/description/keywords** — the site was absent from Google entirely (zero results); every discovery primitive now ships in the build.
+- feat(seo): per-route head updates (title/canonical/og:url) via `lib/seo.ts`, wired into the router subscription with deep-link coverage; six tests pin mapping and idempotency.
+
+## v2.20.5 — Server failures take the page
+
+- feat(errors): **unhandled ≥500 API failures navigate to the error page** with status, message and DCCNN code in router state (replace, deduplicated); the error page's ⓘ panel renders the `[ERROR_CODE: …]` chip.
+- feat(errors): gateway responses (502/503/504) get one silent wake-up retry first; probe callers (health endpoints, Doctor, version poller, downloads list) opt out via `_noFatalRedirect` and keep presenting failures inline.
+
+## v2.20.4 — One error surface, everywhere
+
+Errors now have one visual treatment across the whole app.
+
+- feat(errors): **ErrorPage** — "ERROR PAGE" eyebrow, the big code, the short label, and an ⓘ control; the long explanation lives behind ⓘ in an accessible panel (real button, `aria-expanded`/`aria-controls`, Escape closes, focus returns). Data-driven config (`lib/errorPages.ts`) covers 404/401/403/429/500/502/503/504, each with its own title and subtitle; unknown codes fall back to the 500 shape.
+- feat(errors): unknown routes, `/error` API-failure redirects and the React **ErrorBoundary** all render the same ErrorPage — the boundary's private card style is gone; its raw exception text is reachable behind ⓘ.
+- feat(errors): toasts gain success (green) and error (red) variants with a **DCCNN code chip** and an ⓘ expandable full message; downloads announce "Download complete — “Title”". `ApiError` carries the backend code as a structured field, with a suffix fallback for older servers.
+- fix(test): the vitest pool is pinned to one worker — parallel forks outran the worker startup timeout on Termux and **files silently dropped from runs** (14 → 13 → 12 across consecutive runs, all reporting "passed"). Deterministic at 15 files / 141 tests.
+
+## v2.20.3 — DCCNN error codes
+
+- feat(errors): every user-facing failure carries a traceable code — `Download failed [ERROR_CODE: DEX01]`. Codes are five characters: domain letter (D=downloads, A=auth, P=playlists…), two-letter category (VA=validation, NF=not-found, EX=execution…), two-digit sequence.
+- feat(errors): one registry (`app/core/error_codes.py`) owns every code; `fail()` refuses unregistered ones; a contract test pins uniqueness, shape, domain consistency and the sync of `docs/ERROR_CODES.md`. Responses emit a structured `code` field.
+
+## v2.20.2 — A test run that tells the truth
+
+- fix(deps): **zero warnings** (was 17,909) — pytest-asyncio 0.23 → 1.4 and FastAPI 0.111 → 0.141 / Starlette 0.37 → 1.7 stop calling the `asyncio` APIs Python 3.14 deprecated (removal lands in 3.16).
+- fix(test): FastAPI 0.141 no longer flattens `include_router` children into `app.routes`; the endpoint inventory had been checking **13 of 108 routes**. The walker now threads the wrappers + mount prefixes, so the OpenAPI and auth guard rails see the full surface again.
+
+## v2.20.1 — Transient refusal recovery
+
+- fix(downloads): a refused transfer (`HTTP Error 403` after successful extraction) is **retried on the same client** (bounded backoff, two tries) instead of being read as a reason to switch player clients — re-extraction mints a fresh URL, which is the actual remedy. The ladder no longer burns every rung before reporting a dead track that was never dead.
+- refactor(downloads): the duplicated media-refusal marker list is gone; the classification lives once in `stream_service` with the overlap pinned by test.
+
+## v2.20.0 — Download and failure-surface correctness
+
+- fix(downloads): **progress is reported** — yt-dlp writes progress to stdout and diagnostics to stderr; the code read only stderr and passed `--quiet` (which suppresses progress outright). Both pipes are drained concurrently.
+- fix(downloads): **failures say what happened** — four branches (permanently unavailable / bot-check / media server refused / generic extractor) replace the single sentence that advised updating an engine already at the latest release.
+- fix(downloads): the error is **readable** — the pill and the Downloads row wrapped instead of truncating; the doubled "Download failed:" prefix is gone; a dismissal sticks without deleting the record.
+- fix(downloads): `yt-dlp -U` refuses pip installs; the daily cron now falls back to pip through the binary's own interpreter (PEP 668 retry).
+- fix(streaming): the dead `ios`/`mweb`/`web` ladder rungs are gone — each cost a spawn and a full extraction and never produced a format.
+- fix(health): `/api/health` reports Redis from a bounded PING with `configured` vs `reachable` separate; the URL (which carries the password) is never echoed; the aggregator ranks `failing` above `skipped` so an unconfigured optional service can't mask a degraded database.
+- fix(schema): duplicate OpenAPI operationIds are split (one decorator per method) and the types regenerated; the Search Console verification file actually ships in the build.
+
 ## v2.19.14
 
 Found by playing the whole app against a live server.

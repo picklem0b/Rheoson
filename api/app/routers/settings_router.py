@@ -9,12 +9,13 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.core import toolchain
 from app.core.config import settings
 from app.core.deps import get_current_user
+from app.core import error_codes
 
 router = APIRouter()
 
@@ -45,12 +46,13 @@ def _require_admin(user: dict) -> None:
     if not admins:
         if settings.is_dev:
             return
-        raise HTTPException(
-            status_code=403,
-            detail="Instance configuration requires an admin user. Set ADMIN_SUBS in the server environment.",
-        )
+        raise error_codes.fail(
+        error_codes.AUTH.FORBIDDEN,
+        403,
+        append=" — instance configuration requires ADMIN_SUBS on the server",
+    )
     if user.get("sub") not in admins:
-        raise HTTPException(status_code=403, detail="Not an instance admin")
+        raise error_codes.fail(error_codes.AUTH.FORBIDDEN, 403)
 
 
 # ── Spotify status (read-only) ────────────────────────────────
@@ -114,7 +116,7 @@ async def save_directories(body: DirectoriesSchema, user: dict = Depends(get_cur
     _require_admin(user)
     """Persist the frontend's directory list to settings."""
     if not body.dirs:
-        raise HTTPException(status_code=400, detail="At least one directory is required")
+        raise error_codes.fail(error_codes.DOWNLOAD.DIR_REQUIRED, 400)
 
     primary = body.dirs[0]
     extra = body.dirs[1:]
@@ -126,7 +128,7 @@ async def save_directories(body: DirectoriesSchema, user: dict = Depends(get_cur
     try:
         _persist_dirs_to_env(env_path, primary, extra)
     except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Could not persist directories: {e}") from e
+        raise error_codes.fail(error_codes.LIBRARY.DIRS_PERSIST_FAILED, 500, append=f": {e}") from e
 
     return {"ok": True, "directories": body.dirs}
 
@@ -149,11 +151,11 @@ async def browse_directory(path: str, _user: dict = Depends(get_current_user)):
     if not any(
         _is_under(p_real, base) for base in bases_real
     ):
-        raise HTTPException(status_code=403, detail="Access denied: path outside configured music directories")
+        raise error_codes.fail(error_codes.DOWNLOAD.PATH_OUTSIDE, 403)
     if not p.exists():
-        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+        raise error_codes.fail(error_codes.LIBRARY.DIR_NOT_FOUND, 404, append=f": {path}")
     if not p.is_dir():
-        raise HTTPException(status_code=400, detail=f"Not a directory: {path}")
+        raise error_codes.fail(error_codes.LIBRARY.DIR_NOT_FOUND, 400, append=f": {path} is not a directory")
 
     AUDIO_EXTS = {".mp3", ".flac", ".m4a", ".opus", ".ogg", ".wav"}
     files = []
@@ -287,7 +289,7 @@ async def restore_backup(body: RestoreSchema, user: dict = Depends(get_current_u
     try:
         return await restore_state(user["sub"], body.model_dump(), merge=body.merge)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise error_codes.fail(error_codes.LIBRARY.BACKUP_FILE_INVALID, 400, append=f": {e}")
 
 
 # ── Library doctor ────────────────────────────────────────────
@@ -300,7 +302,7 @@ async def _run_doctor(fn, *args):
     try:
         return await asyncio.to_thread(fn, *args)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise error_codes.fail(error_codes.LIBRARY.SCAN_INVALID, 400, append=f": {e}")
 
 
 @router.get("/doctor/scan")
@@ -334,8 +336,8 @@ async def doctor_fix(body: DoctorFixSchema, user: dict = Depends(get_current_use
         return await _run_doctor(library_doctor.delete_all_duplicates)
     if kind == "empty-dir":
         if not body.path:
-            raise HTTPException(status_code=400, detail="empty-dir fix requires a path")
+            raise error_codes.fail(error_codes.LIBRARY.DIR_NOT_FOUND, 400, append=" — the empty-dir fix needs a path")
         return await _run_doctor(library_doctor.delete_empty_dir, body.path)
     if kind == "empty-dirs":
         return await _run_doctor(library_doctor.prune_empty_dirs)
-    raise HTTPException(status_code=400, detail=f"unknown fix kind: {kind}")
+    raise error_codes.fail(error_codes.LIBRARY.SCAN_INVALID, 400, append=f" — unknown fix kind: {kind}")

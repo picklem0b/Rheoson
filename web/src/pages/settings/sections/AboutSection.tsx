@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { ArrowSquareOut, GithubLogo, Star, GitFork, Eye, Tag } from '@phosphor-icons/react';
+import { ArrowSquareOut, GithubLogo, Star, GitFork, Eye, GitPullRequest } from '@phosphor-icons/react';
 import AppLogo from "@/components/ui/AppLogo";
 import { APP_VERSION } from "@/lib/constants";
 import { SettingsGroup, SettingsRow } from "../components/SettingsPrimitives";
-import { cn } from "@/lib/utils";
 import { GitHubStarButton } from "@/components/New-Components/cards/github-star";
 
 const GITHUB = "https://github.com/picklem0b/Rheoson";
@@ -33,7 +32,19 @@ const STACK: { label: string; value: string; url: string }[] = [
    { label: "Capacitor", value: "6", url: "https://capacitorjs.com" }
 ];
 
-const TAGS = ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0", "v2.10.0", `v${APP_VERSION}`];
+/**
+ * A few entries from docs/CHANGELOG.md, newest first. The section is a
+ * reader for the file — the file stays the single source of truth (the
+ * workflow feeds it from release tags), and the full history is one tap
+ * away on GitHub.
+ */
+const CHANGELOG_HIGHLIGHTS: { tag: string; note: string }[] = [
+   { tag: `v${APP_VERSION}`, note: "Playback settings sheet: speed, repeat, shuffle, playthrough; Playing from label; queue dedupe; Like became Favourite." },
+   { tag: "v2.21.0", note: "Home rebuilt: Last played, Recommended artists, Trending this week, Made for you." },
+   { tag: "v2.21.2", note: "Library-wide search, honest empty states, playlist cards with provenance." },
+   { tag: "v2.20.5", note: "Unhandled server failures navigate to the error page, with the DCCNN code in the info panel." },
+   { tag: "v2.20.3", note: "Every failure carries a stable five-character DCCNN error code that traces to its exact raise site." },
+];
 
 export default function AboutSection() {
    const [stats, setStats] = useState<{
@@ -97,36 +108,39 @@ export default function AboutSection() {
             )}
          </div>
 
-         {/* Community — shared star button from the UI kit */}
+         {/* Community — shared star button from the UI kit, plus contributing */}
          <SettingsGroup
             title='Community'
             footer='Rheoson is open source. A star helps other people find it.'>
-            <div className='px-4 py-4 flex items-center justify-center'>
+            <div className='px-4 py-4 flex items-center justify-center gap-3 flex-wrap'>
                <GitHubStarButton
                   owner='picklem0b'
                   repo='Rheoson'
                   className='rounded-2xl'
                />
+               <button
+                  onClick={() => window.open(`${GITHUB}/blob/main/docs/CONTRIBUTING.md`, "_blank")}
+                  className='flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-sm font-semibold text-[var(--text-primary)] hover:border-[var(--accent)]/50 active:scale-[0.98] transition-all'>
+                  <GitPullRequest className='w-4 h-4 text-[var(--accent)]' />
+                  Contributing
+               </button>
             </div>
          </SettingsGroup>
 
-         {/* Release history */}
-         <SettingsGroup title='Release history'>
-            <div className='px-4 py-4 flex flex-wrap gap-2'>
-               {TAGS.map(tag => (
+         {/* Changelog — real entries from docs/CHANGELOG.md, replacing the tag-chip strip */}
+         <SettingsGroup
+            title='Changelog'
+            footer='Every phase since v2.19 is written up in docs/CHANGELOG.md — this is the short version.'>
+            <div className='px-4 py-3'>
+               {CHANGELOG_HIGHLIGHTS.map(e => (
                   <button
-                     key={tag}
-                     onClick={() =>
-                        window.open(`${GITHUB}/releases/tag/${tag}`, "_blank")
-                     }
-                     className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 active:scale-95",
-                        tag === `v${APP_VERSION}`
-                           ? "bg-[var(--accent)] text-white border-[var(--accent)]"
-                           : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border)] hover:border-brand/60"
-                     )}>
-                     <Tag className='w-3 h-3' />
-                     {tag}
+                     key={e.tag}
+                     onClick={() => window.open(`${GITHUB}/blob/main/docs/CHANGELOG.md`, "_blank")}
+                     className='w-full text-left py-2.5 border-b border-[var(--border)]/40 last:border-0 group'>
+                     <span className='text-[12px] font-bold text-[var(--accent)] font-mono'>{e.tag}</span>
+                     <p className='text-[13px] text-[var(--text-secondary)] leading-snug mt-0.5 group-hover:text-[var(--text-primary)] transition-colors'>
+                        {e.note}
+                     </p>
                   </button>
                ))}
             </div>

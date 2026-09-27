@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 VIDEO = "dQw4w9WgXcQ"
 FILE_ID = "3e822a2a75f32475"

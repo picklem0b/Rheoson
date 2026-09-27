@@ -1,9 +1,10 @@
 from __future__ import annotations
 import re
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
 from app.core.deps import get_current_user
+from app.core import error_codes
 from app.schemas.download_schema import DownloadRequestSchema, DownloadJobSchema
 from app.services.download_service import (
     enqueue_download, get_all_jobs, get_job,
@@ -27,11 +28,11 @@ def _validate_job_id(job_id: str) -> str:
     """Validate and sanitize job ID to prevent injection."""
     job_id = job_id.strip()
     if not job_id or len(job_id) > 64:
-        raise HTTPException(status_code=400, detail="Invalid job ID")
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_JOB_ID, 400)
     # Jobs are created with uuid4(); reject anything that isn't that shape so
     # malformed IDs get a clear 400 before the 404 lookup.
     if not _UUID_RE.match(job_id):
-        raise HTTPException(status_code=400, detail="Invalid job ID format")
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_JOB_ID, 400, append=" format")
     return job_id
 
 
@@ -49,38 +50,35 @@ def _validate_custom_path(custom_path: Optional[str]) -> None:
     resolved = Path(custom_path.strip()).expanduser().resolve()
     bases = [Path(d).resolve() for d in settings.all_music_dirs_configured]
     if not any(_is_under(resolved, base) for base in bases):
-        raise HTTPException(
-            status_code=400,
-            detail="customPath must be inside a configured music directory",
-        )
+        raise error_codes.fail(error_codes.DOWNLOAD.PATH_OUTSIDE, 400)
 
 
 @router.post("", response_model=DownloadJobSchema, status_code=202)
 @router.post("/", response_model=DownloadJobSchema, status_code=202, include_in_schema=False)
 async def start_download(req: DownloadRequestSchema, user: dict = Depends(get_current_user)):
     if not req.trackId and not req.url:
-        raise HTTPException(status_code=400, detail="trackId or url is required")
+        raise error_codes.fail(error_codes.DOWNLOAD.TARGET_REQUIRED, 400)
 
     # Validate URL format if provided
     if req.url:
         req.url = req.url.strip()
         if len(req.url) > 2048:
-            raise HTTPException(status_code=400, detail="URL too long")
+            raise error_codes.fail(error_codes.DOWNLOAD.URL_TOO_LONG, 400)
         if not re.match(r'^https?://', req.url, re.IGNORECASE):
-            raise HTTPException(status_code=400, detail="Invalid URL format")
+            raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400)
 
         # Only known media hosts may be downloaded server-side (SSRF guard).
         from app.services.netguard import ensure_safe_media_url
         try:
             ensure_safe_media_url(req.url)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400, append=f": {e}")
 
     # Validate track ID format if provided
     if req.trackId:
         req.trackId = req.trackId.strip()
         if len(req.trackId) > 20:
-            raise HTTPException(status_code=400, detail="Invalid track ID")
+            raise error_codes.fail(error_codes.DOWNLOAD.INVALID_TRACK_ID, 400)
 
     # Never allow downloads to land outside the configured music dirs
     _validate_custom_path(req.customPath)
@@ -114,7 +112,7 @@ async def get_download(job_id: str, user: dict = Depends(get_current_user)):
     job_id = _validate_job_id(job_id)
     job = get_job(job_id, owner=user.get("sub"))
     if not job:
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        raise error_codes.fail(error_codes.DOWNLOAD.JOB_NOT_FOUND, 404, append=f": {job_id}")
     return job
 
 
@@ -123,7 +121,7 @@ async def cancel_download(job_id: str, user: dict = Depends(get_current_user)):
     job_id = _validate_job_id(job_id)
     ok = await cancel_job(job_id, owner=user.get("sub"))
     if not ok:
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        raise error_codes.fail(error_codes.DOWNLOAD.JOB_NOT_FOUND, 404, append=f": {job_id}")
     return {"ok": True}
 
 
@@ -147,7 +145,7 @@ async def retry_download(
     resume = body.resume if body is not None and body.resume is not None else None
     job = await retry_job(job_id, resume=resume, owner=user.get("sub"))
     if not job:
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        raise error_codes.fail(error_codes.DOWNLOAD.JOB_NOT_FOUND, 404, append=f": {job_id}")
     return job
 
 
@@ -155,7 +153,7 @@ async def retry_download(
 async def delete_download(job_id: str, user: dict = Depends(get_current_user)):
     job_id = _validate_job_id(job_id)
     if not await delete_job(job_id, owner=user.get("sub")):
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        raise error_codes.fail(error_codes.DOWNLOAD.JOB_NOT_FOUND, 404, append=f": {job_id}")
     return {"ok": True}
 
 
@@ -179,9 +177,9 @@ class BatchDownloadRequest(BaseModel):
 async def batch_download(req: BatchDownloadRequest, user: dict = Depends(get_current_user)):
     """Start multiple downloads at once (max 20)."""
     if not req.track_ids:
-        raise HTTPException(status_code=400, detail="track_ids cannot be empty")
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_TRACK_LIST, 400)
     if len(req.track_ids) > 20:
-        raise HTTPException(status_code=400, detail="Maximum 20 tracks per batch")
+        raise error_codes.fail(error_codes.DOWNLOAD.LIMIT_REACHED, 400, append=" (20 per batch)")
 
     _validate_custom_path(req.custom_path)
 

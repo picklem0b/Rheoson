@@ -29,10 +29,11 @@ import time
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 from app.core.config import settings
 from app.core.database import db_available
+from app.core import error_codes
 
 router = APIRouter()
 log = structlog.get_logger()
@@ -355,7 +356,7 @@ async def clerk_webhook(request: Request):
         # on faith — anyone could POST forged user.created events. Refuse
         # to run unverified in ALL environments (not just production).
         log.warning("webhook.clerk.no_secret", note="CLERK_WEBHOOK_SECRET not configured — rejecting webhook")
-        raise HTTPException(status_code=503, detail="Webhook secret not configured")
+        raise error_codes.fail(error_codes.WEBHOOK.SECRET_UNCONFIGURED, 503)
 
     # ── Verify signature ──
     svix_id = request.headers.get("svix-id", "")
@@ -364,23 +365,23 @@ async def clerk_webhook(request: Request):
 
     if not all([svix_id, svix_timestamp, svix_signature]):
         log.warning("webhook.clerk.missing_headers")
-        raise HTTPException(status_code=400, detail="Missing webhook headers")
+        raise error_codes.fail(error_codes.WEBHOOK.HEADERS_MISSING, 400)
 
     if not _check_timestamp(svix_timestamp):
         log.warning("webhook.clerk.timestamp_expired", svix_timestamp=svix_timestamp)
-        raise HTTPException(status_code=400, detail="Webhook timestamp expired")
+        raise error_codes.fail(error_codes.WEBHOOK.TIMESTAMP_EXPIRED, 400)
 
     if not _verify_svix_signature(
         body, svix_id, svix_timestamp, svix_signature, settings.CLERK_WEBHOOK_SECRET
     ):
         log.warning("webhook.clerk.invalid_signature")
-        raise HTTPException(status_code=403, detail="Invalid webhook signature")
+        raise error_codes.fail(error_codes.WEBHOOK.SIGNATURE_INVALID, 403)
 
     # ── Parse event ──
     try:
         event = json.loads(body)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+        raise error_codes.fail(error_codes.WEBHOOK.PAYLOAD_INVALID, 400, append=": JSON is malformed")
 
     event_type = event.get("type", "")
     data = event.get("data", {})

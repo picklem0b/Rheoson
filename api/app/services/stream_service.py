@@ -78,14 +78,19 @@ RAW_AUDIO_SELECTOR = os.environ.get(
 #: dropping. `android` and `android_vr` follow because they avoid the JS
 #: challenge entirely, so they keep working on hosts (and datacentre IPs)
 #: where the web challenge is refused.
+#:
+#: `ios`, `mweb` and `web` were removed after measuring them against two
+#: tracks: all three failed every attempt with "Requested format is not
+#: available" (6/6), because those clients now answer with SABR / PO-token
+#: gated formats that no `-f` selector can pick. Keeping them cost three
+#: subprocess spawns plus a full extraction each on every failure path while
+#: never producing a format — pure latency added to the worst case. A client
+#: that can serve a track the others cannot can be re-added with evidence.
 CLIENT_LADDER: tuple[str, ...] = (
     "default",
     "android",
     "android_vr",
     "tv_embedded",
-    "ios",
-    "mweb",
-    "web",
 )
 
 #: Playback mime per preferred container, used when a client's answer has to
@@ -115,6 +120,31 @@ def is_extractor_failure(text: str) -> bool:
     """True when switching player client is worth trying."""
     low = (text or "").lower()
     return any(marker in low for marker in _EXTRACTOR_FAILURE_MARKERS)
+
+
+#: The extractor succeeded and handed back a URL, but the media server refused
+#: the bytes: a signature that expired or is bound to the IP it was minted for,
+#: or an edge rate-limit. Switching player client cannot help — extraction
+#: already worked — while re-running mints a fresh URL, so this is retried on
+#: the *same* client. Measured on a track failing with "unable to download
+#: video data: HTTP Error 403": 5/5 success on immediate re-run.
+_TRANSIENT_MEDIA_REFUSAL_MARKERS = (
+    "unable to download video data",
+    "http error 403",
+    "http error 429",
+    "http error 503",
+)
+
+
+def is_transient_media_refusal(text: str) -> bool:
+    """True when the bytes were refused after a successful extraction.
+
+    Overlaps ``is_extractor_failure`` on purpose (``http error 403`` is in
+    both), so callers must decide which one to consult first: retrying the
+    same client, or switching to another one.
+    """
+    low = (text or "").lower()
+    return any(marker in low for marker in _TRANSIENT_MEDIA_REFUSAL_MARKERS)
 
 
 def client_attempts() -> list[list[str]]:

@@ -340,6 +340,115 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/blends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Blends
+         * @description All blends the caller belongs to.
+         */
+        get: operations["list_blends_api_blends_get"];
+        put?: never;
+        /** Create Blend */
+        post: operations["create_blend_api_blends_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/blends/{blend_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Blend */
+        get: operations["get_blend_api_blends__blend_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Blend */
+        delete: operations["delete_blend_api_blends__blend_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Blend */
+        patch: operations["rename_blend_api_blends__blend_id__patch"];
+        trace?: never;
+    };
+    "/api/blends/{blend_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Member */
+        post: operations["add_member_api_blends__blend_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/blends/{blend_id}/members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Member */
+        delete: operations["remove_member_api_blends__blend_id__members__member_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/blends/{blend_id}/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder Tracks */
+        put: operations["reorder_tracks_api_blends__blend_id__tracks_put"];
+        /** Add Track */
+        post: operations["add_track_api_blends__blend_id__tracks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/blends/{blend_id}/tracks/{track_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Track */
+        delete: operations["remove_track_api_blends__blend_id__tracks__track_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/downloads": {
         parameters: {
             query?: never;
@@ -494,7 +603,7 @@ export interface paths {
          *
          *     Backed by the background probe cache — no expensive work per request.
          */
-        head: operations["health_api_health_1"];
+        head: operations["health_api_health_head"];
         patch?: never;
         trace?: never;
     };
@@ -629,6 +738,138 @@ export interface paths {
         };
         /** Fetch Lyrics */
         get: operations["fetch_lyrics_api_lyrics__track_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/messages/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Conversations
+         * @description The caller's threads, most recently active first.
+         */
+        get: operations["list_conversations_api_messages_conversations_get"];
+        put?: never;
+        /**
+         * Open Conversation
+         * @description Open (or fetch) the DM thread with a peer.
+         */
+        post: operations["open_conversation_api_messages_conversations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/messages/conversations/{peer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Messages
+         * @description One page of a thread, oldest → newest (`before` = ISO cursor).
+         */
+        get: operations["list_messages_api_messages_conversations__peer_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/messages/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Presence
+         * @description Who is connected right now and what they are listening to.
+         *
+         *     Profiles for connected users are resolved from Mongo (username/avatar)
+         *     and handed to the socket layer's cache, so presence broadcasts carry
+         *     real names even though the socket layer itself never touches Mongo.
+         */
+        get: operations["presence_api_messages_presence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/messages/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Profiles Batch
+         * @description Batch display info for member lists and share cards.
+         *
+         *     POST (not GET) because the id list rides the body, and the id cap in
+         *     ``ProfilesBatchSchema`` mirrors the service's own — a client cannot
+         *     ask for the whole instance.
+         */
+        post: operations["profiles_batch_api_messages_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/messages/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Message
+         * @description Send a message/share. The socket path delivers the same payload.
+         */
+        post: operations["send_message_api_messages_send_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/messages/users/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Users
+         * @description Find users by username prefix — powers the new-chat picker.
+         */
+        get: operations["search_users_api_messages_users_search_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1555,7 +1796,7 @@ export interface paths {
         delete?: never;
         options?: never;
         /** Stream Audio */
-        head: operations["stream_audio_1"];
+        head: operations["stream_audio_head"];
         patch?: never;
         trace?: never;
     };
@@ -2013,6 +2254,21 @@ export interface components {
              */
             concurrency: number;
         };
+        /**
+         * BlendTrackSchema
+         * @description Named to avoid colliding with the existing openapi ``TrackSchema``
+         *     component — a name clash here renames schemas in the generated types
+         *     and breaks the frontend's imports.
+         */
+        BlendTrackSchema: {
+            /** Track Id */
+            track_id: string;
+        };
+        /** CreateBlendSchema */
+        CreateBlendSchema: {
+            /** Name */
+            name: string;
+        };
         /** CreatePlaylistSchema */
         CreatePlaylistSchema: {
             /** Title */
@@ -2226,6 +2482,11 @@ export interface components {
              */
             source: string;
         };
+        /** MemberSchema */
+        MemberSchema: {
+            /** User Id */
+            user_id: string;
+        };
         /** PlaylistResultSchema */
         PlaylistResultSchema: {
             /**
@@ -2328,6 +2589,21 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** ProfilesBatchSchema */
+        ProfilesBatchSchema: {
+            /** User Ids */
+            user_ids: string[];
+        };
+        /** RenameBlendSchema */
+        RenameBlendSchema: {
+            /** Name */
+            name: string;
+        };
+        /** ReorderSchema */
+        ReorderSchema: {
+            /** Track Ids */
+            track_ids: string[];
+        };
         /** RescanSchema */
         RescanSchema: {
             /** Dirs */
@@ -2419,6 +2695,22 @@ export interface components {
             artists: components["schemas"]["ArtistSchema"][];
             /** Playlists */
             playlists: components["schemas"]["PlaylistResultSchema"][];
+        };
+        /** SendMessageSchema */
+        SendMessageSchema: {
+            /** Peer Id */
+            peer_id: string;
+            /**
+             * Kind
+             * @default text
+             */
+            kind: string;
+            /** Text */
+            text?: string | null;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** TrackSchema */
         TrackSchema: {
@@ -2534,6 +2826,10 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
     };
     responses: never;
@@ -3081,6 +3377,325 @@ export interface operations {
             };
         };
     };
+    list_blends_api_blends_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    create_blend_api_blends_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBlendSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_blend_api_blends__blend_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blend_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_blend_api_blends__blend_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blend_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_blend_api_blends__blend_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blend_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameBlendSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_member_api_blends__blend_id__members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blend_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_api_blends__blend_id__members__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blend_id: string;
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_tracks_api_blends__blend_id__tracks_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blend_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_track_api_blends__blend_id__tracks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blend_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlendTrackSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_track_api_blends__blend_id__tracks__track_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blend_id: string;
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_downloads_api_downloads_get: {
         parameters: {
             query?: never;
@@ -3366,7 +3981,7 @@ export interface operations {
             };
         };
     };
-    health_api_health_1: {
+    health_api_health_head: {
         parameters: {
             query?: never;
             header?: never;
@@ -3552,6 +4167,211 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LyricsSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_conversations_api_messages_conversations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    open_conversation_api_messages_conversations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessageSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_messages_api_messages_conversations__peer_id__get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before?: string | null;
+            };
+            header?: never;
+            path: {
+                peer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    presence_api_messages_presence_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    profiles_batch_api_messages_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfilesBatchSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_message_api_messages_send_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessageSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_users_api_messages_users_search_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -4930,7 +5750,7 @@ export interface operations {
             };
         };
     };
-    stream_audio_1: {
+    stream_audio_head: {
         parameters: {
             query?: never;
             header?: never;

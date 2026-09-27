@@ -64,6 +64,17 @@ export const qk = {
 
   // ── Track detail ───────────────────────────────────────────
   trackDownload: (trackId: string) => ['track', 'download', trackId] as const,
+
+  // ── Messaging & blends ─────────────────────────────────────
+  messagingUsers: (query: string) => ['messaging-users', query] as const,
+  messagingConversations: () => ['messaging-conversations'] as const,
+  messagingMessages: (peerId: string) => ['messaging-messages', peerId] as const,
+  messagingMessagesAll: () => ['messaging-messages'] as const,
+  messagingPresence: () => ['messaging-presence'] as const,
+  blends: () => ['blends'] as const,
+  blend: (id: string) => ['blend', id] as const,
+  /** Prefix for every blend detail query. */
+  blendAll: () => ['blend'] as const,
 } as const
 
 /**
