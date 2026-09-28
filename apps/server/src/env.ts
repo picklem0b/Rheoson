@@ -17,11 +17,11 @@ const EnvSchema = z.object({
   CLERK_WEBHOOK_SECRET: z.string().default(''),
 
   /** py engine bridge (ADR-2): internal-network static token. */
-  ENGINE_URL: z.string().default('http://localhost:8001'),
+  ENGINE_URL: z.string().default('http://localhost:8000'),
   ENGINE_TOKEN: z.string().default(''),
 
   /** Relay (ADR-3) — the byte path; optional, the server falls back itself. */
-  RELAY_URL: z.string().default('http://localhost:8002'),
+  RELAY_URL: z.string().default('http://localhost:8080'),
   RELAY_TOKEN: z.string().default(''),
 
   PG_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),

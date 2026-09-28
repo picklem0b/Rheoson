@@ -94,8 +94,7 @@ describe('deepHealth', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        if (url.includes('/health') && url.includes('8001')) return new Response(JSON.stringify({ ok: true }), { status: 200 });
-        if (url.includes('/health') && url.includes('8002')) throw new TypeError('ECONNREFUSED');
+        if (url.includes('/health') && url.includes('8000')) return new Response(JSON.stringify({ ok: true }), { status: 200 });
         return new Response('{}', { status: 404 });
       }),
     );

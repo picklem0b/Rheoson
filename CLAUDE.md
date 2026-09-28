@@ -35,7 +35,7 @@ infra/          Dockerfiles + compose + Caddy for this stack
 | client | 3000 | `pnpm dev` (turbo: client + server) |
 | server | 4000 | ↑ |
 | engine | 8000 | `cd apps/services/py && uv run uvicorn app.main:app --port 8000` |
-| relay | 8087 | `cd apps/services/go && go run ./cmd/relay` (env: `RELAY_PORT`, `CACHE_DIR`, `ENGINE_URL`) |
+| relay | 8087 | `cd apps/services/go && go run ./cmd/relay` (env: `RELAY_PORT`, `CACHE_DIR`, `UPSTREAM_RESOLVER`, optional `RELAY_TOKEN`) |
 | ops console | /admin | client page over server `/api/ops/*` |
 
 Dev identity: `X-Dev-User: dev_user_a` (allow-list in server env). Postgres via `DATABASE_URL`; server tests never open a connection (placeholder URL is honest).
