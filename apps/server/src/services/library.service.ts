@@ -120,6 +120,27 @@ export async function listAlbums(userId: string) {
   return body.albums ?? [];
 }
 
+/** One artist's tracks — the artist page's drill-down. */
+export async function artistTracks(userId: string, name: string): Promise<TrackView[]> {
+  const body = await engineJson<{ artist: { id: string; name: string }; tracks: EngineTrack[] }>(
+    `/library/artists/${encodeURIComponent(name)}`,
+    { owner: userId, unavailable: 'SUP02', fallback: 'LNF02' },
+  );
+  return decorate(userId, body.tracks ?? []);
+}
+
+/** One album's tracks; the id is the engine's grouping key. */
+export async function albumTracks(
+  userId: string,
+  albumId: string,
+): Promise<{ album: { id: string; title: string; artist: { id: string; name: string } }; tracks: TrackView[] }> {
+  const body = await engineJson<{ album: { id: string; title: string; artist: { id: string; name: string } }; tracks: EngineTrack[] }>(
+    `/library/albums/${encodeURIComponent(albumId)}`,
+    { owner: userId, unavailable: 'SUP02', fallback: 'LNF03' },
+  );
+  return { album: body.album, tracks: await decorate(userId, body.tracks ?? []) };
+}
+
 /** Cover art for one track, relayed without being parsed. */
 export async function artwork(userId: string, trackId: string): Promise<Response> {
   return engineStream(`/artwork/${encodeURIComponent(trackId)}`, {

@@ -4,7 +4,9 @@ import { z } from 'zod';
 import { requireUser } from '../auth/plugin.js';
 import { badRequest } from '../errors.js';
 import {
+  albumTracks,
   artwork,
+  artistTracks,
   listAlbums,
   listArtists,
   listLibraryTracks,
@@ -43,6 +45,16 @@ export const registerLibraryRoutes = (app: FastifyInstance): void => {
   app.get('/api/library/artists', async (request, reply) => {
     const userId = requireUser(request);
     reply.send({ artists: await listArtists(userId) });
+  });
+
+  app.get<{ Params: { name: string } }>('/api/library/artists/:name', async (request, reply) => {
+    const userId = requireUser(request);
+    reply.send(await artistTracks(userId, request.params.name));
+  });
+
+  app.get<{ Params: { albumId: string } }>('/api/library/albums/:albumId', async (request, reply) => {
+    const userId = requireUser(request);
+    reply.send(await albumTracks(userId, request.params.albumId));
   });
 
   app.get('/api/library/albums', async (request, reply) => {

@@ -420,6 +420,37 @@ async def library_albums(request: Request) -> JSONResponse:
     return JSONResponse(content={"albums": library.albums()})
 
 
+@app.get("/library/artists/{name}")
+async def library_artist_tracks(name: str, request: Request) -> JSONResponse:
+    """One artist's tracks — the drill-down the artist page renders."""
+    if not _authorized(request):
+        return _fail(401, "SUP01", "Engine access is not authorized")
+    needle = name.strip().lower()
+    if not needle:
+        return _fail(400, "LNF02")
+    tracks = [t for t in library.scan() if t["artist"]["name"].lower() == needle]
+    if not tracks:
+        return _fail(404, "LNF02")
+    return JSONResponse(content={"artist": {"id": name, "name": name}, "tracks": tracks})
+
+
+@app.get("/library/albums/{album_id}")
+async def library_album_tracks(album_id: str, request: Request) -> JSONResponse:
+    """One album's tracks. The id is the engine's own ``artist\x00title``
+    grouping key, URL-encoded by the caller, so it round-trips exactly."""
+    if not _authorized(request):
+        return _fail(401, "SUP01", "Engine access is not authorized")
+    import urllib.parse
+
+    key = urllib.parse.unquote(album_id)
+    tracks = [t for t in library.scan() if f"{t['artist']['name']}\x00{t['album']['title']}" == key]
+    if not tracks:
+        return _fail(404, "LNF03")
+    first = tracks[0]
+    album = {"id": key, "title": first["album"]["title"], "artist": first["artist"]}
+    return JSONResponse(content={"album": album, "tracks": tracks})
+
+
 @app.post("/library/rescan")
 async def library_rescan(request: Request) -> JSONResponse:
     """Force a rescan. Called by the server after a completed download so a new

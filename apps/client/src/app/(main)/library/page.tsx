@@ -127,8 +127,8 @@ export default function LibraryPage() {
         onChange={(event) => setFilter(event.target.value)}
         placeholder="Filter your library"
         aria-label="Filter your library"
-        className="w-full rounded-[12px] px-4 py-3 text-sm outline-none"
-        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        className="w-full px-4 py-3 text-sm outline-none"
+        style={{ background: 'var(--bg-surface)', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-brut)', color: 'var(--text-primary)' }}
       />
 
       <div className="mt-4 flex gap-1.5 overflow-x-auto" role="tablist" aria-label="Library sections">
@@ -173,7 +173,7 @@ export default function LibraryPage() {
             }
           />
         ) : tab === 'tracks' || tab === 'liked' ? (
-          <ul className="rounded-[14px] p-1" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+          <ul className="p-1" style={{ background: 'var(--bg-surface)', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-brut)' }}>
             {visibleTracks.map((track) => (
               <li key={track.id}>
                 <TrackRow track={track} queue={visibleTracks} showAlbum />
@@ -185,22 +185,28 @@ export default function LibraryPage() {
             {filtered.artists.map((artist) => {
               const track = data.tracks.find((item) => item.artist.name === artist.name);
               return (
+                // Navigation, not playback: the artist page owns the track list
+                // (and its own play ordering). A card that plays one arbitrary
+                // track teaches nothing about the artist.
                 <button
                   key={artist.id}
                   type="button"
-                  onClick={() =>
-                    track &&
-                    void usePlayerStore
-                      .getState()
-                      .playTrack(track, data.tracks.filter((item) => item.artist.name === artist.name))
-                  }
-                  className="cursor-pointer rounded-[14px] p-2.5 text-center"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+                  onClick={() => router.push(`/artist/${encodeURIComponent(artist.name)}`)}
+                  className="cursor-pointer p-2.5 text-center transition-transform active:translate-x-0.5 active:translate-y-0.5"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '2px solid var(--border-strong)',
+                    borderRadius: 'var(--radius-brut)',
+                    boxShadow: 'var(--hard-shadow-sm)',
+                  }}
                 >
-                  <span className="mx-auto block size-20 overflow-hidden rounded-full" style={{ border: '1px solid var(--border)' }}>
+                  <span
+                    className="mx-auto block size-20 overflow-hidden rounded-full"
+                    style={{ border: '2px solid var(--border)', background: 'var(--bg-overlay)' }}
+                  >
                     {track ? <Artwork track={track} size={80} rounded={9999} /> : null}
                   </span>
-                  <span className="mt-2 block truncate text-sm font-medium">{artist.name}</span>
+                  <span className="mt-2 block truncate text-sm font-extrabold">{artist.name}</span>
                   <span className="block text-xs" style={{ color: 'var(--text-secondary)' }}>
                     {artist.trackCount} tracks
                   </span>
@@ -218,6 +224,7 @@ export default function LibraryPage() {
                   title={album.title}
                   subtitle={`${album.artist.name} · ${album.trackCount} tracks`}
                   artworkUrl={track ? api.artworkUrl(track.id) : undefined}
+                  onClick={() => router.push(`/album/${encodeURIComponent(album.id)}`)}
                 />
               );
             })}

@@ -273,6 +273,18 @@ export const api = {
     request<{ albums: Array<{ id: string; title: string; artist: { id: string; name: string }; trackCount: number }> }>(
       '/api/library/albums',
     ),
+  /** One artist's tracks — the artist page's drill-down. */
+  artistTracks: (name: string) =>
+    request<{ artist: { id: string; name: string }; tracks: Track[] }>(
+      `/api/library/artists/${encodeURIComponent(name)}`,
+      { quiet: true },
+    ),
+  /** One album's tracks; the id is the engine's `artist\u0000title` key. */
+  albumTracks: (albumId: string) =>
+    request<{ album: { id: string; title: string; artist: { id: string; name: string } }; tracks: Track[] }>(
+      `/api/library/albums/${encodeURIComponent(albumId)}`,
+      { quiet: true },
+    ),
 
   search: (query: string, remote = true) =>
     request<{ query: string; tracks: Track[]; localCount: number; remoteCount: number; remoteAvailable: boolean }>(
