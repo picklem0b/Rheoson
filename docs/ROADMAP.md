@@ -543,6 +543,26 @@ reappear.
 
 ---
 
+## Deployment profiles — bring-your-own infrastructure (planned)
+
+Rheoson is open source; the people deploying it have wildly different
+resources. The plan is a small set of deployment profiles that map one
+configuration file onto what the deployer actually has:
+
+- **Zero-config** — point Rheoson at an existing Postgres/Mongo/Redis (or the
+  equivalents it can reach) and it wires itself up on first boot.
+- **Batteries-included** — one command brings up the full stack with its own
+  containers, for people who just want it running.
+- **Partial attach** — reuse some managed resources (a cloud database) and
+  self-host the rest, with the health report making the mix explicit.
+
+The Doctor's health probes become the validator: after attaching, a profile
+check confirms each resource is reachable, schema-current and writable
+before the app accepts traffic. Deliberately deferred until the current
+roadmap ships — recorded here so it isn't lost.
+
+---
+
 **Guardrails for every phase:** `tsc`, `eslint`, the full vitest and pytest
 suites, a production build and the API-base check all pass before the commit;
 existing settings, themes and preference sync keep working; the APK still
