@@ -185,7 +185,7 @@ export default function ListeningStats() {
           <div className="grid grid-cols-2 gap-3">
             <StatCard icon={MusicNotes} label="Total plays" value={formatCount(stats.total_plays)} />
             <StatCard icon={Clock} label="Listening time" value={`${stats.estimated_listening_hours}h`} />
-            <StatCard icon={Heart} label="Liked tracks" value={stats.total_likes} />
+            <StatCard icon={Heart} label="Saved tracks" value={stats.total_likes} />
             <StatCard icon={Users} label="Artists played" value={stats.unique_artists_30d} />
             <StatCard icon={Calendar} label="Active days" value={stats.active_days_30d} />
             <StatCard icon={TrendUp} label="Plays (7d)" value={stats.plays_7d} />

@@ -37,24 +37,36 @@ export default function QueuePanel() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
               onClick={toggleQueue}
             />
 
-            {/* Panel */}
+            {/* Bottom sheet — rises from the bottom edge on every screen
+                size; a side panel fought the thumb-reach and covered the
+                player bar it describes. Drag-handle + rounded top keep it
+                reading as a sheet, not a dialog. */}
             <motion.div
               key="queue-panel"
-              initial={{ x: '100%', opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              initial={{ y: '100%', opacity: 0.6 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0.6 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+              role="dialog"
+              aria-label="Playback queue"
               className={cn(
-                'fixed right-0 top-0 bottom-0 z-50 w-80 max-w-[92vw] flex flex-col',
-                'glass-strong border-l border-[var(--border)]'
+                'fixed inset-x-0 bottom-0 z-50 max-h-[82vh] flex flex-col',
+                'rounded-t-3xl glass-strong border-t border-[var(--border)]',
+                'pb-[calc(var(--player-height,72px)+var(--nav-height,64px))]',
+                'sm:left-auto sm:right-4 sm:w-96 sm:max-w-[92vw] sm:rounded-3xl sm:mb-4'
               )}
             >
+              {/* Drag handle affordance */}
+              <div className="flex justify-center pt-2.5" aria-hidden>
+                <span className="w-10 h-1 rounded-full bg-[var(--border-strong)]" />
+              </div>
+
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2.5">
                   <Queue className="w-5 h-5 text-[var(--accent)]" />
                   <h2 className="font-bold text-[var(--text-primary)]">Queue</h2>

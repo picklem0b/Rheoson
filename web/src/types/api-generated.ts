@@ -257,7 +257,12 @@ export interface paths {
         };
         /**
          * Get Profile
-         * @description Get the current user's profile from Clerk.
+         * @description Get the current user's profile.
+         *
+         *     JIT provisioning: the first authenticated request upserts the account
+         *     row (Supabase Postgres when configured, Mongo otherwise). This is what
+         *     makes a user exist in the DB without any webhook configuration — the
+         *     webhook stays as an extra delivery path, not the only one.
          */
         get: operations["get_profile_api_auth_me_get"];
         put?: never;
@@ -267,7 +272,11 @@ export interface paths {
         head?: never;
         /**
          * Update Profile
-         * @description Update user profile in MongoDB.
+         * @description Update the current user's profile.
+         *
+         *     Writes go through the account store (Supabase-first, Mongo fallback)
+         *     so the PATCH and the JIT-provisioned row from GET /me can never
+         *     disagree about where the profile lives.
          */
         patch: operations["update_profile_api_auth_me_patch"];
         trace?: never;
@@ -2278,6 +2287,11 @@ export interface components {
              * @default
              */
             description: string;
+            /**
+             * Trackids
+             * @default []
+             */
+            trackIds: string[];
         };
         /** DirectoriesSchema */
         DirectoriesSchema: {

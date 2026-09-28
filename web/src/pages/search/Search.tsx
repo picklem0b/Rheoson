@@ -1,9 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MagnifyingGlass as SearchIcon, X, User, DownloadSimple, MusicNotes, VinylRecord, Link, TrendUp, ClockCounterClockwise, Trash, ListPlus } from '@phosphor-icons/react';
 import { useSearch } from "@/hooks/search.hook";
 import { useQueue } from "@/hooks/queue.hook";
+import { useDownloads } from "@/hooks/downloads.hook";
+import { playlistsApi } from "@/api/playlists.api";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidatePlaylistSurfaces } from "@/lib/queryInvalidation";
 import { useUIStore } from "@/store/ui.store";
 import { useToast } from "@/components/ui/Toaster";
 import { ArtworkImage } from "@/components/ui/ArtworkImage";
@@ -309,6 +313,7 @@ export default function Search() {
       filter,
       setFilter,
       results,
+      resolvedTitle,
       isLoading,
       error,
       clear,
@@ -391,6 +396,42 @@ export default function Search() {
       openPlaylistMenu(track);
    };
 
+   const { downloadMany } = useDownloads();
+   const queryClient = useQueryClient();
+   const [bulkBusy, setBulkBusy] = useState<"save" | "download" | null>(null);
+
+   /** Resolved Spotify/YouTube links get two bulk actions: save the whole
+    *  collection as a playlist (created-and-filled in one call, named after
+    *  the source) and download every track. */
+   const isResolvedLink = inputType === "spotify" || inputType === "youtube";
+   const resolvedTracks = results?.tracks ?? [];
+
+   const handleSaveAll = async () => {
+      if (bulkBusy || resolvedTracks.length === 0) return;
+      setBulkBusy("save");
+      try {
+         const title = resolvedTitle ?? `Saved link · ${new Date().toLocaleDateString()}`;
+         await playlistsApi.createBulk({ title, trackIds: resolvedTracks.map(t => t.id) });
+         invalidatePlaylistSurfaces(queryClient);
+         toast(`Saved ${resolvedTracks.length} tracks as "${truncate(title, 26)}"`, "success", 3000);
+      } catch (err) {
+         toast(err instanceof Error ? err.message : "Could not save playlist", "error", 4000);
+      } finally {
+         setBulkBusy(null);
+      }
+   };
+
+   const handleDownloadAll = () => {
+      if (bulkBusy || resolvedTracks.length === 0) return;
+      setBulkBusy("download");
+      try {
+         downloadMany(resolvedTracks);
+         toast(`Queued ${resolvedTracks.length} downloads`, "success", 3000);
+      } finally {
+         setBulkBusy(null);
+      }
+   };
+
    return (
       <div className='flex flex-col h-full'>
          {/* ── Header ──────────────────────────────────────────── */}
@@ -413,6 +454,35 @@ export default function Search() {
                   </motion.div>
                )}
             </div>
+
+            {/* Bulk actions for resolved Spotify/YouTube links */}
+            {isResolvedLink && resolvedTracks.length > 0 && (
+               <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className='flex gap-2'>
+                  <motion.button
+                     whileTap={{ scale: 0.96 }}
+                     onClick={handleSaveAll}
+                     disabled={bulkBusy !== null}
+                     className='flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold
+                         bg-[var(--accent)] text-white shadow-lg disabled:opacity-60
+                         min-h-[36px]'>
+                     <ListPlus className='w-4 h-4' />
+                     {bulkBusy === "save" ? "Saving…" : `Save all as playlist`}
+                  </motion.button>
+                  <motion.button
+                     whileTap={{ scale: 0.96 }}
+                     onClick={handleDownloadAll}
+                     disabled={bulkBusy !== null}
+                     className='flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold
+                         bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border)]
+                         disabled:opacity-60 min-h-[36px]'>
+                     <DownloadSimple className='w-4 h-4' />
+                     {bulkBusy === "download" ? "Queuing…" : `Download all (${resolvedTracks.length})`}
+                  </motion.button>
+               </motion.div>
+            )}
 
             <SearchBar
                query={query}

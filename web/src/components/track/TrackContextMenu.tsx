@@ -105,7 +105,7 @@ function useMenuActions(track: Track, onClose: () => void) {
     },
     {
       id: 'like',
-      label: track.isLiked ? 'Remove from favourites' : 'Favourite',
+      label: track.isLiked ? 'Removed from saved' : 'Save',
       icon: (
         <Heart
           className={`w-4 h-4 ${track.isLiked ? 'text-[var(--accent)] fill-current' : ''}`}
@@ -114,10 +114,10 @@ function useMenuActions(track: Track, onClose: () => void) {
       run: async () => {
         if (track.isLiked) {
           await tracksApi.unlikeTrack(track.id)
-          toast('Removed from favourites', 'info', 1800)
+          toast('Removed from saved', 'info', 1800)
         } else {
           await tracksApi.likeTrack(track.id)
-          toast('Added to favourites', 'success', 1800)
+          toast('Saved', 'success', 1800)
         }
         refreshLikes()
         onClose()

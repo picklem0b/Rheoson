@@ -20,6 +20,7 @@ import { messagesApi, type PeerInfo } from '@/api/messages.api'
 import { qk } from '@/lib/queryKeys'
 import { useAuthStore } from '@/store/auth.store'
 import { useQueue } from '@/hooks/queue.hook'
+import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { useToast } from '@/components/ui/Toaster'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { splitErrorCode } from '@/api/client.api'
@@ -281,7 +282,7 @@ export default function Blend() {
                      <button
                         onClick={() => playTrack(t, tracks)}
                         className='relative w-11 h-11 flex-shrink-0 rounded-xl overflow-hidden'>
-                        <img src={t.artworkUrl || '/assets/logo.png'} alt='' className='w-full h-full object-cover' />
+                        <ArtworkImage src={t.artworkUrl} alt='' className='w-full h-full' radius='rounded-none' />
                         <span className='absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/40'>
                            <Play className='w-4 h-4 text-white' weight='fill' />
                         </span>

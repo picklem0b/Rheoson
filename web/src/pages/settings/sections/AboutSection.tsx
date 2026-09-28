@@ -39,7 +39,7 @@ const STACK: { label: string; value: string; url: string }[] = [
  * away on GitHub.
  */
 const CHANGELOG_HIGHLIGHTS: { tag: string; note: string }[] = [
-   { tag: `v${APP_VERSION}`, note: "Playback settings sheet: speed, repeat, shuffle, playthrough; Playing from label; queue dedupe; Like became Favourite." },
+   { tag: `v${APP_VERSION}`, note: "Playback settings sheet: speed, repeat, shuffle, playthrough; Playing from label; queue dedupe; Like became Save." },
    { tag: "v2.21.0", note: "Home rebuilt: Last played, Recommended artists, Trending this week, Made for you." },
    { tag: "v2.21.2", note: "Library-wide search, honest empty states, playlist cards with provenance." },
    { tag: "v2.20.5", note: "Unhandled server failures navigate to the error page, with the DCCNN code in the info panel." },

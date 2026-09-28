@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { TrendUp, Clock, Sparkle, Play, CaretRight, CaretDown, CaretUp, User, MusicNotes } from '@phosphor-icons/react'
+import { TrendUp, Clock, Sparkle, Play, CaretRight, CaretDown, CaretUp, User } from '@phosphor-icons/react'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlayerStore } from '@/store/player.store'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
@@ -13,6 +13,7 @@ import { searchApi } from '@/api/search.api'
 import { recommendationsApi, type DailyMix } from '@/api/recommendations.api'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { Track } from '@/types/track.types'
@@ -97,10 +98,12 @@ function TrackListRow({
       )}
     >
       <div className="relative flex-shrink-0">
-        {track.artworkUrl
-          ? <img src={track.artworkUrl} alt={track.title} className="w-11 h-11 rounded-xl object-cover" />
-          : <div className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center"><MusicNotes className="w-4 h-4 text-[var(--text-muted)]" /></div>
-        }
+        <ArtworkImage
+          src={track.artworkUrl}
+          alt={track.title}
+          size={44}
+          radius="rounded-xl"
+        />
         {active && isPlaying && (
           <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center">
             <div className="flex gap-[2px] items-end h-3">
@@ -139,6 +142,7 @@ function TrackListRow({
 interface RecArtist {
   name: string
   id: string | null // null = couldn't resolve to an artist page; tap opens search
+  imageUrl?: string
 }
 
 // Resolves a list of artist names (from the listening profile) to real
@@ -160,7 +164,9 @@ function useResolvedArtists(names: string[] | undefined, max = 6) {
         try {
           const results = await searchApi.search(name, 'artists')
           const found = results.artists[0]
-          return { name, id: found?.id ?? null }
+          // Keep the resolved image so the circle shows the real artist —
+          // not a generic placeholder — wherever a thumbnail is available.
+          return { name, id: found?.id ?? null, imageUrl: found?.imageUrl ?? undefined }
         } catch {
           return { name, id: null }
         }
@@ -193,10 +199,21 @@ function ArtistCircle({
       transition={{ delay: index * 0.04 }}
       whileTap={{ scale: 0.95 }}
       onClick={() => onOpen(artist)}
-      className="flex-shrink-0 w-20 text-left group"
+      className="flex-shrink-0 w-20 text-left group relative"
     >
-      <div className="w-20 h-20 rounded-full overflow-hidden mb-2 bg-[var(--bg-surface)] border border-[var(--border)] group-hover:border-[var(--border-strong)] transition-colors flex items-center justify-center">
-        <User className="w-7 h-7 text-[var(--text-muted)]" />
+      <div className="w-20 h-20 rounded-full overflow-hidden mb-2 bg-[var(--bg-surface)] border border-[var(--border)] group-hover:border-[var(--border-strong)] transition-colors flex items-center justify-center relative">
+        {artist.imageUrl ? (
+          <img
+            src={artist.imageUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+          />
+        ) : (
+          <User className="w-7 h-7 text-[var(--text-muted)]" aria-hidden />
+        )}
       </div>
       <p className="text-xs font-semibold text-[var(--text-primary)] truncate text-center">
         {artist.name}
@@ -331,10 +348,12 @@ function PlaylistCard({
       className="text-left group"
     >
       <div className="relative aspect-square rounded-2xl overflow-hidden mb-2 shadow-lg bg-[var(--bg-surface)] border border-[var(--border)]">
-        {artworkUrl
-          ? <img src={artworkUrl} alt={title} className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-[var(--bg-overlay)] flex items-center justify-center"><MusicNotes className="w-8 h-8 text-[var(--text-muted)]" /></div>
-        }
+        <ArtworkImage
+          src={artworkUrl}
+          alt={title}
+          className="w-full h-full"
+          radius="rounded-none"
+        />
         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
           <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg ml-auto">
             <Play className="w-4 h-4 text-black fill-current ml-0.5" />
@@ -440,10 +459,25 @@ export default function Home() {
     retry:     1,
   })
 
-  // Artist names from real listening behaviour (30-day window).
+  // Artist names from real listening behaviour (30-day window). When the
+  // analytics backend is unavailable (no MongoDB — the common first-run
+  // shape), fall back to the artists the user actually played recently:
+  // recently-played is file-backed and always answers.
   const { data: topArtists, isLoading: loadingTopArtists } = useQuery({
     queryKey:  ['top-artists', 'home'],
-    queryFn:   () => analyticsApi.getTopArtists(30, 6),
+    queryFn:   async () => {
+      try {
+        const data = await analyticsApi.getTopArtists(30, 6)
+        if (data.artists.length > 0) return data
+      } catch { /* analytics unavailable — fall through to recent */ }
+      const names: string[] = []
+      for (const t of recent) {
+        const n = t.artist?.name
+        if (n && !names.includes(n)) names.push(n)
+        if (names.length >= 6) break
+      }
+      return { artists: names.map((n) => ({ artist: n, plays: 0 })), days: 0 }
+    },
     staleTime: 10 * 60_000,
     retry:     1,
   })

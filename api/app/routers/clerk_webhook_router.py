@@ -186,6 +186,39 @@ async def _handle_user_created(data: dict) -> None:
 
     now = datetime.now(timezone.utc)
 
+    # Preferred path: the Supabase account store (same upsert the JIT
+    # provisioning on /auth/me performs). Mongo runs as fallback when
+    # Supabase is not configured.
+    try:
+        from app.core.supabase import get_supabase
+        from app.services.user_store import get_user, upsert_user
+
+        # A PostgREST upsert cannot report insert-vs-update, so existence is
+        # decided by a pre-read: only an account that did not exist before
+        # counts as a new visitor. A replayed event sees the row and skips it.
+        existed_before = (await get_user(clerk_id)) is not None
+        row = await upsert_user(clerk_id, {
+            "email_address": primary_email,
+            "username": username,
+        })
+        if row is not None:
+            log.info(
+                "webhook.clerk.user_created",
+                clerk_id=clerk_id,
+                email=primary_email,
+                store="supabase" if get_supabase() else "mongo",
+            )
+            if not existed_before:
+                try:
+                    from app.core.database import get_db
+
+                    await _count_new_account(get_db())
+                except Exception:  # noqa: BLE001 — counter is non-critical
+                    pass
+            return
+    except Exception as e:  # noqa: BLE001 — fall through to the Mongo path
+        log.warning("webhook.clerk.user_created.store_failed", clerk_id=clerk_id, error=str(e))
+
     try:
         from app.core.database import get_db
         db = get_db()
@@ -225,10 +258,10 @@ async def _handle_user_created(data: dict) -> None:
 
 
 async def _handle_user_updated(data: dict) -> None:
-    """Update user fields in MongoDB when Clerk profile changes."""
-    if not db_available():
-        return
+    """Update user fields when Clerk profile changes.
 
+    Supabase-first via the shared user_store; Mongo stays as fallback.
+    """
     clerk_id = data.get("id", "")
     if not clerk_id:
         return
@@ -244,7 +277,24 @@ async def _handle_user_updated(data: dict) -> None:
         primary_email = emails[0].get("email_address", "")
 
     username = (data.get("username") or "").strip()
-    image_url = data.get("image_url", "")
+
+    # Supabase path: upsert with whatever Clerk gave us (only non-empty
+    # fields meaningfully change — user_store fills username from email).
+    try:
+        from app.services.user_store import upsert_user
+
+        row = await upsert_user(clerk_id, {
+            "email_address": primary_email,
+            "username": username,
+        })
+        if row is not None:
+            log.info("webhook.clerk.user_updated", clerk_id=clerk_id, store="supabase")
+            return
+    except Exception as e:  # noqa: BLE001 — fall through to Mongo
+        log.warning("webhook.clerk.user_updated.store_failed", clerk_id=clerk_id, error=str(e))
+
+    if not db_available():
+        return
 
     updates: dict = {
         "updated_at": datetime.now(timezone.utc),
@@ -253,8 +303,8 @@ async def _handle_user_updated(data: dict) -> None:
         updates["email"] = primary_email
     if username:
         updates["username"] = username
-    if image_url:
-        updates["image_url"] = image_url
+    if data.get("image_url"):
+        updates["image_url"] = data["image_url"]
 
     try:
         from app.core.database import get_db

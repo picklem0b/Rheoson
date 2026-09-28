@@ -29,6 +29,26 @@ async def test_create_playlist(client):
 
 
 @pytest.mark.asyncio
+async def test_create_playlist_with_seed_tracks(client):
+    """POST /playlists with optional seed trackIds creates-and-fills in one
+    call (the "save a resolved Spotify playlist" path). Order is preserved."""
+    resp = await client.post("/api/playlists", json={
+        "title": "Seeded",
+        "trackIds": ["vid-1", "vid-2", "vid-3"],
+    })
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["trackCount"] == 3
+    assert data["trackIds"] == ["vid-1", "vid-2", "vid-3"]
+
+    # The detail endpoint hydrates the same seeds back out.
+    detail = await client.get(f"/api/playlists/{data['id']}")
+    assert detail.status_code == 200
+    hydrated = detail.json()
+    assert [t["id"] for t in hydrated["tracks"]] == ["vid-1", "vid-2", "vid-3"]
+
+
+@pytest.mark.asyncio
 async def test_create_playlist_requires_title(client):
     """POST /playlists without title should return 422."""
     resp = await client.post("/api/playlists", json={})

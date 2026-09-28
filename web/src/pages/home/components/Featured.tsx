@@ -11,8 +11,9 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { Sparkle, Play, MusicNotes } from '@phosphor-icons/react'
+import { Sparkle, Play } from '@phosphor-icons/react'
 import { libraryApi } from '@/api/library.api'
+import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import TopBar from '@/components/layout/TopBar'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -34,10 +35,12 @@ function FeaturedCard({ item, index, onClick }: {
       className="text-left group"
     >
       <div className="relative aspect-square rounded-3xl overflow-hidden mb-2.5 shadow-lg">
-        {item.artworkUrl
-          ? <img src={item.artworkUrl} alt={item.title} className="w-full h-full object-cover" />
-          : <div className='w-full h-full bg-[var(--bg-overlay)] flex items-center justify-center'><MusicNotes className='w-8 h-8 text-[var(--text-muted)]' /></div>
-        }
+        <ArtworkImage
+          src={item.artworkUrl}
+          alt={item.title}
+          className="w-full h-full"
+          radius="rounded-none"
+        />
         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
           <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg ml-auto">
             <Play className="w-4 h-4 text-black fill-current ml-0.5" />

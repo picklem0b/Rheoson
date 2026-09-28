@@ -5,6 +5,7 @@ import { Check, MusicNotes, Play, Plus, Sparkle, User, UserPlus, X } from '@phos
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidateArtistFollowSurfaces } from '@/lib/queryInvalidation'
 import { qk } from '@/lib/queryKeys'
+import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { useQueue } from '@/hooks/queue.hook'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { usePrefetchOnIntent } from '@/hooks/prefetchIntent.hook'
@@ -434,14 +435,12 @@ function PopularTrackRow({ track, index, onClick }: PopularTrackRowProps) {
       </span>
       <Play className="w-4 h-4 fill-current text-[var(--text-primary)] hidden group-hover:block" />
 
-      {track.artworkUrl
-        ? <img src={track.artworkUrl} alt={track.title} loading="lazy" decoding="async" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
-        : (
-          <div className="w-11 h-11 rounded-xl flex-shrink-0 bg-[var(--bg-overlay)] border border-[var(--border)] flex items-center justify-center">
-            <MusicNotes className="w-5 h-5 text-[var(--text-muted)]" weight="duotone" />
-          </div>
-        )
-      }
+      <ArtworkImage
+        src={track.artworkUrl}
+        alt={track.title}
+        size={44}
+        radius="rounded-xl"
+      />
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{track.title}</p>

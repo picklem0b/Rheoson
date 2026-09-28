@@ -38,12 +38,26 @@ class Settings(BaseSettings):
     STREAM_CACHE_DIR:         str = str(Path(tempfile.gettempdir()) / "Rheoson_stream_cache")
     STREAM_CACHE_MAX_MB:      int = 1024
 
+    # ── Relay resolver (Piped/Invidious fast path) ────────────
+    # Pre-extracted stream URLs from public relay instances, tried between
+    # the URL cache and the yt-dlp ladder. Best-effort by design: when no
+    # instance answers, streaming falls through to yt-dlp exactly as before.
+    RELAY_RESOLVER_ENABLED:   bool = True
+    RELAY_RESOLVE_TIMEOUT:    float = 4.0
+
     SPOTIFY_CLIENT_ID:     str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
 
     # ── MongoDB ────────────────────────────────────────────────
     MONGODB_URL:    str = "mongodb://localhost:27017"
     MONGODB_DB_NAME: str = "rheoson"
+
+    # Supabase (Postgres) — the primary account store when configured.
+    # The SERVER needs the secret key (sb_secret_…, Project Settings → API);
+    # the publishable key cannot write rows through RLS.
+    SUPABASE_URL:      str = ""
+    SUPABASE_KEY:      str = ""
+    SUPABASE_USERS_TABLE: str = "users"
 
     # ── Clerk Authentication ──────────────────────────────────
     CLERK_SECRET_KEY:         str = ""

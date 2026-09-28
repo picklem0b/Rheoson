@@ -171,7 +171,7 @@ export default function StatsSection() {
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">No taste profile yet</p>
               <p className="text-xs text-[var(--text-muted)] mt-1 max-w-[260px]">
-                Play a few songs and your most-replayed tracks, favourite artists and listener type will show up here.
+                Play a few songs and your most-replayed tracks, saved artists and listener type will show up here.
               </p>
             </div>
           </div>
@@ -212,11 +212,11 @@ export default function StatsSection() {
               </div>
             )}
 
-            {/* Favourite artists */}
+            {/* Saved artists */}
             {taste && taste.top_artists.length > 0 && (
               <div>
                 <p className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-muted)] mb-1.5 px-1">
-                  Favourite artists
+                  Saved artists
                 </p>
                 <div className="flex flex-wrap gap-1.5 px-1">
                   {taste.top_artists.slice(0, 8).map(a => (
@@ -277,7 +277,7 @@ export default function StatsSection() {
               <div className="grid grid-cols-2 gap-3 p-3">
                 <StatCard icon={MusicNotes} label="Total plays" value={formatCount(stats.total_plays)} />
                 <StatCard icon={Clock} label="Listening time" value={`${stats.estimated_listening_hours}h`} />
-                <StatCard icon={Heart} label="Liked tracks" value={stats.total_likes} />
+                <StatCard icon={Heart} label="Saved tracks" value={stats.total_likes} />
                 <StatCard icon={Users} label="Artists played" value={stats.unique_artists_30d} />
                 <StatCard icon={Calendar} label="Active days" value={stats.active_days_30d} />
                 <StatCard icon={TrendUp} label="Plays (7d)" value={stats.plays_7d} />

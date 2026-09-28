@@ -29,10 +29,13 @@ import { usePlayerStore } from "@/store/player.store";
 import { useUIStore } from "@/store/ui.store";
 import { useQueueStore } from "@/store/queue.store";
 import { useShareStore } from "@/store/share.store";
+import { useToast } from "@/components/ui/Toaster";
+import { usePersisted } from "@/hooks/persisted.hook";
 import { useAuthStore } from "@/store/auth.store";
 import { useQueue } from "@/hooks/queue.hook";
 import { usePlayer } from "@/hooks/player.hook";
 import { useLyrics } from "@/hooks/lyrics.hook";
+import { lyricsApi } from "@/api/lyrics.api";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { tracksApi } from "@/api/tracks.api";
 import { invalidateLikeSurfaces } from "@/lib/queryInvalidation";
@@ -55,7 +58,7 @@ type Tab = "queue" | "lyric" | "creator";
 // ── Context menu ──────────────────────────────────────────────
 
 const MENU_ITEMS = [
-   { icon: Heart, label: "Favourite", action: "like" },
+   { icon: Heart, label: "Save", action: "like" },
    { icon: DownloadSimple, label: "Download", action: "download" },
    { icon: Plus, label: "Add to queue", action: "queue-add" },
    { icon: ShareNetwork, label: "Share to chat", action: "share-chat" },
@@ -78,7 +81,7 @@ function ContextSheet({
       item.action === "like"
          ? {
               ...item,
-              label: liked ? "Remove from favourites" : "Favourite",
+              label: liked ? "Removed from saved" : "Save",
               icon: Heart
            }
          : item
@@ -177,28 +180,41 @@ function LyricsTab({
    onSeek?: (seconds: number) => void;
    track: Track | null;
 }) {
-   const openShare = useShareStore((s) => s.openShare);
+   const { toast } = useToast();
 
    const shareLyrics = () => {
       if (!track) return;
-      openShare({
-         kind: "lyrics",
-         id: track.id,
-         title: track.title,
-         subtitle: track.artist?.name,
-         artworkUrl: track.artworkUrl,
-         snippet: lines.slice(0, 4).map((l) => l.text).join("\n"),
-      });
+      // Lyrics must be shareable everywhere — the share-to-chat modal only
+      // lists real peers, which is empty on a fresh instance. Native share
+      // (mobile) or the clipboard (desktop) always works.
+      const text = lines.map((l) => l.text).filter(Boolean).join("\n");
+      const payload = {
+         title: `${track.title} — ${track.artist?.name ?? "lyrics"}`,
+         text: `${text}\n\n— via Rheoson`,
+      };
+      if (typeof navigator.share === "function") {
+         navigator.share(payload).catch(() => { /* user dismissed */ });
+         return;
+      }
+      void navigator.clipboard
+         .writeText(payload.text)
+         .then(() => toast("Lyrics copied to clipboard", "success", 2200))
+         .catch(() => toast("Could not copy lyrics", "error", 3000));
    };
-   const [follow, setFollow] = useState(true);
+   // Auto-scroll is always on for synced lyrics — a toggle the user must
+   // find and understand adds friction for something that should just work.
+   // The practical control here is text size, persisted per device.
+   const [lyricSize, setLyricSize] = usePersisted<'sm' | 'md' | 'lg'>(
+      'lyrics-size', 'md'
+   );
    const lineRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
    // Auto-scroll so the singing line stays centered while playing
    useEffect(() => {
-      if (!follow || !synced || !isPlaying) return;
+      if (!synced || !isPlaying) return;
       const el = lineRefs.current[activeLine];
       el?.scrollIntoView({ block: "center", behavior: "smooth" });
-   }, [activeLine, follow, synced, isPlaying]);
+   }, [activeLine, synced, isPlaying]);
 
    if (isLoading) {
       return (
@@ -237,17 +253,33 @@ function LyricsTab({
                   Static lyrics
                </span>
             ) : (
-               <button
-                  onClick={() => setFollow(f => !f)}
-                  className={cn(
-                     "px-3 py-1 rounded-full text-[11px] font-bold transition-colors",
-                     follow
-                        ? "bg-[var(--accent)] text-white"
-                        : "bg-white/5 text-white/50"
-                  )}>
-                  {follow ? "Following lyrics" : "Auto-scroll off"}
-               </button>
+               <span className='text-[11px] text-[var(--text-muted)] bg-white/5 px-3 py-1 rounded-full'>
+                  Auto-scroll on
+               </span>
             )}
+            <div
+               role='group'
+               aria-label='Lyrics text size'
+               className='flex items-center gap-1 bg-white/5 rounded-full px-1 py-0.5'>
+               {([['sm', 'A'], ['md', 'A'], ['lg', 'A']] as const).map(([size, label], i) => (
+                  <button
+                     key={size}
+                     onClick={() => setLyricSize(size)}
+                     aria-pressed={lyricSize === size}
+                     aria-label={`Lyrics size: ${size}`}
+                     className={cn(
+                        'rounded-full flex items-center justify-center transition-colors',
+                        i === 0 && 'w-5 h-5 text-[9px]',
+                        i === 1 && 'w-6 h-6 text-[11px]',
+                        i === 2 && 'w-7 h-7 text-[13px]',
+                        lyricSize === size
+                           ? 'bg-[var(--accent)] text-white'
+                           : 'text-white/50 hover:text-white'
+                     )}>
+                     {label}
+                  </button>
+               ))}
+            </div>
             {track && (
                <button
                   onClick={shareLyrics}
@@ -281,7 +313,10 @@ function LyricsTab({
                      }}
                      transition={{ duration: 0.25 }}
                      className={cn(
-                        "text-lg leading-relaxed text-center transition-all duration-300",
+                        "leading-relaxed text-center transition-all duration-300",
+                        lyricSize === 'sm' && "text-base",
+                        lyricSize === 'md' && "text-lg",
+                        lyricSize === 'lg' && "text-2xl",
                         seekable && onSeek && "cursor-pointer",
                         active
                            ? "font-bold text-white"
@@ -314,6 +349,20 @@ function compactCount(v: number | string | null | undefined): string {
    return String(n);
 }
 
+/**
+ * The browse id the creator tab resolves an artist with: remote artists
+ * use their YouTube Music browse id, local/unknown ids fall back to the
+ * slugged name (the backend matches either). Shared by the tab and the
+ * preload effect so both warm the exact same cache entry.
+ */
+function creatorBrowseId(artistId: string | undefined, artistName: string | undefined): string {
+   return artistId && artistId !== "unknown"
+      ? artistId
+      : artistName
+        ? artistName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+        : "";
+}
+
 function CreatorTab({
    artistId,
    artistName
@@ -327,14 +376,7 @@ function CreatorTab({
    const navigate = useNavigate();
    const isAuthenticated = useAuthStore(s => s.isAuthenticated);
 
-   // Remote artists use their YouTube Music browse id; local/unknown ids
-   // fall back to the slugged artist name (the backend matches either).
-   const browseId =
-      artistId && artistId !== "unknown"
-         ? artistId
-         : artistName
-           ? artistName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-           : "";
+   const browseId = creatorBrowseId(artistId, artistName);
 
    const queryClient = useQueryClient();
    const { playAll, playTrack } = useQueue();
@@ -804,8 +846,39 @@ export default function NowPlaying() {
    const [showMenu, setShowMenu] = useState(false);
    const [liked, setLiked] = useState(currentTrack?.isLiked ?? false);
    const playSource = usePlayerStore(s => s.playSource);
-   // (Lyrics are preloaded by construction: the useLyrics query above runs
-   // unconditionally on mount — the Lyrics tab reads the warmed cache.)
+   // (Lyrics for the current track are preloaded by construction: the
+   // useLyrics query above runs unconditionally on mount — the Lyrics tab
+   // reads the warmed cache.)
+
+   // Preload the creator tab's data the moment a track is current, so
+   // switching to the tab renders content instead of a spinner. Same query
+   // key the tab itself uses — React Query dedupes the two.
+   const creatorId = creatorBrowseId(currentTrack?.artist?.id, currentTrack?.artist?.name);
+   useEffect(() => {
+      if (!creatorId) return;
+      void queryClient.prefetchQuery({
+         queryKey: qk.artistContent(creatorId),
+         queryFn: () => getArtist(creatorId).catch(() => null),
+         staleTime: 10 * 60_000,
+      });
+   }, [creatorId, queryClient]);
+
+   // Warm lyrics for the next two queue tracks — opening a shared lyric
+   // card or skipping ahead lands on text that is already in the cache.
+   useEffect(() => {
+      const upcoming = useQueueStore.getState().queue.slice(0, 2);
+      for (const t of upcoming) {
+         if (!t?.id) continue;
+         void queryClient.prefetchQuery({
+            queryKey: ["lyrics", t.id],
+            queryFn: () =>
+               lyricsApi.getLyrics(t.id, t.title, t.artist?.name),
+            staleTime: 30 * 60 * 1000,
+            gcTime: 60 * 60 * 1000,
+            retry: false,
+         });
+      }
+   }, [currentTrack?.id, queryClient]);
 
    // The PlayerBar lyrics button opens this view on the Lyrics tab
    useEffect(() => {

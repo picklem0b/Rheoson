@@ -22,7 +22,6 @@ export default function PrivacySection() {
    const [clearPlayState, setClearPlayState] = useState<ActionState>("idle");
    const [clearSearchState, setClearSearchState] =
       useState<ActionState>("idle");
-   const [signOutState, setSignOutState] = useState<ActionState>("idle");
    const [backupState, setBackupState] = useState<ActionState>("idle");
    const [restoreState, setRestoreState] = useState<ActionState>("idle");
    const [restoreSummary, setRestoreSummary] = useState<string | null>(null);
@@ -96,15 +95,9 @@ export default function PrivacySection() {
       sessionStorage.removeItem("rheoson-recent-searches");
    });
 
-   /** Sign out of the session on this device only — server data untouched.
+   /** Session sign-out moved to the Account section (credentials concern).
     *  Distinct from "Clear all app data" (Account section), which wipes
     *  settings and libraries as well. */
-   const signOutDevice = actionRunner(setSignOutState, async () => {
-      localStorage.removeItem("rheoson-auth");
-      sessionStorage.removeItem("rheoson-last-search");
-      // Re-render everything that read the auth store at boot.
-      window.location.reload();
-   });
 
    return (
       <div className='pb-4'>
@@ -227,18 +220,8 @@ export default function PrivacySection() {
             </SettingsRow>
          </SettingsGroup>
 
-         <SettingsGroup
-            title='Session'
-            footer='Sign out of this device only. Your account, likes, playlists and downloads on the server are untouched — signing back in restores everything.'>
-            <SettingsRow
-               label='Sign out of this device'
-               description='Clears the session token from this device and reloads the app'
-               danger
-               onClick={signOutState === "idle" ? signOutDevice : undefined}
-               icon={<ArrowClockwise className='w-[14px] h-[14px]' />}
-               iconBg='var(--danger)'
-            />
-         </SettingsGroup>
+         {/* Session sign-out moved to the Account section — it is a
+             credentials concern, not a data-policy one. */}
 
          {/* Full documentation — the whole policy, in the app */}
          <PrivacyDocs />

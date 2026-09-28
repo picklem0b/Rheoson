@@ -855,7 +855,7 @@ export default function Library() {
                <section>
                   <SectionHeading
                      icon={<Heart className='h-4 w-4 fill-current' />}
-                     title='Favourites'
+                     title='Saved'
                      count={likedTracks?.length}
                      actions={
                         <div className='flex items-center gap-2'>
@@ -876,7 +876,7 @@ export default function Library() {
                               onClick={() =>
                                  likedTracks && handlePlayAll(likedTracks, true)
                               }
-                              title='Shuffle favourites'>
+                              title='Shuffle saved'>
                               <Shuffle className='h-4 w-4' />
                            </Button>
                         </div>
@@ -898,12 +898,12 @@ export default function Library() {
                      ))}
                      {!loadingLiked &&
                         visibleLiked.length === 0 && (
-                           q ? noMatches('favourites', <Heart className='h-6 w-6 text-[var(--text-muted)]' />) : (
+                           q ? noMatches('saved', <Heart className='h-6 w-6 text-[var(--text-muted)]' />) : (
                            <EmptySection
                               icon={
                                  <Heart className='h-6 w-6 text-[var(--text-muted)]' />
                               }
-                              title='No favourites yet'
+                              title='Nothing saved yet'
                               note='Tap the heart on any song to save it here'
                            />
                            )

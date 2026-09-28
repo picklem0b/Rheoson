@@ -131,7 +131,7 @@ export default function LibraryTrackRow({
                 type='button'
                 onClick={handleLike}
                 className='flex-shrink-0 p-1.5 -mr-1'
-                aria-label={track.isLiked ? 'Remove from favourites' : 'Favourite'}
+                aria-label={track.isLiked ? 'Removed from saved' : 'Save'}
             >
                 <Heart
                     className={cn(

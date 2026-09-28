@@ -257,14 +257,24 @@ def resolve_direct_url_sync(track_id: str) -> Optional[str]:
 
 
 async def resolve_direct_url(track_id: str) -> Optional[str]:
-    """Resolve a track's CDN URL with `yt-dlp -g`, downloading no bytes.
+    """Resolve a track's CDN URL, fastest source first.
 
-    Returns None when every player-client variant fails, in which case the
-    caller falls back to the buffered yt-dlp path.
+    Order: the still-valid cached URL, then the relay resolver (public
+    Piped/Invidious instances cache extractions across users — ~1 s vs a
+    ~12 s cold local extraction on a phone), then the local `yt-dlp -g`
+    ladder. Returns None when every source fails, in which case the caller
+    falls back to the buffered yt-dlp path.
     """
     cached = cached_direct_url(track_id)
     if cached:
         return cached
+
+    from app.services import relay_resolver
+
+    relayed = await relay_resolver.resolve(track_id)
+    if relayed:
+        _direct_url_cache[track_id] = (relayed, time.time())
+        return relayed
 
     # yt-dlp is synchronous; keep the event loop free while it works.
     return await asyncio.to_thread(resolve_direct_url_sync, track_id)
@@ -430,13 +440,18 @@ async def open_upstream(
     intact — so the browser knows the track's duration and can start playing
     immediately instead of buffering against an open-ended stream.
 
+    When the client sent no Range at all, `bytes=0-` is sent on its behalf:
+    some CDN edges stall a range-less request until the client gives up,
+    while the same URL answers an explicit range with the entire file in one
+    206. The caller presents that whole-file 206 as a plain 200 — a player
+    that never asked for ranges should not be told it got an unexpected one.
+
     Raises `UpstreamError` when the CDN cannot be reached or refuses the
     request, so the caller can fall back to the transcoding path. The returned
     stream must be closed with `await stream.aclose()`.
     """
     headers = {"User-Agent": UA_DESKTOP, "Accept": "*/*"}
-    if range_header:
-        headers["Range"] = range_header
+    headers["Range"] = range_header if range_header else "bytes=0-"
 
     client = httpx.AsyncClient(
         timeout=httpx.Timeout(timeout, read=read_timeout),

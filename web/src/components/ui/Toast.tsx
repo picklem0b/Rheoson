@@ -57,15 +57,18 @@ export function Toast({ id, type, message, code, fullDetail, onDismiss }: ToastP
       exit={{   opacity: 0, y: -10, scale: 0.95 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
       className={cn(
-        'flex flex-col gap-1 px-4 py-3 rounded-2xl shadow-xl border',
+        'flex flex-col gap-1 px-4 py-3 rounded-2xl shadow-xl border overflow-hidden',
         'glass-strong min-w-[280px] max-w-sm',
         styles[type]
       )}
       role={type === 'error' ? 'alert' : 'status'}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         {icons[type]}
-        <p className="flex-1 text-sm font-medium text-[var(--text-primary)]">{message}</p>
+        {/* min-w-0 + overflow-wrap:anywhere — a long unbroken token (a URL,
+            yt-dlp noise) must wrap inside the toast instead of pushing the
+            flex item past the viewport edge. */}
+        <p className="flex-1 min-w-0 text-sm font-medium text-[var(--text-primary)] [overflow-wrap:anywhere]">{message}</p>
         {hasMore && (
           <button
             type="button"

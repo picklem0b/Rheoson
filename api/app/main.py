@@ -53,7 +53,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.22.1"
+VERSION = "2.23.1"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -280,6 +280,8 @@ async def lifespan(_app: FastAPI):
     scheduler.add_job(_cron_weekly_categories, "cron", day_of_week="sun", hour=23, minute=30,
                       id="weekly_categories", replace_existing=True)
     await connect_db()
+    from app.core.supabase import connect_supabase
+    await connect_supabase()
     scheduler.start()
 
     # Fill the CURRENT week's category cache at boot if empty — covers a

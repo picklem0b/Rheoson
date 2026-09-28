@@ -20,6 +20,7 @@ import NotFound from '@/pages/errors/NotFound'
 import ErrorRedirect from '@/pages/errors/ErrorRedirect'
 import Landing from '@/pages/landing/Landing'
 import AuthPage from '@/pages/auth/AuthPage'
+import Account from '@/pages/account/Account'
 
 // Home section "See all" pages — these live under pages/home/components/
 // because they only exist as drill-downs from Home's sections, not as
@@ -48,6 +49,7 @@ export const routes = [
       { path: 'blend/:id',        element: <Blend /> },
       { path: 'settings',         element: <Settings /> },
       { path: 'profile',          element: <Profile /> },
+      { path: 'account',          element: <Account /> },
       { path: 'stats',            element: <ListeningStats /> },
       { path: 'wrapped',          element: <Wrapped /> },
       { path: 'playlist/:id',     element: <Playlist /> },
@@ -71,7 +73,15 @@ export const routes = [
   // Full-screen player — renamed from /now-playing; keep the old URL working
   { path: '/full-player', element: <NowPlaying /> },
   { path: '/now-playing', element: <Navigate to="/full-player" replace /> },
+  // Clerk's path-routed <SignIn>/<SignUp> navigate their multi-step flows
+  // to sub-paths of the mount path — factor-one (MFA),
+  // verify-email-address (the email-code step), SSO callback. The wildcards
+  // keep those steps inside AuthPage instead of falling through to the 404
+  // catch-all mid-flow. The base-path fix in AuthPage pins the mount to the
+  // canonical /login //register so a sub-path deep link re-anchors cleanly.
+  { path: '/login/*',     element: <AuthPage mode="sign-in" /> },
   { path: '/login',       element: <AuthPage mode="sign-in" /> },
+  { path: '/register/*',  element: <AuthPage mode="sign-up" /> },
   { path: '/register',    element: <AuthPage mode="sign-up" /> },
   // API failures routed here carry { state: { status, message } }. Direct
   // navigation renders the 500 fallback — see ErrorRedirect.

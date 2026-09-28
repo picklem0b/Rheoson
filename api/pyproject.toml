@@ -1,6 +1,6 @@
 [project]
 name = "rheoson-api"
-version = "2.22.1"
+version = "2.23.1"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 dependencies = [
@@ -29,6 +29,7 @@ dependencies = [
     "rapidfuzz>=3.10.1,<4",
     "syncedlyrics>=1.0.1,<2",
     "websockets~=14.1",
+    "supabase>=2.4,<4",
     "ytmusicapi>=1.12.0,<2",
     # Cron scheduling — powers the 30-min library scan, daily yt-dlp update,
     # and 6-hourly download job cleanup defined in app/main.py.
@@ -56,6 +57,14 @@ dev = [
 
 [project.scripts]
 rheoson = "app.cli:main"
+
+# Flat-layout auto-discovery breaks once ANY other top-level directory that
+# looks like a package exists next to app/ (supabase/ — the SQL migrations —
+# tripped this on Render: "Multiple top-level packages discovered in a
+# flat-layout: ['app', 'supabase']"). Pin the single real package so builds
+# stay deterministic no matter what non-Python folders live here later.
+[tool.setuptools]
+packages = ["app"]
 
 [tool.black]
 line-length = 100

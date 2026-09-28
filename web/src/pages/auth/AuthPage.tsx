@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { SignIn, SignUp } from '@clerk/clerk-react'
 import { motion } from 'framer-motion'
 import { isClerkEnabled } from '@/lib/constants'
@@ -25,40 +25,15 @@ interface AuthPageProps {
  */
 export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
   const navigate = useNavigate()
-  const location = useLocation()
   const clerkEnabled = isClerkEnabled()
 
   if (clerkEnabled) {
     const isSignUp = mode === 'sign-up'
     // Clerk's `path` must match the URL the component is mounted at.
-    const path = location.pathname
-
-    // Compact Clerk card: tighter type scale, smaller padding and a narrower
-    // max width, so the whole form fits on a phone screen without scrolling.
-    const clerkAppearance = {
-      variables: {
-        fontSize: '13px',
-        spacingUnit: '0.8rem',
-        borderRadius: '0.7rem',
-      },
-      layout: {
-        logoPlacement: 'none' as const,
-        socialButtonsVariant: 'blockButton' as const,
-      },
-      elements: {
-        rootBox: 'width: 100%; max-width: 340px; margin: 0 auto;',
-        card: 'width: 100%; box-shadow: none;',
-        cardBox: 'width: 100%;',
-        headerTitle: 'font-size: 1.05rem;',
-        headerSubtitle: 'font-size: 0.8rem;',
-        formFieldLabel: 'font-size: 0.75rem;',
-        formFieldInput: 'height: 2.6rem;',
-        formButtonPrimary: 'height: 2.6rem; font-size: 0.8rem;',
-        socialButtonsBlockButton: 'height: 2.6rem;',
-        footerActionText: 'font-size: 0.75rem;',
-        footerActionLink: 'font-size: 0.75rem;',
-      },
-    }
+    // Sub-steps (verify-email-address, factor-one, SSO callback) navigate to
+    // sub-paths of this base — the /login/* and /register/* wildcard routes
+    // keep them out of the 404 catch-all.
+    const path = mode === 'sign-up' ? '/register' : '/login'
 
     return (
       <div className="auth-page">
@@ -73,7 +48,7 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
             <AppLogo size="lg" />
           </div>
 
-          {/* Clerk prebuilt component */}
+          {/* Clerk prebuilt component — styled by Clerk, not by us. */}
           <div className="clerk-auth-wrapper">
             {isSignUp ? (
               <SignUp
@@ -82,7 +57,6 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
                 signInUrl="/login"
                 afterSignUpUrl="/"
                 afterSignInUrl="/"
-                appearance={clerkAppearance}
               />
             ) : (
               <SignIn
@@ -91,7 +65,6 @@ export default function AuthPage({ mode = 'sign-up' }: AuthPageProps) {
                 signUpUrl="/register"
                 afterSignUpUrl="/"
                 afterSignInUrl="/"
-                appearance={clerkAppearance}
               />
             )}
           </div>
