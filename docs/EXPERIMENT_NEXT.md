@@ -1,12 +1,14 @@
 # Rheoson Next — the experiment plan
 
-> Branch: `experiment/nextjs` · Status: **M0–M4 shipped, awaiting the Phase 8 human audit** (see `docs/migration/08-signoff.md` for the gate commands and the short list of things only a real deployment can prove) · `web/` + `api/` stay running and shippable until the parity verdict.
+> Branch: `experiment/nextjs` · Status: **M0–M6 shipped, awaiting the Phase 8 human audit** (see `docs/migration/08-signoff.md` for the gate commands and the short list of things only a real deployment can prove) · `web/` + `api/` have been removed from this branch (checklist below passed); they remain running and shippable on `main`/`dev`.
 >
 > Tags: `next-v0.1.0` … `next-v0.13.0` (15 slices, each a rollback point). `next-v1.0.0` is the promotion tag and is deliberately withheld until the audit signs off.
 
 The migration: React → Next.js (full website + PWA, no APK), Python core → TypeScript, Python kept only as a slim engine. Polyglot services, each doing only what it is elite at.
 
 ## The lifecycle of `web/` + `api/`
+
+> **Status: phase 4 done.** The trees were removed from this branch in the cleanup commit; git history retains every line, and `main`/`dev` still carry the shipping app. The table below is kept as the record of the decision path.
 
 | Stage | What happens |
 | --- | --- |
@@ -120,7 +122,7 @@ Rules of the relay:
 | 1 | Play: stream/artwork/search/lyrics through go-relay + server; py-engine carved | ✅ `next-v0.9.0` — pressing play produces sound |
 | 2 | Sign in: Clerk + Postgres accounts, prefs, likes, history, follows, playlists | ✅ `next-v0.10.0` — likes and settings follow you in |
 | 3 | Download: engine queue, SSE progress, resume intact, shared DCCNN codes | ✅ `next-v0.11.0` — live progress + red fail toast with a code · ✅ `next-v0.13.0` — proven against real YouTube, and two range-gating defects fixed on the way |
-| 4 | The verdict: Redis fan-out live, parity checklist, sign-off → promote `apps/*`, remove `web/` + `api/` — or archive | ⏳ `next-v0.12.0` — documentation and seams complete; the decision is the audit's (`next-v1.0.0` is the promotion tag) |
+| 4 | The verdict: Redis fan-out live, parity checklist, sign-off → promote `apps/*`, remove `web/` + `api/` — or archive | ✅ trees removed from this branch (cleanup commit after `next-v0.17.0`); promotion to `main` remains the audit's (`next-v1.0.0` is the promotion tag) |
 
 Skills (repo `skills/` folder, read fresh each session): design phases use
 `design-taste-frontend`, `ui-ux-pro-max`, `design-motion-principles`,

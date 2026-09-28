@@ -187,3 +187,32 @@ Rheoson never plays Spotify audio. A share link is *identity*, not bytes.
 | engine | `/spotify/resolve`, `/spotify/match` | the two routes, `match=false` skips YouTube |
 | server | `spotify.service.ts` + `spotify.routes.ts` | validation, cleaning, translation |
 | client | `lib/spotifyLink.ts`, search page import flow | paste → metadata → progressive match → play |
+
+## M5 — Reskin + popups + auth screens + ops console (complete · `next-v0.15.0`)
+
+The client gets its product skin and its voice:
+
+| Decision | Why |
+| --- | --- |
+| Neo-brutalist tokens over the existing three-layer system | The structure (primitive → semantic → component) survives; borders became structural, shadows hard, type loud. Motion stays iOS-feel — spring entrances, no bounce-heavy slop |
+| **Errors are popups, physically** | `toast.error` routes into the popup store — an error toast is not possible anymore. Popups carry the DCCNN code chip and an ⓘ detail; toasts are quiet confirmations only, and pressing play pops nothing |
+| Own welcome/login/register screens | The expense-tracker front-door pattern (quiet sign-in top-right, artwork, dark footer panel rising with the CTA). Clerk's components mount inside this chrome when keys exist; the dev posture picks an allow-listed identity when they don't |
+| Ops console at `/admin` | Server exposes `/api/ops` (health detail, a pino log ring, smoke probes); the page renders it. A plain `Writable` tap into pino's multistream — a Transform stalls once its buffer fills unread |
+
+Gates: server 83, client 82, turbo clean.
+
+## M6 — Drill-downs + the replaceable-UI registry (complete · `next-v0.16.0`, `next-v0.17.0`)
+
+Two slices, one theme: surfaces that can be swapped as easily as they were created.
+
+- **next-v0.16.0** — artist and album pages: engine `/library/artists/{name}` and `/library/albums/{id}` routes, server proxies, brutalist pages, library cards wired to them.
+- **next-v0.17.0** — the flexibility contract:
+
+| Decision | Why |
+| --- | --- |
+| A **slot registry** (`ui.registry.ts`) owns replaceable surfaces | Call sites ask for `'now-playing'` or `'account-sheet'` by name and render whatever owns the slot. A replacement is one `registerUI` line in one file — no call-site edits, no forks of the host component |
+| Slots are named for *purpose*, not construction | `'now-playing'`, not `'bottom-sheet'` — the seam survives a redesign |
+| **Popup kinds are a registry too** | `definePopupKind` adds a kind without touching `PopupHost`; the host knows shape (dialog, focus trap, code chip), never which kinds exist |
+| Registration keeps an override trail | Re-registering a slot records who replaced whom, surfaced in dev — a double registration is visible, not silent last-write-wins |
+
+Gates: client 91 tests (registry + custom-kind contract included), tsc/lint/build clean.

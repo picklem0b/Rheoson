@@ -3,173 +3,76 @@
 ## Branch strategy
 
 ```
-main          stable, production-ready code only
-dev           integration branch — all features merge here first
-api           backend (FastAPI) work
-web           frontend (React) work
-feature/*     individual features, branched off dev
-fix/*         bug fixes, branched off dev (or main for hotfixes)
+main                stable, production-ready code only (the shipping FastAPI/Vite app)
+dev                 integration branch — all features merge here first
+experiment/nextjs   the architectural rebuild (this branch): apps/* + packages/*
+feature/*           individual features, branched off dev (or the experiment)
+fix/*               bug fixes, branched off dev (or main for hotfixes)
 ```
 
-## One-time setup
+> **Note:** on `experiment/nextjs` the legacy `web/` and `api/` trees no longer
+> exist — they live on in `main`/`dev` history. Workflows here are
+> path-scoped (`next-ci.yml` guards `apps/**`, `packages/**`, `infra/**`).
 
-Create the branches if they don't exist yet:
-
-```bash
-git checkout -b dev   && git push -u origin dev
-git checkout -b api   && git push -u origin api
-git checkout -b web   && git push -u origin web
-git checkout main
-```
-
-## Daily workflow
-
-### Starting a new feature
-
-```bash
-# Always branch off dev, not main
-git checkout dev
-git pull origin dev
-git checkout -b feature/your-feature-name
-```
-
-### Committing
+## Committing
 
 Commit messages follow Conventional Commits:
-  `type(scope): short description`
 
-Types:
-  `feat`     — new feature
-  `fix`      — bug fix
-  `refactor` — code change that isn't a feature or fix
-  `chore`    — build, config, dependencies
-  `docs`     — documentation only
-  `style`    — formatting, no logic change
-  `perf`     — performance improvement
-
-Examples:
-```bash
-git add -A
-git commit -m "feat(home): add see-all pages for trending and recently played"
-git commit -m "fix(playlists): purge swagger placeholder entries on startup"
-git commit -m "chore(docker): fix api Dockerfile entry point to socket_app"
-git commit -m "fix(nav): timer now resets on every nav tap instead of hiding mid-interaction"
+```
+type(scope): short description
 ```
 
-### Pushing a feature branch
+Types: `feat`, `fix`, `refactor`, `test`, `docs`, `perf`, `build`, `ci`,
+`chore`, `security`. Scope is the area (`library`, `ui`, `spotify`,
+`downloads`, `server`, `client`, `engine`, `relay`, `shared`, …).
 
-```bash
-git push -u origin feature/your-feature-name
+Keep commits to one logical change. Never reference AI tooling in commits,
+tags, or code comments.
+
+## Tags — every milestone gets one
+
+Tags are the rollback story: any point in history is restorable, and the
+tag message must make that point understandable without reading the diff.
+
+Annotated tags use this structure:
+
+```
+next-vMAJOR.MINOR.PATCH: Title
+
+Type: feature | fix | refactor | security | milestone
+Scope: the slice that changed
+Impact: additive | breaking | internal
+Status: verified (test counts) | gates green | experimental
+
+Summary
+  Two or three sentences: what changed and why it matters.
+
+Changes
+  - new: path (what it is)
+  - changed: path (what moved)
+
+Breaking Changes   (only when Impact is breaking)
+Fixes              (when this closes known bugs)
+Security           (when relevant)
+Performance        (when relevant)
+Validation
+  - exact gates run and their results
+Migration          (when behaviour moves or is renamed)
+Notes              (anything an auditor would otherwise have to ask)
 ```
 
-Then open a PR on GitHub: `feature/your-feature-name` → `dev`
+Reserve minor/patch bumps for meaningful milestones rather than ordinary
+commits — ordinary commits carry the story in their messages.
 
-### Merging into dev
+## Verification before every commit
 
-```bash
-git checkout dev
-git merge --no-ff feature/your-feature-name
-git push origin dev
-git branch -d feature/your-feature-name
-git push origin --delete feature/your-feature-name
+```
+pnpm typecheck && pnpm lint && pnpm test && pnpm build
+cd apps/services/py && uv run python -m pytest -q && uv run pyflakes app tests
+cd apps/services/go && go vet ./... && go test ./... && gofmt -l .
 ```
 
-### Merging dev → main (release)
+## Pushing
 
-```bash
-git checkout main
-git merge --no-ff dev
-git push origin main
-```
-
-## Tagging releases
-
-Rheoson versions as `v2.MILESTONE.PHASE[-rc]` — not generic semver:
-
-  - **MILESTONE** — the product era currently in development (e.g. `2.17`). It changes only when the project enters a new arc, never per-feature, and a new milestone restarts phases at `.0`.
-  - **PHASE** — one completed phase of work inside the milestone. Every finished, tested phase ships as its own annotated tag (`v2.17.0`, `v2.17.1`, … `v2.17.9`, `v2.17.10`, …). Do not batch multiple phases into one tag and do not sit on untagged work — a phase that is done gets tagged.
-  - `rc` = release candidate (still being tested); no suffix = stable release.
-
-Tags are **always annotated** (`git tag -a`), never lightweight. The subject is `v2.M.PHASE — <phase theme>`; the body lists what the phase delivered as bullets, and feeds `docs/CHANGELOG.md`. Push tags with `git push --follow-tags` (never a bare `git push --tags`).
-
-### Current milestone: 2.21 — in development: v2.21.5
-
-Milestone 2.19 delivered the reliability arc: playback and downloads that work
-on a bare host, a corrected auth and API trust boundary, an account contract
-built around username plus email-or-phone, and instantaneous library state. It
-closed at **v2.19.14** (stable).
-
-Milestone 2.20 is the **failure-surface** arc: what the product reports, and
-stops reporting, when something upstream breaks. Phases ship as `v2.20.1`,
-`v2.20.2`, … — see `docs/ROADMAP.md` for the phase list.
-
-**Tag a phase (after the version files are bumped and gates pass):**
-```bash
-git checkout main
-git merge --no-ff dev
-git tag -a v2.17.10 -m "v2.17.10 — <phase theme>" -m "- bullet one
-- bullet two
-- bullet three"
-git push origin main --follow-tags
-```
-The next phase continues at `.11` — always the highest existing phase + 1 within the milestone (`git tag -l --sort=-v:refname | head -1`).
-
-**Tag a new release candidate:**
-```bash
-git checkout main
-git tag -a v2.18.0-rc -m "Release candidate v2.18.0-rc"
-git push origin v2.18.0-rc
-```
-
-**Delete and recreate a tag (only if it was never consumed):**
-```bash
-git tag -d v2.17.0
-git push origin --delete v2.17.0
-git tag -a v2.17.0 -m "v2.17.0 — corrected tag message"
-git push origin v2.17.0
-```
-
-**List all tags:**
-```bash
-git tag --sort=-creatordate
-```
-
-**See a tag's message and contents:**
-```bash
-git show v2.16.5
-```
-
-## Keeping api and web branches in sync with dev
-
-```bash
-# After merging a feature into dev, update api:
-git checkout api
-git merge dev
-git push origin api
-
-# Same for web:
-git checkout web
-git merge dev
-git push origin web
-```
-
-## Hotfix (bug on main that can't wait for a full release)
-
-```bash
-git checkout main
-git checkout -b fix/critical-bug-name
-# ... fix the bug ...
-git add -A
-git commit -m "fix(scope): description of the hotfix"
-git checkout main
-git merge --no-ff fix/critical-bug-name
-git push origin main
-git branch -d fix/critical-bug-name
-# Tag the hotfix (annotated — message is the release summary)
-git tag -a v2.16.6 -m "Hotfix v2.16.6 — description"
-git push origin v2.16.6
-# Back-merge into dev so it has the fix too
-git checkout dev
-git merge main
-git push origin dev
-```
+Nothing pushes automatically. `git push --follow-tags` is a deliberate,
+manual act.

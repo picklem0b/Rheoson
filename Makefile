@@ -1,28 +1,29 @@
-.PHONY: dev build stop logs migrate tag push
+.PHONY: dev build test typecheck lint engine relay clean
+
+# The experiment workspace. `pnpm dev` runs client + server in parallel;
+# the engine and relay are the two services you start by hand when you
+# need them (downloads, streaming) — see README Quick Start.
 
 dev:
-	docker compose up --build
+	pnpm dev
 
 build:
-	docker compose build
+	pnpm build
 
-stop:
-	docker compose down
+test:
+	pnpm test
 
-logs:
-	docker compose logs -f
+typecheck:
+	pnpm typecheck
 
-shell-api:
-	docker compose exec api bash
+lint:
+	pnpm lint
 
-shell-redis:
-	docker compose exec redis redis-cli
+engine:
+	cd apps/services/py && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
-tag:
-	@read -p "Tag message: " msg; \
-	ver=$$(git describe --tags --abbrev=0 2>/dev/null | awk -F. '{printf "%d.%d.%d", $$1, $$2, $$3+1}' || echo "v0.1.0"); \
-	git tag -a "$$ver" -m "$$msg"; \
-	echo "Tagged $$ver"
+relay:
+	cd apps/services/go && go run ./cmd/relay
 
-push:
-	git push origin main --tags
+clean:
+	git clean -fdx -e node_modules -e .env
