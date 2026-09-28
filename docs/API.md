@@ -201,8 +201,9 @@ Resolution order:
 
 1. **Local library** — track ID exists in the file index → served from disk with full HTTP byte-range support (`206 Partial Content`, `Accept-Ranges: bytes`), correct MIME per container (mp3/flac/m4a/ogg/opus/wav)
 2. **Durable remote cache** — a previous yt-dlp fill completed within the 30-minute TTL → served from the cached buffer file
-3. **Live session** — one background yt-dlp fill per track (max 6 concurrent); all clients stream from the growing buffer. Seek (`Range`) requests during an in-progress fill wait up to 120 s for completion, then serve the exact range
-4. `502` with a user-safe message on failure; repeated failures are cached for 60 s so retry storms don't spawn processes
+3. **Direct-URL relay** — a still-valid cached CDN URL, else the **relay resolver**: public Piped/Invidious instances cache YouTube extractions across users, so their pre-extracted audio URL arrives in ~1 s vs a ~12 s cold local extraction. Best-effort: a dead fleet is skipped silently and a circuit breaker steps aside for 10 minutes after a fruitless sweep, so relay downtime never slows playback. When a relay URL is in hand, bytes are relayed to the client (Range preserved) and teed into the warm cache as before
+4. **Live session** — one background yt-dlp fill per track (max 6 concurrent); all clients stream from the growing buffer. Seek (`Range`) requests during an in-progress fill wait up to 120 s for completion, then serve the exact range
+5. `502` with a user-safe message on failure; repeated failures are cached for 60 s so retry storms don't spawn processes. Downloads get the relay as a last rung too: if the whole client ladder fails, a relay URL is downloaded through the same ffmpeg conversion instead of failing the job
 
 Malformed IDs (length ≠ 11) return `404` before any process spawn.
 

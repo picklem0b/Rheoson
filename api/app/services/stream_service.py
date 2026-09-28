@@ -257,14 +257,24 @@ def resolve_direct_url_sync(track_id: str) -> Optional[str]:
 
 
 async def resolve_direct_url(track_id: str) -> Optional[str]:
-    """Resolve a track's CDN URL with `yt-dlp -g`, downloading no bytes.
+    """Resolve a track's CDN URL, fastest source first.
 
-    Returns None when every player-client variant fails, in which case the
-    caller falls back to the buffered yt-dlp path.
+    Order: the still-valid cached URL, then the relay resolver (public
+    Piped/Invidious instances cache extractions across users — ~1 s vs a
+    ~12 s cold local extraction on a phone), then the local `yt-dlp -g`
+    ladder. Returns None when every source fails, in which case the caller
+    falls back to the buffered yt-dlp path.
     """
     cached = cached_direct_url(track_id)
     if cached:
         return cached
+
+    from app.services import relay_resolver
+
+    relayed = await relay_resolver.resolve(track_id)
+    if relayed:
+        _direct_url_cache[track_id] = (relayed, time.time())
+        return relayed
 
     # yt-dlp is synchronous; keep the event loop free while it works.
     return await asyncio.to_thread(resolve_direct_url_sync, track_id)

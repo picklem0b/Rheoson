@@ -738,6 +738,33 @@ async def _run_download(
         break
 
     if rc != 0:
+        # Last rung: a relay URL. A Piped/Invidious instance's proxied audio
+        # stream bypasses the local extraction that just failed; handing that
+        # URL to a minimal yt-dlp pass (no extraction, plain download of the
+        # given URL) rescues jobs during YouTube enforcement windows. The
+        # conversion still runs through the same ffmpeg call, so tags and
+        # quality behave exactly like a ladder download. URL-based jobs (no
+        # trackId) have nothing for the relay to look up — skip straight to
+        # the failure path for those.
+        relay_track_id = (job.get('trackId') or '').strip()
+        if can_postprocess and relay_track_id:
+            from app.services import relay_resolver
+
+            relay_url = await relay_resolver.resolve(relay_track_id)
+            if relay_url:
+                log.warning('download.relay_fallback', job_id=job_id)
+                shutil.rmtree(staging, ignore_errors=True)
+                staging.mkdir(parents=True, exist_ok=True)
+                relay_cmd = [
+                    toolchain.ytdlp_bin(), '--no-warnings', '--newline', '--progress',
+                    '--format', 'bestaudio/best', '-o', out_tmpl,
+                    '-x', '--audio-format', fmt, '--audio-quality', quality_q,
+                    *toolchain.ffmpeg_location_args(),
+                    relay_url,
+                ]
+                rc, tail = await _run_ytdlp_attempt(job_id, job, relay_cmd, concurrency)
+
+    if rc != 0:
         # Keep the staging dir when it holds partial data — that is exactly
         # what a later resume continues from. Only truly empty attempts
         # (instant failures) are cleaned up.
