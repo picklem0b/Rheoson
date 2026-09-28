@@ -58,6 +58,14 @@ dev = [
 [project.scripts]
 rheoson = "app.cli:main"
 
+# Flat-layout auto-discovery breaks once ANY other top-level directory that
+# looks like a package exists next to app/ (supabase/ — the SQL migrations —
+# tripped this on Render: "Multiple top-level packages discovered in a
+# flat-layout: ['app', 'supabase']"). Pin the single real package so builds
+# stay deterministic no matter what non-Python folders live here later.
+[tool.setuptools]
+packages = ["app"]
+
 [tool.black]
 line-length = 100
 target-version = ["py313"]
