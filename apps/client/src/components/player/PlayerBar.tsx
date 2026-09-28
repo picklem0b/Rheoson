@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
 
-import NowPlayingSheet from '@/components/player/NowPlayingSheet';
+// Importing the default full-screen player is what registers it into the
+// `now-playing` slot; the bar renders whichever component owns the slot.
+import '@/components/player/NowPlayingSheet';
 import { api, type Track } from '@/lib/api';
+import { useUI } from '@/store/ui.registry';
 import { usePlayerStore, PLAYBACK_RATES, startDownload } from '@/store/player.store';
 import { useQueueStore } from '@/store/queue.store';
 import { toast } from '@/store/toast.store';
@@ -91,6 +94,12 @@ function ControlButton({
 }
 
 export default function PlayerBar() {
+  // The full-screen player is a slot, not an import: a replacement
+  // NowPlaying (a vertical-video take, a lyrics-first take) registers into
+  // `now-playing` and this bar opens it without knowing its name.
+  // createElement, not a capitalized local: the component arrives at render
+  // time from the registry, and the compiler lint rightly refuses the other
+  // shape.
   const current = usePlayerStore((state) => state.current);
   const isPlaying = usePlayerStore((state) => state.isPlaying);
   const isLoading = usePlayerStore((state) => state.isLoading);
@@ -112,6 +121,11 @@ export default function PlayerBar() {
   const [likePending, setLikePending] = useState(false);
   const [sleepMinutes, setSleepMinutes] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Built after the state above exists; see the note at the top of the file
+  // about why this is createElement rather than a capitalized local.
+  const Sheet = useUI('now-playing');
+  const sheetEl = Sheet ? createElement(Sheet, { open: sheetOpen, onClose: () => setSheetOpen(false) }) : null;
 
   // The heart follows the track, so a pending tap is stored with the id it
   // belongs to. Deriving it — rather than copying `current.isLiked` into state
@@ -173,7 +187,7 @@ export default function PlayerBar() {
 
   return (
     <>
-      <NowPlayingSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+      {sheetEl}
       <div className="fixed inset-x-0 bottom-0 z-40" style={{ paddingBottom: 'var(--safe-area-bottom)' }}>
       <input
         type="range"

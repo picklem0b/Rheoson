@@ -1,22 +1,32 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
 import { create } from 'zustand';
 
 /**
- * The popup — the app's loud voice, spent only when it must be.
+ * The popup system — one host, a registry of kinds, open to yours.
  *
- * Rules the whole app agrees to:
+ * Design contract (the flexibility the product asked for):
  *
- * * **A popup is for genuine attention.** Real failures (a coded error, a
- *   destructive confirmation, something the user must act on). Never a small
- *   thing: pressing play, a like, a preference saved — those are quiet.
- * * **Every error popup carries its DCCNN code** and the ⓘ detail, so what
- *   the user sees is traceable to one raise site in the code.
- * * **Toasts are the quiet voice** — small confirmations that do not demand
- *   a click. The two never say the same thing.
+ * * **`definePopupKind(name, defaults)`** registers a named kind — tone,
+ *   default icon, auto-dismiss, whatever the kind always does. Call it once
+ *   from any module that owns a flow ("download-finished", "sync-conflict")
+ *   and raise it everywhere with `popup.show(name, { title, detail })`.
+ * * **`popup.open(spec)`** is the escape hatch: full control over tone, icon,
+ *   body (string *or* your own ReactNode), buttons and lifetime — no registry
+ *   needed for one-off popups.
+ * * **`error` and `confirm` are not special.** They are two preregistered
+ *   kinds; `toast.error` forwarding to `popup.show('error', …)` is the whole
+ *   bridge. Nothing about the host knows they exist.
+ *
+ * Rules that stay true no matter what gets registered:
+ *
+ * * A failure carries its DCCNN `code` — that is what makes it traceable.
+ * * Popups are for genuine attention; toasts stay the quiet voice.
  */
 
-export type PopupKind = 'error' | 'confirm';
+export type PopupTone = 'danger' | 'accent' | 'success' | 'warning' | 'neutral';
 
 export interface PopupAction {
   label: string;
@@ -24,27 +34,68 @@ export interface PopupAction {
   onClick: () => void;
 }
 
-export interface Popup {
-  id: string;
-  kind: PopupKind;
+export interface PopupSpec {
   /** Short, human: "Couldn't download this track". */
   title: string;
-  /** The DCCNN chip — required for kind `error`. */
+  /** The DCCNN chip. Set it for failures; absent for everything else. */
   code?: string;
-  /** What the ⓘ panel reveals: the honest, unfiltered reason. */
-  detail?: string;
-  /** For confirm: what the destructive button says ("Delete"). */
-  confirmLabel?: string;
+  /** The body — plain text or your own node (a list, a link, a form hint). */
+  detail?: ReactNode;
+  /** Visual voice; drives the chip colour unless `icon` overrides it. */
+  tone?: PopupTone;
+  /** Your own icon instead of the tone's default glyph. */
+  icon?: ReactNode;
+  /** Buttons. Omit for a single "Got it". */
   actions?: PopupAction[];
-  /** Auto-dismiss seconds for errors; 0 (default) = until dismissed. */
+  /** Seconds before auto-close; 0 (default) = until dismissed. */
+  duration?: number;
+  /** Backdrop click and Escape close. Default true; a popup the user must
+   * answer through its buttons can switch this off. */
+  dismissable?: boolean;
+}
+
+export interface Popup extends PopupSpec {
+  id: string;
+  /** The registered kind this popup was raised as — free-form, but named. */
+  kind: string;
+  tone: PopupTone;
   duration: number;
+  dismissable: boolean;
+}
+
+/** Defaults per registered kind; a call can override any of them. */
+export type KindDefaults = Omit<PopupSpec, 'title'>;
+
+const KINDS: Record<string, KindDefaults> = {
+  error: { tone: 'danger' },
+  confirm: { tone: 'accent' },
+};
+
+/**
+ * Register a named popup kind. Idempotent and additive: re-registering a
+ * name merges over the previous defaults, so a feature module can refine a
+ * base kind without clobbering what another module added.
+ */
+export function definePopupKind(name: string, defaults: KindDefaults): void {
+  if (!/^[a-z][a-z0-9-]*$/i.test(name)) {
+    throw new Error(`popup kind "${name}" must be a simple name`);
+  }
+  KINDS[name] = { ...KINDS[name], ...defaults };
+}
+
+/** The registered kind names — for tests and for a settings/debug surface. */
+export function popupKindNames(): string[] {
+  return Object.keys(KINDS);
 }
 
 interface PopupState {
   popup: Popup | null;
-  open: (popup: Omit<Popup, 'id' | 'duration'> & { duration?: number }) => string;
-  error: (args: { title: string; code?: string; detail?: string; duration?: number }) => string;
-  confirm: (args: { title: string; body?: string; confirmLabel?: string; onConfirm: () => void }) => string;
+  /** Full control, no registry: tone/icon/body/buttons/lifetime as given. */
+  open: (spec: PopupSpec & { kind?: string }) => string;
+  /** Raise a registered kind: its defaults apply, the spec overrides. */
+  show: (kind: string, spec: PopupSpec) => string;
+  error: (args: { title: string; code?: string; detail?: ReactNode; duration?: number }) => string;
+  confirm: (args: { title: string; body?: ReactNode; confirmLabel?: string; onConfirm: () => void }) => string;
   close: () => void;
 }
 
@@ -58,20 +109,39 @@ function nextId(): string {
 export const usePopupStore = create<PopupState>((set, get) => ({
   popup: null,
 
-  open: (input) => {
+  open: (spec) => {
     const id = nextId();
-    set({ popup: { ...input, id, duration: input.duration ?? 0 } });
+    const kind = spec.kind ?? (spec.tone ? 'open' : 'open');
+    set({
+      popup: {
+        ...spec,
+        id,
+        kind,
+        tone: spec.tone ?? 'neutral',
+        duration: spec.duration ?? 0,
+        dismissable: spec.dismissable ?? true,
+      },
+    });
     return id;
   },
 
-  error: ({ title, code, detail, duration }) => get().open({ kind: 'error', title, code, detail, duration }),
+  show: (kind, spec) => {
+    const defaults = KINDS[kind];
+    if (!defaults) {
+      // A typo'd kind is a programming error, like an unregistered DCCNN
+      // code: fail loudly here rather than render a popup that lies about
+      // what it is.
+      throw new Error(`popup kind "${kind}" is not registered — call definePopupKind("${kind}", …) first`);
+    }
+    return get().open({ kind, ...defaults, ...spec });
+  },
+
+  error: ({ title, code, detail, duration }) => get().show('error', { title, code, detail, duration }),
 
   confirm: ({ title, body, confirmLabel, onConfirm }) =>
-    get().open({
-      kind: 'confirm',
+    get().show('confirm', {
       title,
       detail: body,
-      confirmLabel,
       actions: [
         {
           label: confirmLabel ?? 'Confirm',
@@ -87,12 +157,16 @@ export const usePopupStore = create<PopupState>((set, get) => ({
   close: () => set({ popup: null }),
 }));
 
-/** Imperative helpers so a handler reads like a sentence. */
+/**
+ * Imperative helpers so a handler reads like a sentence. `show` is the one
+ * custom code goes through; `open` when a one-off needs everything.
+ */
 export const popup = {
-  error: (args: { title: string; code?: string; detail?: string; duration?: number }) =>
+  show: (kind: string, spec: PopupSpec) => usePopupStore.getState().show(kind, spec),
+  open: (spec: PopupSpec & { kind?: string }) => usePopupStore.getState().open(spec),
+  error: (args: { title: string; code?: string; detail?: ReactNode; duration?: number }) =>
     usePopupStore.getState().error(args),
-  confirm: (args: { title: string; body?: string; confirmLabel?: string; onConfirm: () => void }) =>
+  confirm: (args: { title: string; body?: ReactNode; confirmLabel?: string; onConfirm: () => void }) =>
     usePopupStore.getState().confirm(args),
-  open: (args: Omit<Popup, 'id' | 'duration'> & { duration?: number }) => usePopupStore.getState().open(args),
   close: () => usePopupStore.getState().close(),
 };

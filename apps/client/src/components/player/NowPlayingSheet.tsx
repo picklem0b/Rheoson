@@ -7,6 +7,7 @@ import { api, type Lyrics } from '@/lib/api';
 import { formatDuration } from '@/lib/format';
 import { usePlayerStore } from '@/store/player.store';
 import { useQueueStore } from '@/store/queue.store';
+import { registerUI } from '@/store/ui.registry';
 
 /**
  * NowPlayingSheet — the full-screen player, TikTok/Spotify-shaped.
@@ -253,3 +254,8 @@ export default function NowPlayingSheet({ open, onClose }: { open: boolean; onCl
     </div>
   );
 }
+
+// Registered as the default owner of the `now-playing` slot. A replacement
+// calls registerUI('now-playing', Mine) after this import resolves — last
+// registration wins, which is the whole point of the seam.
+registerUI('now-playing', NowPlayingSheet, 'NowPlayingSheet default');

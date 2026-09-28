@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { createElement, useEffect, useState } from 'react';
 
 import { LogoMark } from '@/components/auth/AuthVisual';
-import { signOutDev } from '@/lib/devAuth';
-import { usePopupStore } from '@/store/popup.store';
+// Importing the default sheet is what registers it into the slot.
+import AccountSheet from '@/components/layout/AccountSheet';
+import { useUI } from '@/store/ui.registry';
 
 /**
  * AppShell — one shell, two arrangements, brutalist chrome.
@@ -48,22 +49,11 @@ const NAV: NavItem[] = [
 function AccountLink() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
-  const confirm = usePopupStore((state) => state.confirm);
+  // The sheet is a slot: whatever registered into `account-sheet` opens when
+  // the avatar is pressed. This button never imports the sheet itself.
+  const Sheet = useUI('account-sheet');
+  const sheetEl = Sheet ? createElement(Sheet, { open, onClose: () => setOpen(false) }) : null;
   const active = pathname.startsWith('/settings') || pathname.startsWith('/stats');
-
-  const signOut = () => {
-    setOpen(false);
-    confirm({
-      title: 'Sign out?',
-      body: 'Your library stays on the server; only this device forgets the session.',
-      confirmLabel: 'Sign out',
-      onConfirm: () => {
-        signOutDev();
-        router.replace('/welcome');
-      },
-    });
-  };
 
   return (
     <>
@@ -79,46 +69,7 @@ function AccountLink() {
         A
       </button>
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-[90] flex items-end justify-center p-4 md:items-center"
-          style={{ background: 'rgb(var(--gray-950) / 0.62)' }}
-          onClick={() => setOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Account"
-            className="brut-panel w-full max-w-xs p-2"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {[
-              { href: '/settings', label: 'Settings', icon: <Icon path="M128 96a32 32 0 1 0 0 64 32 32 0 0 0 0-64zM128 24v24M128 208v24M40 128H16M240 128h-24M68 68l-17-17M205 205l-17-17M188 68l17-17M51 205l17-17" /> },
-              { href: '/stats', label: 'Listening stats', icon: <Icon path="M40 200V96m56 104V56m56 144v-72m56 72V80" /> },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-3 py-3 text-sm font-bold"
-                style={{ borderRadius: 'var(--radius-sm)' }}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            ))}
-            <button
-              type="button"
-              onClick={signOut}
-              className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm font-bold"
-              style={{ color: 'var(--danger-text)', borderRadius: 'var(--radius-sm)' }}
-            >
-              <Icon path="M64 176v24a16 16 0 0 0 16 16h96a16 16 0 0 0 16-16v-24M96 80l32-32 32 32M128 48v96" />
-              Sign out
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {sheetEl}
     </>
   );
 }

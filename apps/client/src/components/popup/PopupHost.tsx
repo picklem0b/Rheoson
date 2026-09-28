@@ -1,31 +1,59 @@
 'use client';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, type ReactNode } from 'react';
 
-import { usePopupStore } from '@/store/popup.store';
+import { usePopupStore, type PopupTone } from '@/store/popup.store';
 
 /**
- * PopupHost — the one place a popup is drawn.
+ * PopupHost — the one place a popup is drawn, whatever its kind.
+ *
+ * The host knows the *shape* (dialog, backdrop, focus trap, code chip) and
+ * nothing about *which* popups exist: kinds come from the store's registry,
+ * and a kind's tone/icon/body render here without the host naming them.
+ * Adding a new popup kind is a `definePopupKind` call — this file never
+ * changes.
  *
  * Accessibility contract:
  *
- * * `role="alertdialog"` with `aria-labelledby` / `aria-describedby`, so a
- *   screen reader announces the failure as an interruption;
+ * * `role="alertdialog"` for interrupting popups (danger/warning tones) and
+ *   `role="dialog"` otherwise, with labelled/described-by wiring;
  * * focus moves into the dialog on open and returns to the trigger on close;
  * * Tab cycles inside the dialog (a real focus trap, four lines of it);
- * * Escape closes — a popup that traps the keyboard is a bug, not a pattern;
- * * the backdrop is a click target to dismiss, but the dialog itself stops
- *   propagation so a mis-tap inside it never closes it.
+ * * Escape and backdrop-click close — unless the popup declared itself
+ *   `dismissable: false`, in which case its buttons are the only way out;
+ * * the dialog stops propagation so a mis-tap inside never closes it.
  */
 
-function CodeChip({ code }: { code: string }) {
+const TONE_COLOR: Record<PopupTone, string> = {
+  danger: 'var(--danger)',
+  accent: 'var(--accent)',
+  success: 'var(--success)',
+  warning: 'var(--warning)',
+  neutral: 'var(--text-secondary)',
+};
+
+function DefaultGlyph({ tone }: { tone: PopupTone }) {
+  if (tone === 'danger' || tone === 'warning') {
+    return <span aria-hidden="true">!</span>;
+  }
+  if (tone === 'success') {
+    return <span aria-hidden="true">✓</span>;
+  }
+  if (tone === 'accent') {
+    return <span aria-hidden="true">?</span>;
+  }
+  return <span aria-hidden="true">i</span>;
+}
+
+function CodeChip({ code, tone }: { code: string; tone: PopupTone }) {
+  const color = TONE_COLOR[tone];
   return (
     <span
       className="inline-flex items-center rounded-[6px] px-2 py-0.5 font-mono text-[11px] font-bold tracking-wide"
       style={{
-        background: 'var(--danger-bg)',
-        border: '1.5px solid var(--danger)',
-        color: 'var(--danger-text)',
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        border: `1.5px solid ${color}`,
+        color,
       }}
     >
       ERROR_CODE: {code}
@@ -43,6 +71,9 @@ export default function PopupHost() {
     (event: KeyboardEvent) => {
       if (!popupState) return;
       if (event.key === 'Escape') {
+        // A popup that declared itself non-dismissable owns its exit: Escape
+        // must not silently drop a choice the user has not made yet.
+        if (!popupState.dismissable) return;
         event.stopPropagation();
         close();
         return;
@@ -85,18 +116,19 @@ export default function PopupHost() {
 
   if (!popupState) return null;
 
-  const isError = popupState.kind === 'error';
+  const interrupting = popupState.tone === 'danger' || popupState.tone === 'warning';
+  const toneColor = TONE_COLOR[popupState.tone];
 
   return (
     <div
       className="fixed inset-0 z-[100] grid place-items-center p-4"
       style={{ background: 'rgb(var(--gray-950) / 0.62)' }}
-      onClick={close}
+      onClick={popupState.dismissable ? close : undefined}
       data-testid="popup-backdrop"
     >
       <div
         ref={dialogRef}
-        role={isError ? 'alertdialog' : 'dialog'}
+        role={interrupting ? 'alertdialog' : 'dialog'}
         aria-modal="true"
         aria-labelledby="popup-title"
         aria-describedby={popupState.detail ? 'popup-detail' : undefined}
@@ -104,51 +136,44 @@ export default function PopupHost() {
         style={{ background: 'var(--bg-surface)' }}
         onClick={(event) => event.stopPropagation()}
         data-testid="popup"
+        data-kind={popupState.kind}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
-            {isError ? (
-              <span
-                className="grid size-7 shrink-0 place-items-center rounded-[8px] text-sm font-black"
-                style={{ background: 'var(--danger)', color: 'rgb(255 255 255)' }}
-                aria-hidden="true"
-              >
-                !
-              </span>
-            ) : (
-              <span
-                className="grid size-7 shrink-0 place-items-center rounded-[8px] text-sm font-black"
-                style={{ background: 'var(--accent)', color: 'rgb(255 255 255)' }}
-                aria-hidden="true"
-              >
-                ?
-              </span>
-            )}
+            <span
+              className="grid size-7 shrink-0 place-items-center rounded-[8px] text-sm font-black"
+              style={{ background: toneColor, color: 'var(--bg-base)' }}
+              aria-hidden="true"
+            >
+              {popupState.icon ?? <DefaultGlyph tone={popupState.tone} />}
+            </span>
             <h2 id="popup-title" className="text-base font-extrabold tracking-tight">
               {popupState.title}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={close}
-            aria-label="Close dialog"
-            className="brut-btn size-7 shrink-0 !p-0 text-sm"
-            data-variant="plain"
-          >
-            ✕
-          </button>
+          {popupState.dismissable ? (
+            <button
+              type="button"
+              onClick={close}
+              aria-label="Close dialog"
+              className="brut-btn size-7 shrink-0 !p-0 text-sm"
+              data-variant="plain"
+            >
+              ✕
+            </button>
+          ) : null}
         </div>
 
-        {isError && popupState.code ? (
+        {popupState.code ? (
           <div className="mb-3">
-            <CodeChip code={popupState.code} />
+            <CodeChip code={popupState.code} tone={popupState.tone} />
           </div>
         ) : null}
 
         {popupState.detail ? (
-          <p id="popup-detail" className="mb-4 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <div id="popup-detail" className="mb-4 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             {popupState.detail}
-          </p>
+          </div>
         ) : null}
 
         <div className="flex justify-end gap-2">
@@ -164,7 +189,7 @@ export default function PopupHost() {
               {action.label}
             </button>
           ))}
-          {!popupState.actions?.length ? (
+          {!popupState.actions?.length && popupState.dismissable ? (
             <button type="button" onClick={close} className="brut-btn px-4 py-2 text-sm" data-variant="accent">
               Got it
             </button>
