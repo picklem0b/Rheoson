@@ -2278,6 +2278,11 @@ export interface components {
              * @default
              */
             description: string;
+            /**
+             * Trackids
+             * @default []
+             */
+            trackIds: string[];
         };
         /** DirectoriesSchema */
         DirectoriesSchema: {

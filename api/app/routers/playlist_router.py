@@ -262,11 +262,12 @@ async def create_playlist(
 ):
     user_id = user["sub"]
     data = _load(user_id)
-    pl = _new_playlist(user_id, req.title, req.description or "", [])
+    pl = _new_playlist(user_id, req.title, req.description or "", list(req.trackIds or []))
     data[pl["id"]] = pl
     _save(user_id, data)
     await _sync_mongo(pl)
-    return pl
+    # Seeds stay as IDs in storage; the list shape carries no hydrated tracks.
+    return _summarize(pl)
 
 
 @router.patch("/{playlist_id}", response_model=PlaylistSchema)

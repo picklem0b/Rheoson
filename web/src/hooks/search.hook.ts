@@ -83,6 +83,9 @@ export function useSearch() {
    const [query, setQueryState] = useState(saved.query);
    const [filter, setFilter] = useState<SearchFilter>(saved.filter);
    const [results, setResults] = useState<SearchResults | null>(null);
+   /** For link resolves: the album/playlist title from the resolver, so the
+    *  UI can offer "Save all as playlist" with the real name. */
+   const [resolvedTitle, setResolvedTitle] = useState<string | null>(null);
    const [suggestions, setSuggestions] = useState<string[]>([]);
    const [isLoading, setLoading] = useState(false);
    const [error, setError] = useState<string | null>(null);
@@ -101,7 +104,9 @@ export function useSearch() {
 
    const setQuery = useCallback((q: string) => {
       setQueryState(q);
-      if (!q) {
+      if (q) {
+         setResolvedTitle(null);
+      } else {
          setSuggestions([]);
          setResults(null);
          setError(null);
@@ -160,6 +165,11 @@ export function useSearch() {
                // URL resolution — no filter applies here
                const resolved = await searchApi.resolve(q, ctrl.signal);
                const tracks = resolveToTracks(resolved);
+               setResolvedTitle(
+                  (resolved.type === "album" || resolved.type === "playlist") && resolved.title
+                     ? resolved.title
+                     : null
+               );
                data = {
                   tracks,
                   albums: [],
@@ -228,6 +238,7 @@ export function useSearch() {
       filter,
       setFilter,
       results,
+      resolvedTitle,
       isLoading,
       suggestions,
       error,

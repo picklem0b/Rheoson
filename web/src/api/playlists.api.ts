@@ -155,6 +155,31 @@ export const playlistsApi = {
       }
    },
 
+   /** Create a playlist pre-filled with tracks in one round trip (the
+    *  backend accepts optional seed `trackIds`). Falls back to
+    *  create-then-add when the backend predates seed support. */
+   createBulk: async (data: { title: string; description?: string; trackIds: string[] }): Promise<Playlist> => {
+      try {
+         const remote = await api.postQueued<Playlist>('/playlists', {
+            title: data.title,
+            description: data.description ?? '',
+            trackIds: data.trackIds,
+         });
+         if (remote?.id) {
+            await playlistsStore.put({ ...remote, tracks: [] });
+            return remote;
+         }
+      } catch {
+         // Fall through to the offline path below.
+      }
+      // Offline / seed unsupported: create locally, then queue the adds.
+      const pl = await playlistsApi.createPlaylist({ title: data.title, description: data.description });
+      for (const id of data.trackIds) {
+         await playlistsApi.addTrack(pl.id, id);
+      }
+      return pl;
+   },
+
    removeTrack: async (playlistId: string, trackId: string): Promise<void> => {
       // Optimistic local update
       const local = await playlistsStore.get(playlistId);
@@ -221,6 +246,7 @@ export const {
    getPlaylists,
    getPlaylist,
    createPlaylist,
+   createBulk,
    updatePlaylist,
    deletePlaylist,
    addTrack,

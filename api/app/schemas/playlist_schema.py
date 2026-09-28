@@ -45,6 +45,9 @@ class PlaylistSchema(BaseModel):
 class CreatePlaylistSchema(BaseModel):
     title:       str
     description: str = ""
+    # Optional seed tracks — lets a client create-and-fill in one round trip
+    # (e.g. "save a resolved Spotify playlist"). Order is preserved.
+    trackIds:    list[str] = []
 
 
 class UpdatePlaylistSchema(BaseModel):

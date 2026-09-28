@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.22.2"
+    "version": "2.22.3"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -5334,6 +5334,14 @@
             "type": "string",
             "title": "Description",
             "default": ""
+          },
+          "trackIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Trackids",
+            "default": []
           }
         },
         "type": "object",
