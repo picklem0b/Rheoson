@@ -169,3 +169,21 @@ instead is the reasoning behind the suites:
   the DCCNN wire format, index arithmetic, SSE framing, formatters.
 * **Anything unreachable in this environment is listed above** rather than
   papered over.
+
+### 3.x — Post-cleanup audit (current session)
+
+Full gates re-run on the post-cleanup tree (`next-v0.18.0` + fixes):
+
+| Gate | Result |
+| --- | --- |
+| turbo typecheck / lint / test / build | all green — shared 14, server 83, client 91 |
+| engine pytest | 151 passed, 2 skipped · pyflakes clean |
+| relay | gofmt clean · vet clean · 2 packages ok (fresh, `-count=1`) |
+| registry drift gate | `export:error-registry` → `git diff --exit-code` clean |
+| boot smoke | engine `/health` 200 (yt-dlp 2026.08.19 + ffmpeg detected), relay `/relay/health` 200 |
+| live suite (`RHEOSON_LIVE=1`) | 2/2 — real resolution + real download still healthy today |
+
+Findings fixed during the audit:
+
+- **Docs/env drift**: the relay's resolver env is `UPSTREAM_RESOLVER` (+`RELAY_TOKEN`); docs had said `ENGINE_URL` (which is correctly the *server's* name for the engine). Corrected in README + CLAUDE.md.
+- **Dev-port defaults lied**: server `ENGINE_URL` defaulted to `:8001` and `RELAY_URL` to `:8002` while docs/Makefile use 8000/8087. Defaults aligned (`47eb1f2`); ops-test stub moved with them.
