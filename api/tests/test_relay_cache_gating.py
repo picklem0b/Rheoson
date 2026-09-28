@@ -92,6 +92,27 @@ async def _drive(monkeypatch, upstream, track_id: str, range_header=None) -> int
     return total
 
 
+async def _drive_response(monkeypatch, upstream, track_id: str, range_header=None):
+    """Run the relay handler and return the response without consuming it.
+
+    Tests that assert on status/headers use this; drain `body_iterator`
+    afterwards to actually move the bytes (and let the cache tee finish).
+    """
+
+    async def fake_open(url, range_header=None, timeout=30.0, read_timeout=60.0):
+        return upstream
+
+    async def none_resolve(tid):
+        return "https://cdn.example/audio"
+
+    monkeypatch.setattr(ss, "open_upstream", fake_open)
+    monkeypatch.setattr(sr, "_resolve_direct_url", none_resolve)
+
+    response = await sr._serve_direct_relay(track_id, _FakeRequest(range_header))
+    assert response is not None
+    return response
+
+
 @pytest.fixture(autouse=True)
 def _unique_id(request):
     global TRACK_ID
@@ -239,4 +260,56 @@ async def test_upstream_death_aborts_cache_tee(monkeypatch):
 
     assert sr._remote_cache_get(TRACK_ID) is None, (
         "partial bytes from a dead upstream were published as a complete track"
+    )
+
+
+# ── Presentation of the injected whole-file 206 ───────────────
+#
+# open_upstream injects `bytes=0-` for range-less clients (see
+# test_stream_service). The relay then presents the CDN's whole-file 206 as
+# a plain 200: the player never asked for ranges, so telling it it got one
+# only confuses parsers that assume a 206 they did not request. A capped
+# 206 keeps the CDN's framing untouched.
+
+
+@pytest.mark.asyncio
+async def test_rangeless_client_sees_plain_200(monkeypatch):
+    """No client Range → whole-file 206 from the CDN is presented as 200."""
+    up = _FakeUpstream(
+        status=206, mime="audio/mp4", rng=(0, 4095, 4096), clen=4096,
+        payload=b"x" * 4096,
+    )
+    response = await _drive_response(monkeypatch, up, TRACK_ID, None)
+
+    assert response.status_code == 200
+    assert "Content-Range" not in response.headers
+
+
+@pytest.mark.asyncio
+async def test_explicit_range_keeps_206_framing(monkeypatch):
+    """A real seek keeps the CDN's own 206 + Content-Range untouched."""
+    up = _FakeUpstream(
+        status=206, mime="audio/mp4", rng=(100000, 1186832, 1186833),
+        clen=1086833, payload=b"x" * 4096,
+    )
+    response = await _drive_response(monkeypatch, up, TRACK_ID, "bytes=100000-")
+
+    assert response.status_code == 206
+    assert response.headers.get("Content-Range") == "bytes 100000-1186832/1186833"
+
+
+@pytest.mark.asyncio
+async def test_rangeless_whole_file_response_is_still_cached(monkeypatch):
+    """Presentation never changes cache semantics: injected 0- is tee-eligible."""
+    sr._remote_cache.clear()
+    up = _FakeUpstream(
+        status=206, mime="audio/mp4", rng=(0, 4095, 4096), clen=4096,
+        payload=b"x" * 4096,
+    )
+    response = await _drive_response(monkeypatch, up, TRACK_ID, None)
+    async for _chunk in response.body_iterator:
+        pass
+
+    assert sr._remote_cache_get(TRACK_ID) is not None, (
+        "a presented-200 whole-file body must still populate the cache"
     )

@@ -1370,16 +1370,27 @@ async def _serve_direct_relay(track_id: str, request: Request) -> Optional[Respo
         finally:
             await upstream.aclose()
 
+    # A range-less client gets `bytes=0-` injected by open_upstream; the
+    # CDN's whole-file 206 is then presented as a plain 200 — the player
+    # never asked for ranges, so it should not be told it got one. An
+    # explicit range keeps the CDN's own framing (206 + Content-Range)
+    # exactly as before.
+    status = upstream.status_code
+    if status == 206 and rng is None:
+        status = 200
+        headers.pop("Content-Range", None)
+
     log.info(
         "stream.relay",
         track_id=track_id,
         status=upstream.status_code,
+        presented=status,
         mime=upstream.mime,
         range=rng,
     )
     return StreamingResponse(
         _relay(),
-        status_code=upstream.status_code,
+        status_code=status,
         media_type=upstream.mime,
         headers=headers,
     )

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import time
 
+import httpx
+
 import pytest
 
 from app.services import stream_service as ss
@@ -419,3 +421,74 @@ async def test_relay_reports_unavailable_when_the_cdn_refuses(monkeypatch):
 
     assert await sr._serve_direct_relay(ID, _Req()) is None
     assert ss.cached_direct_url(ID) is None, "an expired URL must not be reused"
+
+
+# ── Range injection for range-less clients ────────────────────
+#
+# The live run on the experiment branch measured a CDN edge that stalls a
+# range-less request until the client gives up, while answering `bytes=0-`
+# with the whole file in one 206. open_upstream therefore sends a Range on
+# the client's behalf; these tests pin that at the HTTP boundary with a
+# MockTransport — the request headers are the assertion.
+
+
+def _capture_transport(captured: dict):
+    """An httpx mock transport that records the Range header it was sent."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["range"] = request.headers.get("range")
+        return httpx.Response(
+            206,
+            headers={
+                "Content-Range": "bytes 0-2047/2048",
+                "Content-Length": "2048",
+                "Content-Type": "audio/mp4",
+            },
+            content=PAYLOAD,
+        )
+
+    return httpx.MockTransport(handler)
+
+
+@pytest.fixture
+def _mock_http(monkeypatch):
+    captured: dict = {}
+    transport = _capture_transport(captured)
+    # `ss.httpx` IS the httpx module, so the patch below is global for the
+    # test — capture the real class first or the factory recurses into
+    # itself.
+    real_client = httpx.AsyncClient
+
+    def _factory(*args, **kwargs):
+        return real_client(transport=transport, follow_redirects=True)
+
+    monkeypatch.setattr(ss.httpx, "AsyncClient", _factory)
+    return captured
+
+
+@pytest.mark.asyncio
+async def test_open_upstream_injects_range_when_client_sent_none(_mock_http):
+    """No client Range → the service sends `bytes=0-` on its behalf."""
+    stream = await ss.open_upstream("https://cdn.example/audio", None)
+    assert _mock_http["range"] == "bytes=0-"
+    await stream.aclose()
+
+
+@pytest.mark.asyncio
+async def test_open_upstream_keeps_the_clients_own_range(_mock_http):
+    """An explicit seek is forwarded verbatim — injection never overrides it."""
+    stream = await ss.open_upstream("https://cdn.example/audio", "bytes=100-")
+    assert _mock_http["range"] == "bytes=100-"
+    await stream.aclose()
+
+
+@pytest.mark.asyncio
+async def test_open_upstream_injected_response_is_whole_file(_mock_http):
+    """The injected request gets a whole-file 206 the caller can present as 200."""
+    stream = await ss.open_upstream("https://cdn.example/audio", None)
+    assert stream.status_code == 206
+    assert stream.covers_whole_file, (
+        "the injected bytes=0- must yield a whole-file response, or the "
+        "router cannot present it as a plain 200"
+    )
+    await stream.aclose()
