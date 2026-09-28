@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     MONGODB_URL:    str = "mongodb://localhost:27017"
     MONGODB_DB_NAME: str = "rheoson"
 
+    # Supabase (Postgres) — the primary account store when configured.
+    # The SERVER needs the secret key (sb_secret_…, Project Settings → API);
+    # the publishable key cannot write rows through RLS.
+    SUPABASE_URL:      str = ""
+    SUPABASE_KEY:      str = ""
+    SUPABASE_USERS_TABLE: str = "users"
+
     # ── Clerk Authentication ──────────────────────────────────
     CLERK_SECRET_KEY:         str = ""
     CLERK_PUBLISHABLE_KEY:    str = ""

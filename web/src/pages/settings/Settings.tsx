@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Palette, SpeakerHigh, DownloadSimple, Keyboard, Info, CaretRight, CaretLeft, Bell, HardDrives, Layout, ChartLineUp, Stethoscope, SlidersHorizontal, WifiHigh } from '@phosphor-icons/react'
+import { Palette, SpeakerHigh, DownloadSimple, Keyboard, Info, CaretRight, CaretLeft, Bell, HardDrives, ChartLineUp, Stethoscope, SlidersHorizontal, WifiHigh, Shield, UserCircle } from '@phosphor-icons/react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { ProfileRow } from '@/components/ui/ProfileRow'
 import { APP_VERSION } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 import AppearanceSection    from './sections/AppearanceSection'
-import LayoutSection        from './sections/LayoutSection'
 import AudioSection         from './sections/AudioSection'
 import PlaybackSection      from './sections/PlaybackSection'
 import DownloadsSection     from './sections/DownloadsSection'
@@ -23,7 +22,7 @@ import StatsSection         from './sections/StatsSection'
 import DiagnosticsSection   from './sections/DiagnosticsSection'
 
 type Section =
-  | 'appearance' | 'layout'  | 'audio' | 'playback'
+  | 'appearance' | 'audio' | 'playback'
   | 'downloads'  | 'storage' | 'notifications'
   | 'account'    | 'privacy' | 'shortcuts' | 'about'
   | 'stats'      | 'diagnostics' | 'streaming' | 'data-offline'
@@ -42,30 +41,35 @@ interface SectionMeta {
 // the single-accent identity the rest of the app is built on. Neutral tiles
 // with the accent reserved for the row you are in is both quieter and a much
 // clearer "where am I" signal.
+// One concern per tab, by contract: opening Appearance shows only things
+// that change how the app looks; Privacy only what happens to your data;
+// Account only identity and credentials. A control that belongs to another
+// tab's concern is a bug — put it there instead of linking to it.
 const GROUPS: { label: string; items: SectionMeta[] }[] = [
   {
-    label: 'Sound & playback',
+    label: 'Appearance & sound',
     items: [
-      { id: 'notifications', label: 'Notifications', desc: 'Sound effects & chimes',       Icon: Bell },
-      { id: 'audio',         label: 'Audio quality', desc: 'EQ, normalisation, output',    Icon: SpeakerHigh },
-      { id: 'playback',      label: 'Playback',      desc: 'Speed, gapless, seek, haptics', Icon: SlidersHorizontal },
+      { id: 'appearance',    label: 'Appearance',   desc: 'Theme, accent, nav, fonts, motion', Icon: Palette },
+      { id: 'notifications', label: 'Notifications', desc: 'Sound effects & chimes',          Icon: Bell },
+      { id: 'audio',         label: 'Audio quality', desc: 'EQ, normalisation, output',       Icon: SpeakerHigh },
+      { id: 'playback',      label: 'Playback',      desc: 'Speed, gapless, seek, haptics',   Icon: SlidersHorizontal },
     ],
   },
   {
-    label: 'App & data',
+    label: 'Data & network',
     items: [
-      { id: 'appearance',    label: 'Appearance',          desc: 'Theme, accent, transparency',  Icon: Palette },
-      { id: 'layout',        label: 'Navigation & fonts', desc: 'Nav style, fonts, sidebar',  Icon: Layout },
-      { id: 'streaming',     label: 'Streaming',          desc: 'Autoplay, warm-ahead',       Icon: WifiHigh },
-      { id: 'data-offline',  label: 'Data-saving & offline', desc: 'Offline cache & limits',  Icon: HardDrives },
-      { id: 'downloads',     label: 'Downloads',          desc: 'Format, quality, concurrency', Icon: DownloadSimple },
-      { id: 'storage',       label: 'Storage',            desc: 'Directories, library, caches', Icon: HardDrives },
+      { id: 'streaming',     label: 'Streaming',             desc: 'Autoplay, warm-ahead',       Icon: WifiHigh },
+      { id: 'data-offline',  label: 'Data-saving & offline', desc: 'Offline cache & limits',     Icon: HardDrives },
+      { id: 'downloads',     label: 'Downloads',             desc: 'Format, quality, concurrency', Icon: DownloadSimple },
+      { id: 'storage',       label: 'Storage',               desc: 'Directories, library, caches', Icon: HardDrives },
     ],
   },
   {
-    label: 'Insights',
+    label: 'Your data',
     items: [
-      { id: 'stats', label: 'Stats', desc: 'Listening analytics & charts', Icon: ChartLineUp },
+      { id: 'privacy', label: 'Privacy', desc: 'History toggles, backups, policy', Icon: Shield },
+      { id: 'account', label: 'Account', desc: 'Profile, credentials, danger zone', Icon: UserCircle },
+      { id: 'stats',   label: 'Stats',   desc: 'Listening analytics & charts',     Icon: ChartLineUp },
     ],
   },
   {
@@ -81,7 +85,6 @@ const GROUPS: { label: string; items: SectionMeta[] }[] = [
 function SectionContent({ id }: { id: Section }) {
   switch (id) {
     case 'appearance':    return <AppearanceSection />
-    case 'layout':        return <LayoutSection />
     case 'audio':         return <AudioSection />
     case 'playback':      return <PlaybackSection />
     case 'downloads':     return <DownloadsSection />

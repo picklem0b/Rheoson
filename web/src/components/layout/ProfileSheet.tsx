@@ -38,7 +38,7 @@ export default function ProfileSheet({ onClose }: { onClose: () => void }) {
     { icon: ChartLineUp, label: 'Listening stats', desc: 'Top songs, artists and hours', go: () => go('/stats') },
     { icon: Info, label: 'About', desc: 'Version, changelog, community', go: () => go('/settings', 'about') },
     { icon: Shield, label: 'Privacy', desc: 'History, backups, your data', go: () => go('/settings', 'privacy') },
-    { icon: UserCircle, label: 'Account', desc: 'Profile and credentials', go: () => go('/settings', 'account') },
+    { icon: UserCircle, label: 'Account', desc: 'Profile and credentials', go: () => go('/account') },
   ]
 
   return (

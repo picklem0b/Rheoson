@@ -68,30 +68,40 @@ async def logout(user: dict = Depends(get_current_user)):
 
 @router.get("/me")
 async def get_profile(user: dict = Depends(get_current_user)):
-    """Get the current user's profile from Clerk."""
+    """Get the current user's profile.
+
+    JIT provisioning: the first authenticated request upserts the account
+    row (Supabase Postgres when configured, Mongo otherwise). This is what
+    makes a user exist in the DB without any webhook configuration — the
+    webhook stays as an extra delivery path, not the only one.
+    """
+    from app.services import user_store
+
     clerk_id = user.get("sub", "")
+    if not clerk_id:
+        raise error_codes.fail(error_codes.AUTH.INVALID_TOKEN, 401)
 
-    # Try to get extended profile from MongoDB
-    if db_available():
-        try:
-            from app.core.database import get_db as _get_db
-            db = _get_db()
-            mongo_user = await db.users.find_one({"_id": clerk_id})
-            if mongo_user:
-                return {
-                    "id": clerk_id,
-                    "email": mongo_user.get("email", user.get("email_address", "")),
-                    "username": mongo_user.get("username", ""),
-                    "image_url": mongo_user.get("image_url", ""),
-                    "created_at": mongo_user.get("created_at"),
-                }
-        except Exception as e:  # noqa: BLE001 — Clerk claims are the fallback
-            # The profile silently degrades to token claims here, which drop
-            # the stored username and image. Worth a trace so "my username
-            # vanished" has a diagnosable cause instead of being mysterious.
-            log.debug("auth.me.mongo_profile_failed", error=str(e))
+    try:
+        row = await user_store.get_user(clerk_id)
+        if row is None:
+            # First-ever request from this account (or both stores
+            # unreachable — then the upsert also no-ops and we degrade to
+            # claims below).
+            row = await user_store.upsert_user(clerk_id, user)
+    except Exception:  # noqa: BLE001 — store outage must not 500 the profile
+        row = None
 
-    # Fallback to Clerk claims
+    if row:
+        return {
+            "id": clerk_id,
+            "email": row.get("email") or user.get("email_address", ""),
+            "username": row.get("username") or user.get("username", ""),
+            "image_url": row.get("image_url") or "",
+            "created_at": row.get("created_at"),
+        }
+
+    # Both stores unavailable — degrade to verified JWT claims (the shape
+    # the app has always accepted).
     return {
         "id": clerk_id,
         "email": user.get("email_address", ""),
@@ -105,8 +115,30 @@ async def update_profile(
     body: UpdateProfileRequest,
     user: dict = Depends(get_current_user),
 ):
-    """Update user profile in MongoDB."""
+    """Update the current user's profile.
+
+    Writes go through the account store (Supabase-first, Mongo fallback)
+    so the PATCH and the JIT-provisioned row from GET /me can never
+    disagree about where the profile lives.
+    """
+    from app.core.supabase import get_supabase
+    from app.services import user_store
+
     clerk_id = user.get("sub", "")
+
+    if get_supabase() is not None:
+        # Supabase path: read-modify-upsert so only the username changes.
+        row = await user_store.get_user(clerk_id) or {}
+        if body.username is not None:
+            row["username"] = body.username
+        claims = {
+            "email_address": row.get("email") or user.get("email_address", ""),
+            "username": row.get("username") or "",
+        }
+        saved = await user_store.upsert_user(clerk_id, claims)
+        if saved is not None:
+            return {"ok": True}
+        # Fall through to Mongo when the Supabase write failed.
 
     if not db_available():
         raise error_codes.fail(error_codes.LIBRARY.DB_UNAVAILABLE, 503)

@@ -7,14 +7,27 @@ import {
    SettingsGroup,
    SettingsRow,
    Toggle,
-   Slider
+   Slider,
+   RadioGroup
 } from "../components/SettingsPrimitives";
 
 export default function AppearanceSection() {
    const { theme, glassOpacity, setAccent, setSurface, setGlassOpacity } =
       useThemeStore();
-   const { reduceMotion, setReduceMotion } =
-      useUIStore();
+   const {
+      reduceMotion,
+      setReduceMotion,
+      navStyle,
+      navPosition,
+      fontFamily,
+      fontSize,
+      sidebarCollapsed,
+      toggleSidebar,
+      setNavStyle,
+      setNavPosition,
+      setFontFamily,
+      setFontSize
+   } = useUIStore();
 
    return (
       <div className='pb-4'>
@@ -153,10 +166,126 @@ export default function AppearanceSection() {
             </SettingsRow>
          </SettingsGroup>
 
-         {/* Appearance only, by contract: accent, theme, transparency and
-             motion live here. Keep-awake is playback behaviour (Playback
-             section); sidebar collapse is navigation (Layout section); the
-             old "Layout shortcuts" group was a duplicate of that row. */}
+         {/* Everything visual lives here, by contract: accent, theme,
+             transparency, motion, how the app is laid out (nav style and
+             position), typography (font and text size) and the desktop
+             sidebar toggle. Behaviour toggles belong to their behaviour's
+             section (keep-awake → Playback, warm-ahead → Streaming). */}
+
+         {/* Navigation style */}
+         <SettingsGroup
+            title='Navigation style'
+            footer='Changes take effect immediately. Pill is the default floating style. Flat is a solid bar. Minimal shows icons only.'>
+            <RadioGroup
+               value={navStyle}
+               onChange={setNavStyle}
+               options={[
+                  {
+                     value: "pill",
+                     label: "Pill",
+                     sub: "Floating rounded bar — default Rheoson style"
+                  },
+                  {
+                     value: "flat",
+                     label: "Flat",
+                     sub: "Solid bar with no rounding — edge-to-edge"
+                  },
+                  {
+                     value: "minimal",
+                     label: "Minimal",
+                     sub: "Icons only, no labels — maximum space"
+                  }
+               ]}
+            />
+         </SettingsGroup>
+
+         <SettingsGroup
+            title='Navigation position'
+            footer='Bottom navigation is standard on mobile. Top bar mode moves the tabs to a top tab strip.'>
+            <RadioGroup
+               value={navPosition}
+               onChange={setNavPosition}
+               options={[
+                  {
+                     value: "bottom",
+                     label: "Bottom",
+                     sub: "Standard mobile bottom navigation"
+                  },
+                  {
+                     value: "top",
+                     label: "Top",
+                     sub: "Tab bar along the top of the screen"
+                  }
+               ]}
+            />
+         </SettingsGroup>
+
+         {/* Typography */}
+         <SettingsGroup
+            title='Font'
+            footer='Plus Jakarta Sans is the Rheoson default. Changes apply immediately across the entire app.'>
+            <RadioGroup
+               value={fontFamily}
+               onChange={setFontFamily}
+               options={[
+                  {
+                     value: "plus-jakarta",
+                     label: "Plus Jakarta Sans",
+                     sub: "Default — designed for readability"
+                  },
+                  {
+                     value: "inter",
+                     label: "Inter",
+                     sub: "Clean and neutral — great on screens"
+                  },
+                  {
+                     value: "system",
+                     label: "System default",
+                     sub: "Your device's native font"
+                  }
+               ]}
+            />
+         </SettingsGroup>
+
+         <SettingsGroup
+            title='Text size'
+            footer='Affects body text throughout the app. Headings scale proportionally.'>
+            <RadioGroup
+               value={fontSize}
+               onChange={setFontSize}
+               options={[
+                  {
+                     value: "small",
+                     label: "Small",
+                     sub: "Fits more content — 14 px base"
+                  },
+                  {
+                     value: "default",
+                     label: "Default",
+                     sub: "Balanced readability — 16 px"
+                  },
+                  {
+                     value: "large",
+                     label: "Large",
+                     sub: "Easier to read — 18 px base"
+                  }
+               ]}
+            />
+         </SettingsGroup>
+
+         {/* Desktop panels */}
+         <SettingsGroup
+            title='Desktop & panels'
+            footer='The sidebar only appears on screens wide enough for it (lg and up). Panels are the queue and lyrics drawers.'>
+            <SettingsRow
+               label='Collapse sidebar'
+               description={sidebarCollapsed ? 'Currently collapsed to icons' : 'Currently showing icons and labels'}
+               onClick={toggleSidebar}>
+               <span className='text-[13px] text-[var(--text-muted)]'>
+                  {sidebarCollapsed ? 'Collapsed' : 'Expanded'}
+               </span>
+            </SettingsRow>
+         </SettingsGroup>
       </div>
    );
 }

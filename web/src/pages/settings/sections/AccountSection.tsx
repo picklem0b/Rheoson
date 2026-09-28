@@ -1,25 +1,35 @@
 import { useState, useEffect, useCallback } from "react";
-import { Check, WarningCircle, ArrowSquareOut, Trash, CaretRight, ArrowClockwise } from '@phosphor-icons/react';
+import { Check, WarningCircle, ArrowSquareOut, Trash, CaretRight, ArrowClockwise, UserCircle } from '@phosphor-icons/react';
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/api/client.api";
 import { useAuthStore } from "@/store/auth.store";
-import { SettingsGroup, SettingsRow } from "../components/SettingsPrimitives";
+import { isClerkEnabled } from "@/lib/constants";
+import UserAvatar from "@/components/ui/UserAvatar";
+import {
+  SettingsGroup,
+  SettingsRow,
+  ActionState,
+  actionRunner
+} from "../components/SettingsPrimitives";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return (parts[0]?.[0] ?? "U").toUpperCase();
-}
 
 interface SpotifyStatus {
   connected: boolean;
   clientId?: string;
 }
 
+/**
+ * Account — identity and credentials, and nothing else.
+ *
+ * Personalisation (theme, nav, fonts) lives in Appearance; history controls
+ * and backups live in Privacy. Anything about the account itself is here:
+ * the profile header, Clerk's account manager (profile fields, password,
+ * sessions — via the <UserProfile /> modal), Spotify connection status and
+ * the destructive device wipe.
+ */
 export default function AccountSection() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -27,9 +37,15 @@ export default function AccountSection() {
   const [status, setStatus] = useState<SpotifyStatus | null>(null);
   const [checking, setChecking] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [signOutState, setSignOutState] = useState<ActionState>("idle");
 
-  const name = user?.username ?? "Your account";
-  const initials = getInitials(name);
+  /** Sign out of this device only — same semantics Privacy's row had:
+   *  drops the local session token, reloads, server data untouched. */
+  const signOutDevice = actionRunner(setSignOutState, async () => {
+    localStorage.removeItem("rheoson-auth");
+    sessionStorage.removeItem("rheoson-last-search");
+    window.location.reload();
+  });
 
   const fetchStatus = useCallback(() => {
     setChecking(true);
@@ -45,6 +61,7 @@ export default function AccountSection() {
   }, [fetchStatus]);
 
   const spotifyOk = status?.connected ?? false;
+  const clerk = isClerkEnabled();
 
   return (
     <div className="pb-4">
@@ -55,25 +72,10 @@ export default function AccountSection() {
         className="w-full mb-7 rounded-[20px] overflow-hidden border border-[var(--border)]/30 bg-[var(--bg-surface)] text-left"
       >
         <div className="px-5 py-5 flex items-center gap-4">
-          {user?.image_url ? (
-            <img
-              src={user.image_url}
-              alt={name}
-              className="w-[64px] h-[64px] rounded-[18px] object-cover shadow-lg flex-shrink-0"
-            />
-          ) : (
-            <div
-              className={cn(
-                "w-[64px] h-[64px] rounded-[18px] flex items-center justify-center",
-                "text-[26px] font-black text-[var(--accent)] bg-[var(--accent-subtle)] shadow-lg flex-shrink-0"
-              )}
-            >
-              {initials}
-            </div>
-          )}
+          <UserAvatar size="xl" shape="rounded" interactive={false} />
           <div className="min-w-0 flex-1">
             <p className="text-[20px] font-bold text-[var(--text-primary)] leading-tight truncate">
-              {name}
+              {user?.username ?? "Your account"}
             </p>
             <p className="text-[14px] text-[var(--text-muted)] truncate">
               {user?.email ?? "View profile"}
@@ -88,6 +90,24 @@ export default function AccountSection() {
           <CaretRight className="w-5 h-5 text-[var(--text-muted)]/40 flex-shrink-0" />
         </div>
       </motion.button>
+
+      {/* ── Manage account (Clerk) ──────────────────────────── */}
+      {clerk && (
+        <SettingsGroup
+          title="Account management"
+          footer="Profile details, email address, password and active sessions — managed by Clerk, your identity provider."
+        >
+          <SettingsRow
+            label="Manage account"
+            description="Edit profile, change password, review sessions"
+            icon={<UserCircle className="w-[14px] h-[14px]" />}
+            iconBg="var(--accent)"
+            onClick={() => navigate("/account")}
+          >
+            <CaretRight className="w-4 h-4 text-[var(--text-muted)]/40" />
+          </SettingsRow>
+        </SettingsGroup>
+      )}
 
       {/* ── Spotify status ──────────────────────────────────── */}
       <SettingsGroup
@@ -160,6 +180,21 @@ export default function AccountSection() {
             <Check className="w-4 h-4 text-[var(--success-text)]" />
           </SettingsRow>
         )}
+      </SettingsGroup>
+
+      {/* ── Session ─────────────────────────────────────────── */}
+      <SettingsGroup
+        title="Session"
+        footer="Sign out of this device only. Your account, likes, playlists and downloads on the server are untouched — signing back in restores everything."
+      >
+        <SettingsRow
+          label="Sign out of this device"
+          description="Clears the session token from this device and reloads the app"
+          danger
+          onClick={signOutState === "idle" ? signOutDevice : undefined}
+          icon={<ArrowClockwise className="w-[14px] h-[14px]" />}
+          iconBg="var(--danger)"
+        />
       </SettingsGroup>
 
       {/* ── Danger ──────────────────────────────────────────── */}
