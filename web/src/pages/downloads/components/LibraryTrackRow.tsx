@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { invalidateLikeSurfaces } from '@/lib/queryInvalidation';
 import { formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import type { Track } from '@/types/track.types';
+import type { Track } from '@/types';
 
 interface LibraryTrackRowProps {
     track: Track;

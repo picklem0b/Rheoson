@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { DownloadJob } from '@/types/download.types'
+import type { DownloadJob } from '@/types'
 
 // ── Constants ─────────────────────────────────────────────────
 

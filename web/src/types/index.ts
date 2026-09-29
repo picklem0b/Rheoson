@@ -80,7 +80,6 @@ export interface PlayerState {
   isLoading: boolean
   showQueue: boolean
   showLyrics: boolean
-  showFullscreen: boolean
 }
 
 export type SearchFilter = 'all' | 'tracks' | 'albums' | 'artists' | 'playlists'

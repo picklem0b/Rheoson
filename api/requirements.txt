@@ -1,5 +1,0 @@
-# Auto-generated from pyproject.toml — do not edit manually.
-# Run: pip install -e ".[dev]"
-# for Open API types
-
-structlog==26.1.0

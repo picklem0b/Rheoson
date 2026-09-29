@@ -3,7 +3,7 @@
 Provides two dependency functions:
   - get_current_user: Requires a valid Clerk session token. Returns user claims.
   - get_optional_user: Returns user claims if a token is presented and valid,
-    None for guests. Guest-first policy (see CLAUDE.md): search, stream,
+    None for guests. Guest-first policy (see AGENTS.md): search, stream,
     lyrics, trending, recently played and downloads work without an account;
     playlists, likes, recommendations and analytics are account features.
 

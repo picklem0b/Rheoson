@@ -1,4 +1,4 @@
-# CLAUDE.md — Rheoson Codebase Context
+# AGENTS.md — Rheoson Codebase Context
 
 > Version: 2.19.14 · Long-form docs: [docs/README.md](docs/README.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
 

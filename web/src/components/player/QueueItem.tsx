@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { DotsSixVertical, ListPlus, X } from '@phosphor-icons/react'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 import { usePlayerStore } from '@/store/player.store'
 import { useQueue } from '@/hooks/queue.hook'
 import { usePlaylistMenuStore } from '@/store/playlistMenu.store'

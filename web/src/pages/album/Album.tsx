@@ -19,7 +19,7 @@ import { TrackRowSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toaster'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 export default function Album() {
   const { id } = useParams<{ id: string }>()

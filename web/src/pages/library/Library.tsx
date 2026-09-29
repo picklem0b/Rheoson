@@ -1,3 +1,4 @@
+import type { Artist, Track, Playlist } from '@/types';
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,8 +44,6 @@ import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/formatters";
-import type { Artist, Track } from "@/types/track.types";
-import type { Playlist } from "@/types";
 
 type LibTab = "playlists" | "albums" | "artists";
 

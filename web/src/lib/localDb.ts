@@ -9,9 +9,8 @@
  * async/await access.
  */
 
+import type { Track, Playlist } from '@/types';
 import { openDB, type IDBPDatabase } from 'idb';
-import type { Track } from '@/types/track.types';
-import type { Playlist } from '@/types/playlist.types';
 
 // ── Types ──────────────────────────────────────────────────────
 

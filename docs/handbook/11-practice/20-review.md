@@ -104,13 +104,13 @@ Take the diff of any small real commit (`git log --oneline --stat`, pick one tou
 
 **Goal**: review a change with blast radius, using the project's own risk map.
 
-Pick a commit touching one of the "critical files" listed in `CLAUDE.md` (stream router, player hook, queue store, download service). Trace three things: every *caller* of what changed (`grep`), every *cache* it could invalidate (10.5), and every *test* that pins the behavior (16.3/16.4). Write the review: what the change risks, what protects it, what's missing.
+Pick a commit touching one of the "critical files" listed in `AGENTS.md` (stream router, player hook, queue store, download service). Trace three things: every *caller* of what changed (`grep`), every *cache* it could invalidate (10.5), and every *test* that pins the behavior (16.3/16.4). Write the review: what the change risks, what protects it, what's missing.
 
 ## Level 7 — A full pull-request review
 
 **Goal**: the whole artifact, as it would face a maintainer.
 
-Take any merged PR from the repository's history (GitHub's PR list). Review end to end: the description (problem, approach, verification — 14.9's standard); the commit sequence (14.3's units); the diff (Levels 3–4 eyes); the tests (did they pin the *promise* or just the code?); the docs (does `CLAUDE.md` or a chapter need to move?). Deliver the artifact a real review ends with: verdict, blocking findings, non-blocking suggestions, and one thing the PR taught you about the codebase.
+Take any merged PR from the repository's history (GitHub's PR list). Review end to end: the description (problem, approach, verification — 14.9's standard); the commit sequence (14.3's units); the diff (Levels 3–4 eyes); the tests (did they pin the *promise* or just the code?); the docs (does `AGENTS.md` or a chapter need to move?). Deliver the artifact a real review ends with: verdict, blocking findings, non-blocking suggestions, and one thing the PR taught you about the codebase.
 
 ## Checklist — the reviewer's questions
 

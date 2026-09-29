@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { splitErrorCode } from '@/api/client.api'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 /**
  * Messages — direct chats built around music.

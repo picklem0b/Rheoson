@@ -15,7 +15,7 @@ import { tracksApi } from '@/api/tracks.api'
 import { recommendationsApi } from '@/api/recommendations.api'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { truncate } from '@/lib/formatters'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 /**
  * Universal track context menu — mounted once in RootLayout.

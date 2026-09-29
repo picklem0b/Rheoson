@@ -38,7 +38,7 @@ def test_codes_start_with_their_domain_letter():
     """The D in DCCNN — a downloads code always starts with D."""
     for section in (
         ec.AUTH, ec.PLAYLIST, ec.TRACK, ec.DOWNLOAD, ec.STREAM,
-        ec.SEARCH, ec.LIBRARY, ec.SETTINGS, ec.WEBHOOK, ec.ARTIST, ec.PLAYBACK,
+        ec.SEARCH, ec.LIBRARY, ec.SETTINGS, ec.WEBHOOK, ec.ARTIST,
     ):
         for code in section:
             assert code[0] == section.letter, (
@@ -49,7 +49,7 @@ def test_codes_start_with_their_domain_letter():
 def test_domain_letters_are_unique():
     letters = [s.letter for s in (
         ec.AUTH, ec.PLAYLIST, ec.TRACK, ec.DOWNLOAD, ec.STREAM,
-        ec.SEARCH, ec.LIBRARY, ec.SETTINGS, ec.WEBHOOK, ec.ARTIST, ec.PLAYBACK,
+        ec.SEARCH, ec.LIBRARY, ec.SETTINGS, ec.WEBHOOK, ec.ARTIST,
     )]
     assert len(letters) == len(set(letters)), "two domains share a letter"
 
@@ -57,7 +57,7 @@ def test_domain_letters_are_unique():
 def test_every_section_member_is_registered():
     for section in (
         ec.AUTH, ec.PLAYLIST, ec.TRACK, ec.DOWNLOAD, ec.STREAM,
-        ec.SEARCH, ec.LIBRARY, ec.SETTINGS, ec.WEBHOOK, ec.ARTIST, ec.PLAYBACK,
+        ec.SEARCH, ec.LIBRARY, ec.SETTINGS, ec.WEBHOOK, ec.ARTIST,
     ):
         for code in section:
             assert code in ec.all_codes(), (

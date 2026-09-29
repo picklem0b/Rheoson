@@ -6,6 +6,7 @@ import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import PlayerBar from "@/components/player/PlayerBar";
 import PlaybackSettings from "@/components/player/PlaybackSettings";
+import EqualizerPanel from "@/components/player/EqualizerPanel";
 import QueuePanel from "@/components/player/QueuePanel";
 import { DownloadModal } from "@/components/ui/DownloadModal";
 import DownloadProgressBar from "@/components/downloads/DownloadProgressBar";
@@ -184,6 +185,9 @@ export default function RootLayout() {
 
             {/* ── Queue Panel (slide-in drawer) ─────────────── */}
             <QueuePanel />
+
+            {/* ── Equalizer panel (opens from the playback drawer) ── */}
+            <EqualizerPanel />
 
             {/* ── Download options modal ─────────────────────── */}
             <DownloadModal />

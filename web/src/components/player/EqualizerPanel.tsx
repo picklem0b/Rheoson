@@ -49,14 +49,18 @@ export default function EqualizerPanel() {
 
   if (!showEqualizer) return null
 
+  // Bottom sheet above the player bar + nav (z below the playback drawer),
+  // card-docked on desktop. Opened from the playback drawer, which closes
+  // itself when it hands off here.
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        className="glass-strong rounded-3xl border border-[var(--border)] p-5 space-y-5"
-      >
+    <div className='fixed inset-x-0 bottom-[calc(var(--player-height,72px)+var(--nav-height,64px)+8px)] z-[55] px-4 sm:left-auto sm:right-5 sm:w-96 sm:px-0'>
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="glass-strong rounded-3xl border border-[var(--border)] p-5 space-y-5 shadow-xl"
+        >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -144,7 +148,8 @@ export default function EqualizerPanel() {
             {EQ_PRESETS.find((p) => p.id === activePreset)?.name ?? 'Custom'}
           </p>
         )}
-      </motion.div>
-    </AnimatePresence>
+        </motion.div>
+      </AnimatePresence>
+    </div>
   )
 }

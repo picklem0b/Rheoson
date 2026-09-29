@@ -102,7 +102,7 @@ export default function PrivacySection() {
    return (
       <div className='pb-4'>
          <SettingsGroup
-            title='ClockCounterClockwise'
+            title='History'
             footer='Play history is stored on the server. Search history is stored only on this device.'>
             <SettingsRow
                label='Save play history'

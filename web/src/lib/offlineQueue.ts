@@ -124,17 +124,6 @@ export function initAutoSync() {
    });
 }
 
-// ── Queue status ───────────────────────────────────────────────
-
-export async function getQueueSize(): Promise<number> {
-   return syncQueueStore.count();
-}
-
-export async function clearQueue(): Promise<void> {
-   await syncQueueStore.clear();
-   _notifyListeners();
-}
-
 // ── Listener pattern ───────────────────────────────────────────
 
 export function onQueueChange(callback: () => void): () => void {

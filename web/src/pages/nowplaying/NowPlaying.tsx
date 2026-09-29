@@ -51,7 +51,7 @@ import PlayerControls from "@/components/player/PlayerControls";
 import ProgressBar from "@/components/player/ProgressBar";
 import { formatDuration } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import type { Track } from "@/types/track.types";
+import type { Track } from "@/types";
 
 type Tab = "queue" | "lyric" | "creator";
 

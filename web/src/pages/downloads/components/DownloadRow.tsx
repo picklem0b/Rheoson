@@ -9,7 +9,7 @@ import {
   truncate,
 } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { DownloadJob, DownloadStatus } from '@/types/download.types'
+import type { DownloadJob, DownloadStatus } from '@/types'
 
 const STATUS_CONFIG: Record<DownloadStatus, { label: string; color: string; icon: React.ReactNode }> = {
   queued:      { label: 'Queued',      color: 'surface', icon: <DownloadSimple    className="w-3.5 h-3.5" /> },

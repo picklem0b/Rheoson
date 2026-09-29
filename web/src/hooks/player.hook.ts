@@ -37,7 +37,7 @@ function _extOf(path?: string): string | undefined {
 import { API_BASE } from '@/lib/constants';
 import { recommendationsApi } from '@/api/recommendations.api';
 import { signalPlayComplete, signalRepeat, signalSkip } from '@/lib/signals';
-import type { Track } from '@/types/track.types';
+import type { Track } from '@/types';
 
 // ── Singleton Howl ────────────────────────────────────────────
 // One instance shared across every component that calls usePlayer().

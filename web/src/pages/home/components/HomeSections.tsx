@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Play } from '@phosphor-icons/react'
 import { formatDuration } from '@/lib/formatters'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 // ── QuickPicks ────────────────────────────────────────────────
 // Recently played tracks shown as a 2-column grid of pill rows

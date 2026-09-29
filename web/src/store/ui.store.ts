@@ -24,8 +24,6 @@ interface UIStore {
   // Panels
   showQueue:      boolean
   showLyrics:     boolean
-  showFullscreen: boolean
-  showDownloads:  boolean
   showEqualizer:  boolean
 
   // Sidebar (desktop)
@@ -34,7 +32,7 @@ interface UIStore {
   // Modals
   downloadModalTrackId: string | null
   /** Track object when the caller already has one — lets the download modal skip a refetch that can 404 for non-library tracks. */
-  downloadModalTrack: import('@/types/track.types').Track | null
+  downloadModalTrack: import('@/types').Track | null
 
   // Layout preferences (settings-driven)
   navStyle:    NavStyle
@@ -50,11 +48,9 @@ interface UIStore {
   // Actions — panels
   toggleQueue:        () => void
   toggleLyrics:       () => void
-  toggleFullscreen:   () => void
-  toggleDownloads:    () => void
   toggleEqualizer:    () => void
   toggleSidebar:      () => void
-  openDownloadModal:  (trackId: string, track?: import('@/types/track.types').Track) => void
+  openDownloadModal:  (trackId: string, track?: import('@/types').Track) => void
   closeDownloadModal: () => void
   closeAll:           () => void
 
@@ -78,8 +74,6 @@ export const useUIStore = create<UIStore>()(
       return {
       showQueue:            false,
       showLyrics:           false,
-      showFullscreen:       false,
-      showDownloads:        false,
       showEqualizer:        false,
       sidebarCollapsed:     false,
       downloadModalTrackId: null,
@@ -94,8 +88,6 @@ export const useUIStore = create<UIStore>()(
       toggleQueue:      () => set((s) => ({ showQueue:   !s.showQueue,   showLyrics: false, showEqualizer: false })),
       toggleLyrics:     () => set((s) => ({ showLyrics:  !s.showLyrics,  showQueue:  false, showEqualizer: false })),
       toggleEqualizer:  () => set((s) => ({ showEqualizer: !s.showEqualizer, showQueue: false, showLyrics: false })),
-      toggleFullscreen: () => set((s) => ({ showFullscreen: !s.showFullscreen })),
-      toggleDownloads:  () => set((s) => ({ showDownloads:  !s.showDownloads  })),
       toggleSidebar:    () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
       openDownloadModal:  (trackId, track?) =>
@@ -106,8 +98,6 @@ export const useUIStore = create<UIStore>()(
       closeAll: () => set({
         showQueue:            false,
         showLyrics:           false,
-        showFullscreen:       false,
-        showDownloads:        false,
         showEqualizer:        false,
         downloadModalTrackId: null,
         downloadModalTrack: null,
