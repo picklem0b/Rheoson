@@ -8,7 +8,7 @@ import { HeroBackdrop } from '@/components/New-Components/hero-picture/backgroun
 import { TooltipButton } from '@/components/New-Components/Icons-and-Buttons/tooltip-button'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 /** 1.2M / 340K / 912 — compact enough for a badge. */
 function formatPlays(count: number): string {

@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 // ── Track row ─────────────────────────────────────────────────
 

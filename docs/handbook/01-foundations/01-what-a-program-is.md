@@ -60,7 +60,7 @@ Two path styles matter:
 - An **absolute path** starts at the filesystem root: `/home/lethabo/Rheoson/api/app/main.py`. It means the same thing regardless of where a command runs from.
 - A **relative path** starts from the current working directory: from inside `api/`, the same file is `app/main.py`.
 
-A leading `..` means "the parent directory," so from `api/app/` the repository root is `../..`. The project root is the directory containing `.git`, `CLAUDE.md`, and the two program folders — every path in this handbook is relative to it unless marked otherwise.
+A leading `..` means "the parent directory," so from `api/app/` the repository root is `../..`. The project root is the directory containing `.git`, `AGENTS.md`, and the two program folders — every path in this handbook is relative to it unless marked otherwise.
 
 Rheoson leans on paths so heavily that several are configuration. `MUSIC_DIR` — where downloads land and the library scans — defaults to a Termux path on Android and `/tmp/Rheoson/music` on Render. Chapter 3 explains how a file outside the code sets that value.
 

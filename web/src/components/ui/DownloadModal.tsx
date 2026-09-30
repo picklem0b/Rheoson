@@ -1,3 +1,4 @@
+import type { Track, AudioFormat, AudioQuality } from '@/types';
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
@@ -7,14 +8,12 @@ import { Button } from './Button'
 import { Skeleton } from './Skeleton'
 import { ArtworkImage } from './ArtworkImage'
 import { normalizeTrack } from '@/lib/normalize'
-import type { Track } from '@/types'
 import { useToast } from './Toaster'
 import { useDownloads } from '@/hooks/downloads.hook'
 import { tracksApi } from '@/api/tracks.api'
 import { useUIStore } from '@/store/ui.store'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/formatters'
-import type { AudioFormat, AudioQuality } from '@/types'
 
 // ── Options ────────────────────────────────────────────────────
 

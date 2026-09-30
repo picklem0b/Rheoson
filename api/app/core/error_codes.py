@@ -77,21 +77,10 @@ PLAYLIST = _Section(
     "P",
     {
         "NOT_FOUND": "PNF01",
-        "TRACK_NOT_IN_PLAYLIST": "PNF02",
-        "ALREADY_EXISTS": "PCN01",
-        "TRACK_DUPLICATE": "PCN02",
-        "SMART_READONLY": "PCF01",
-        "NAME_REQUIRED": "PVA01",
-        "NAME_TOO_LONG": "PVA02",
         "INVALID_TRACK_LIST": "PVA03",
-        "INVALID_ID": "PVA04",
         "URL_REQUIRED": "PVA05",
-        "NAME_REQUIRED_IMPORT": "PVA06",
         "REORDER_MISMATCH": "PVA07",
-        "SMART_RULE_INVALID": "PVA08",
         "TRACK_ID_REQUIRED": "PVA09",
-        "IMPORT_FAILED": "PEX01",
-        "EXPORT_EMPTY": "PEX02",
         "NO_PLAYABLE_TRACKS": "PUP01",
     },
 )
@@ -101,11 +90,7 @@ TRACK = _Section(
     "T",
     {
         "NOT_FOUND": "TNF01",
-        "HISTORY_EMPTY": "TNF02",
-        "INVALID_ID": "TVA01",
         "SIGNAL_UNKNOWN": "TVA02",
-        "LIKE_FAILED": "TEX01",
-        "PLAY_FAILED": "TEX02",
     },
 )
 
@@ -119,20 +104,10 @@ DOWNLOAD = _Section(
         "TARGET_REQUIRED": "DVA03",
         "INVALID_TRACK_ID": "DVA04",
         "INVALID_JOB_ID": "DVA05",
-        "INVALID_QUALITY": "DVA06",
-        "INVALID_FORMAT": "DVA07",
-        "INVALID_SPEED": "DVA08",
-        "INVALID_CONCURRENCY": "DVA09",
         "INVALID_TRACK_LIST": "DVA10",
-        "JOB_ALREADY_RUNNING": "DCN01",
-        "DIR_REGISTERED": "DCN02",
         "LIMIT_REACHED": "DLM01",
         "DIR_REQUIRED": "DFS01",
         "PATH_OUTSIDE": "DFS02",
-        "DIR_UNREADABLE": "DFS03",
-        "SPAWN_FAILED": "DEN01",
-        "ENGINE_MISSING": "DEN02",
-        "CONVERSION_UNAVAILABLE": "DEN03",
         "FAILED": "DEX01",  # the transfer itself failed
     },
 )
@@ -152,7 +127,6 @@ STREAM = _Section(
         "NOT_AVAILABLE": "SUP01",
         "UPSTREAM_REFUSED": "SUP02",
         "FAILURE_CACHED": "SUP03",
-        "ARTWORK_FAILED": "SUP04",
     },
 )
 
@@ -160,13 +134,9 @@ SEARCH = _Section(
     "SEARCH",
     "R",
     {
-        "LYRICS_NOT_FOUND": "RNF01",
         "CATEGORY_UNKNOWN": "RNF02",
         "TARGET_REQUIRED": "RVA01",
-        "UNSUPPORTED_URL": "RVA02",
-        "LYRICS_INVALID": "RVA03",
         "QUERY_EMPTY": "RVA04",
-        "RESOLVE_FAILED": "RUP01",
     },
 )
 
@@ -175,14 +145,8 @@ LIBRARY = _Section(
     "L",
     {
         "DIR_NOT_FOUND": "LNF01",
-        "ARTIST_NOT_FOUND": "LNF02",
-        "ALBUM_NOT_FOUND": "LNF03",
-        "ALBUM_FOR_TRACK_NOT_FOUND": "LNF04",
         "SCAN_INVALID": "LVA01",
         "BACKUP_FILE_INVALID": "LVA02",
-        "SCAN_RUNNING": "LCN01",
-        "BACKUP_EXPORT_FAILED": "LEX01",
-        "BACKUP_RESTORE_FAILED": "LEX02",
         "DIRS_PERSIST_FAILED": "LEX03",
         "DB_UNAVAILABLE": "LEN01",
     },
@@ -193,13 +157,6 @@ SETTINGS = _Section(
     "E",
     {  # sE = settings & preferences
         "PRESET_NOT_FOUND": "ENF01",
-        "UNKNOWN_KEY": "EVA01",
-        "VALUE_OUT_OF_RANGE": "EVA02",
-        "PRESET_INVALID": "EVA03",
-        "PRESET_NAME_REQUIRED": "EVA04",
-        "EQ_BANDS_INVALID": "EVA05",
-        "VISITOR_PAYLOAD_INVALID": "EVA06",
-        "PREFS_INVALID": "EVA07",
         "PREFS_DB_UNAVAILABLE": "EEN01",
     },
 )
@@ -212,8 +169,6 @@ WEBHOOK = _Section(
         "HEADERS_MISSING": "WVA01",
         "TIMESTAMP_EXPIRED": "WVA02",
         "PAYLOAD_INVALID": "WVA03",
-        "USER_ID_MISSING": "WVA04",
-        "EVENT_UNSUPPORTED": "WVA05",
         "SIGNATURE_INVALID": "WCF01",
     },
 )
@@ -225,7 +180,6 @@ ARTIST = _Section(
         "INVALID_ID": "FVA01",
         "ONBOARD_LIST_REQUIRED": "FVA02",
         "ONBOARD_NAME_REQUIRED": "FVA03",
-        "FOLLOW_FAILED": "FEX01",
     },
 )
 
@@ -233,8 +187,6 @@ MESSAGING = _Section(
     "MESSAGING",
     "M",
     {
-        "CHAT_NOT_FOUND": "MNF01",
-        "PEER_NOT_FOUND": "MNF02",
         "MESSAGE_EMPTY": "MVA01",
         "MESSAGE_TOO_LONG": "MVA02",
         "SHARE_INVALID": "MVA03",
@@ -258,7 +210,6 @@ BLENDS = _Section(
         "MEMBERS_INVALID": "BVA05",
         "ALREADY_MEMBER": "BCN01",
         "ALREADY_TRACK": "BCN02",
-        "NAME_CONFLICT": "BCN03",
         "DELETE_FORBIDDEN": "BCF01",
         "TRACK_REMOVED": "BCF02",
         "ADD_FAILED": "BEX01",
@@ -267,13 +218,6 @@ BLENDS = _Section(
     },
 )
 
-PLAYBACK = _Section(
-    "PLAYBACK",
-    "Y",
-    {  # plaYback: equalizer family
-        "EQ_UNSUPPORTED": "YEN01",
-    },
-)
 
 #: code → human message. Written to be shown; a router may append dynamic
 #: values via ``fail(..., append=f": {value}")`` without touching the code.
@@ -284,29 +228,14 @@ _REGISTRY: dict[str, str] = {
     "ACF01": "You don't have access to this",
     # ── Playlists ─────────────────────────────────────────────
     "PNF01": "Playlist not found",
-    "PNF02": "Track not found in playlist",
-    "PCN01": "Playlist already exists",
-    "PCN02": "Track is already in this playlist",
-    "PCF01": "Cannot modify a smart playlist here",
-    "PVA01": "Playlist name is required",
-    "PVA02": "Playlist name is too long",
     "PVA03": "Invalid track list",
-    "PVA04": "Invalid playlist id",
     "PVA05": "A URL is required",
-    "PVA06": "A playlist is required",
     "PVA07": "Reorder list must match the playlist's tracks",
-    "PVA08": "Smart playlist rule is invalid",
     "PVA09": "A track id is required",
-    "PEX01": "Import failed — the file could not be read",
-    "PEX02": "Export failed — playlist is empty",
     "PUP01": "No playable tracks found at that URL",
     # ── Tracks / likes / history ──────────────────────────────
     "TNF01": "Track not found",
-    "TNF02": "History is empty",
-    "TVA01": "Invalid track id",
     "TVA02": "Unknown listening signal",
-    "TEX01": "Could not update the like",
-    "TEX02": "Could not record the play",
     # ── Downloads ─────────────────────────────────────────────
     "DNF01": "Download job not found",
     "DVA01": "Invalid URL format",
@@ -314,20 +243,10 @@ _REGISTRY: dict[str, str] = {
     "DVA03": "Track id or URL is required",
     "DVA04": "Invalid track id",
     "DVA05": "Invalid job id",
-    "DVA06": "Invalid quality",
-    "DVA07": "Invalid format",
-    "DVA08": "Invalid speed limit",
-    "DVA09": "Invalid concurrency",
     "DVA10": "No tracks were given",
-    "DCN01": "That download is already running",
-    "DCN02": "Directory already registered",
     "DLM01": "Download limit reached — try again shortly",
     "DFS01": "A music directory is required",
     "DFS02": "Path is outside the configured music directories",
-    "DFS03": "Could not read the directory",
-    "DEN01": "The download could not start on this server",
-    "DEN02": "The download engine is not installed on this server",
-    "DEN03": "Audio conversion is unavailable on this server",
     "DEX01": "Download failed",
     # ── Streaming ─────────────────────────────────────────────
     "SNF01": "Track not found locally and the id is not a valid remote track",
@@ -341,53 +260,30 @@ _REGISTRY: dict[str, str] = {
     "SUP01": "Track not available",
     "SUP02": "Could not stream this track. YouTube may be rate-limiting",
     "SUP03": "Track temporarily unavailable (recent failure cached)",
-    "SUP04": "Could not fetch the artwork",
     # ── Search / resolve ──────────────────────────────────────
-    "RNF01": "No lyrics found for this track",
     "RNF02": "Unknown trending category",
     "RVA01": "Track id or URL is required",
-    "RVA02": "Unsupported or unresolvable URL",
-    "RVA03": "Invalid lyrics request",
     "RVA04": "The search query cannot be empty",
-    "RUP01": "Could not look up this track right now",
     # ── Library / dirs / backups ──────────────────────────────
     "LNF01": "Directory not found",
-    "LNF02": "Artist not found",
-    "LNF03": "Album not found",
-    "LNF04": "Album not found for this track",
     "LVA01": "Invalid scan options",
     "LVA02": "Backup file is invalid",
-    "LCN01": "Scan is already running",
-    "LEX01": "Backup export failed",
-    "LEX02": "Backup restore failed",
     "LEX03": "Could not persist the music directories",
     "LEN01": "Database not available",
     # ── Settings / preferences ────────────────────────────────
     "ENF01": "Preset not found",
-    "EVA01": "Unknown setting",
-    "EVA02": "Value out of range for this setting",
-    "EVA03": "Invalid preset",
-    "EVA04": "Preset name is required",
-    "EVA05": "Invalid equalizer bands",
-    "EVA06": "Invalid visitor counter payload",
-    "EVA07": "Invalid preferences payload",
     "EEN01": "Preference sync needs the database. Your settings still work",
     # ── Webhooks ──────────────────────────────────────────────
     "WEN01": "Webhook secret not configured",
     "WVA01": "Missing webhook headers",
     "WVA02": "Webhook timestamp expired",
     "WVA03": "Invalid webhook payload",
-    "WVA04": "Webhook user is missing an id",
-    "WVA05": "Webhook event type is not supported",
     "WCF01": "Invalid webhook signature",
     # ── Artists / follows ─────────────────────────────────────
     "FVA01": "Invalid artist id",
     "FVA02": "Provide a list of artist names",
     "FVA03": "Provide at least one artist name",
-    "FEX01": "Artist follow could not be saved",
     # ── Messaging ─────────────────────────────────────────────
-    "MNF01": "Conversation not found",
-    "MNF02": "That user isn't on Rheoson yet",
     "MVA01": "Message can't be empty",
     "MVA02": "Message is too long",
     "MVA03": "Invalid share",
@@ -405,14 +301,12 @@ _REGISTRY: dict[str, str] = {
     "BVA05": "Invalid member list",
     "BCN01": "Already a member of this blend",
     "BCN02": "Track is already in this blend",
-    "BCN03": "You already have a blend with that name",
     "BCF01": "Only the owner can delete a blend",
     "BCF02": "This track is not in the blend",
     "BEX01": "Could not add the track to the blend",
     "BEX02": "Could not remove the track from the blend",
     "BEN01": "Blends need the database",
     # ── Playback / equalizer ──────────────────────────────────
-    "YEN01": "Equalizer is not supported on this device",
 }
 
 

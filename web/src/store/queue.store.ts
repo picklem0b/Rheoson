@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 import { shuffle as shuffleArray } from '@/lib/utils'
 
 // ── Store ─────────────────────────────────────────────────────

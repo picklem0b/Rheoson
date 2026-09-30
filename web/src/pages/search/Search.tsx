@@ -1,3 +1,4 @@
+import type { SearchFilter, Track } from '@/types';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,8 +23,6 @@ import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { formatDuration, truncate } from "@/lib/formatters";
 import { detectInputType, cn } from "@/lib/utils";
 import { normalizeTrack } from "@/lib/normalize";
-import type { SearchFilter } from "@/types/search.types";
-import type { Track } from "@/types";
 
 const FILTERS: { id: SearchFilter; label: string }[] = [
    { id: "all", label: "All" },

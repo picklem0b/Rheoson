@@ -1,7 +1,6 @@
+import type { Track, RepeatMode } from '@/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Track } from '@/types/track.types';
-import type { RepeatMode } from '@/types/player.types';
 import { prefetchStream } from '@/lib/prefetch';
 
 interface PlayerStore {

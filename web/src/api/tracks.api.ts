@@ -4,7 +4,7 @@ import { tracksStore, likedStore, historyStore } from '@/lib/localDb'
 import { scanLocalMusic } from '@/lib/localFs'
 import { isOnline } from '@/lib/network'
 import { normalizeTrack, normalizeTracks } from '@/lib/normalize'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 /**
  * Tracks API — offline-first with automatic backend sync.

@@ -13,7 +13,7 @@ import { TrackRowSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toaster'
 import { truncate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 /**
  * Add-songs sheet — opened from a playlist page.

@@ -25,7 +25,7 @@ import { usePlaylistMenuStore } from "@/store/playlistMenu.store";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { formatDuration, formatTotalDuration, truncate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import type { Track } from "@/types/track.types";
+import type { Track } from "@/types";
 
 export default function Playlist() {
    const { id } = useParams<{ id: string }>();

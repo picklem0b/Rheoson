@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────
 

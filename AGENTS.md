@@ -1,6 +1,7 @@
-# CLAUDE.md — Rheoson Codebase Context
+# AGENTS.md — Rheoson Codebase Context
 
-> Version: 2.19.14 · Long-form docs: [docs/README.md](docs/README.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
+> **For coding agents:** you are here. This file is the authoritative map of the codebase — read it before changing anything, and keep it accurate when you change what it describes.
+> Version: 2.23.3 · Long-form docs: [docs/README.md](docs/README.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Release process: [GIT_WORKFLOW.md](GIT_WORKFLOW.md)
 
 Rheoson is a self-hosted music streaming + download app (Termux/Android APK first, Render cloud second). FastAPI + Socket.IO backend, React 18 + Vite + Capacitor frontend, MongoDB (Motor) for accounts/recommendations/analytics, JSON/SQLite sidecars for library state.
 

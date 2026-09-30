@@ -91,8 +91,9 @@ export function useKeyboardShortcuts() {
         }
 
         case 'KeyF': {
-          const { toggleFullscreen } = useUIStore.getState()
-          toggleFullscreen()
+          // Full-screen player — the route that already exists, not a store
+          // flag; ShortcutsModal advertises this exact behaviour.
+          window.location.assign('/full-player')
           break
         }
       }

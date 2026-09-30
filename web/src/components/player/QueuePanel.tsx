@@ -14,7 +14,7 @@ import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
 import { searchApi } from '@/api/search.api'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/formatters'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 export default function QueuePanel() {
   const showQueue = useUIStore((s) => s.showQueue)

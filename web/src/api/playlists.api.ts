@@ -1,9 +1,8 @@
+import type { Playlist, Track } from '@/types';
 import { api } from './client.api'
 import { playlistsStore } from '@/lib/localDb'
 import { isOnline } from '@/lib/network'
 import { normalizePlaylist, normalizePlaylists, normalizeTracks } from '@/lib/normalize'
-import type { Playlist } from '@/types/playlist.types'
-import type { Track } from '@/types/track.types'
 
 /**
  * Playlists API — offline-first with automatic backend sync.

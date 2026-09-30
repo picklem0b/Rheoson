@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 import { useContextMenuStore } from '@/store/contextMenu.store'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 /**
  * Attaches context-menu behaviour to any track row:

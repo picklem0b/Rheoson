@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { useQueueStore } from '@/store/queue.store'
 import { usePlayerStore } from '@/store/player.store'
 import { signalQueueAdd } from '@/lib/signals'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 // Maps the current route to the "Playing from …" label the full-player
 // header shows. One place, because every play action funnels through

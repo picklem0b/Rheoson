@@ -24,7 +24,7 @@ import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { useToast } from '@/components/ui/Toaster'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { splitErrorCode } from '@/api/client.api'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 /**
  * Batch profile lookup for member lists.

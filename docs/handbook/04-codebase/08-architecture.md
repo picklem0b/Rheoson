@@ -35,7 +35,7 @@ Two programs, three channels between them: request/response over HTTP for everyt
 
 | Path | Owns |
 |---|---|
-| `CLAUDE.md` | the codebase's own map, versioned with the code — the fastest orientation read |
+| `AGENTS.md` | the codebase's own map, versioned with the code — the fastest orientation read |
 | `ARCHITECTURE.md` / `docs/` | long-form documentation, including this handbook |
 | `GIT_WORKFLOW.md` | branches, tags, releases — the process contract |
 | `docker-compose*.yml`, `render.yaml`, `Caddyfile`, `nginx/` | the three deployment shapes (dev, prod, VPS) — Chapter 18 |
@@ -122,7 +122,7 @@ Three mechanisms span layers and deserve naming before the deep dives:
 
 **The WebSocket singleton** (`web/src/lib/websocket.lib.ts`) — one connection for the whole app, lazily connected and reference-counted so it disconnects when the last consumer unmounts; a registry deduplicates handlers across re-renders. Any code needing server push goes through it rather than opening sockets, and the history of the "duplicate handler" bug class is why the registry exists.
 
-**The dependency graph's hubs.** A handful of nodes dominate: `cn()` (used by every component), `formatDuration` (every track row), `playerStore` (all playback), the API client (all data). Blast radius follows: a change to a hub is a change everywhere, so hubs earn their stability with tests and conservative APIs. The project's "critical files" list in `CLAUDE.md` is exactly this graph made explicit.
+**The dependency graph's hubs.** A handful of nodes dominate: `cn()` (used by every component), `formatDuration` (every track row), `playerStore` (all playback), the API client (all data). Blast radius follows: a change to a hub is a change everywhere, so hubs earn their stability with tests and conservative APIs. The project's "critical files" list in `AGENTS.md` is exactly this graph made explicit.
 
 ## 8.6 Tests and configuration
 

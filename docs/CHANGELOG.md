@@ -280,7 +280,7 @@ Redesign phase 7/7 — motion governance and the status-token close-out.
 - fix(tokens): the base `--danger`/`--success`/`--warning` variables were missing (only the `-rgb`/`-text`/`-bg` variants existed); the base tokens now back every status reference.
 - feat(tokens): a `--warning` pair joins the status family in both themes with AA-contrast text colors.
 - fix(ui): Button's danger variant, Badge's success/warning variants, Toast icons, and ErrorDisplay all read tokens instead of hard-coded Tailwind palette colors.
-- chore(docs): CLAUDE.md documents the two-shell layout system and the status-token rule.
+- chore(docs): AGENTS.md documents the two-shell layout system and the status-token rule.
 
 ## v2.18.6
 

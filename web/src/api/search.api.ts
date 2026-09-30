@@ -1,7 +1,6 @@
+import type { SearchResults, SearchFilter, Track } from '@/types';
 import { api } from "./client.api";
 import { normalizeSearchResults, normalizeTracks } from "@/lib/normalize";
-import type { SearchResults, SearchFilter } from "@/types/search.types";
-import type { Track } from "@/types/track.types";
 
 // ── Resolve response ──────────────────────────────────────────
 // The /search/resolve endpoint returns different shapes depending on what

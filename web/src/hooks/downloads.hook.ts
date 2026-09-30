@@ -1,3 +1,4 @@
+import type { DownloadJob, DownloadOptions, AudioFormat, AudioQuality, Track, FileNaming } from '@/types';
 import { useEffect, useCallback, useRef } from 'react'
 import {
   useDownloadStore,
@@ -6,8 +7,6 @@ import {
 } from '@/store/download.store'
 import { downloadsApi } from '@/api/downloads.api'
 import { ws } from '@/lib/websocket.lib'
-import type { DownloadJob, DownloadOptions, AudioFormat, AudioQuality } from '@/types/download.types'
-import type { Track } from '@/types/track.types'
 import { uid } from '@/lib/utils'
 import { DOWNLOAD_DEFAULTS } from '@/lib/constants'
 import { playChime, downloadChimeEnabled } from '@/lib/sounds'
@@ -15,7 +14,6 @@ import { downloadForeground } from '@/lib/downloadForeground'
 import { signalDownload } from '@/lib/signals'
 import { useToast } from '@/components/ui/Toaster'
 import { splitErrorCode } from '@/api/client.api'
-import type { FileNaming } from '@/types'
 
 // Notification chime — louder than the generic success toast so it's
 // noticeable, gated by Settings → Notifications → "Sound effects" and

@@ -4,7 +4,7 @@ import { useQueueStore } from '@/store/queue.store'
 import { useWebSocket } from '@/lib/websocket.lib'
 import { usePlayer } from '@/hooks/player.hook'
 import { tracksApi } from '@/api/tracks.api'
-import type { Track } from '@/types/track.types'
+import type { Track } from '@/types'
 
 /**
  * Cross-device playback sync.
