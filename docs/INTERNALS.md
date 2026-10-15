@@ -175,6 +175,14 @@ Rheoson/
 ├── render.yaml                 Render deployment config (both services)
 ├── .gitignore
 │
+├── cli/                        ← Terminal CLI (repo-root package)
+│   ├── main.py                 Command dispatch + interactive shell
+│   ├── download.py             Drives the shared download_service
+│   ├── csvimport.py            Exportify CSV → playlist import
+│   ├── playlist.py             Playlist folders, .m3u + manifest
+│   └── ...
+├── rheoson                     Launcher (runs cli/ on the api's venv)
+│
 ├── docs/
 │   ├── PRIVACY.md              Full privacy policy
 │   ├── TERMS.md                Terms of service
@@ -187,7 +195,6 @@ Rheoson/
 │   ├── .env.example            Template for environment setup
 │   └── app/
 │       ├── main.py             FastAPI app, Socket.IO mount, middleware
-│       ├── cli.py              Terminal CLI (Rheoson command)
 │       ├── core/
 │       │   ├── config.py       Settings from environment variables
 │       │   ├── exceptions.py   Custom exception types
@@ -603,18 +610,20 @@ Frontend:
   npm run dev
   # Opens at http://localhost:3000
 
-CLI:
-  # After pip install -e ., the 'Rheoson' command is available:
-  Rheoson              # interactive REPL
-  Rheoson health       # check API status
-  Rheoson search "kendrick lamar"
-  Rheoson dl "not like us"
-  Rheoson dl "https://open.spotify.com/track/..."
-  Rheoson dl "https://youtu.be/abc123" --format=flac --quality=best
-  Rheoson dls          # list all download jobs
-  Rheoson status <id>  # check job status
-  Rheoson lyrics <id>  # fetch lyrics
-  Rheoson lib          # browse local library
+CLI (repo root; uses the api's uv environment):
+  ./rheoson                 # interactive REPL
+  ./rheoson setup           # install/verify ffmpeg + yt-dlp
+  ./rheoson health          # local readiness (--api pings the server)
+  ./rheoson search "kendrick lamar"
+  ./rheoson dl "not like us"
+  ./rheoson dl "https://open.spotify.com/track/..."
+  ./rheoson playlist <url>  # → downloads/<Playlist Name>/ (+ .m3u, playlist.json)
+  ./rheoson csv Heavenly_songs.csv   # Exportify CSV → playlist
+  ./rheoson lyrics <id> --save      # write a .lrc beside the file
+  ./rheoson rename "old title" "new title"
+  ./rheoson dls             # list CLI download jobs
+  ./rheoson status <id>     # check job status
+  ./rheoson lib             # browse local library
 
 
 ────────────────────────────────────────────────────────────────────────────────

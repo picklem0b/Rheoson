@@ -86,7 +86,7 @@ cd web && npm install && npm run dev     # serves on :3000, proxies /api
 
 The APK talks to the phone's local backend directly: `CapacitorHttp` bypasses WebView CORS, and dev builds can target the Vite dev server via `RHEOSON_DEV_URL=http://<lan-ip>:3000 npx cap run android`.
 
-`api/app/cli.py` provides a `rheoson` entry point (`rheoson run`, doctor/scan helpers) for the same environment.
+The repo-root `./rheoson` launcher runs the `cli/` package on the api's own uv environment (search, download, playlist/CSV import, lyrics, rename) — no server process required.
 
 ---
 

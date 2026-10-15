@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Rheoson CLI launcher.
+#
+# Runs the repo-root cli/ package on the api's own uv environment so the CLI
+# and the server share one set of dependencies (httpx, yt-dlp, ytmusicapi,
+# syncedlyrics, mutagen). Nothing is installed here; if the venv is missing,
+# the launcher says how to create it.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PY="$ROOT/api/.venv/bin/python"
+
+if [ -x "$VENV_PY" ]; then
+  PY="$VENV_PY"
+else
+  echo "rheoson: the api environment is missing." >&2
+  echo "         run:  cd \"$ROOT/api\" && uv sync" >&2
+  exit 1
+fi
+
+# Put the venv's bin first so app.core.toolchain resolves the yt-dlp that uv
+# installed, plus ffmpeg from the system PATH.
+export PATH="$ROOT/api/.venv/bin:$PATH"
+export PYTHONPATH="$ROOT:$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
+
+exec "$PY" -m cli "$@"

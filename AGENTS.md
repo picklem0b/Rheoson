@@ -39,6 +39,12 @@ Rheoson is a self-hosted music streaming + download app (Termux/Android APK firs
   - `smart_search.py` — natural-language intent → "answers" over current playback/library context.
 - `app/routers/` — thin handlers; `auth_router.py` also exposes `GET/PUT /auth/me/preferences` (+ `/defaults`), `artist_router.py` the follow endpoints.
 
+## CLI (repo root)
+
+- `cli/` plus the `./rheoson` launcher are the terminal front end. It runs on the api's uv environment (`api/.venv`) and imports `app.services` **directly** — standalone, no uvicorn needed — via `cli/bootstrap.py`, which puts `api/` on `sys.path` and loads `api/.env` before any `app.*` import. Reuse the api's deps; add no CLI-only ones.
+- Downloads/playlists/CSV import drive `download_service` (same ladder, tagging and `trackId → file` identity record as the server); `setup`/`tools` drive `app.core.toolchain`. Nothing re-implements the download pipeline.
+- A playlist becomes a folder: `DOWNLOADS_DIR/<Playlist Name>/` holding the audio, `.lrc` sidecars, a `<name>.m3u` and `playlist.json`. `DOWNLOADS_DIR` is in `all_music_dirs_configured` (the download custom-path allowlist) but deliberately NOT in `all_music_dirs` (the library scan).
+
 ## Frontend layout (web/src/)
 
 - **Two-shell layout** — `hooks/useDeviceClass.ts` classifies the device from pointer modality + viewport width (+ Capacitor native override, `display-mode: standalone`); `RootLayout` renders the desktop sidebar or the mobile bottom nav from it. The APK always renders the mobile shell, even on tablets. Design tokens live in `index.css` (primitive → semantic → component layers); status colors are semantic tokens (`--danger`, `--success`, `--warning` families) — never raw Tailwind palette colors.

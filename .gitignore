@@ -45,6 +45,9 @@ reference/
 notes.txt
 *.err
 api.logs
+# Exportify playlist exports are personal listening data (personal account id,
+# ISRCs, listening metadata) used as CLI import input — never shipped.
+*.csv
 
 # OS
 .DS_Store

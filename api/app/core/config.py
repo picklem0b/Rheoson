@@ -158,8 +158,16 @@ class Settings(BaseSettings):
 
     @property
     def all_music_dirs_configured(self) -> list[str]:
-        """All configured dirs regardless of whether they exist."""
-        return list(dict.fromkeys([self.MUSIC_DIR] + list(self.EXTRA_MUSIC_DIRS)))
+        """All configured dirs regardless of whether they exist.
+
+        This is the allowlist download ``customPath`` validation checks
+        against, so DOWNLOADS_DIR is included on purpose: playlist downloads
+        are staged into ``DOWNLOADS_DIR/<Playlist Name>/`` and must be a legal
+        target without widening what counts as a *scannable* music dir
+        (that is ``all_music_dirs``, which deliberately stays library-only).
+        """
+        dirs = [self.MUSIC_DIR, self.DOWNLOADS_DIR] + list(self.EXTRA_MUSIC_DIRS)
+        return list(dict.fromkeys(dirs))
 
 
 settings = Settings()

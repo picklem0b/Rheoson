@@ -44,9 +44,6 @@ dev = [
     "mypy==1.10.0",
 ]
 
-[project.scripts]
-rheoson = "app.cli:main"
-
 # Flat-layout auto-discovery breaks once ANY other top-level directory that
 # looks like a package exists next to app/ (supabase/ — the SQL migrations —
 # tripped this on Render: "Multiple top-level packages discovered in a
