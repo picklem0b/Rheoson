@@ -1,0 +1,65 @@
+{
+	"expo": {
+		"name": "Rheoson",
+		"slug": "rheoson",
+		"scheme": "rheoson",
+		"version": "2.25.0",
+		"orientation": "portrait",
+		"userInterfaceStyle": "automatic",
+		"newArchEnabled": false,
+		"icon": "./assets/icon.png",
+		"assetBundlePatterns": ["**/*"],
+		"ios": {
+			"supportsTablet": true,
+			"bundleIdentifier": "com.lethabo.rheoson",
+			"infoPlist": {
+				"UIBackgroundModes": ["audio"]
+			}
+		},
+		"android": {
+			"package": "com.lethabo.rheoson",
+			"versionCode": 22500,
+			"permissions": [
+				"FOREGROUND_SERVICE",
+				"FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+				"WAKE_LOCK",
+				"POST_NOTIFICATIONS"
+			],
+			"adaptiveIcon": {
+				"foregroundImage": "./assets/adaptive-icon.png",
+				"backgroundColor": "#0B0B0B"
+			}
+		},
+		"plugins": [
+			"expo-router",
+			"expo-secure-store",
+			"expo-notifications",
+			[
+				"expo-build-properties",
+				{
+					"android": {
+						"usesCleartextTraffic": true,
+						"kotlinVersion": "1.9.24"
+					}
+				}
+			],
+			[
+				"./plugins/withAndroidBuildArchs",
+				{
+					"archs": ["arm64-v8a"]
+				}
+			]
+		],
+		"experiments": {
+			"typedRoutes": true
+		},
+		"extra": {
+			"router": {
+				"origin": false
+			},
+			"eas": {
+				"projectId": ""
+			}
+		}
+	}
+}

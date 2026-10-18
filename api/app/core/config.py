@@ -84,6 +84,18 @@ class Settings(BaseSettings):
     RATE_LIMIT_LYRICS:   int = 60   # /api/lyrics (external provider fetch)
     RATE_LIMIT_DIAGNOSTICS: int = 30  # /api/diagnostics (unauthenticated crash ingest)
 
+    # ── Guest sessions ─────────────────────────────────────────
+    # The phone app opens without an account (see services/guest_sessions.py).
+    # A guest is a server-generated identity of its own, scoped to its own
+    # sidecars exactly like an account; it can never act on an existing one.
+    # Set ALLOW_GUEST_ACCOUNTS=false on a shared deployment that wants sign-in
+    # to be mandatory.
+    ALLOW_GUEST_ACCOUNTS: bool = True
+    GUEST_TOKEN_TTL_DAYS: int = 365
+    # Falls back to CLERK_SECRET_KEY when unset, so a self-hosted install with
+    # auth configured keeps working without another secret to manage.
+    GUEST_TOKEN_SECRET: str = ""
+
     # ── Instance administration ────────────────────────────────
     # Clerk subs allowed to mutate instance-level configuration (music
     # directories, library rescan). Leave empty for single-admin dev setups.

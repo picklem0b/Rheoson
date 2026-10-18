@@ -69,6 +69,7 @@ AUTH = _Section(
         "NOT_SIGNED_IN": "ASE01",  # session: no credentials on a guarded route
         "INVALID_TOKEN": "ASE02",  # session: presented but invalid/expired
         "FORBIDDEN": "ACF01",  # access control: signed in, not allowed
+        "GUESTS_DISABLED": "ACF02",  # access control: instance refuses guests
     },
 )
 
@@ -320,6 +321,7 @@ _REGISTRY: dict[str, str] = {
     "BEN01": "Blends need the database",
     # ── Playback / equalizer ──────────────────────────────────
     # ── Crash reports / diagnostics ───────────────────────────
+    "ACF02": "This instance requires an account — guest sessions are turned off",
     "CVA01": "That crash report is not in a shape we can read",
     "CVA02": "That crash report is too large",
     "CLM01": "Too many crash reports — try again shortly",

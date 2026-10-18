@@ -59,6 +59,51 @@ class PreferencesRequest(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────
 
+class GuestSessionRequest(BaseModel):
+    """Optional device hint. Nothing here can select an existing identity."""
+
+    device: str | None = Field(None, max_length=64)
+
+
+@router.post("/guest")
+async def create_guest_session(body: GuestSessionRequest | None = None):
+    """Mint a device-linked guest session.
+
+    The phone app opens without a sign-in wall, and this is what lets it read
+    and write its own likes, history, playlists and follows without an
+    account. The identity is generated server-side (`guest_<uuid4>`) and the
+    token can only ever speak for it — there is no parameter that names an
+    existing user, so this cannot be turned into access to someone else's
+    data, and no Clerk session is involved at any point.
+
+    Rate-limited like the rest of `/api/auth`. Disabled by
+    `ALLOW_GUEST_ACCOUNTS=false`, and unavailable on an instance with no
+    secret to sign tokens with (an unsigned guest token would be forgeable).
+    """
+    from app.services import guest_sessions
+
+    if not guest_sessions.guests_enabled():
+        raise error_codes.fail(
+            error_codes.AUTH.GUESTS_DISABLED,
+            403,
+            append=" — this instance requires an account",
+        )
+
+    sub, token = guest_sessions.mint_guest_token()
+    log.info("auth.guest_session_minted", sub=sub, device=(body.device if body else None))
+    return {
+        "token": token,
+        "user": {
+            "id": sub,
+            "sub": sub,
+            "guest": True,
+            "username": "Guest",
+            "email": "",
+            "image_url": "",
+        },
+    }
+
+
 @router.post("/logout")
 async def logout(user: dict = Depends(get_current_user)):
     """Revoke the Clerk session so the JWT dies server-side, not just locally."""

@@ -1,67 +1,100 @@
-# Deep Dive — Mobile / Android
+# Mobile app — `apps/mobile`
 
-> Companion pages: [Frontend Internals](FRONTEND.md) (the WebView runs the same app), [Deployment](DEPLOYMENT.md#android-apk-builds) (build commands). Source: `web/capacitor.config.ts`, `web/android/`.
+The phone build is a **React Native app (Expo SDK 52, expo-router)**. Capacitor is gone: the old
+`apps/website/android` shell was a WebView around the web bundle, and it was replaced rather than
+patched, because the two behave differently in the places that matter on a phone — a native audio
+engine with a lock-screen notification, real offline storage, and lists that scroll at 60fps.
 
-## Model
+`apps/website` remains the browser build (same backend, same API contract).
 
-The Android app is a **Capacitor 8 shell** around the production web build:
+## Layout
 
 ```
-┌────────────────────────────────────┐
-│  Android APK                       │
-│  ┌──────────────────────────────┐  │
-│  │  WebView (bundled web/dist)  │  │
-│  │  React app + service worker  │  │
-│  └──────────────┬───────────────┘  │
-│                 │ CapacitorHttp /  │
-│                 │ native plugins   │
-│  Filesystem · Network · Splash ·   │
-│  StatusBar · KeepAwake · Haptics   │
-└────────────────────────────────────┘
+apps/
+  website/            React + Vite PWA (was web/)
+  mobile/             Expo app, built to APK with EAS
+    app/              routes (expo-router file routing)
+    src/api/          the API surface, one module per domain
+    src/components/   UI kit + feature components
+    src/hooks/        playback, downloads, likes, offline mirror
+    src/services/     session, audio engine, socket, crash reporting
+    src/store/        zustand: player, queue, settings
+packages/
+  api-types/          generated OpenAPI types, shared by both apps
+api/                  FastAPI backend (unchanged)
+cli/                  terminal client (unchanged)
 ```
 
-`NODE_ENV=production` at build time bakes `VITE_API_URL` into the JS bundle — the APK is self-contained and talks to your server directly. `CapacitorHttp` replaces `fetch` with a native client, bypassing WebView CORS entirely (what makes LAN/Termux backends work without proxy tricks).
+The workspace is pnpm (`pnpm-workspace.yaml`, `.npmrc` with `node-linker=hoisted` — Metro resolves
+through the physical `node_modules` tree, not pnpm's symlinks).
 
-## Environment separation
+## No sign-in wall: guest sessions
 
-| Build | API target | How |
-|-------|-----------|-----|
-| Dev server (`npm run dev`) | `/api` → Vite proxy → localhost:8000 | Dev only |
-| Dev WebView (`RHEOSON_DEV_URL=… cap run android`) | Vite dev server over LAN (cleartext allowed) | Dev only |
-| APK (`npm run build:apk`) | `VITE_API_URL` from `web/.env.production` | Baked in |
+The app opens into music. On first launch it asks the server for a **guest session**
+(`POST /api/auth/guest`), stores the token in the keychain, and uses it for every request.
 
-Remote debugging (`webContentsDebuggingEnabled`) is enabled for non-production builds and disabled in production builds. Mixed content is allowed deliberately (LAN HTTP backends over cleartext).
+A guest is a real account as far as storage is concerned:
 
-## Build pipeline
+* the server generates the id (`guest_<uuid4>`); nothing in the request can name an existing
+  identity, so a guest token can only ever reach its own likes, history, playlists and follows;
+* the token is an HS256 JWT signed with `GUEST_TOKEN_SECRET` (falling back to `CLERK_SECRET_KEY`),
+  issuer `rheoson:guest`, valid for a year;
+* `ALLOW_GUEST_ACCOUNTS=false` turns the whole mechanism off (`ACF02`), and an instance with no
+  signing secret refuses to mint anything rather than issue a forgeable token.
 
-Local: `npm run build:apk` (Vite build → `cap sync android` → `gradlew assembleDebug`) → `web/android/app/build/outputs/apk/debug/app-debug.apk`.
+Clerk is still how a *real* account signs in on the web. Linking a guest's library to an account is
+a migration problem (which side wins) and is deliberately not implemented yet.
 
-CI (`.github/workflows/build-apk.yml`), on every push to `main`: Node 24 + `npm ci` → Vite build with `NODE_ENV=production` → `cap sync android` → Java 21 (Temurin) + Android SDK 35 → `assembleDebug` → artifact upload (30-day retention). The JS inside is production-optimized even though the APK variant is debug (no keystore needed).
+## Building the APK
 
-Release signing: supply your own keystore and add `assembleRelease` + signing config under `web/android/app/` (planned as a first-class channel — see [status](STATUS.md)).
+```bash
+cd apps/mobile
+pnpm install
+pnpm build:apk:preview     # eas build --profile preview --platform android → APK
+```
 
-## On-device behavior
+`eas.json` defines `development`, `preview` (internal-distribution APK) and `production`
+(app-bundle). `app.json` carries `com.lethabo.rheoson`, `versionCode 22500`, and the Android
+permissions the player needs (`FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `WAKE_LOCK`, `POST_NOTIFICATIONS`).
 
-- **Storage** — downloads and the library mirror live in Capacitor Filesystem; IndexedDB holds state. Storage permissions are requested on first download.
-- **Network** — the Capacitor Network plugin drives the offline banner and the offline mutation queue; the app recovers automatically when connectivity returns.
-- **Media controls** — Media Session API gives lock-screen play/pause/next/previous and artwork; keyboard-shortcut hooks are inert on touch devices.
-- **Keep-awake** — optional screen wake lock during playback (Settings).
-- **Splash** — native splash held until the web app signals ready (`launchAutoHide: false`), eliminating the white/black flash on cold start.
+Local prebuild instead of EAS:
 
-## Known limitations
+```bash
+cd apps/mobile && npx expo prebuild --platform android
+cd android && ./gradlew assembleDebug
+```
 
-- **iOS is not configured** — the Capacitor project targets Android only.
-- **Release channel pending** — CI ships debug APKs; signed release builds are manual.
-- **Background playback** follows the WebView lifecycle: audio survives screen-off via the wake lock/media session, but long backgrounded sessions on aggressive OEM battery savers may be killed (a native foreground service is the eventual fix).
+`plugins/withAndroidBuildArchs.js` pins the packaged ABIs to `arm64-v8a`. React Native ships native
+libraries for four ABIs by default and the New Architecture is off (`react-native-track-player`
+needs the old one), so the plugin writes both `reactNativeArchitectures` and an explicit
+`ndk { abiFilters }` — the property alone is ignored without the New Architecture.
 
-## Testing the APK
+### Signing
 
-1. Install the artifact, open the app → landing page renders.
-2. Sign in (Clerk) → home populates.
-3. Search → play → confirm audio and lock-screen controls.
-4. Download a track → airplane mode → play the downloaded track (offline path).
-5. Rotate device / background / foreground → state persists, no splash loop.
+`credentials/rheoson-release.keystore` is the keystore the Capacitor era carried for release builds
+(it was never wired up, so no shipped APK is signed with it). EAS can manage credentials itself
+(`eas credentials`), or this key can be uploaded to keep a stable signing identity. Note that an
+APK signed by a *different* key cannot install over an existing install — uninstall once when
+moving from the Capacitor build.
 
----
+## What ships today
 
-*Last verified against `main`: 2026-09-10 (v2.16.5).*
+| Surface | State |
+| --- | --- |
+| Welcome screen (no splash, no sign-in) | done |
+| Guest session + token in keychain | done |
+| Home (recently played, recommendation shelves, weekly trending) | done |
+| Search (tracks/albums/artists/playlists + recent searches) | done |
+| Library, Downloads, Settings | in progress |
+| Full player (queue, seek, repeat, shuffle) | in progress |
+| Album / Artist / Playlist pages | in progress |
+| Offline mirror (likes, history, playlists, follows) | done (hook + storage) |
+| Crash reporting to `/api/diagnostics/crash` | done |
+| Downloads (create/cancel/retry + live progress over Socket.IO) | client done, screens in progress |
+| Messaging, blends, stats, wrapped | not started (account-only features) |
+
+## Verification status
+
+`apps/mobile` typechecks and bundles are the gate for every step; `pnpm typecheck` at the root runs
+both apps. The backend suite covers the new guest-session routes
+(`api/tests/test_guest_sessions.py`).

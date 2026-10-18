@@ -31,6 +31,10 @@ PUBLIC_MUTATING = {
     ("POST", "/api/webhooks/clerk"),
     ("POST", "/api/search/resolve"),
     ("POST", "/api/stream/{track_id}/warm"),
+    # Mints the identity itself, so it cannot require one. Rate-limited like
+    # the rest of /api/auth; the identity it creates is server-generated and
+    # can only ever act on its own data (services/guest_sessions.py).
+    ("POST", "/api/auth/guest"),
 }
 
 # GET routes whose handler performs real network/library work with dummy

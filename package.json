@@ -1,0 +1,19 @@
+{
+  "name": "rheoson",
+  "version": "2.25.0",
+  "private": true,
+  "description": "Self-hosted music streaming and downloading — FastAPI backend, web player, Android app.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @rheoson/website dev",
+    "dev:mobile": "pnpm --filter @rheoson/mobile start",
+    "build:web": "pnpm --filter @rheoson/website build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  }
+}
