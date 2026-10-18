@@ -37,6 +37,10 @@ export const qk = {
   recentlyPlayed: () => ['recently-played'] as const,
   recentlyPlayedFull: () => ['recently-played-full'] as const,
 
+  // ── Diagnostics ────────────────────────────────────────────
+  /** Server-side crash fingerprints (admin only). */
+  crashReports: () => ['crash-reports'] as const,
+
   // ── Discovery ──────────────────────────────────────────────
   recommendations: () => ['recommendations'] as const,
   tasteProfile: () => ['taste', 'profile'] as const,

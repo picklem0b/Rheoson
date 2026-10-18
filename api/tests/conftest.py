@@ -45,6 +45,7 @@ os.environ["RATE_LIMIT_DOWNLOAD"] = "99999"
 os.environ["RATE_LIMIT_AUTH"] = "99999"
 os.environ["RATE_LIMIT_STREAM"] = "99999"
 os.environ["RATE_LIMIT_LYRICS"] = "99999"
+os.environ["RATE_LIMIT_DIAGNOSTICS"] = "99999"
 
 
 # ── Mock database ──────────────────────────────────────────────
@@ -377,6 +378,7 @@ def _clean_state():
         ".following-*.json",
         ".playlists-*.json",
         ".track_map.sqlite",
+        ".crashes.json",
     ):
         for f in _glob.glob(os.path.join(music, pattern)):
             os.unlink(f)
@@ -427,6 +429,7 @@ def _clean_state():
         ".following-*.json",
         ".playlists-*.json",
         ".track_map.sqlite",
+        ".crashes.json",
     ):
         for f in _glob.glob(os.path.join(music, pattern)):
             os.unlink(f)

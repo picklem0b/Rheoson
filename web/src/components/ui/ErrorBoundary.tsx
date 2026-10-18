@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import ErrorPage from '@/pages/errors/ErrorPage'
+import { captureCrash } from '@/lib/crashReporter'
 
 interface Props {
   children: React.ReactNode
@@ -33,6 +34,9 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[Rheoson] ErrorBoundary caught:', error, info.componentStack)
+    // Render crashes are the ones a user actually sees — report them, with
+    // the component stack, so the failing component is identifiable.
+    captureCrash(error, 'render', undefined, info.componentStack ?? undefined)
   }
 
   handleReset = () => {

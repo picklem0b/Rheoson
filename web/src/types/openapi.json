@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Rheoson API",
-    "version": "2.23.1"
+    "version": "2.24.5"
   },
   "paths": {
     "/api/analytics/listening-by-day": {
@@ -1282,6 +1282,169 @@
             }
           }
         }
+      }
+    },
+    "/api/diagnostics/crash": {
+      "get": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "List Crashes",
+        "description": "Recent crash fingerprints, newest first (admin only).",
+        "operationId": "list_crashes_api_diagnostics_crash_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Report Crash",
+        "description": "Store one crash report.\n\nAnonymous on purpose (see the module docstring): the client may be broken\nso badly that it never got a session, and that is precisely the report\nthe maintainer wants.",
+        "operationId": "report_crash_api_diagnostics_crash_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Clear Crashes",
+        "description": "Drop every stored report (admin only).",
+        "operationId": "clear_crashes_api_diagnostics_crash_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/doctor/user-fix": {
+      "post": {
+        "tags": [
+          "doctor"
+        ],
+        "summary": "Doctor User Fix",
+        "description": "Repair one reported item, or sweep all of one kind when no path is given.",
+        "operationId": "doctor_user_fix_api_doctor_user_fix_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DoctorFixSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/doctor/user-scan": {
+      "get": {
+        "tags": [
+          "doctor"
+        ],
+        "summary": "Doctor User Scan",
+        "description": "Scan the caller's music directory for corrupt files, duplicates and empty folders.",
+        "operationId": "doctor_user_scan_api_doctor_user_scan_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/downloads": {

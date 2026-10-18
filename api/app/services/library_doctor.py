@@ -19,6 +19,7 @@ Doctor screen can re-open without rescanning a large library every time.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -329,3 +330,317 @@ def prune_empty_dirs() -> dict[str, Any]:
         except Exception:
             pass
     return {"deleted": deleted}
+
+
+# Per-user (device-local) scan support ─────────────────────────────────────────────
+
+_USER_CACHE: dict[str, Any] | None = None
+_USER_CACHE_KEY: str | None = None
+
+
+def invalidate_user_cache() -> None:
+    global _USER_CACHE, _USER_CACHE_KEY
+    _USER_CACHE = None
+    _USER_CACHE_KEY = None
+
+
+def _user_dir_key(user_sub: str, basedir: str) -> str:
+    return f"{user_sub}:{basedir}"
+
+
+def _user_cached(user_sub: str, basedir: str) -> dict[str, Any] | None:
+    if _USER_CACHE is not None and _USER_CACHE_KEY == _user_dir_key(user_sub, basedir):
+        return _USER_CACHE
+    return None
+
+
+def _user_cache_set(user_sub: str, basedir: str, value: dict[str, Any]) -> None:
+    global _USER_CACHE, _USER_CACHE_KEY
+    _USER_CACHE = value
+    _USER_CACHE_KEY = _user_dir_key(user_sub, basedir)
+
+
+def scan_user_library(user_sub: str, basedir: str | None = None) -> dict[str, Any]:
+    """Walk a user's local music directory and classify every audio file.
+
+    Unlike scan_library() which is instance-wide and admin-only, this scans
+    the per-user music dir (default: MUSIC_DIR) and is safe for any signed-in
+    user to call. Results are cached per (user, basedir) pair.
+    """
+    if basedir is None:
+        basedir = settings.MUSIC_DIR
+
+    basedir_path = Path(basedir)
+    if not basedir_path.is_dir():
+        return {
+            "scanned": 0,
+            "totalBytes": 0,
+            "corrupt": [],
+            "duplicates": [],
+            "emptyDirs": [],
+            "dirs": [basedir],
+            "scannedAt": _now_iso(),
+        }
+
+    cached = _user_cached(user_sub, basedir)
+    if cached is not None:
+        return cached
+
+    corrupt: list[dict[str, Any]] = []
+    duplicates: list[dict[str, Any]] = []
+    empty_dirs: list[str] = []
+    scanned = 0
+    total_bytes = 0
+
+    seen: dict[tuple[str, str], dict[str, Any]] = {}
+    base = basedir_path
+
+    MAX_SCAN_DEPTH = 8
+    MAX_FILES = 5000
+
+    try:
+        all_paths: list[Path] = []
+        for root, dirs, files in os.walk(base):
+            # os.walk hands back strings; the depth is counted on the path
+            # relative to the music dir, not on separators inside it.
+            if len(Path(root).relative_to(base).parts) >= MAX_SCAN_DEPTH:
+                dirs.clear()
+                continue
+            for f in files:
+                all_paths.append(Path(root) / f)
+                if len(all_paths) >= MAX_FILES:
+                    break
+        all_paths.sort()
+    except OSError:
+        return {
+            "scanned": 0,
+            "totalBytes": 0,
+            "corrupt": [],
+            "duplicates": [],
+            "emptyDirs": [],
+            "dirs": [basedir],
+            "scannedAt": _now_iso(),
+        }
+
+    for path in all_paths:
+        if not path.is_file():
+            continue
+        if path.suffix.lstrip(".").lower() not in AUDIO_EXTS:
+            continue
+
+        scanned += 1
+        try:
+            size = path.stat().st_size
+        except OSError:
+            size = 0
+        total_bytes += size
+
+        if size < MIN_VALID_BYTES:
+            corrupt.append(
+                _user_entry(path, size, "tiny", "File is too small to be real audio")
+            )
+            continue
+        if _is_corrupt(path):
+            corrupt.append(
+                _user_entry(path, size, "unreadable", "File could not be read as audio")
+            )
+            continue
+
+        title, artist = _read_title_artist(path)
+        key = (title.strip().lower(), artist.strip().lower())
+        if not title.strip():
+            continue
+
+        prev = seen.get(key)
+        if prev is None:
+            seen[key] = _user_entry(path, size, None, "")
+        else:
+            if prev["mtime"] <= _user_mtime(path):
+                keep, drop = prev, _user_entry(path, size, None, "Duplicate")
+            else:
+                keep, drop = _user_entry_from_prev(prev), _user_entry(path, size, None, "Duplicate")
+            seen[key] = keep
+            drop["keep"] = keep["name"]
+            drop["keepPath"] = keep["path"]
+            duplicates.append(drop)
+
+    # Empty dirs
+    try:
+        for entry in base.iterdir():
+            if entry.is_dir():
+                remaining = [
+                    p for p in entry.rglob("*")
+                    if p.is_file() and p.suffix.lstrip(".").lower() in AUDIO_EXTS
+                ]
+                if not remaining:
+                    empty_dirs.append(str(entry))
+    except OSError:
+        pass
+
+    result = {
+        "scanned": scanned,
+        "totalBytes": total_bytes,
+        "corrupt": corrupt,
+        "duplicates": duplicates,
+        "emptyDirs": empty_dirs,
+        "dirs": [basedir],
+        "scannedAt": _now_iso(),
+    }
+
+    _user_cache_set(user_sub, basedir, result)
+    return result
+
+
+def _user_entry(path: Path, size: int, kind: str | None, note: str) -> dict[str, Any]:
+    return {
+        "path": str(path),
+        "name": path.name,
+        "size": size,
+        "mtime": _user_mtime(path),
+        "ext": path.suffix.lstrip(".").lower(),
+        "kind": kind,
+        "note": note,
+    }
+
+
+def _user_entry_from_prev(prev: dict[str, Any]) -> dict[str, Any]:
+    out = dict(prev)
+    out["note"] = "Duplicate"
+    return out
+
+
+def _user_mtime(path: Path) -> int:
+    try:
+        return int(path.stat().st_mtime)
+    except OSError:
+        return 0
+
+
+# Per-user repair actions ────────────────────────────────────────────────────────
+
+def user_validate_managed_path(raw: str, basedir: str | None = None) -> Path:
+    p = Path(raw).resolve()
+    dirs = [settings.MUSIC_DIR] if basedir is None else [basedir]
+    for d in [Path(d) for d in dirs]:
+        base = d.resolve()
+        if base == p or base in p.parents:
+            return p
+    raise ValueError("path is outside the configured music directories")
+
+
+def user_delete_corrupt_file(raw_path: str, basedir: str | None = None) -> dict[str, Any]:
+    p = user_validate_managed_path(raw_path, basedir)
+    if not p.exists():
+        invalidate_user_cache()
+        return {"deleted": False, "reason": "already gone"}
+    if p.suffix.lstrip(".").lower() not in AUDIO_EXTS:
+        raise ValueError("not an audio file")
+    if p.stat().st_size >= MIN_VALID_BYTES and not _is_corrupt(p):
+        raise ValueError("file is not corrupt despite previous report")
+    try:
+        p.unlink()
+        invalidate_user_cache()
+        return {"deleted": True, "path": str(p)}
+    except OSError as e:
+        invalidate_user_cache()
+        return {"deleted": False, "reason": str(e)}
+
+
+def user_delete_all_corrupt(basedir: str | None = None) -> dict[str, Any]:
+    basedir_path = Path(basedir or settings.MUSIC_DIR)
+    deleted = 0
+    errors = 0
+    for p in basedir_path.rglob("*"):
+        if not p.is_file():
+            continue
+        if p.suffix.lstrip(".").lower() not in AUDIO_EXTS:
+            continue
+        try:
+            size = p.stat().st_size
+            if size < MIN_VALID_BYTES or _is_corrupt(p):
+                p.unlink()
+                deleted += 1
+        except OSError:
+            errors += 1
+    invalidate_user_cache()
+    return {"deleted": deleted, "errors": errors}
+
+
+def user_delete_duplicate_file(raw_path: str, basedir: str | None = None) -> dict[str, Any]:
+    p = user_validate_managed_path(raw_path, basedir)
+    if not p.exists():
+        invalidate_user_cache()
+        return {"deleted": False, "reason": "already gone"}
+    if p.suffix.lstrip(".").lower() not in AUDIO_EXTS:
+        raise ValueError("not an audio file")
+    try:
+        p.unlink()
+        invalidate_user_cache()
+        return {"deleted": True, "path": str(p)}
+    except OSError as e:
+        invalidate_user_cache()
+        return {"deleted": False, "reason": str(e)}
+
+
+def user_delete_all_duplicates(basedir: str | None = None) -> dict[str, Any]:
+    basedir_path = Path(basedir or settings.MUSIC_DIR)
+    deleted = 0
+    errors = 0
+    seen: dict[tuple[str, str], list[tuple[Path, int]]] = {}
+    for p in basedir_path.rglob("*"):
+        if not p.is_file():
+            continue
+        if p.suffix.lstrip(".").lower() not in AUDIO_EXTS:
+            continue
+        try:
+            title, artist = _read_title_artist(p)
+            key = (title.strip().lower(), artist.strip().lower())
+            if not title.strip():
+                continue
+            if key not in seen:
+                seen[key] = []
+            seen[key].append((p, _user_mtime(p)))
+        except OSError:
+            continue
+    for key, entries in seen.items():
+        entries.sort(key=lambda e: e[1])
+        for p, _ in entries[1:]:
+            try:
+                p.unlink()
+                deleted += 1
+            except OSError:
+                errors += 1
+    invalidate_user_cache()
+    return {"deleted": deleted, "errors": errors}
+
+
+def user_delete_empty_dir(raw_path: str, basedir: str | None = None) -> dict[str, Any]:
+    """Remove one folder the caller's scan reported as having no audio left."""
+    p = user_validate_managed_path(raw_path, basedir)
+    if not p.is_dir():
+        invalidate_user_cache()
+        return {"deleted": False, "reason": "not a directory"}
+    try:
+        # rmdir refuses a non-empty folder, which is the re-validation here:
+        # a directory that gained files since the scan survives untouched.
+        p.rmdir()
+        invalidate_user_cache()
+        return {"deleted": True, "path": str(p)}
+    except OSError as e:
+        invalidate_user_cache()
+        return {"deleted": False, "reason": str(e)}
+
+
+def user_prune_empty_dirs(basedir: str | None = None) -> dict[str, Any]:
+    basedir_path = Path(basedir or settings.MUSIC_DIR)
+    removed = 0
+    for p in reversed(list(basedir_path.rglob("*"))):
+        if not p.is_dir():
+            continue
+        try:
+            p.rmdir()
+            removed += 1
+        except OSError:
+            pass
+    invalidate_user_cache()
+    return {"removed": removed}

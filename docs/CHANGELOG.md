@@ -6,6 +6,16 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.24.5 — A crash leaves a trace, and the device keeps what it knows
+
+- feat(crash): **crashes report themselves end-to-end** — the JavaScript globals, the React boundary and the native `CrashLogger` all feed `lib/crashReporter.ts`, which posts to the unauthenticated, per-IP-limited `/api/diagnostics/crash` and stores reports beside the library; the Diagnostics screen lists them (with the report that arrived from the device that crashed) and can clear them. The `C` domain joins the DCCNN registry (`CVA01`, `CVA02`, `CLM01`, `CNF01`), and `initErrorHandler()` now installs the reporter instead of a second set of listeners that only wrote to a local buffer.
+- fix(android): **registered plugins actually register** — `registerPlugin()` forwards to the bridge *builder*, and that builder is consumed inside `super.onCreate()`. The calls that followed `super.onCreate()` landed in a builder nobody read again, which is why `Plugins.DownloadForeground` was undefined in JavaScript, the foreground service never started, and downloads died whenever the screen locked. `CrashLogger` is installed first, before anything else can throw.
+- feat(offline): **the app keeps its own mirror on the device** — `Rheoson/cache/` holds likes, history, playlists and follows as one JSON envelope per account (no quota, no TTL, app-private), seeded back into React Query only for queries that have nothing, and wiped on sign-out so a shared device never shows the next person someone else's library.
+- feat(doctor): **"Scan device" is wired now** — `/api/doctor/user-scan` and `/api/doctor/user-fix` scan and repair the caller's music directory without instance-admin rights, re-validating every path (`MUSIC_DIR` only) and every finding (still corrupt, still a duplicate, still empty) before deleting anything; results are cached per account.
+- fix(doctor): the per-account walk crashed on its first file (`os.walk` yields strings; the depth guard called `relative_to` on one), so the device scan could never have returned a result.
+- feat(settings): **backup export and restore** in Diagnostics — the downloaded JSON is exactly the bundle `POST /settings/restore` accepts, and restoring refreshes like, history and playlist surfaces in place instead of leaving every screen stale.
+- fix(library): the on-device scan is bounded (8 levels, 5000 files) and probes storage permission first, so a large library no longer walks the WebView into an ANR.
+
 ## v2.22.1 — Blend members have faces
 
 - feat(messages): **`POST /api/messages/profiles`** — batch display info for member lists and share cards. One `$in` fetch, input order preserved, unknown ids degrade to a placeholder, capped at 50 ids. Blend member sheets now show real usernames and avatars instead of id initials.

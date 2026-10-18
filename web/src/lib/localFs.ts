@@ -14,11 +14,32 @@ import { isNativePlatform } from './capacitor';
 
 // ── Audio file extensions ──────────────────────────────────────
 
-const AUDIO_EXTENSIONS = new Set(['mp3', 'flac', 'm4a', 'ogg', 'opus', 'wav', 'aac', 'wma']);
+const AUDIO_EXTENSIONS = new Set(['mp3', 'flac', 'm4a', 'ogg', 'opus', 'wav', 'aac', 'wma'])
+const MAX_SCAN_DEPTH = 8
+const MAX_FILES_PER_SCAN = 5000
 
 function isAudioFile(filename: string): boolean {
    const ext = filename.split('.').pop()?.toLowerCase();
-   return ext != null && AUDIO_EXTENSIONS.has(ext);
+   return ext != null && AUDIO_EXTENSIONS.has(ext)
+}
+
+// ── Android permission check ─────────────────────────────────────
+
+/** True if we can read external storage (Android 10+, runtime permission). */
+async function checkStoragePermission(): Promise<boolean> {
+   if (typeof window === 'undefined') return true // browser
+   if (!('permissions' in window)) return true // non-Android
+   try {
+      const result = await (
+         window as unknown as { permissions: { query: (o: { name: string }) => Promise<{ state: string }> } }
+      ).permissions.query({
+         name: 'storage-read'
+      })
+      return result.state === 'granted'
+   } catch {
+      // If permissions API unavailable, fall back to best-effort
+      return true
+   }
 }
 
 // ── Path helpers ───────────────────────────────────────────────
@@ -39,41 +60,45 @@ function getMusicDirPath(): string {
    return 'Music/Rheoson';
 }
 
-// ── Capacitor Filesystem scanner ───────────────────────────────
+// ── Bounded Capacitor Filesystem scanner ───────────────────────
 
-async function _readDirRecursive(dirPath: string): Promise<string[]> {
-   const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem');
-   const files: string[] = [];
+/** Recursively read a directory, bounded by depth and file count to prevent ANRs. */
+async function _readDirRecursiveBounded(dirPath: string, depth: number = 0): Promise<string[]> {
+   if (depth > MAX_SCAN_DEPTH) return []
+   const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem')
+   const files: string[] = []
 
    try {
       const result = await Filesystem.readdir({
          path: dirPath,
          directory: Directory.External,
-      });
+      })
 
+      let fileCount = 0
       for (const entry of result.files) {
-         if (entry.type === 'directory') {
-            const subFiles = await _readDirRecursive(`${dirPath}/${entry.name}`);
-            files.push(...subFiles);
+         if (entry.type === 'directory' && depth < MAX_SCAN_DEPTH) {
+            const subFiles = await _readDirRecursiveBounded(`${dirPath}/${entry.name}`, depth + 1)
+            files.push(...subFiles)
          } else if (isAudioFile(entry.name)) {
-            files.push(`${dirPath}/${entry.name}`);
+            files.push(`${dirPath}/${entry.name}`)
          }
+         if (++fileCount >= MAX_FILES_PER_SCAN) break
       }
    } catch {
-      // Directory doesn't exist or permission denied
+      // Directory doesn't exist or permission denied — gracefully return what we have
    }
 
-   return files;
+   return files
 }
 
 function _extractMetadataFromPath(filePath: string): { title: string; artist: Artist; album: Album } {
    // Parse artist/track from file path: .../Music/Rheoson/Artist/Track.mp3
-   const parts = filePath.split('/');
-   const filename = parts[parts.length - 1];
-   const artistDir = parts.length >= 2 ? parts[parts.length - 2] : 'Unknown Artist';
+   const parts = filePath.split('/')
+   const filename = parts[parts.length - 1]
+   const artistDir = parts.length >= 2 ? parts[parts.length - 2] : 'Unknown Artist'
 
    // Remove extension from filename
-   const title = filename.replace(/\.[^.]+$/, '');
+   const title = filename.replace(/\.[^.]+$/, '')
 
    const artist: Artist = {
       id: artistDir.toLowerCase().replace(/\s+/g, '-'),
@@ -88,7 +113,7 @@ function _extractMetadataFromPath(filePath: string): { title: string; artist: Ar
       albums: [],
       singles: [],
       related: [],
-   };
+   }
 
    const album: Album = {
       id: 'local-album',
@@ -99,9 +124,9 @@ function _extractMetadataFromPath(filePath: string): { title: string; artist: Ar
       year: 0,
       trackCount: 0,
       tracks: [],
-   };
+   }
 
-   return { title, artist, album };
+   return { title, artist, album }
 }
 
 /**
@@ -111,12 +136,12 @@ function _extractMetadataFromPath(filePath: string): { title: string; artist: Ar
  * hash that's still unique for our purposes.
  */
 export function filePathToId(filePath: string): string {
-   let hash = 0;
+   let hash = 0
    for (let i = 0; i < filePath.length; i++) {
-      const char = filePath.charCodeAt(i);
-      hash = ((hash << 5) - hash + char) | 0;
+      const char = filePath.charCodeAt(i)
+      hash = ((hash << 5) - hash + char) | 0
    }
-   return Math.abs(hash).toString(16).padStart(8, '0');
+   return Math.abs(hash).toString(16).padStart(8, '0')
 }
 
 // ── Public API ─────────────────────────────────────────────────
@@ -124,21 +149,22 @@ export function filePathToId(filePath: string): string {
 /**
  * Scan the local filesystem for music files.
  * Returns Track objects with basic metadata extracted from the file path.
- *
- * Returns empty array if not running on native platform.
+ * Bounded scan depth/count prevents ANRs on large libraries.
+ * Returns empty array if not running on native platform or permission denied.
  */
 export async function scanLocalMusic(): Promise<Track[]> {
-   if (!isNativePlatform()) {
-      return [];
-   }
+   if (!isNativePlatform()) return []
 
    try {
-      const musicDir = getMusicDirPath();
-      const filePaths = await _readDirRecursive(musicDir);
+      const hasPerm = await checkStoragePermission()
+      if (!hasPerm) return []
+
+      const musicDir = getMusicDirPath()
+      const filePaths = await _readDirRecursiveBounded(musicDir)
 
       return filePaths.map((path) => {
-         const id = filePathToId(path);
-         const meta = _extractMetadataFromPath(path);
+         const id = filePathToId(path)
+         const meta = _extractMetadataFromPath(path)
 
          return {
             id,
@@ -157,11 +183,11 @@ export async function scanLocalMusic(): Promise<Track[]> {
             trackNumber: 0,
             playCount: 0,
             rank: 0,
-         } satisfies Track;
-      });
+         } satisfies Track
+      })
    } catch (err) {
-      console.warn('[Rheoson] Failed to scan local music:', err);
-      return [];
+      console.warn('[Rheoson] Failed to scan local music:', err)
+      return []
    }
 }
 
@@ -170,20 +196,20 @@ export async function scanLocalMusic(): Promise<Track[]> {
  * Used by the player to bypass the backend stream endpoint.
  */
 export async function getLocalFileUrl(filePath: string): Promise<string | null> {
-   if (!isNativePlatform() || !filePath) return null;
+   if (!isNativePlatform() || !filePath) return null
 
    try {
-      const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem');
+      const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem')
 
       // Get the file URI from Capacitor
       const result = await Filesystem.getUri({
          path: filePath,
          directory: Directory.External,
-      });
+      })
 
-      return result.uri;
+      return result.uri
    } catch {
-      return null;
+      return null
    }
 }
 
@@ -191,13 +217,13 @@ export async function getLocalFileUrl(filePath: string): Promise<string | null> 
  * Check if a file exists at the given path.
  */
 export async function fileExists(filePath: string): Promise<boolean> {
-   if (!isNativePlatform()) return false;
+   if (!isNativePlatform()) return false
 
    try {
-      const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem');
-      await Filesystem.stat({ path: filePath, directory: Directory.External });
-      return true;
+      const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem')
+      await Filesystem.stat({ path: filePath, directory: Directory.External })
+      return true
    } catch {
-      return false;
+      return false
    }
 }

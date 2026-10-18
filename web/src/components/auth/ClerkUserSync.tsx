@@ -4,6 +4,7 @@ import { useAuth, useUser } from '@clerk/clerk-react';
 import { useAuthStore } from '@/store/auth.store';
 import { setClerkToken, setClerkTokenProvider } from '@/api/client.api';
 import { activateSnapshot, clearSnapshots } from '@/lib/querySnapshot';
+import { clearOfflineCache } from '@/lib/localState';
 
 /**
  * Bridges Clerk's user state AND session token into the local Zustand
@@ -64,6 +65,11 @@ export default function ClerkUserSync() {
   const queryClient = useQueryClient();
   const syncClerkUser = useAuthStore((s) => s.syncClerkUser);
 
+  // Sign-out clears the previous account's caches, but by then Clerk has
+  // already emptied `user` — so the id has to be remembered while it exists.
+  const wasSignedIn = useRef(false);
+  const lastAccount = useRef('');
+
   // Sync user data into the Zustand store. Gated on isLoaded: while Clerk is
   // still resolving at boot, isSignedIn is not final — clearing the store then
   // would wipe a persisted session and flash the Landing page after a restart.
@@ -113,14 +119,22 @@ export default function ClerkUserSync() {
   useEffect(() => {
     if (!isLoaded) return;
     const account = isSignedIn && user ? user.id : '';
+    if (account) lastAccount.current = account;
     const dispose = activateSnapshot(queryClient, account);
     return () => dispose();
   }, [isLoaded, isSignedIn, user, queryClient]);
 
-  const wasSignedIn = useRef(false);
   useEffect(() => {
     if (!isLoaded) return;
-    if (wasSignedIn.current && !isSignedIn) clearSnapshots();
+    if (wasSignedIn.current && !isSignedIn) {
+      clearSnapshots();
+      // The Rheoson/ mirror holds full lists, not just counts — same
+      // shared-device reasoning as the localStorage snapshot, so it goes too.
+      // The id is captured before `user` empties, which is why it lives in
+      // `lastAccount`, not in this effect's closure.
+      if (lastAccount.current) void clearOfflineCache(lastAccount.current);
+      lastAccount.current = '';
+    }
     wasSignedIn.current = isSignedIn;
   }, [isLoaded, isSignedIn]);
 

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     MUSIC_DIR:     str = "/data/data/com.termux/files/home/Rheoson/music"
     DOWNLOADS_DIR: str = "/data/data/com.termux/files/home/Rheoson/downloads"
+    LOCAL_CACHE_DIR: str = "/data/data/com.termux/files/home/Rheoson/local"
 
     EXTRA_MUSIC_DIRS: list[str] = [
         "/storage/emulated/0/Music",
@@ -81,6 +82,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_AUTH:     int = 20   # /api/auth (register/login hit Clerk API)
     RATE_LIMIT_STREAM:   int = 300  # /api/stream (audio + artwork byte routes)
     RATE_LIMIT_LYRICS:   int = 60   # /api/lyrics (external provider fetch)
+    RATE_LIMIT_DIAGNOSTICS: int = 30  # /api/diagnostics (unauthenticated crash ingest)
 
     # ── Instance administration ────────────────────────────────
     # Clerk subs allowed to mutate instance-level configuration (music

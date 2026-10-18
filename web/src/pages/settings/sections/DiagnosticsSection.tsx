@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Warning, CheckCircle, CircleDashed, ArrowClockwise, Path, HardDrives, ShieldCheck, Stethoscope, WifiHigh, WifiSlash } from '@phosphor-icons/react'
+import { Warning, CheckCircle, CircleDashed, ArrowClockwise, Path, HardDrives, ShieldCheck, Stethoscope, WifiHigh, WifiSlash, Copy, Upload } from '@phosphor-icons/react'
 import type { ApiTargetSource } from '@/lib/constants'
 import { healthApi, type HealthPayload, type SelftestPayload } from '@/api/health.api'
 import { api } from '@/api/client.api'
@@ -18,6 +18,12 @@ import {
    type Severity
 } from '@/lib/diagnostics'
 import LibraryDoctor from '../components/LibraryDoctor'
+import {
+   invalidateLikeSurfaces,
+   invalidateHistorySurfaces,
+   invalidatePlaylistSurfaces
+} from '@/lib/queryInvalidation'
+import { qk } from '@/lib/queryKeys'
 import {
    SettingsGroup,
    SettingsRow,
@@ -181,6 +187,84 @@ export default function DiagnosticsSection() {
    const [fixState, setFixState] = useState<Record<string, ActionState>>({})
    const [toolOutput, setToolOutput] = useState<string | null>(null)
    const [online, setOnline] = useState(isOnline())
+
+   // ── Backup & restore ───────────────────────────────
+   const [exporting, setExporting] = useState(false)
+   const [restoring, setRestoring] = useState(false)
+   const [restoreNote, setRestoreNote] = useState<string | null>(null)
+   const restoreFileRef = useRef<HTMLInputElement>(null)
+   const queryClient = useQueryClient()
+
+   const exportBackup = useCallback(async () => {
+      setExporting(true)
+      try {
+         // The bundle is the server's stored shape verbatim (see export_state)
+         // so the same file is what POST /settings/restore expects back.
+         const bundle = await api.get<Record<string, unknown>>('/settings/backup')
+         const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+            type: 'application/json'
+         })
+         const url = URL.createObjectURL(blob)
+         const a = document.createElement('a')
+         a.href = url
+         a.download = `rheoson-backup-${new Date().toISOString().slice(0, 10)}.json`
+         a.click()
+         window.setTimeout(() => {
+            URL.revokeObjectURL(url)
+            a.remove()
+         }, 0)
+      } catch {
+         // The api client already surfaced the failure; keep the row honest.
+      } finally {
+         setExporting(false)
+      }
+   }, [])
+
+   const importBackup = useCallback(
+      async (file: File) => {
+         setRestoring(true)
+         setRestoreNote(null)
+         try {
+            // Parsed here so the restore endpoint stays a plain JSON POST —
+            // no multipart plumbing on the server for a file a user picks
+            // twice a year.
+            const bundle = JSON.parse(await file.text()) as Record<string, unknown>
+            const result = await api.post<Record<string, unknown>>(
+               '/settings/restore',
+               bundle
+            )
+
+            // Refresh every mounted surface the restored state feeds — likes,
+            // history, playlists, follows — so the change shows up without a
+            // reload (see queryInvalidation for why per-key is not enough).
+            invalidateLikeSurfaces(queryClient)
+            invalidateHistorySurfaces(queryClient)
+            invalidatePlaylistSurfaces(queryClient)
+            queryClient.invalidateQueries({ queryKey: qk.following() })
+
+            const parts: string[] = []
+            for (const [key, label] of [
+               ['liked', 'liked tracks'],
+               ['history', 'history entries'],
+               ['playlists', 'playlists'],
+               ['follows', 'followed artists']
+            ] as const) {
+               const n = result?.[key]
+               if (typeof n === 'number' && n > 0) parts.push(`${n} ${label}`)
+            }
+            setRestoreNote(
+               parts.length
+                  ? `Restored: ${parts.join(', ')}`
+                  : 'Restore complete'
+            )
+         } catch {
+            setRestoreNote(null)
+         } finally {
+            setRestoring(false)
+         }
+      },
+      [queryClient]
+   )
 
    const { data, isLoading, isFetching, refetch, error } = useQuery({
       queryKey: ['health-snapshot'],
@@ -491,6 +575,47 @@ export default function DiagnosticsSection() {
                iconBg='#14B8A6'
             />
          </SettingsGroup>
+
+         {/* ── Backup & restore ────────────────────────────── */}
+         {isAuthenticated && (
+            <SettingsGroup
+               title='Backup & restore'
+               footer='Downloads everything tied to this account as one JSON file. Restore merges it back — move devices, or recover after a server reset.'>
+               <SettingsRow
+                  label='Export backup'
+                  description='Likes, history, playlists and follows as one JSON file'
+                  onClick={() => void exportBackup()}
+                  icon={<Copy className='w-[14px] h-[14px]' />}
+                  iconBg='#22C55E'>
+                  {exporting ? (
+                     <ArrowClockwise className='w-4 h-4 text-[var(--text-muted)] animate-spin' />
+                  ) : null}
+               </SettingsRow>
+               <SettingsRow
+                  label='Restore from backup'
+                  description={restoreNote ?? 'Merge a backup file into this account'}
+                  onClick={() => restoreFileRef.current?.click()}
+                  icon={<Upload className='w-[14px] h-[14px]' />}
+                  iconBg='#0EA5E9'>
+                  {restoring ? (
+                     <ArrowClockwise className='w-4 h-4 text-[var(--text-muted)] animate-spin' />
+                  ) : restoreNote ? (
+                     <CheckCircle className='w-4 h-4 text-emerald-400' />
+                  ) : null}
+               </SettingsRow>
+               <input
+                  ref={restoreFileRef}
+                  type='file'
+                  accept='.json,application/json'
+                  className='hidden'
+                  onChange={e => {
+                     const file = e.target.files?.[0]
+                     e.target.value = ''
+                     if (file) void importBackup(file)
+                  }}
+               />
+            </SettingsGroup>
+         )}
       </div>
    )
 }

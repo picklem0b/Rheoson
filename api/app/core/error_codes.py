@@ -219,6 +219,18 @@ BLENDS = _Section(
 )
 
 
+CRASH = _Section(
+    "CRASH",
+    "C",
+    {
+        "INVALID_REPORT": "CVA01",
+        "REPORT_TOO_LARGE": "CVA02",
+        "LIMIT_REACHED": "CLM01",
+        "NOT_FOUND": "CNF01",
+    },
+)
+
+
 #: code → human message. Written to be shown; a router may append dynamic
 #: values via ``fail(..., append=f": {value}")`` without touching the code.
 _REGISTRY: dict[str, str] = {
@@ -307,6 +319,11 @@ _REGISTRY: dict[str, str] = {
     "BEX02": "Could not remove the track from the blend",
     "BEN01": "Blends need the database",
     # ── Playback / equalizer ──────────────────────────────────
+    # ── Crash reports / diagnostics ───────────────────────────
+    "CVA01": "That crash report is not in a shape we can read",
+    "CVA02": "That crash report is too large",
+    "CLM01": "Too many crash reports — try again shortly",
+    "CNF01": "Crash report not found",
 }
 
 

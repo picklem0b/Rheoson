@@ -15,7 +15,13 @@ import {
   invalidatePlaylistSurfaces,
   invalidateHistorySurfaces,
 } from '@/lib/queryInvalidation'
-import { activateSnapshot, clearSnapshots, hydrateSnapshot } from '@/lib/querySnapshot'
+import {
+  activateSnapshot,
+  clearSnapshots,
+  hydrateOffline,
+  hydrateSnapshot,
+} from '@/lib/querySnapshot'
+import { readOfflineCache, writeOfflineCache } from '@/lib/localState'
 
 function invalidatedKeys(client: QueryClient, run: (c: QueryClient) => void): string[] {
   const spy = vi.spyOn(client, 'invalidateQueries')
@@ -133,6 +139,49 @@ describe('snapshot', () => {
     const other = new QueryClient()
     expect(hydrateSnapshot(other, 'user_b')).toBe(0)
     expect(other.getQueryData(qk.likedCount())).toBeUndefined()
+  })
+
+  it('seeds an empty query from the file-backed mirror', async () => {
+    // The mirror holds full listings the byte-capped localStorage snapshot
+    // cannot, so it is what makes the liked list and history survive offline.
+    const liked = [{ id: 't1', title: 'Kept' }]
+    writeOfflineCache('liked', 'user_a', liked)
+    await new Promise((r) => setTimeout(r, 0))
+
+    const client = new QueryClient()
+    expect(await hydrateOffline(client, 'user_a')).toBe(1)
+    expect(client.getQueryData(qk.likedTracks())).toEqual(liked)
+
+    // Stamped with its write time, so it is stale on arrival.
+    const state = client.getQueryCache().find({ queryKey: qk.likedTracks() })?.state
+    expect(state?.dataUpdatedAt).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('never lets the mirror overwrite a network answer', async () => {
+    writeOfflineCache('liked', 'user_a', [{ id: 'stale' }])
+    await new Promise((r) => setTimeout(r, 0))
+
+    const client = new QueryClient()
+    const fresh = [{ id: 'fresh' }]
+    client.setQueryData(qk.likedTracks(), fresh)
+
+    expect(await hydrateOffline(client, 'user_a')).toBe(0)
+    expect(client.getQueryData(qk.likedTracks())).toEqual(fresh)
+  })
+
+  it('mirrors settled listings to the Rheoson cache, not just the summary', async () => {
+    vi.useFakeTimers()
+    const client = new QueryClient()
+    const dispose = activateSnapshot(client, 'user_a')
+    client.setQueryData(qk.likedTracks(), [{ id: 't1' }])
+    vi.advanceTimersByTime(500)
+    dispose()
+    vi.useRealTimers()
+
+    // writeOfflineCache is fire-and-forget; let its storage write land.
+    await new Promise((r) => setTimeout(r, 0))
+    const envelope = await readOfflineCache('liked', 'user_a')
+    expect(envelope?.data).toEqual([{ id: 't1' }])
   })
 
   it('wipes every account on sign-out and leaves unrelated keys alone', () => {

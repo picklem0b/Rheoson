@@ -28,6 +28,7 @@ or grep the API source for it — to land on the single raise site.
 | M | Messaging |
 | B | Blends (collaborative playlists) |
 | Y | plaYback (equalizer) |
+| C | Crash reports / client diagnostics |
 
 ## Categories
 
@@ -175,6 +176,19 @@ or grep the API source for it — to land on the single raise site.
 | [ERROR_CODE: BEX01] | Could not add the track to the blend |
 | [ERROR_CODE: BEX02] | Could not remove the track from the blend |
 | [ERROR_CODE: BEN01] | Blends need the database |
+
+## Crash reports (C)
+
+Raised by `POST /api/diagnostics/crash`, the endpoint the app posts its own
+JS and native crash reports to. The idempotency and size caps are enforced
+server-side, so these are the four ways a report can be rejected.
+
+| Code | Message |
+| --- | --- |
+| [ERROR_CODE: CVA01] | That crash report is not in a shape we can read |
+| [ERROR_CODE: CVA02] | That crash report is too large |
+| [ERROR_CODE: CLM01] | Too many crash reports — try again shortly |
+| [ERROR_CODE: CNF01] | Crash report not found |
 
 ## Playback (Y)
 

@@ -66,8 +66,17 @@ function fmtDir(dir: string): string {
 
 type Phase = 'idle' | 'scanning' | 'done' | 'error'
 
+/**
+ * Which scan produced the findings on screen. Repairs follow it: the
+ * instance-wide scan lives behind the admin gate, the device scan does not,
+ * so posting a device repair to the admin route would 403 for the very
+ * accounts the button exists for.
+ */
+type ScanScope = 'library' | 'device'
+
 export default function LibraryDoctor() {
    const [phase, setPhase] = useState<Phase>('idle')
+   const [scope, setScope] = useState<ScanScope>('library')
    const [scan, setScan] = useState<ScanResult | null>(null)
    const [error, setError] = useState<string | null>(null)
    const [expanded, setExpanded] = useState<
@@ -107,6 +116,7 @@ export default function LibraryDoctor() {
       setExpanded(null)
       setConfirming(null)
       scanStart.current = Date.now()
+      setScope('library')
       try {
          const res = await api.get<ScanResult>('/settings/doctor/scan')
          if (!mounted.current) return
@@ -133,22 +143,51 @@ export default function LibraryDoctor() {
       }
    }, [])
 
+   const runDeviceScan = useCallback(async () => {
+      setPhase('scanning')
+      setError(null)
+      setScan(null)
+      setExpanded(null)
+      setConfirming(null)
+      scanStart.current = Date.now()
+      setScope('device')
+      try {
+         const res = await api.get<ScanResult>('/doctor/user-scan')
+         if (!mounted.current) return
+         setScan(res)
+         setPhase('done')
+         // Auto-expand the first group that actually has findings.
+         if (res.corrupt.length) setExpanded('corrupt')
+         else if (res.duplicates.length) setExpanded('duplicates')
+         else if (res.emptyDirs.length) setExpanded('emptyDirs')
+      } catch (e) {
+         if (!mounted.current) return
+         setError(e instanceof Error ? e.message : 'Device scan failed')
+         setPhase('error')
+      }
+   }, [])
+
    /** Re-scan silently so counts/shrink reflect the repair immediately. */
    const refreshAfterFix = useCallback(async () => {
       try {
-         const res = await api.get<ScanResult>('/settings/doctor/scan')
+         const res = await api.get<ScanResult>(
+            scope === 'device' ? '/doctor/user-scan' : '/settings/doctor/scan'
+         )
          if (!mounted.current) return
          setScan(res)
       } catch {
          // Keep showing the previous numbers; the next scan will catch up.
       }
-   }, [])
+   }, [scope])
+
+   /** The repair endpoint that matches the scan the findings came from. */
+   const fixEndpoint = scope === 'device' ? '/doctor/user-fix' : '/settings/doctor/fix'
 
    const fixOne = useCallback(
       async (key: string, kind: 'corrupt' | 'duplicate' | 'empty-dir', path: string) => {
          setItemState(s => ({ ...s, [key]: 'loading' }))
          try {
-            await api.post('/settings/doctor/fix', { kind, path })
+            await api.post(fixEndpoint, { kind, path })
             if (!mounted.current) return
             setItemState(s => ({ ...s, [key]: 'ok' }))
             await refreshAfterFix()
@@ -160,7 +199,7 @@ export default function LibraryDoctor() {
             if (mounted.current) setItemState(s => ({ ...s, [key]: 'idle' }))
          }, 2500)
       },
-      [refreshAfterFix]
+      [fixEndpoint, refreshAfterFix]
    )
 
    const sweep = useCallback(
@@ -172,7 +211,7 @@ export default function LibraryDoctor() {
          } as const
          setSweepState(s => ({ ...s, [group]: 'loading' }))
          try {
-            await api.post('/settings/doctor/fix', {
+            await api.post(fixEndpoint, {
                kind: group === 'emptyDirs' ? 'empty-dirs' : kindMap[group]
             })
             if (!mounted.current) return
@@ -188,7 +227,7 @@ export default function LibraryDoctor() {
                setSweepState(s => ({ ...s, [group]: 'idle' }))
          }, 2500)
       },
-      [refreshAfterFix]
+      [fixEndpoint, refreshAfterFix]
    )
 
    const groups = scan
@@ -246,22 +285,39 @@ export default function LibraryDoctor() {
          {/* ── Scan launcher / summary ─────────────────── */}
          <div className='px-4 py-4'>
             {phase === 'idle' && (
-               <button
-                  onClick={() => void runScan()}
-                  className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-overlay)] transition-colors text-left'>
-                  <div className='w-[38px] h-[38px] rounded-[10px] bg-[var(--accent)]/15 flex items-center justify-center flex-shrink-0'>
-                     <Scan className='w-[18px] h-[18px] text-[var(--accent)]' />
-                  </div>
-                  <div className='min-w-0 flex-1'>
-                     <p className='text-[15px] font-semibold text-[var(--text-primary)]'>
-                        Scan library
-                     </p>
-                     <p className='text-[12.5px] text-[var(--text-muted)] mt-0.5'>
-                        Find files that cannot play, duplicates and empty folders
-                     </p>
-                  </div>
-                  <CaretRight className='w-4 h-4 text-[var(--text-muted)]' />
-               </button>
+               <div className='space-y-2'>
+                  <button
+                     onClick={() => void runScan()}
+                     className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-overlay)] transition-colors text-left'>
+                     <div className='w-[38px] h-[38px] rounded-[10px] bg-[var(--accent)]/15 flex items-center justify-center flex-shrink-0'>
+                        <Scan className='w-[18px] h-[18px] text-[var(--accent)]' />
+                     </div>
+                     <div className='min-w-0 flex-1'>
+                        <p className='text-[15px] font-semibold text-[var(--text-primary)]'>
+                           Scan library
+                        </p>
+                        <p className='text-[12.5px] text-[var(--text-muted)] mt-0.5'>
+                           Find files that cannot play, duplicates and empty folders
+                        </p>
+                     </div>
+                     <CaretRight className='w-4 h-4 text-[var(--text-muted)]' />
+                  </button>
+                  <button
+                     onClick={() => void runDeviceScan()}
+                     className='w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-[var(--border)] bg-[var(--bg-overlay)] text-left text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] transition-colors'>
+                     <div className='w-[38px] h-[38px] rounded-[10px] bg-[#3B3B3B]/15 flex items-center justify-center flex-shrink-0'>
+                        <Scan className='w-[18px] h-[18px] text-[#A0A0A0]' />
+                     </div>
+                     <div className='min-w-0 flex-1'>
+                        <p className='text-[15px] font-semibold text-[var(--text-primary)]'>
+                           Scan device
+                        </p>
+                        <p className='text-[12.5px] text-[var(--text-muted)] mt-0.5'>
+                           Find issues in this device&apos;s music folder
+                        </p>
+                     </div>
+                  </button>
+               </div>
             )}
 
             {phase === 'scanning' && (

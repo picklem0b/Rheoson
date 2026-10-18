@@ -46,6 +46,7 @@ from app.routers import (
 from app.routers import equalizer_router, share_router, analytics_router, smart_playlist_router, clerk_webhook_router
 from app.routers import artist_router
 from app.routers import messaging_router, blends_router
+from app.routers import diagnostics_router, doctor_router
 
 configure_logging()
 log = structlog.get_logger()
@@ -53,7 +54,7 @@ log = structlog.get_logger()
 # ── Startup validation ────────────────────────────────────────
 validate_startup()
 
-VERSION = "2.23.3"
+VERSION = "2.24.5"
 
 # ── CORS ──────────────────────────────────────────────────────
 
@@ -450,6 +451,9 @@ app.add_middleware(RateLimitMiddleware, limits={
     "/api/auth":      settings.RATE_LIMIT_AUTH,
     "/api/stream":    settings.RATE_LIMIT_STREAM,
     "/api/lyrics":    settings.RATE_LIMIT_LYRICS,
+    # Crash ingest is unauthenticated by design, so per-IP limiting is the
+    # only thing standing between a hostile client and the report store.
+    "/api/diagnostics": settings.RATE_LIMIT_DIAGNOSTICS,
 })
 
 
@@ -504,6 +508,8 @@ app.include_router(artist_router.router,   prefix="/api/artists",  tags=["artist
 app.include_router(messaging_router.router, prefix="/api/messages", tags=["messages"])
 app.include_router(blends_router.router,    prefix="/api/blends",   tags=["blends"])
 app.include_router(clerk_webhook_router.router, prefix="/api", tags=["webhooks"])
+app.include_router(diagnostics_router.router, prefix="/api/diagnostics", tags=["diagnostics"])
+app.include_router(doctor_router.router,      prefix="/api/doctor",      tags=["doctor"])
 
 
 # ── Root ──────────────────────────────────────────────────────

@@ -18,7 +18,13 @@
  */
 
 import type { QueryClient } from '@tanstack/react-query'
-import { isSnapshotKey } from './queryKeys'
+import { qk, isSnapshotKey } from './queryKeys'
+import {
+   ensureRheosonDirs,
+   writeOfflineCache,
+   readOfflineCache,
+   type CacheEnvelope
+} from './localState'
 
 const PREFIX = 'rheoson:qs:'
 /** Beyond this, a remembered answer is not worth showing unverified. */
@@ -29,6 +35,28 @@ const WRITE_DEBOUNCE_MS = 400
 
 type Entry = { data: unknown; at: number }
 type Snapshot = Record<string, Entry>
+
+/**
+ * Which React Query key is mirrored to which `Rheoson/cache/` file, in the
+ * localState layer. Broader than the localStorage snapshot whitelist: these
+ * are full listings (the liked list itself, the full history), and the file
+ * system has no quota, which is exactly what needs those — offline listening.
+ */
+const OFFLINE_SECTIONS: Array<[readonly unknown[], string]> = [
+   [qk.likedTracks(), 'liked'],
+   [qk.recentlyPlayedFull(), 'history'],
+   [qk.playlists(), 'playlists'],
+   [qk.following(), 'following'],
+]
+
+function offlineSectionOf(key: readonly unknown[]): string | undefined {
+   for (const [prefix, section] of OFFLINE_SECTIONS) {
+      if (prefix.length <= key.length && prefix.every((part, i) => part === key[i])) {
+         return section
+      }
+   }
+   return undefined
+}
 
 function storageKey(account: string): string {
   // Accounts are Clerk ids (`user_...`); the fallback covers the keyless
@@ -89,6 +117,43 @@ export function hydrateSnapshot(client: QueryClient, account: string): number {
   return restored
 }
 
+/**
+ * Restore what the `Rheoson/` mirror remembers, for queries that currently
+ * have nothing at all.
+ *
+ * Snapshotted data is stamped with its write time, so React Query sees it as
+ * already stale and revalidates in the background — online that replaces it
+ * within one round trip, offline it simply stays as the last known state,
+ * which is the entire point. Returns how many sections were seeded.
+ */
+export async function hydrateOffline(client: QueryClient, account: string): Promise<number> {
+   const now = Date.now()
+   let seeded = 0
+
+   for (const [prefix, section] of OFFLINE_SECTIONS) {
+      const envelope: CacheEnvelope | null = await readOfflineCache(section, account)
+      if (!envelope || envelope.data == null) continue
+      try {
+         const key = prefix as readonly unknown[]
+         const existing = client.getQueryData(key as unknown[])
+         // A query that already answered (from the network or the 24h
+         // snapshot) outranks the mirror; only genuinely-empty queries get
+         // seeded, otherwise the mirror would fight fetch results.
+         if (existing !== undefined) continue
+         const at = Date.parse(envelope.updatedAt)
+         client.setQueryData(key as unknown[], envelope.data, {
+            updatedAt: Number.isFinite(at) ? at : now,
+         })
+         seeded += 1
+      } catch {
+         // Malformed envelope is skipped, as decided in readOfflineCache.
+      }
+   }
+   return seeded
+}
+
+
+
 function collect(client: QueryClient): Snapshot {
   const snapshot: Snapshot = {}
   for (const query of client.getQueryCache().getAll()) {
@@ -104,6 +169,23 @@ function collect(client: QueryClient): Snapshot {
 }
 
 /**
+ * Which settled queries make it into the file-backed mirror. Separate from
+ * `collect` on purpose: the mirror has no quota, so it carries the full
+ * listings the byte-capped localStorage snapshot cannot.
+ */
+function collectOffline(client: QueryClient): ReadonlyMap<string, unknown> {
+   const mirror = new Map<string, unknown>()
+   for (const query of client.getQueryCache().getAll()) {
+      if (query.state.status !== 'success') continue
+      if (query.state.data === undefined) continue
+      const section = offlineSectionOf(query.queryKey)
+      if (!section) continue
+      mirror.set(section, query.state.data)
+   }
+   return mirror
+}
+
+/**
  * Keep the account's snapshot in step with the cache.
  *
  * Returns a disposer. Writes are debounced because a single page load settles
@@ -111,15 +193,21 @@ function collect(client: QueryClient): Snapshot {
  * same JSON blob.
  */
 export function startSnapshotWriter(client: QueryClient, account: string): () => void {
-  let timer: number | undefined
+   let timer: number | undefined
 
-  const unsubscribe = client.getQueryCache().subscribe(() => {
-    if (timer !== undefined) window.clearTimeout(timer)
-    timer = window.setTimeout(() => {
-      timer = undefined
-      writeRaw(account, collect(client))
-    }, WRITE_DEBOUNCE_MS)
-  })
+   const unsubscribe = client.getQueryCache().subscribe(() => {
+      if (timer !== undefined) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+         timer = undefined
+         writeRaw(account, collect(client))
+         // The file-backed mirror is written from the same debounce — one
+         // settled network burst rewrites both layers once, not per query.
+         void ensureRheosonDirs()
+         for (const [section, data] of collectOffline(client)) {
+            writeOfflineCache(section, account, data)
+         }
+      }, WRITE_DEBOUNCE_MS)
+   })
 
   return () => {
     if (timer !== undefined) window.clearTimeout(timer)
@@ -133,6 +221,10 @@ export function startSnapshotWriter(client: QueryClient, account: string): () =>
  */
 export function activateSnapshot(client: QueryClient, account: string): () => void {
   hydrateSnapshot(client, account)
+  // The Rheoson/ mirror hydrates asynchronously: reading a file is not on
+  // the render path the way localStorage is, and the older data it seeds
+  // is deliberately stale anyway.
+  void hydrateOffline(client, account)
   return startSnapshotWriter(client, account)
 }
 
