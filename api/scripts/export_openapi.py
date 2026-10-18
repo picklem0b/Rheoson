@@ -11,11 +11,19 @@ import sys
 from pathlib import Path
 
 # Add project root to path
+import os
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.main import app
 
-OUTPUT = Path(__file__).resolve().parent.parent.parent / "web" / "src" / "types" / "openapi.json"
+# The contract lives in the shared types package: both clients (the website and
+# the phone app) generate their types from this one file, so they cannot drift
+# apart by being generated from different snapshots.
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+OUTPUT = Path(
+    os.environ.get("OPENAPI_OUT", _REPO_ROOT / "packages" / "api-types" / "openapi.json")
+)
 
 schema = app.openapi()
 

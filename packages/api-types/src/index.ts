@@ -6,7 +6,7 @@
  *
  * DO NOT hand-edit these re-exports. Edit the Pydantic models instead.
  */
-import type { components } from './api-generated'
+import type { components } from './generated'
 
 // ── Friendly aliases ──────────────────────────────────────────
 // These map the verbose generated paths to the short names
@@ -107,4 +107,4 @@ export interface DownloadOptions {
 }
 
 // ── API path types (for type-safe fetch calls) ────────────────
-export type { paths } from './api-generated'
+export type { paths } from './generated'

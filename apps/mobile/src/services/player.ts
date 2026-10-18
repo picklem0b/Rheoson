@@ -16,6 +16,7 @@ import TrackPlayer, {
 	AppKilledPlaybackBehavior,
 	Capability,
 	RepeatMode as PlayerRepeatMode,
+	State,
 	type Track as PlayerTrack
 } from 'react-native-track-player';
 
@@ -159,7 +160,10 @@ export async function readProgress(): Promise<{
 		return {
 			position: Number.isFinite(position) ? position : 0,
 			duration: Number.isFinite(duration) ? duration : 0,
-			playing: state === 'playing'
+			// The engine's own state enum, not a string: comparing to 'playing'
+			// silently never matched, so the UI reported "paused" while audio was
+			// coming out of the speaker.
+			playing: state.state === State.Playing
 		};
 	} catch {
 		return { position: 0, duration: 0, playing: false };

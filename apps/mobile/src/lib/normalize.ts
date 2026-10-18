@@ -15,8 +15,8 @@
  * but these normalizers are the primary safety net.
  */
 
-import type { Track, Artist, Album, Playlist, PlaylistResult } from '@/types/index'
-import { artworkUrl as proxyArtwork } from '@/lib/constants'
+import type { Track, Artist, Album, Playlist, PlaylistResult } from '@rheoson/api-types'
+import { artworkUrl as proxyArtwork } from '@/lib/artwork'
 
 // ── Artwork proxy helper ────────────────────────────────────
 // Routes YouTube/Spotify CDN artwork through the API server to avoid
@@ -32,11 +32,8 @@ function _normalizeRelatedArtist(raw: unknown): Artist {
    return { ...base, related: [] }
 }
 
-function _proxyArtwork(trackId: string, url: string): string {
-   if (!url) return ''
-   if (url.startsWith('/api/')) return url
-   if (!trackId) return url  // Can't proxy without a track ID
-   return proxyArtwork(trackId, url)
+function _proxyArtwork(_trackId: string, url: string): string {
+   return proxyArtwork(url) ?? ''
 }
 
 // ── Default fallback objects ───────────────────────────────────
@@ -202,10 +199,15 @@ export function normalizeTrack(raw: unknown): Track {
       duration = t.duration
    } else if (typeof t.duration === 'string') {
       const parts = t.duration.split(':').map(Number)
-      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-         duration = parts[0] * 60 + parts[1]
-      } else if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-         duration = parts[0] * 3600 + parts[1] * 60 + parts[2]
+      const [first, second, third] = parts
+      if (parts.length === 2 && first !== undefined && second !== undefined && !isNaN(first) && !isNaN(second)) {
+         duration = first * 60 + second
+      } else if (
+         parts.length === 3 &&
+         first !== undefined && second !== undefined && third !== undefined &&
+         !isNaN(first) && !isNaN(second) && !isNaN(third)
+      ) {
+         duration = first * 3600 + second * 60 + third
       }
    }
 
