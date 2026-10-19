@@ -7,6 +7,7 @@ import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useLikeButton } from '@/hooks/use-liked';
 import { formatDuration } from '@/lib/formatters';
+import { openTrackMenu } from '@/store/sheet.store';
 import type { Track } from '@rheoson/api-types';
 
 /**
@@ -20,6 +21,10 @@ import type { Track } from '@rheoson/api-types';
  * `isPlaying` is passed in rather than read from the store: a list of 300 rows
  * each subscribing to the player would re-render all of them on every progress
  * tick.
+ *
+ * With no `onMenu` the row opens the shared track sheet itself, and a long
+ * press does the same. That is the phone gesture people try first, and the row
+ * should not be the only place in the app where it does nothing.
  */
 export function TrackRow({
 	track,
@@ -27,7 +32,9 @@ export function TrackRow({
 	onMenu,
 	isPlaying = false,
 	loading = false,
-	trailing
+	trailing,
+	index,
+	showArtwork = true
 }: {
 	track: Track;
 	onPress: () => void;
@@ -35,13 +42,18 @@ export function TrackRow({
 	isPlaying?: boolean;
 	loading?: boolean;
 	trailing?: ReactElement;
+	/** 1-based position, shown instead of artwork on an album or playlist. */
+	index?: number;
+	showArtwork?: boolean;
 }): ReactElement {
 	const { colour } = useTheme();
 	const { isLiked, onPress: toggleLike } = useLikeButton(track.id);
+	const openMenu = onMenu ?? (() => openTrackMenu(track));
 
 	return (
 		<Pressable
 			onPress={onPress}
+			onLongPress={openMenu}
 			style={({ pressed }) => ({
 				flexDirection: 'row',
 				alignItems: 'center',
@@ -52,13 +64,15 @@ export function TrackRow({
 				backgroundColor: pressed ? colour.surfacePressed : 'transparent'
 			})}
 		>
-			<Artwork
-				uri={
-					track.artworkUrl ??
-					(track.album?.id ? `${track.artworkUrl ?? ''}` : undefined)
-				}
-				size={48}
-			/>
+			{showArtwork ? (
+				<Artwork uri={track.artworkUrl} size={48} />
+			) : (
+				<View style={{ width: 32, alignItems: 'center' }}>
+					<Text variant='caption' muted>
+						{index ?? '·'}
+					</Text>
+				</View>
+			)}
 			<View style={{ flex: 1 }}>
 				<Text variant='bodyStrong' numberOfLines={1} style={isPlaying ? { color: colour.accent } : undefined}>
 					{track.title}
@@ -77,11 +91,9 @@ export function TrackRow({
 					weight={isLiked ? 'fill' : 'regular'}
 				/>
 			</IconButton>
-			{onMenu ? (
-				<IconButton label='More options' onPress={onMenu}>
-					<DotsThreeIcon size={22} color={colour.textMuted} weight='bold' />
-				</IconButton>
-			) : null}
+			<IconButton label='More options' onPress={openMenu}>
+				<DotsThreeIcon size={22} color={colour.textMuted} weight='bold' />
+			</IconButton>
 		</Pressable>
 	);
 }

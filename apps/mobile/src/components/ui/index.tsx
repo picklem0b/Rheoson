@@ -13,48 +13,16 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text as RNText,
 	View,
 	type StyleProp,
-	type TextStyle,
 	type ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 
-import { layout, radius, spacing, TOUCH_TARGET, typography } from '@/constants/theme';
+import { layout, radius, spacing, TOUCH_TARGET } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type TextVariant = keyof typeof typography;
-
-/** Text with the app's scale. `variant` is the only way to size text. */
-export function Text({
-	children,
-	variant = 'body',
-	muted = false,
-	numberOfLines,
-	style
-}: {
-	children: ReactNode;
-	variant?: TextVariant;
-	muted?: boolean;
-	numberOfLines?: number;
-	style?: StyleProp<TextStyle>;
-}): ReactElement {
-	const { colour } = useTheme();
-	return (
-		<RNText
-			numberOfLines={numberOfLines}
-			style={[
-				typography[variant],
-				{ color: muted ? colour.textMuted : colour.text },
-				style
-			]}
-		>
-			{children}
-		</RNText>
-	);
-}
+import { Text } from './Text';
 
 /** A screen: safe area, background, and the shared horizontal gutter. */
 export function Screen({
@@ -258,47 +226,15 @@ export function IconButton({
 	);
 }
 
-/** Square artwork, rounded. Covers the loading and missing cases itself. */
-export function Artwork({
-	uri,
-	size,
-	rounded = radius.md
-}: {
-	uri?: string | null;
-	size: number;
-	rounded?: number;
-}): ReactElement {
-	const { colour } = useTheme();
-	return (
-		<View
-			style={{
-				width: size,
-				height: size,
-				borderRadius: rounded,
-				overflow: 'hidden',
-				backgroundColor: colour.surfaceRaised
-			}}
-		>
-			{uri ? (
-				<Image
-					source={{ uri }}
-					style={{ width: size, height: size }}
-					contentFit='cover'
-					transition={150}
-					cachePolicy='disk'
-				/>
-			) : null}
-		</View>
-	);
-}
-
 /** Section heading with an optional "see all". */
 export function SectionHeader({
 	title,
-	onSeeAll
+	onSeeAll,
+	actionLabel = 'See all'
 }: {
 	title: string;
 	onSeeAll?: () => void;
+	actionLabel?: string;
 }): ReactElement {
 	return (
 		<View
@@ -313,7 +249,7 @@ export function SectionHeader({
 			{onSeeAll ? (
 				<Pressable onPress={onSeeAll} hitSlop={spacing.sm}>
 					<Text variant='label' muted>
-						See all
+						{actionLabel}
 					</Text>
 				</Pressable>
 			) : null}
@@ -406,3 +342,13 @@ export function Chip({ label, onPress, active = false }: { label: string; onPres
 		</Pressable>
 	);
 }
+
+export { Text } from './Text';
+export type { TextVariant } from './Text';
+export { Sheet } from './Sheet';
+export { Field } from './Field';
+export { ToggleRow } from './ToggleRow';
+export { ProgressBar } from './ProgressBar';
+export { MediaCard } from './MediaCard';
+export { Artwork } from './Artwork';
+export { Toaster } from './Toaster';

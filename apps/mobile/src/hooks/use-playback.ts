@@ -7,10 +7,22 @@ import * as engine from '@/services/player';
 import { usePlayerStore } from '@/store/player.store';
 import { useQueueStore } from '@/store/queue.store';
 import { useSettingsStore } from '@/store/settings.store';
+import { toast } from '@/store/toast.store';
 import type { Track } from '@rheoson/api-types';
 
 /** How often the UI samples the engine for position. */
 const PROGRESS_TICK_MS = 500;
+
+/**
+ * Events this hook listens to. Module-level so the subscription is installed
+ * once: the hook compares the array by identity, and a literal here would tear
+ * down and re-add the native listeners on every render.
+ */
+const PLAYER_EVENTS: Event[] = [
+	Event.PlaybackQueueEnded,
+	Event.PlaybackActiveTrackChanged,
+	Event.PlaybackError
+];
 
 /**
  * The bridge between the stores and the audio engine.
@@ -19,6 +31,18 @@ const PROGRESS_TICK_MS = 500;
  * track was chosen": the stores say what should happen, the engine does it, and
  * the engine's own events flow back into the store so the UI can never claim to
  * be playing while the native player is paused or buffering.
+ *
+ * Three behaviours here exist because the native queue is real:
+ *
+ *  * **The engine can advance by itself.** Upcoming tracks live in the native
+ *    queue, so a track ending moves the engine to the next one without any JS
+ *    callback. `PlaybackActiveTrackChanged` folds that back into the queue
+ *    store, otherwise the mini player would still show the finished track.
+ *  * **Shuffle is a queue order, not a play mode.** Turning it on reorders the
+ *    upcoming list and turning it off restores the album; the engine never
+ *    needs to know.
+ *  * **A cold start resumes but does not autoplay.** The last track and its
+ *    position come back; audio waits for a tap.
  *
  * Everything a user does goes through `playTrack` / `toggle` / `next` / `prev`
  * — screens never call the engine directly, which is what keeps the queue,
@@ -29,6 +53,8 @@ export function usePlayback(): {
 	toggle: () => void;
 	next: () => void;
 	prev: () => void;
+	playFromQueue: (index: number) => void;
+	seek: (seconds: number) => void;
 } {
 	const setTrack = usePlayerStore(state => state.setTrack);
 	const setPlaying = usePlayerStore(state => state.setPlaying);
@@ -44,11 +70,14 @@ export function usePlayback(): {
 	const setQueue = useQueueStore(state => state.setQueue);
 	const nextFromQueue = useQueueStore(state => state.next);
 	const prevFromQueue = useQueueStore(state => state.prev);
+	const jumpTo = useQueueStore(state => state.jumpTo);
 	const queue = useQueueStore(state => state.queue);
 	const autoplayEnabled = useSettingsStore(state => state.autoplay);
 	const warmAhead = useSettingsStore(state => state.warmAhead);
+	const resumeOnLaunch = useSettingsStore(state => state.resumeOnLaunch);
 
-	const startedFor = useRef<string | null>(null);
+	/** Prevents a remount from restoring the same position twice. */
+	const restored = useRef(false);
 
 	useEffect(() => {
 		void engine.setupPlayer();
@@ -65,7 +94,6 @@ export function usePlayback(): {
 			setQueue(list, index);
 			if (source) setPlaySource(source);
 			setTrack(track, { autoplay: true });
-			startedFor.current = track.id;
 		},
 		[setQueue, setPlaySource, setTrack]
 	);
@@ -93,16 +121,48 @@ export function usePlayback(): {
 		};
 	}, [consumeAutoPlay, setLoading, setPlaying]);
 
+	/**
+	 * Restore the persisted track after the stores rehydrate.
+	 *
+	 * Persisted state arrives asynchronously from AsyncStorage, so this cannot
+	 * read it at mount: it waits for hydration, then loads the track *paused*
+	 * at the saved position.
+	 */
+	useEffect(() => {
+		const restore = (): void => {
+			if (restored.current) return;
+			restored.current = true;
+			if (!resumeOnLaunch) return;
+
+			const { currentTrack, savedProgress, autoPlayPending } = usePlayerStore.getState();
+			if (!currentTrack || autoPlayPending) return;
+			void engine.restoreTrack(currentTrack, savedProgress);
+		};
+
+		if (usePlayerStore.persist.hasHydrated()) {
+			restore();
+			return undefined;
+		}
+		return usePlayerStore.persist.onFinishHydration(restore);
+	}, [resumeOnLaunch]);
+
 	/** Keep the native queue in step with what is up next. */
 	useEffect(() => {
 		void engine.syncUpcoming(queue.slice(0, 20));
-		if (warmAhead && queue[0]) void tracksApi.warm(queue[0].id).catch(() => undefined);
+		if (warmAhead && queue[0]) void tracksApi.warm(queue[0]!.id).catch(() => undefined);
 	}, [queue, warmAhead]);
 
 	/** Repeat mode is engine state, not UI state. */
 	useEffect(() => {
 		void engine.setRepeatMode(repeatMode);
 	}, [repeatMode]);
+
+	/** Shuffle on reorders what is coming up; shuffle off puts the album back. */
+	useEffect(() => {
+		const store = useQueueStore.getState();
+		if (isShuffled) store.shuffleQueue();
+		else store.restoreQueue();
+	}, [isShuffled]);
 
 	/** Position sampling, and the periodic position save. */
 	useEffect(() => {
@@ -124,7 +184,6 @@ export function usePlayback(): {
 			void haptic('light');
 			const nextTrack = nextFromQueue(isShuffled);
 			if (nextTrack) {
-				startedFor.current = nextTrack.id;
 				setTrack(nextTrack, { autoplay: true });
 				return;
 			}
@@ -144,7 +203,6 @@ export function usePlayback(): {
 							const first = playable[0];
 							if (first) {
 								setTrack(first, { autoplay: true });
-								startedFor.current = first.id;
 							}
 						}
 					} catch {
@@ -167,28 +225,96 @@ export function usePlayback(): {
 			}
 			const previous = prevFromQueue();
 			if (previous) {
-				startedFor.current = previous.id;
 				setTrack(previous, { autoplay: true });
 			}
 		});
 	}, [prevFromQueue, setTrack]);
 
-	const toggle = useCallback(() => {
+	const toggle = useCallback(async () => {
 		void haptic('light');
-		const { isPlaying } = usePlayerStore.getState();
-		if (isPlaying) {
-			void engine.pause();
-			setPlaying(false);
-		} else {
-			void engine.play();
-			setPlaying(true);
-		}
-	}, [setPlaying]);
+		const { isPlaying, currentTrack } = usePlayerStore.getState();
 
-	/** The engine finished a track — advance unless repeat-one is on. */
-	useTrackPlayerEvents([Event.PlaybackQueueEnded, Event.PlaybackActiveTrackChanged], event => {
-		if (event.type === Event.PlaybackQueueEnded) next(true);
+		if (isPlaying) {
+			await engine.pause();
+			setPlaying(false);
+			return;
+		}
+		if (!currentTrack) return;
+
+		// The engine may be empty — a launch with resume disabled, or a failed
+		// restore. Asking it to play nothing used to be a tap that did nothing.
+		const active = await engine.activeTrackId();
+		if (!active || active !== currentTrack.id) {
+			setLoading(true);
+			await engine.loadTrack(currentTrack, true);
+			setLoading(false);
+		} else {
+			await engine.play();
+		}
+		setPlaying(true);
+		void tracksApi.recordPlay(currentTrack.id).catch(() => undefined);
+	}, [setLoading, setPlaying]);
+
+	/** Jump to a track that is already in the upcoming queue. */
+	const playFromQueue = useCallback(
+		(index: number) => {
+			void haptic('light');
+			const target = jumpTo(index);
+			if (target) {
+				setTrack(target, { autoplay: true });
+			}
+		},
+		[jumpTo, setTrack]
+	);
+
+	/** Scrub. The store is updated immediately so the scrubber does not snap back. */
+	const seek = useCallback(
+		(seconds: number) => {
+			const target = Math.max(0, seconds);
+			setProgress(target);
+			saveProgress(target);
+			void engine.seekTo(target);
+		},
+		[saveProgress, setProgress]
+	);
+
+	useTrackPlayerEvents(PLAYER_EVENTS, event => {
+		if (event.type === Event.PlaybackQueueEnded) {
+			next(true);
+			return;
+		}
+
+		if (event.type === Event.PlaybackError) {
+			setPlaying(false);
+			toast(event.message ? `Playback stopped: ${event.message}` : 'Playback stopped');
+			return;
+		}
+
+		if (event.type === Event.PlaybackActiveTrackChanged) {
+			const active = event.track;
+			if (!active?.id) return;
+
+			const current = usePlayerStore.getState().currentTrack;
+			const activeId = String(active.id);
+			if (current?.id === activeId) return;
+
+			// The engine moved on by itself. Take that track out of the queue
+			// and into history without touching audio, which is already right.
+			const taken = useQueueStore.getState().take(activeId);
+			if (!taken) return;
+
+			setTrack(taken, { autoplay: false });
+			setPlaying(true);
+			void tracksApi.recordPlay(taken.id).catch(() => undefined);
+		}
 	});
 
-	return { playTrack, toggle, next: () => next(false), prev };
+	return {
+		playTrack,
+		toggle: () => void toggle(),
+		next: () => next(false),
+		prev,
+		playFromQueue,
+		seek
+	};
 }

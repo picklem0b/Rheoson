@@ -10,6 +10,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { MiniPlayer } from '@/components/player/MiniPlayer';
 import { layout } from '@/constants/theme';
+import { useDownloads } from '@/hooks/use-downloads';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -23,6 +24,9 @@ import { useTheme } from '@/hooks/use-theme';
  */
 export default function TabsLayout(): ReactElement {
 	const { colour } = useTheme();
+	// The badge is the only reason this lives here: a transfer started from
+	// Home should be visible from every tab, and the count is the screen's own.
+	const { active } = useDownloads();
 
 	return (
 		<View style={{ flex: 1, backgroundColor: colour.background }}>
@@ -72,6 +76,8 @@ export default function TabsLayout(): ReactElement {
 					name='downloads'
 					options={{
 						title: 'Downloads',
+						tabBarBadge: active.length > 0 ? active.length : undefined,
+						tabBarBadgeStyle: { backgroundColor: colour.accent, color: colour.onAccent },
 						tabBarIcon: ({ color, size, focused }) => (
 							<DownloadSimpleIcon size={size} color={color} weight={focused ? 'fill' : 'regular'} />
 						)

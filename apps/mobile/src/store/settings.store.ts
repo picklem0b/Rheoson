@@ -24,8 +24,6 @@ interface SettingsStore {
 	wifiOnlyDownloads: boolean;
 	/** Warm the next tracks' streams before they are needed. */
 	warmAhead: boolean;
-	/** Chart region, which changes what "trending" means. */
-	region: string;
 	/** Search history, newest first, capped. */
 	recentSearches: string[];
 
@@ -47,7 +45,6 @@ export const useSettingsStore = create<SettingsStore>()(
 			haptics: true,
 			wifiOnlyDownloads: false,
 			warmAhead: true,
-			region: 'ZA',
 			recentSearches: [],
 
 			setTheme: theme => set({ theme }),

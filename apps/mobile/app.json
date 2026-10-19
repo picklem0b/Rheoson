@@ -3,6 +3,7 @@
 		"name": "Rheoson",
 		"slug": "rheoson",
 		"scheme": "rheoson",
+		"owner": "the_devi",
 		"version": "2.25.0",
 		"orientation": "portrait",
 		"userInterfaceStyle": "automatic",
@@ -58,7 +59,7 @@
 				"origin": false
 			},
 			"eas": {
-				"projectId": ""
+				"projectId": "923cee7a-6e2a-4d01-891f-0bd87b9dc4a0"
 			}
 		}
 	}

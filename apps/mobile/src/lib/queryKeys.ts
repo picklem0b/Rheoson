@@ -28,6 +28,10 @@ export const qk = {
 	recentlyPlayed: () => ['recently-played'] as const,
 	recentlyPlayedFull: () => ['recently-played-full'] as const,
 	analyticsStats: () => ['analytics', 'stats'] as const,
+	analyticsTopTracks: () => ['analytics', 'top-tracks'] as const,
+	analyticsTopArtists: () => ['analytics', 'top-artists'] as const,
+	analyticsByHour: () => ['analytics', 'by-hour'] as const,
+	analyticsByDay: () => ['analytics', 'by-day'] as const,
 	wrapped: () => ['analytics', 'wrapped'] as const,
 
 	// ── Discovery ──────────────────────────────────────────────
@@ -49,6 +53,9 @@ export const qk = {
 	trendingWeekly: () => ['trending-weekly'] as const,
 	searchCategories: () => ['search', 'categories'] as const,
 	categoryTop: (slug: string) => ['category-top', slug] as const,
+
+	// ── System ─────────────────────────────────────────────────
+	health: () => ['health'] as const,
 
 	// ── Downloads ──────────────────────────────────────────────
 	downloads: () => ['downloads'] as const,

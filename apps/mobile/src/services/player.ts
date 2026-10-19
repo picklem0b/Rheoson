@@ -15,12 +15,14 @@
 import TrackPlayer, {
 	AppKilledPlaybackBehavior,
 	Capability,
+	Event,
 	RepeatMode as PlayerRepeatMode,
 	State,
 	type Track as PlayerTrack
 } from 'react-native-track-player';
 
 import { API_ORIGIN } from '@/constants/config';
+import { cachedAudioUri } from '@/lib/audioCache';
 import { getSession } from '@/services/session';
 import type { RepeatMode, Track } from '@rheoson/api-types';
 
@@ -86,10 +88,16 @@ export async function setupPlayer(): Promise<boolean> {
 	return setupPromise;
 }
 
-function toPlayerTrack(track: Track): PlayerTrack {
+/** The source the engine should load: the saved file first, the stream second. */
+async function sourceFor(trackId: string): Promise<string> {
+	const local = await cachedAudioUri(trackId);
+	return local ?? streamUrlFor(trackId);
+}
+
+function toPlayerTrack(track: Track, url: string): PlayerTrack {
 	return {
 		id: track.id,
-		url: streamUrlFor(track.id),
+		url,
 		title: track.title ?? 'Unknown title',
 		artist: track.artist?.name ?? 'Unknown artist',
 		album: track.album?.title ?? undefined,
@@ -100,6 +108,9 @@ function toPlayerTrack(track: Track): PlayerTrack {
 
 function toRepeatMode(mode: RepeatMode): PlayerRepeatMode {
 	if (mode === 'one') return PlayerRepeatMode.Track;
+	// 'all' is a queue repeat, not a track repeat. Mapping it to Off meant the
+	// third state in the repeat control did nothing at all.
+	if (mode === 'all') return PlayerRepeatMode.Queue;
 	return PlayerRepeatMode.Off;
 }
 
@@ -108,8 +119,29 @@ export async function loadTrack(track: Track, autoplay = true): Promise<void> {
 	const ready = await setupPlayer();
 	if (!ready) return;
 	await TrackPlayer.reset();
-	await TrackPlayer.add(toPlayerTrack(track));
+	await TrackPlayer.add(toPlayerTrack(track, await sourceFor(track.id)));
 	if (autoplay) await TrackPlayer.play();
+}
+
+/**
+ * Load a track without starting it, at a position.
+ *
+ * This is how a cold start resumes: the engine holds the last track and the
+ * scrubber sits where the user left it, but audio waits for a gesture — a phone
+ * that starts playing by itself on launch is both surprising and, on Android,
+ * blocked anyway.
+ */
+export async function restoreTrack(track: Track, position: number): Promise<void> {
+	const ready = await setupPlayer();
+	if (!ready) return;
+	try {
+		await TrackPlayer.reset();
+		await TrackPlayer.add(toPlayerTrack(track, await sourceFor(track.id)));
+		if (position > 0) await TrackPlayer.seekTo(position);
+	} catch {
+		// A failed restore leaves the player empty, which the UI already
+		// handles: the user taps the track again.
+	}
 }
 
 /** Put the upcoming tracks in the native queue, after whatever is playing. */
@@ -122,7 +154,12 @@ export async function syncUpcoming(tracks: Track[]): Promise<void> {
 		await TrackPlayer.remove(
 			queue.map((_, index) => index).filter(index => index >= start)
 		);
-		if (tracks.length > 0) await TrackPlayer.add(tracks.slice(0, 40).map(toPlayerTrack));
+		if (tracks.length > 0) {
+			const prepared = await Promise.all(
+				tracks.slice(0, 40).map(async track => toPlayerTrack(track, await sourceFor(track.id)))
+			);
+			await TrackPlayer.add(prepared);
+		}
 	} catch {
 		// A queue that failed to sync is not worth interrupting playback over;
 		// the next advance will try again.
@@ -152,34 +189,57 @@ export async function readProgress(): Promise<{
 	playing: boolean;
 }> {
 	try {
-		const [position, duration, state] = await Promise.all([
-			TrackPlayer.getProgress().then(progress => progress.position),
-			TrackPlayer.getProgress().then(progress => progress.duration),
+		const [progress, playback] = await Promise.all([
+			TrackPlayer.getProgress(),
 			TrackPlayer.getPlaybackState()
 		]);
 		return {
-			position: Number.isFinite(position) ? position : 0,
-			duration: Number.isFinite(duration) ? duration : 0,
+			position: Number.isFinite(progress.position) ? progress.position : 0,
+			duration: Number.isFinite(progress.duration) ? progress.duration : 0,
 			// The engine's own state enum, not a string: comparing to 'playing'
 			// silently never matched, so the UI reported "paused" while audio was
 			// coming out of the speaker.
-			playing: state.state === State.Playing
+			playing: playback.state === State.Playing
 		};
 	} catch {
 		return { position: 0, duration: 0, playing: false };
 	}
 }
 
+/** The id of whatever the engine is actually playing right now, if anything. */
+export async function activeTrackId(): Promise<string | null> {
+	try {
+		const active = await TrackPlayer.getActiveTrack();
+		return active?.id != null ? String(active.id) : null;
+	} catch {
+		return null;
+	}
+}
+
 /**
  * The playback service.
  *
- * Registered once from the root layout. It is the only code that runs while the
- * app is backgrounded, and its job is to translate remote control (notification,
- * headset button, Android Auto) into player calls. Anything it needs from the
- * session is read here rather than passed in, because this module is loaded by
- * the native side before React exists.
+ * Registered once from the app entry (`index.js`). It is the only code that
+ * runs while the app is backgrounded, and its job is to translate remote
+ * control — notification buttons, headset taps, Android Auto — into player
+ * calls. The native side can play and pause by itself, but next/previous and
+ * seek have to be told what to do, and a notification whose buttons do nothing
+ * is worse than one with no buttons.
+ *
+ * The session read is deliberate: this module is loaded before React exists, and
+ * touching the keychain here means a resumed queue can still authenticate its
+ * stream URLs.
  */
 export async function playbackService(): Promise<void> {
 	const { getSession: readSession } = await import('@/services/session');
 	await readSession();
+
+	TrackPlayer.addEventListener(Event.RemotePlay, () => void TrackPlayer.play());
+	TrackPlayer.addEventListener(Event.RemotePause, () => void TrackPlayer.pause());
+	TrackPlayer.addEventListener(Event.RemoteNext, () => void TrackPlayer.skipToNext().catch(() => undefined));
+	TrackPlayer.addEventListener(Event.RemotePrevious, () =>
+		void TrackPlayer.skipToPrevious().catch(() => undefined)
+	);
+	TrackPlayer.addEventListener(Event.RemoteSeek, event => void TrackPlayer.seekTo(event.position));
+	TrackPlayer.addEventListener(Event.RemoteStop, () => void TrackPlayer.stop());
 }

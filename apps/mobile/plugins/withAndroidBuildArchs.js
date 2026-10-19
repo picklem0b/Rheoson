@@ -57,37 +57,47 @@ const withAndroidBuildArchs = (config, props = {}) => {
 		);
 	}
 
-	const withGradleProperty = withGradleProperties(config => {
+	// `withGradleProperties(config, action)` and `withAppBuildGradle(config,
+	// action)` are *mods*: they take the config first and return a new config.
+	// Chaining them is the whole plugin — each one attaches its action to the
+	// config, and prebuild runs them in order.
+	const withProperty = withGradleProperties(config, next => {
 		// Prebuild writes the template's own entry, so replacing it (rather than
 		// appending a second one) is what makes the setting take effect.
-		config.modResults = config.modResults.filter(
+		if (!Array.isArray(next.modResults)) return next;
+
+		next.modResults = next.modResults.filter(
 			entry => !(entry.type === 'property' && entry.key === REACT_NATIVE_ARCHITECTURES)
 		);
 
-		config.modResults.push({
+		next.modResults.push({
 			type: 'property',
 			key: REACT_NATIVE_ARCHITECTURES,
 			value: archs.join(',')
 		});
 
-		return config;
+		return next;
 	});
 
-	return withAppBuildGradle(withGradleProperty, config => {
-		if (config.modResults.language !== 'groovy') {
+	return withAppBuildGradle(withProperty, next => {
+		if (!next.modResults || typeof next.modResults.contents !== 'string') {
+			return next;
+		}
+
+		if (next.modResults.language !== 'groovy') {
 			throw new Error(
 				'withAndroidBuildArchs: app/build.gradle is not Groovy, so the ABI filter ' +
 					'could not be applied. Narrowing the ABIs by hand is the alternative.'
 			);
 		}
 
-		if (config.modResults.contents.includes(APPENDED_MARKER)) {
-			return config;
+		if (next.modResults.contents.includes(APPENDED_MARKER)) {
+			return next;
 		}
 
 		const abiList = archs.map(abi => `"${abi}"`).join(', ');
 
-		config.modResults.contents += `
+		next.modResults.contents += `
 // ${APPENDED_MARKER}: pins the packaged native libraries to ${archs.join(', ')}.
 // The React Native Gradle plugin only applies \`reactNativeArchitectures\` when
 // the New Architecture is enabled, and this app runs the old architecture, so
@@ -101,7 +111,7 @@ android {
 }
 `;
 
-		return config;
+		return next;
 	});
 };
 

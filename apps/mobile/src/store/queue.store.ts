@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { shuffledCopy } from '@/lib/shuffle';
 import type { Track } from '@rheoson/api-types';
 
 /**
@@ -21,22 +22,25 @@ interface QueueStore {
 
 	setQueue: (tracks: Track[], startIndex?: number) => void;
 	addToQueue: (track: Track) => boolean;
+	/** Put a track at the front of what is coming up, unless it is already there. */
+	playNext: (track: Track) => boolean;
 	removeFromQueue: (index: number) => void;
 	clearQueue: () => void;
 	next: (isShuffled: boolean) => Track | null;
 	prev: () => Track | null;
+	/** Jump to an upcoming track: everything before it becomes history. */
+	jumpTo: (index: number) => Track | null;
+	/** Remove a track from the queue and make it history — engine-driven advance. */
+	take: (trackId: string) => Track | null;
 	shuffleQueue: () => void;
 	restoreQueue: () => void;
 	moveItem: (from: number, to: number) => void;
 }
 
-function shuffled<T>(items: T[]): T[] {
-	const copy = [...items];
-	for (let i = copy.length - 1; i > 0; i -= 1) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[copy[i], copy[j]] = [copy[j]!, copy[i]!];
-	}
-	return copy;
+/** True when the track is currently playing or already somewhere in the queue. */
+function isPresent(state: Pick<QueueStore, 'history' | 'queue'>, trackId: string): boolean {
+	const playing = state.history[state.history.length - 1];
+	return playing?.id === trackId || state.queue.some(item => item.id === trackId);
 }
 
 export const useQueueStore = create<QueueStore>((set, get) => ({
@@ -61,12 +65,15 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
 	addToQueue: track => {
 		const state = get();
-		const alreadyQueued = state.queue.some(item => item.id === track.id);
-		const playing = state.history[state.history.length - 1];
-		// Refusing duplicates keeps "Add to queue" from turning into a loop of
-		// the same song when the button is tapped twice.
-		if (alreadyQueued || playing?.id === track.id) return false;
+		if (isPresent(state, track.id)) return false;
 		set({ queue: [...state.queue, track] });
+		return true;
+	},
+
+	playNext: track => {
+		const state = get();
+		if (isPresent(state, track.id)) return false;
+		set({ queue: [track, ...state.queue] });
 		return true;
 	},
 
@@ -97,14 +104,46 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 		const target = history[history.length - 2]!;
 
 		set({
-			history: history.slice(0, -2),
+			// The target becomes the current track, so it stays as the last
+			// history entry. Dropping it too left the current track outside
+			// history entirely, which made the next advance forget it.
+			history: history.slice(0, -1),
 			queue: [current, ...queue]
 		});
 
 		return target;
 	},
 
-	shuffleQueue: () => set(state => ({ queue: shuffled(state.queue) })),
+	jumpTo: index => {
+		const { queue, history } = get();
+		const target = queue[index];
+		if (!target) return null;
+
+		set({
+			// The skipped-over tracks stay in history: pressing previous after
+			// a jump should walk back through them, not to the track that was
+			// playing before the jump.
+			queue: queue.slice(index + 1),
+			history: [...history, ...queue.slice(0, index + 1)]
+		});
+
+		return target;
+	},
+
+	take: trackId => {
+		const { queue, history } = get();
+		const index = queue.findIndex(item => item.id === trackId);
+		const track = index >= 0 ? queue[index] : undefined;
+		if (!track) return null;
+
+		set({
+			queue: queue.filter((_, i) => i !== index),
+			history: [...history, track]
+		});
+		return track;
+	},
+
+	shuffleQueue: () => set(state => ({ queue: shuffledCopy(state.queue) })),
 
 	restoreQueue: () =>
 		set(state => {

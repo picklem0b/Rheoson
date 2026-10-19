@@ -39,8 +39,17 @@ export const searchApi = {
 		};
 	},
 
-	categories: () => api.get<SearchCategory[]>('/search/categories'),
+	/** The browse grid. The server wraps the list; older builds did not. */
+	categories: async (): Promise<SearchCategory[]> => {
+		const raw = await api.get<{ categories?: SearchCategory[] } | SearchCategory[]>('/search/categories');
+		if (Array.isArray(raw)) return raw;
+		return Array.isArray(raw?.categories) ? raw.categories : [];
+	},
 
-	categoryTop: async (slug: string, limit = 20): Promise<Track[]> =>
-		normalizeTracks(await api.get('/search/categories/' + slug + '/top', { params: { limit } }))
+	categoryTop: async (slug: string, limit = 12): Promise<Track[]> => {
+		const raw = await api.get<{ tracks?: unknown[] }>(`/search/categories/${slug}/top`, {
+			params: { limit }
+		});
+		return normalizeTracks(raw?.tracks ?? []);
+	}
 };

@@ -23,7 +23,9 @@ export function useDownloads() {
 		// Poll while anything is moving; a finished list costs nothing.
 		refetchInterval: query => {
 			const jobs = (query.state.data ?? []) as DownloadJob[];
-			return jobs.some(job => job.status === 'downloading' || job.status === 'queued')
+			return jobs.some(
+				job => job.status === 'downloading' || job.status === 'queued' || job.status === 'converting'
+			)
 				? 4_000
 				: false;
 		}
@@ -45,9 +47,11 @@ export function useDownloads() {
 	const jobs = query.data ?? [];
 	return {
 		jobs,
-		active: jobs.filter(job => job.status === 'downloading' || job.status === 'queued'),
+		active: jobs.filter(
+			job => job.status === 'downloading' || job.status === 'queued' || job.status === 'converting'
+		),
 		finished: jobs.filter(job => job.status === 'done'),
-		failed: jobs.filter(job => job.status === 'failed'),
+		failed: jobs.filter(job => job.status === 'failed' || job.status === 'cancelled'),
 		isLoading: query.isLoading,
 		error: query.error,
 		refetch: query.refetch

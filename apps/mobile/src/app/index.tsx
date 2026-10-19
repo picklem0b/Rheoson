@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { Image, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,9 @@ import { Button, Text } from '@/components/ui';
 import { APP_VERSION } from '@/constants/config';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { readJson, writeJson } from '@/lib/storage';
+
+const ONBOARDED_KEY = 'rheoson.onboarded';
 
 /**
  * The first screen: a welcome, not a sign-in.
@@ -16,10 +19,39 @@ import { useTheme } from '@/hooks/use-theme';
  * out of the way. It replaces the old splash screen entirely: a splash that
  * waits on a network call is a splash that sometimes never leaves, whereas this
  * screen is instant, dismissible, and explains itself.
+ *
+ * It is shown *once*. Every launch after the first goes straight to music,
+ * which is what a music app should do; the welcome survives only as the thing
+ * a fresh install sees.
  */
 export default function Welcome(): ReactElement {
 	const router = useRouter();
 	const { colour } = useTheme();
+	const [checking, setChecking] = useState(true);
+
+	useEffect(() => {
+		let cancelled = false;
+		void readJson<boolean>(ONBOARDED_KEY).then(seen => {
+			if (cancelled) return;
+			if (seen) {
+				router.replace('/(tabs)');
+				return;
+			}
+			setChecking(false);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [router]);
+
+	const start = (): void => {
+		void writeJson(ONBOARDED_KEY, true);
+		router.replace('/(tabs)');
+	};
+
+	if (checking) {
+		return <View style={{ flex: 1, backgroundColor: colour.background }} />;
+	}
 
 	return (
 		<SafeAreaView style={{ flex: 1, backgroundColor: colour.background }}>
@@ -40,13 +72,13 @@ export default function Welcome(): ReactElement {
 				<View style={{ alignItems: 'center', gap: spacing.sm }}>
 					<Text variant='display'>Rheoson</Text>
 					<Text variant='body' muted style={{ textAlign: 'center' }}>
-						Your music, streamed from your own library. Search it, download it, keep it offline.
+						Your music, streamed from your own server. Search it, play it, and keep tracks on this phone for when there is no signal.
 					</Text>
 				</View>
 			</View>
 
 			<View style={{ padding: spacing.xl, gap: spacing.md }}>
-				<Button label='Get started' onPress={() => router.replace('/(tabs)')} />
+				<Button label='Get started' onPress={start} />
 				<Text variant='caption' muted style={{ textAlign: 'center' }}>
 					No account needed · v{APP_VERSION}
 				</Text>
