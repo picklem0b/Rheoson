@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 
 import { readOfflineCache, writeOfflineCache } from '@/lib/offlineCache';
+import { queryClient } from '@/lib/queryClient';
 import { OFFLINE_SECTIONS } from '@/lib/queryKeys';
 
 /**
@@ -20,7 +21,9 @@ import { OFFLINE_SECTIONS } from '@/lib/queryKeys';
  * is left alone rather than overwritten with blank — see offlineCache.
  */
 export function useOfflineMirror(user: string | null): void {
-	const client = useQueryClient();
+	// The shared instance, not `useQueryClient()`: this hook is mounted in the
+	// root layout, which renders the provider below itself.
+	const client = queryClient;
 
 	useEffect(() => {
 		if (!user) return undefined;

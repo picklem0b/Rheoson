@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { useEffect, useState, type ReactElement } from 'react';
@@ -12,6 +12,7 @@ import { TrackMenu } from '@/components/track/TrackMenu';
 import { useKeepAwakeWhilePlaying } from '@/hooks/use-keep-awake';
 import { usePlayback } from '@/hooks/use-playback';
 import { useOfflineMirror } from '@/hooks/use-offline-mirror';
+import { queryClient } from '@/lib/queryClient';
 import { captureCrash, flushCrashes } from '@/services/crash';
 import { setupPlayer } from '@/services/player';
 import { useOfflineStore } from '@/store/offline.store';
@@ -30,18 +31,6 @@ import { ensureSession, getSessionSub } from '@/services/session';
  * route like the player itself should not sit above a bar that duplicates its
  * own controls.
  */
-const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			// A phone changes networks constantly; retrying a dead request three
-			// times costs battery and shows nothing.
-			retry: 1,
-			staleTime: 30_000,
-			refetchOnWindowFocus: false
-		}
-	}
-});
-
 export default function RootLayout(): ReactElement {
 	const [account, setAccount] = useState<string | null>(null);
 
