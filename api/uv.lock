@@ -1196,7 +1196,7 @@ wheels = [
 
 [[package]]
 name = "rheoson-api"
-version = "2.24.5"
+version = "2.24.6"
 source = { virtual = "." }
 dependencies = [
     { name = "apscheduler" },

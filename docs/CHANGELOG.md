@@ -6,6 +6,14 @@ Format: `v(major).(minor).(patch)[-rc]` — **annotated** tags (`git tag -a`), p
 
 ---
 
+## v2.24.6 — The phone app gets its own motion and chrome
+
+- feat(mobile): **a motion layer under every screen** — `Reveal`, `Pop`, `PressableScale`, `SmoothFill`, `Swap`, `EqBars`, `Shimmer` and `Pulse` wrap Moti and Reanimated so a press gives under the finger and content rises in; `useReducedMotion` is honoured in every one of them, because motion is decoration and content never waits for it.
+- feat(mobile): **a floating tab bar and a docked mini player** — the stock tab bar becomes a glass capsule whose indicator slides between rooms on a spring and whose measured height (bottom inset included) goes into a chrome store the mini player, the toast and every screen position against. The mini player now lives at the root, so it follows you onto album, artist, playlist, settings and stats instead of belonging to the tab layout.
+- feat(mobile): **the screens are rebuilt on those primitives** — a Home with a quick-play grid and a cover-tinted continue card, browse tiles in Search tinted from each category's slug, a player whose artwork sizes with playback state and cross-fades on a track change, track rows that mark what is playing three ways, and a sheet that springs up, drags down and fades its scrim in step with the drag.
+- fix(mobile): **a sleeping free-tier server no longer costs the first launch its session** — minting now waits 40 s and retries once, a deliberate 403 is not retried, and the API client asks for a session before the request instead of paying for a 401 round trip first. `render.yaml` declares `ALLOW_GUEST_ACCOUNTS` so the deploy cannot drift from what the app assumes.
+- chore(mobile): ships the launch assets the welcome screen and splash reference (`logo-solid.png`, `splash-icon.png`) — both were referenced before the files existed, which broke the bundle — configures `expo-splash-screen`, and keeps the eslint config `expo lint` generates.
+
 ## v2.24.5 — A crash leaves a trace, and the device keeps what it knows
 
 - feat(crash): **crashes report themselves end-to-end** — the JavaScript globals, the React boundary and the native `CrashLogger` all feed `lib/crashReporter.ts`, which posts to the unauthenticated, per-IP-limited `/api/diagnostics/crash` and stores reports beside the library; the Diagnostics screen lists them (with the report that arrived from the device that crashed) and can clear them. The `C` domain joins the DCCNN registry (`CVA01`, `CVA02`, `CLM01`, `CNF01`), and `initErrorHandler()` now installs the reporter instead of a second set of listeners that only wrote to a local buffer.
