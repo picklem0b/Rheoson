@@ -22,6 +22,8 @@ import { API_BASE } from '@/constants/config';
 
 const TOKEN_KEY = 'rheoson.guest.token';
 const SUB_KEY = 'rheoson.guest.sub';
+/** Long enough for a sleeping free-tier server to wake up. */
+const MINT_TIMEOUT_MS = 40_000;
 
 let cached: string | null = null;
 /** Serialises concurrent mints: ten parallel requests must not create ten guests. */
@@ -72,22 +74,39 @@ export async function mintGuestSession(): Promise<string | null> {
 	if (inFlight) return inFlight;
 
 	const attempt = (async (): Promise<string | null> => {
-		try {
-			const res = await fetch(`${API_BASE}/auth/guest`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ device: 'android' })
-			});
-			if (!res.ok) return null;
-			const body = (await res.json()) as { token?: string; user?: { id?: string } };
-			if (!body?.token) return null;
-			await store(body.token, body.user?.id ?? null);
-			return body.token;
-		} catch {
-			// Offline at first launch: no session yet. The next request tries
-			// again, and the app keeps showing whatever is cached locally.
-			return null;
+		// A free-tier server can take most of a minute to wake from sleep, so the
+		// first try waits long enough for that, and one retry covers a request
+		// that landed while it was still booting. Never loops further: a phone
+		// with no signal should fail quietly and try again on the next request.
+		for (let tryNumber = 0; tryNumber < 2; tryNumber += 1) {
+			const controller = new AbortController();
+			const timer = setTimeout(() => controller.abort(), MINT_TIMEOUT_MS);
+			try {
+				const res = await fetch(`${API_BASE}/auth/guest`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ device: 'android' }),
+					signal: controller.signal
+				});
+				// 403 is the instance saying "no guests" on purpose; retrying that
+				// would only repeat the answer.
+				if (res.status === 403) return null;
+				if (!res.ok) continue;
+				const body = (await res.json()) as {
+					token?: string;
+					user?: { id?: string };
+				};
+				if (!body?.token) continue;
+				await store(body.token, body.user?.id ?? null);
+				return body.token;
+			} catch {
+				// Offline or timed out: fall through to the retry, then give up
+				// quietly. The app keeps showing whatever is cached locally.
+			} finally {
+				clearTimeout(timer);
+			}
 		}
+		return null;
 	})();
 
 	inFlight = attempt;

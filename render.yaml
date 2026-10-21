@@ -52,6 +52,15 @@ services:
       - key: CLERK_WEBHOOK_SECRET
         sync: false
 
+      # The phone app has no sign-in: it mints a device-linked guest session
+      # from POST /api/auth/guest. Keep this true or the app opens to errors.
+      # Tokens are signed with GUEST_TOKEN_SECRET, or the Clerk secret when that
+      # is unset (see services/guest_sessions.py). Do NOT add or change
+      # GUEST_TOKEN_SECRET on a live deploy: it changes the signing key, every
+      # installed phone re-mints, and each one starts over with an empty library.
+      - key: ALLOW_GUEST_ACCOUNTS
+        value: 'true'
+
       # Restrict CORS to the actual frontend origin. Origins are matched
       # exactly, so the scheme/host must be lowercase — browsers normalize
       # the Origin header and "https://Rheoson.onrender.com" would never match.

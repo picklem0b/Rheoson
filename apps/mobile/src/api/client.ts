@@ -17,7 +17,11 @@
  */
 
 import { API_BASE } from '@/constants/config';
-import { getSession, mintGuestSession } from '@/services/session';
+import {
+	ensureSession,
+	getSession,
+	mintGuestSession
+} from '@/services/session';
 
 export interface ApiError extends Error {
 	status: number;
@@ -51,7 +55,10 @@ function makeError(status: number, detail: string, code?: string): ApiError {
  * renderings are accepted too, so a response in flight across an upgrade still
  * parses.
  */
-export function splitErrorCode(detail: string): { message: string; code?: string } {
+export function splitErrorCode(detail: string): {
+	message: string;
+	code?: string;
+} {
 	const match =
 		/\s*\[ERROR_CODE: ([A-Z]{3}\d{2})\]\s*$/.exec(detail ?? '') ??
 		/\s*\[ERR:? ([A-Z]{3}\d{2})\]\s*$/.exec(detail ?? '');
@@ -64,21 +71,40 @@ function buildUrl(endpoint: string, params?: RequestOptions['params']): string {
 	if (!params) return url;
 	const query = Object.entries(params)
 		.filter(([, value]) => value !== undefined && value !== null)
-		.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+		.map(
+			([key, value]) =>
+				`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`
+		)
 		.join('&');
 	return query ? `${url}?${query}` : url;
 }
 
-async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-	const { params, _retry = 0, _refreshedSession = false, headers: rawHeaders, ...init } = options;
+async function request<T>(
+	endpoint: string,
+	options: RequestOptions = {}
+): Promise<T> {
+	const {
+		params,
+		_retry = 0,
+		_refreshedSession = false,
+		headers: rawHeaders,
+		...init
+	} = options;
 	const method = (init.method ?? 'GET').toUpperCase();
 
-	const headers: Record<string, string> = { ...(rawHeaders as Record<string, string>) };
+	const headers: Record<string, string> = {
+		...(rawHeaders as Record<string, string>)
+	};
 	if (!BODY_FREE.has(method) && init.body != null) {
 		headers['Content-Type'] = 'application/json';
 	}
 
-	const token = await getSession();
+	// A first launch has no session yet. Minting it here, before the request,
+	// saves the round trip a 401 would cost — and on a cold-starting free-tier
+	// server that round trip is the difference between instant and a minute.
+	const token = endpoint.startsWith('/auth/')
+		? await getSession()
+		: await ensureSession();
 	if (token) headers['Authorization'] = `Bearer ${token}`;
 
 	let response: Response;
@@ -93,7 +119,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 		// A real abort is the caller's decision; a network failure is retried.
 		if ((err as Error)?.name === 'AbortError') throw err;
 		if (_retry < 2) {
-			await new Promise(resolve => setTimeout(resolve, _retry === 0 ? 1200 : 3000));
+			await new Promise(resolve =>
+				setTimeout(resolve, _retry === 0 ? 1200 : 3000)
+			);
 			return request<T>(endpoint, { ...options, _retry: _retry + 1 });
 		}
 		throw makeError(
@@ -114,17 +142,28 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 		// A guest token can go stale after a server data wipe or a secret
 		// change. Re-minting once keeps the app usable instead of showing an
 		// error the user has no way to act on.
-		if (response.status === 401 && !_refreshedSession && !endpoint.startsWith('/auth/')) {
+		if (
+			response.status === 401 &&
+			!_refreshedSession &&
+			!endpoint.startsWith('/auth/')
+		) {
 			const fresh = await mintGuestSession();
 			if (fresh) {
-				return request<T>(endpoint, { ...options, _retry, _refreshedSession: true });
+				return request<T>(endpoint, {
+					...options,
+					_retry,
+					_refreshedSession: true
+				});
 			}
 		}
 
 		let detail = `HTTP ${response.status}`;
 		let code: string | undefined;
 		try {
-			const body = (await response.json()) as { detail?: string; code?: string };
+			const body = (await response.json()) as {
+				detail?: string;
+				code?: string;
+			};
 			detail = body?.detail ?? detail;
 			if (typeof body?.code === 'string') code = body.code;
 		} catch {
@@ -134,7 +173,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 		throw makeError(response.status, parsed.message, code ?? parsed.code);
 	}
 
-	if (response.status === 204 || response.headers.get('content-length') === '0') {
+	if (
+		response.status === 204 ||
+		response.headers.get('content-length') === '0'
+	) {
 		return undefined as T;
 	}
 
@@ -142,7 +184,8 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 }
 
 export const api = {
-	get: <T>(url: string, opts?: RequestOptions) => request<T>(url, { ...opts, method: 'GET' }),
+	get: <T>(url: string, opts?: RequestOptions) =>
+		request<T>(url, { ...opts, method: 'GET' }),
 	post: <T>(url: string, body?: unknown, opts?: RequestOptions) =>
 		request<T>(url, {
 			...opts,
@@ -161,7 +204,8 @@ export const api = {
 			method: 'PATCH',
 			body: body != null ? JSON.stringify(body) : undefined
 		}),
-	delete: <T>(url: string, opts?: RequestOptions) => request<T>(url, { ...opts, method: 'DELETE' })
+	delete: <T>(url: string, opts?: RequestOptions) =>
+		request<T>(url, { ...opts, method: 'DELETE' })
 };
 
 /** Absolute URL for a media route (audio, artwork) — the player needs one. */
