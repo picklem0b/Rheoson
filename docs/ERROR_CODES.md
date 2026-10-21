@@ -52,6 +52,7 @@ or grep the API source for it — to land on the single raise site.
 | [ERROR_CODE: ASE01] | Not signed in |
 | [ERROR_CODE: ASE02] | Session expired or invalid |
 | [ERROR_CODE: ACF01] | You don't have access to this |
+| [ERROR_CODE: ACF02] | This instance requires an account — guest sessions are turned off |
 
 ## Playlists (P)
 
