@@ -29,7 +29,8 @@ export interface CrashReport {
 function fingerprint(report: CrashReport): string {
 	const source = `${report.kind}:${report.message}:${(report.stack ?? '').slice(0, 200)}`;
 	let hash = 0;
-	for (let i = 0; i < source.length; i += 1) hash = (hash * 31 + source.charCodeAt(i)) | 0;
+	for (let i = 0; i < source.length; i += 1)
+		hash = (hash * 31 + source.charCodeAt(i)) | 0;
 	return Math.abs(hash).toString(36);
 }
 
@@ -46,12 +47,16 @@ export async function captureCrash(
 	try {
 		const err = error instanceof Error ? error : new Error(String(error));
 		const report: CrashReport = {
-			id: fingerprint({ message: err.message, stack: err.stack, kind } as CrashReport),
+			id: fingerprint({
+				message: err.message,
+				stack: err.stack,
+				kind
+			} as CrashReport),
 			message: err.message || 'Unknown error',
 			stack: err.stack,
 			kind,
 			platform: 'android',
-			appVersion: '2.25.0',
+			appVersion: '2.26.0',
 			at: new Date().toISOString()
 		};
 

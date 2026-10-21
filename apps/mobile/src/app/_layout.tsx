@@ -8,6 +8,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Button, ErrorState, Text, Toaster } from '@/components/ui';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import { useTheme } from '@/hooks/use-theme';
+import { MiniPlayerDock } from '@/components/player/MiniPlayerDock';
 import { TrackMenu } from '@/components/track/TrackMenu';
 import { useKeepAwakeWhilePlaying } from '@/hooks/use-keep-awake';
 import { usePlayback } from '@/hooks/use-playback';
@@ -27,12 +29,13 @@ import { ensureSession, getSessionSub } from '@/services/session';
  * never a sign-in wall), the offline mirror is wired to the query cache, and
  * the two global overlays — the track sheet and the toast — are rendered.
  *
- * The mini player is rendered by the tabs layout rather than here: a full-screen
- * route like the player itself should not sit above a bar that duplicates its
- * own controls.
+ * The mini player is positioned by `MiniPlayerDock`, which reads the route: it
+ * floats above the tab bar on the tabs, sits at the screen edge on detail pages,
+ * and steps aside for the full player and the welcome screen.
  */
 export default function RootLayout(): ReactElement {
 	const [account, setAccount] = useState<string | null>(null);
+	const { colour } = useTheme();
 
 	// Mounted once: installs the engine listeners, keeps the native queue in
 	// step, and restores the last track after the stores rehydrate.
@@ -55,19 +58,37 @@ export default function RootLayout(): ReactElement {
 				<GestureHandlerRootView style={{ flex: 1 }}>
 					<SafeAreaProvider>
 						<View style={{ flex: 1 }}>
-							<Stack screenOptions={{ headerShown: false }}>
-								<Stack.Screen name='index' />
-								<Stack.Screen name='(tabs)' />
+							<Stack
+								screenOptions={{
+									headerShown: false,
+									// A route that is still mounting must never flash white
+									// (or black, in light mode) between two screens.
+									contentStyle: { backgroundColor: colour.background },
+									animation: 'slide_from_right',
+									animationDuration: 280,
+									gestureEnabled: true
+								}}
+							>
+								<Stack.Screen name='index' options={{ animation: 'fade' }} />
+								<Stack.Screen
+									name='(tabs)'
+									options={{ animation: 'fade', gestureEnabled: false }}
+								/>
 								<Stack.Screen
 									name='player'
-									options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+									options={{
+										presentation: 'modal',
+										animation: 'slide_from_bottom',
+										gestureDirection: 'vertical'
+									}}
 								/>
-								<Stack.Screen name='settings' options={{ animation: 'slide_from_right' }} />
-								<Stack.Screen name='stats' options={{ animation: 'slide_from_right' }} />
-								<Stack.Screen name='album/[id]' options={{ animation: 'slide_from_right' }} />
-								<Stack.Screen name='artist/[id]' options={{ animation: 'slide_from_right' }} />
-								<Stack.Screen name='playlist/[id]' options={{ animation: 'slide_from_right' }} />
+								<Stack.Screen name='settings' />
+								<Stack.Screen name='stats' />
+								<Stack.Screen name='album/[id]' />
+								<Stack.Screen name='artist/[id]' />
+								<Stack.Screen name='playlist/[id]' />
 							</Stack>
+							<MiniPlayerDock />
 							<TrackMenu />
 							<Toaster />
 						</View>
@@ -86,7 +107,10 @@ export default function RootLayout(): ReactElement {
  * instead of a blank window. The failure is also reported, because a crash on a
  * phone that is never connected is a bug nobody would otherwise hear about.
  */
-export function ErrorBoundary({ error, retry }: ErrorBoundaryProps): ReactElement {
+export function ErrorBoundary({
+	error,
+	retry
+}: ErrorBoundaryProps): ReactElement {
 	useEffect(() => {
 		void captureCrash(error, 'render');
 	}, [error]);
@@ -94,7 +118,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps): ReactElemen
 	return (
 		<SafeAreaProvider>
 			<ThemeProvider>
-				<ErrorState message={error.message || 'Something went wrong'} onRetry={() => void retry()} />
+				<ErrorState
+					message={error.message || 'Something went wrong'}
+					onRetry={() => void retry()}
+				/>
 			</ThemeProvider>
 		</SafeAreaProvider>
 	);

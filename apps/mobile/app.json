@@ -4,9 +4,10 @@
 		"slug": "rheoson",
 		"scheme": "rheoson",
 		"owner": "the_devi",
-		"version": "2.25.0",
+		"version": "2.26.0",
 		"orientation": "portrait",
 		"userInterfaceStyle": "automatic",
+		"backgroundColor": "#080809",
 		"newArchEnabled": false,
 		"icon": "./assets/icon.png",
 		"assetBundlePatterns": ["**/*"],
@@ -19,7 +20,7 @@
 		},
 		"android": {
 			"package": "com.lethabo.rheoson",
-			"versionCode": 22500,
+			"versionCode": 22600,
 			"permissions": [
 				"FOREGROUND_SERVICE",
 				"FOREGROUND_SERVICE_MEDIA_PLAYBACK",
@@ -33,6 +34,19 @@
 		},
 		"plugins": [
 			"expo-router",
+			[
+				"expo-splash-screen",
+				{
+					"image": "./assets/splash-icon.png",
+					"imageWidth": 160,
+					"resizeMode": "contain",
+					"backgroundColor": "#080809",
+					"dark": {
+						"image": "./assets/splash-icon.png",
+						"backgroundColor": "#080809"
+					}
+				}
+			],
 			"expo-secure-store",
 			"expo-notifications",
 			[

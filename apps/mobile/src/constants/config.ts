@@ -13,7 +13,9 @@
 export const CANONICAL_API_ORIGIN = 'https://rheoson-api-9e4c.onrender.com';
 
 function resolveApiOrigin(): string {
-	const configured = (process.env.EXPO_PUBLIC_API_URL ?? '').trim().replace(/\/+$/, '');
+	const configured = (process.env.EXPO_PUBLIC_API_URL ?? '')
+		.trim()
+		.replace(/\/+$/, '');
 	if (/^https?:\/\//i.test(configured)) return configured;
 	return CANONICAL_API_ORIGIN;
 }
@@ -28,4 +30,4 @@ export const API_BASE = `${API_ORIGIN}/api`;
 export const IS_LOCAL_BACKEND = /^http:\/\//i.test(API_ORIGIN);
 
 /** Version shown in Settings → About, and compared against the server's. */
-export const APP_VERSION = '2.25.0';
+export const APP_VERSION = '2.26.0';

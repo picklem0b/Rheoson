@@ -46,32 +46,47 @@ const palette = {
 
 /** One screen's worth of colours. Screens read these, never `palette`. */
 export interface ThemeColors {
-	accent: string
-	accentPressed: string
-	background: string
-	surface: string
-	surfaceRaised: string
-	surfacePressed: string
-	border: string
-	borderStrong: string
-	text: string
-	textMuted: string
-	textFaint: string
-	onAccent: string
-	danger: string
-	dangerBg: string
-	success: string
-	successBg: string
-	warning: string
-	warningBg: string
-	overlay: string
-	skeleton: string
-	player: string
+	accent: string;
+	accentBright: string;
+	accentPressed: string;
+	/** 14% accent wash — selected pills, active tab. */
+	accentSubtle: string;
+	/** 32% accent hairline that goes with `accentSubtle`. */
+	accentBorder: string;
+	/** Translucent chrome (floating tab bar, mini player). */
+	glass: string;
+	glassBorder: string;
+	glassHighlight: string;
+	background: string;
+	surface: string;
+	surfaceRaised: string;
+	surfacePressed: string;
+	border: string;
+	borderStrong: string;
+	text: string;
+	textMuted: string;
+	textFaint: string;
+	onAccent: string;
+	danger: string;
+	dangerBg: string;
+	success: string;
+	successBg: string;
+	warning: string;
+	warningBg: string;
+	overlay: string;
+	skeleton: string;
+	player: string;
 }
 
 const dark: ThemeColors = {
 	accent: palette.accent,
+	accentBright: palette.accentSoft,
 	accentPressed: palette.accentDeep,
+	accentSubtle: 'rgba(228,37,59,0.14)',
+	accentBorder: 'rgba(228,37,59,0.32)',
+	glass: 'rgba(17,17,19,0.88)',
+	glassBorder: 'rgba(255,255,255,0.08)',
+	glassHighlight: 'rgba(255,255,255,0.06)',
 	background: palette.gray950,
 	surface: palette.gray925,
 	surfaceRaised: palette.gray850,
@@ -91,11 +106,17 @@ const dark: ThemeColors = {
 	overlay: 'rgba(0,0,0,0.6)',
 	skeleton: palette.gray850,
 	player: '#141416'
-}
+};
 
 const light: ThemeColors = {
 	accent: palette.accent,
+	accentBright: palette.accentSoft,
 	accentPressed: palette.accentDeep,
+	accentSubtle: 'rgba(228,37,59,0.10)',
+	accentBorder: 'rgba(228,37,59,0.28)',
+	glass: 'rgba(255,255,255,0.9)',
+	glassBorder: 'rgba(9,9,11,0.08)',
+	glassHighlight: 'rgba(255,255,255,0.7)',
 	background: palette.gray25,
 	surface: palette.gray0,
 	surfaceRaised: palette.gray50,
@@ -115,7 +136,7 @@ const light: ThemeColors = {
 	overlay: 'rgba(9,9,11,0.4)',
 	skeleton: palette.gray100,
 	player: palette.gray0
-}
+};
 
 /** 4pt grid. Named by intent where a screen would otherwise guess. */
 export const spacing = {
@@ -126,7 +147,7 @@ export const spacing = {
 	xl: 20,
 	xxl: 28,
 	xxxl: 36
-} as const
+} as const;
 
 export const radius = {
 	sm: 8,
@@ -134,33 +155,75 @@ export const radius = {
 	lg: 16,
 	xl: 22,
 	pill: 999
-} as const
+} as const;
 
 /**
  * Type scale. `fontSize`/`lineHeight` are paired so no screen has to invent a
  * line height, and weights are limited to three so hierarchy stays legible.
  */
 export const typography = {
-	display: { fontSize: 34, lineHeight: 40, fontWeight: '700' as const },
-	title: { fontSize: 26, lineHeight: 32, fontWeight: '700' as const },
-	heading: { fontSize: 20, lineHeight: 26, fontWeight: '600' as const },
+	display: {
+		fontSize: 34,
+		lineHeight: 40,
+		fontWeight: '800' as const,
+		letterSpacing: -0.8
+	},
+	title: {
+		fontSize: 26,
+		lineHeight: 32,
+		fontWeight: '800' as const,
+		letterSpacing: -0.5
+	},
+	heading: {
+		fontSize: 20,
+		lineHeight: 26,
+		fontWeight: '700' as const,
+		letterSpacing: -0.3
+	},
 	body: { fontSize: 16, lineHeight: 22, fontWeight: '400' as const },
 	bodyStrong: { fontSize: 16, lineHeight: 22, fontWeight: '600' as const },
 	label: { fontSize: 14, lineHeight: 18, fontWeight: '600' as const },
 	caption: { fontSize: 13, lineHeight: 17, fontWeight: '400' as const },
-	micro: { fontSize: 11, lineHeight: 14, fontWeight: '600' as const }
-} as const
+	micro: {
+		fontSize: 11,
+		lineHeight: 14,
+		fontWeight: '700' as const,
+		letterSpacing: 0.8
+	}
+} as const;
 
 /** Every tappable element is at least this tall — the platform minimum. */
-export const TOUCH_TARGET = 44
+export const TOUCH_TARGET = 44;
 
 /** Fixed heights that layout maths depends on. */
 export const layout = {
 	row: 64,
 	header: 56,
 	miniPlayer: 64,
-	tabBar: 58
-} as const
+	/** Floating tab bar: 64 capsule + 8 above + the smallest bottom gutter. */
+	tabBar: 88
+} as const;
 
-export const themes = { dark, light } as const
-export type ThemeName = keyof typeof themes
+/**
+ * Motion tokens — the phone's counterpart of the website's `--ease-ios`,
+ * `--ease-spring` and `--duration-*` primitives.
+ *
+ * Durations are frequency-gated (Doherty: feedback inside 400ms, and the
+ * things people do hundreds of times inside 150): `fast` for presses and
+ * toggles, `base` for state changes, `slow` for once-per-screen reveals.
+ * `press` is a plain Reanimated spring config; `bounce` and `soft` also carry
+ * `type: 'spring'` because Moti's `transition` prop needs it.
+ */
+export const motion = {
+	duration: { fast: 120, base: 220, slow: 360 },
+	/** Delay between siblings in a staggered reveal, ms. */
+	stagger: 45,
+	/** Siblings past this index appear together, so a long list never lags. */
+	staggerCap: 8,
+	press: { damping: 18, stiffness: 420, mass: 0.6 },
+	bounce: { type: 'spring' as const, damping: 13, stiffness: 240, mass: 0.8 },
+	soft: { type: 'spring' as const, damping: 22, stiffness: 190, mass: 1 }
+} as const;
+
+export const themes = { dark, light } as const;
+export type ThemeName = keyof typeof themes;

@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { Pop, Reveal } from '@/components/motion';
 import { Artwork, Text } from '@/components/ui';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -33,16 +34,33 @@ export function Hero({
 	const { colour } = useTheme();
 
 	return (
-		<View style={{ alignItems: 'center', gap: spacing.md, paddingTop: spacing.sm }}>
-			<Artwork uri={artworkUri} size={172} rounded={round ? 86 : radius.lg} />
-			<View style={{ alignItems: 'center', gap: spacing.xs, alignSelf: 'stretch' }}>
+		<View
+			style={{ alignItems: 'center', gap: spacing.md, paddingTop: spacing.sm }}
+		>
+			<Pop>
+				<Artwork
+					uri={artworkUri}
+					size={196}
+					rounded={round ? 98 : radius.lg}
+					elevated
+				/>
+			</Pop>
+			<Reveal
+				index={1}
+				distance={12}
+				style={{ alignItems: 'center', gap: spacing.xs, alignSelf: 'stretch' }}
+			>
 				<Text variant='title' numberOfLines={2} style={{ textAlign: 'center' }}>
 					{title}
 				</Text>
 				{subtitle ? (
 					onSubtitlePress ? (
 						<Pressable onPress={onSubtitlePress} hitSlop={spacing.sm}>
-							<Text variant='body' style={{ color: colour.accent }} numberOfLines={1}>
+							<Text
+								variant='body'
+								style={{ color: colour.accent }}
+								numberOfLines={1}
+							>
 								{subtitle}
 							</Text>
 						</Pressable>
@@ -53,12 +71,21 @@ export function Hero({
 					)
 				) : null}
 				{meta ? (
-					<Text variant='caption' muted numberOfLines={2} style={{ textAlign: 'center' }}>
+					<Text
+						variant='caption'
+						muted
+						numberOfLines={2}
+						style={{ textAlign: 'center' }}
+					>
 						{meta}
 					</Text>
 				) : null}
-			</View>
-			{children}
+			</Reveal>
+			{children ? (
+				<Reveal index={2} distance={10}>
+					{children}
+				</Reveal>
+			) : null}
 		</View>
 	);
 }

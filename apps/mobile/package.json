@@ -1,6 +1,6 @@
 {
 	"name": "@rheoson/mobile",
-	"version": "2.25.0",
+	"version": "2.26.0",
 	"private": true,
 	"main": "index.js",
 	"scripts": {
@@ -16,6 +16,7 @@
 	"dependencies": {
 		"@react-native-async-storage/async-storage": "1.23.1",
 		"@react-native-community/netinfo": "11.4.1",
+		"@react-navigation/bottom-tabs": "^7.0.0",
 		"@rheoson/api-types": "workspace:*",
 		"@shopify/flash-list": "1.7.1",
 		"@tanstack/react-query": "^5.28.0",
@@ -37,6 +38,7 @@
 		"expo-status-bar": "~2.0.0",
 		"expo-system-ui": "~4.0.0",
 		"expo-web-browser": "~14.0.0",
+		"moti": "^0.29.0",
 		"phosphor-react-native": "^3.0.6",
 		"query-string": "^7.1.3",
 		"react": "18.3.1",

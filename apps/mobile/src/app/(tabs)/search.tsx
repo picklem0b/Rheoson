@@ -1,11 +1,24 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { Keyboard, ScrollView, View } from 'react-native';
+import {
+	Keyboard,
+	ScrollView,
+	StyleSheet,
+	useWindowDimensions,
+	View
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { MagnifyingGlassIcon, XCircleIcon } from 'phosphor-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+	MagnifyingGlassIcon,
+	MusicNotesIcon,
+	XCircleIcon
+} from 'phosphor-react-native';
+import { AnimatePresence, MotiView } from 'moti';
 
 import { searchApi, type SearchCategory } from '@/api/search.api';
+import { PressableScale, Reveal } from '@/components/motion';
 import { TrackRow } from '@/components/track/TrackRow';
 import {
 	AppBar,
@@ -17,11 +30,13 @@ import {
 	Field,
 	IconButton,
 	ListRow,
+	RowChevron,
 	SectionHeader,
 	Skeleton,
 	Text
 } from '@/components/ui';
-import { layout, radius, spacing } from '@/constants/theme';
+import { layout, motion, radius, spacing } from '@/constants/theme';
+import { tintFor } from '@/lib/categoryTint';
 import { useDebounced } from '@/hooks/use-debounced';
 import { usePlayback } from '@/hooks/use-playback';
 import { useTheme } from '@/hooks/use-theme';
@@ -50,13 +65,17 @@ export default function SearchScreen(): ReactElement {
 	const { colour } = useTheme();
 	const { playTrack } = usePlayback();
 	const params = useLocalSearchParams<{ q?: string }>();
+	const { width } = useWindowDimensions();
+	const tileWidth = (width - spacing.lg * 2 - spacing.md) / 2;
 
 	const recentSearches = useSettingsStore(state => state.recentSearches);
 	const rememberSearch = useSettingsStore(state => state.rememberSearch);
 	const clearSearches = useSettingsStore(state => state.clearSearches);
 	const currentId = usePlayerStore(state => state.currentTrack?.id);
 
-	const [term, setTerm] = useState(typeof params.q === 'string' ? params.q : '');
+	const [term, setTerm] = useState(
+		typeof params.q === 'string' ? params.q : ''
+	);
 	const [category, setCategory] = useState<SearchCategory | null>(null);
 	const settled = useDebounced(term.trim(), 300);
 
@@ -102,7 +121,10 @@ export default function SearchScreen(): ReactElement {
 		(data?.playlists.length ?? 0) === 0;
 
 	return (
-		<SafeAreaView style={{ flex: 1, backgroundColor: colour.background }} edges={['top']}>
+		<SafeAreaView
+			style={{ flex: 1, backgroundColor: colour.background }}
+			edges={['top']}
+		>
 			<ScrollView
 				contentContainerStyle={{
 					paddingHorizontal: spacing.lg,
@@ -113,38 +135,59 @@ export default function SearchScreen(): ReactElement {
 				keyboardShouldPersistTaps='handled'
 				keyboardDismissMode='on-drag'
 			>
-				<AppBar title='Search' subtitle='Tracks, albums, artists and playlists' />
+				<AppBar
+					title='Search'
+					subtitle='Tracks, albums, artists and playlists'
+				/>
 
-				<View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-					<View style={{ flex: 1 }}>
-						<Field
-							value={term}
-							onChangeText={value => {
-								setTerm(value);
-								if (category) setCategory(null);
-							}}
-							placeholder='What do you want to hear?'
-							returnKeyType='search'
-							onSubmitEditing={submit}
-							accessibilityLabel='Search your library'
-						/>
-					</View>
-					{term ? (
-						<IconButton
-							label='Clear search'
-							onPress={() => {
-								setTerm('');
-								setCategory(null);
-							}}
-						>
-							<XCircleIcon size={22} color={colour.textMuted} />
-						</IconButton>
-					) : (
-						<IconButton label='Search' onPress={submit}>
-							<MagnifyingGlassIcon size={22} color={colour.textMuted} />
-						</IconButton>
-					)}
-				</View>
+				<Reveal index={1} distance={10}>
+					<Field
+						value={term}
+						onChangeText={value => {
+							setTerm(value);
+							if (category) setCategory(null);
+						}}
+						placeholder='What do you want to hear?'
+						returnKeyType='search'
+						onSubmitEditing={submit}
+						accessibilityLabel='Search your library'
+						leading={
+							<MagnifyingGlassIcon
+								size={22}
+								color={colour.textMuted}
+								weight='bold'
+							/>
+						}
+						trailing={
+							<AnimatePresence>
+								{term ? (
+									<MotiView
+										key='clear'
+										from={{ opacity: 0, scale: 0.6 }}
+										animate={{ opacity: 1, scale: 1 }}
+										exit={{ opacity: 0, scale: 0.6 }}
+										transition={motion.bounce}
+									>
+										<IconButton
+											label='Clear search'
+											size={36}
+											onPress={() => {
+												setTerm('');
+												setCategory(null);
+											}}
+										>
+											<XCircleIcon
+												size={22}
+												color={colour.textMuted}
+												weight='fill'
+											/>
+										</IconButton>
+									</MotiView>
+								) : null}
+							</AnimatePresence>
+						}
+					/>
+				</Reveal>
 
 				{showBrowse ? (
 					<>
@@ -155,9 +198,19 @@ export default function SearchScreen(): ReactElement {
 									actionLabel='Clear'
 									onSeeAll={clearSearches}
 								/>
-								<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+								<View
+									style={{
+										flexDirection: 'row',
+										flexWrap: 'wrap',
+										gap: spacing.sm
+									}}
+								>
 									{recentSearches.map(item => (
-										<Chip key={item} label={item} onPress={() => setTerm(item)} />
+										<Chip
+											key={item}
+											label={item}
+											onPress={() => setTerm(item)}
+										/>
 									))}
 								</View>
 							</View>
@@ -171,11 +224,20 @@ export default function SearchScreen(): ReactElement {
 								onRetry={() => void categories.refetch()}
 							/>
 						) : null}
-						<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-							{categories.data?.map(item => (
-								<Chip
+						<View
+							style={{
+								flexDirection: 'row',
+								flexWrap: 'wrap',
+								gap: spacing.md
+							}}
+						>
+							{categories.data?.map((item, position) => (
+								<CategoryTile
 									key={item.slug}
-									label={item.title}
+									title={item.title}
+									tint={tintFor(item.slug)}
+									width={tileWidth}
+									index={position}
 									onPress={() => {
 										setCategory(item);
 										setTerm('');
@@ -193,8 +255,18 @@ export default function SearchScreen(): ReactElement {
 
 				{category ? (
 					<>
-						<View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-							<Chip label={category.title} active onPress={() => setCategory(null)} />
+						<View
+							style={{
+								flexDirection: 'row',
+								alignItems: 'center',
+								gap: spacing.sm
+							}}
+						>
+							<Chip
+								label={category.title}
+								active
+								onPress={() => setCategory(null)}
+							/>
 							<Text variant='caption' muted>
 								Top tracks this week
 							</Text>
@@ -206,12 +278,15 @@ export default function SearchScreen(): ReactElement {
 								onRetry={() => void categoryTop.refetch()}
 							/>
 						) : null}
-						{categoryTop.data?.map(track => (
+						{categoryTop.data?.map((track, position) => (
 							<TrackRow
 								key={track.id}
 								track={track}
+								revealIndex={position}
 								isPlaying={track.id === currentId}
-								onPress={() => playTrack(track, categoryTop.data, category.title)}
+								onPress={() =>
+									playTrack(track, categoryTop.data, category.title)
+								}
 							/>
 						))}
 						{categoryTop.data?.length === 0 && !categoryTop.isLoading ? (
@@ -242,10 +317,11 @@ export default function SearchScreen(): ReactElement {
 						{tracks.length > 0 ? (
 							<>
 								<SectionHeader title='Tracks' />
-								{tracks.map(track => (
+								{tracks.map((track, position) => (
 									<TrackRow
 										key={track.id}
 										track={track}
+										revealIndex={position}
 										isPlaying={track.id === currentId}
 										onPress={() => playTrack(track, tracks, 'Search')}
 									/>
@@ -256,9 +332,11 @@ export default function SearchScreen(): ReactElement {
 						{(data?.albums.length ?? 0) > 0 ? (
 							<>
 								<SectionHeader title='Albums' />
-								{data?.albums.map(album => (
+								{data?.albums.map((album, position) => (
 									<ListRow
 										key={album.id}
+										revealIndex={position}
+										trailing={<RowChevron />}
 										title={album.title}
 										subtitle={album.artist}
 										leading={<Artwork uri={album.artworkUrl} size={44} />}
@@ -276,12 +354,20 @@ export default function SearchScreen(): ReactElement {
 						{(data?.artists.length ?? 0) > 0 ? (
 							<>
 								<SectionHeader title='Artists' />
-								{data?.artists.map(artist => (
+								{data?.artists.map((artist, position) => (
 									<ListRow
 										key={artist.id}
+										revealIndex={position}
+										trailing={<RowChevron />}
 										title={artist.name}
 										subtitle='Artist'
-										leading={<Artwork uri={artist.imageUrl} size={44} rounded={radius.pill} />}
+										leading={
+											<Artwork
+												uri={artist.imageUrl}
+												size={44}
+												rounded={radius.pill}
+											/>
+										}
 										onPress={() =>
 											router.push({
 												pathname: '/artist/[id]',
@@ -296,9 +382,11 @@ export default function SearchScreen(): ReactElement {
 						{(data?.playlists.length ?? 0) > 0 ? (
 							<>
 								<SectionHeader title='Playlists' />
-								{data?.playlists.map(playlist => (
+								{data?.playlists.map((playlist, position) => (
 									<ListRow
 										key={playlist.id}
+										revealIndex={position}
+										trailing={<RowChevron />}
 										title={playlist.title}
 										subtitle={
 											playlist.trackCount
@@ -307,7 +395,10 @@ export default function SearchScreen(): ReactElement {
 										}
 										leading={<Artwork uri={playlist.artworkUrl} size={44} />}
 										onPress={() =>
-											router.push({ pathname: '/playlist/[id]', params: { id: playlist.id } })
+											router.push({
+												pathname: '/playlist/[id]',
+												params: { id: playlist.id }
+											})
 										}
 									/>
 								))}
@@ -331,5 +422,77 @@ export default function SearchScreen(): ReactElement {
 				) : null}
 			</ScrollView>
 		</SafeAreaView>
+	);
+}
+
+/**
+ * A browse tile: the category's own colour, its name, and a tilted glyph in the
+ * corner — the layout every music app's browse grid uses, so it reads as
+ * "categories" before it is read at all. A dark wash at the bottom keeps the
+ * white label above 4.5:1 even on the lightest hues.
+ */
+function CategoryTile({
+	title,
+	tint,
+	width,
+	index,
+	onPress
+}: {
+	title: string;
+	tint: string;
+	width: number;
+	index: number;
+	onPress: () => void;
+}): ReactElement {
+	return (
+		<Reveal index={index} distance={12} style={{ width }}>
+			<PressableScale
+				onPress={onPress}
+				to={0.96}
+				accessibilityRole='button'
+				accessibilityLabel={`Browse ${title}`}
+				style={{
+					height: 88,
+					borderRadius: radius.lg,
+					overflow: 'hidden',
+					backgroundColor: tint
+				}}
+			>
+				<LinearGradient
+					pointerEvents='none'
+					colors={[tint, `${tint}B3`]}
+					start={{ x: 0, y: 0 }}
+					end={{ x: 1, y: 1 }}
+					style={StyleSheet.absoluteFill}
+				/>
+				<LinearGradient
+					pointerEvents='none'
+					colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.38)']}
+					style={StyleSheet.absoluteFill}
+				/>
+				<View
+					pointerEvents='none'
+					style={{
+						position: 'absolute',
+						right: -8,
+						bottom: -10,
+						transform: [{ rotate: '22deg' }]
+					}}
+				>
+					<MusicNotesIcon
+						size={66}
+						color='rgba(255,255,255,0.28)'
+						weight='fill'
+					/>
+				</View>
+				<Text
+					variant='bodyStrong'
+					numberOfLines={2}
+					style={{ color: '#FFFFFF', padding: spacing.md, maxWidth: '78%' }}
+				>
+					{title}
+				</Text>
+			</PressableScale>
+		</Reveal>
 	);
 }
