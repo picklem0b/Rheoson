@@ -167,26 +167,79 @@ jobs:
 
          # Proves the artifact is what it claims to be: the versionCode Android
          # will compare against the installed build, and the certificate inside.
-         - name: Verify APK
+         # Resolved first, because the output name is Gradle's choice, not ours.
+         - name: Locate APK
+           id: apk
            working-directory: apps/mobile/android
            run: |
               set -euo pipefail
-              apk="app/build/outputs/apk/${VARIANT}/app-${VARIANT}.apk"
-              test -f "$apk"
-              build_tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
-              "$build_tools/aapt2" dump badging "$apk" | grep -E "^package:|^application-label:" | tee -a "$GITHUB_STEP_SUMMARY"
-              "$build_tools/apksigner" verify --print-certs "$apk" | grep -E "Signer #1 certificate (DN|SHA-256)" | tee -a "$GITHUB_STEP_SUMMARY"
+              expected="app/build/outputs/apk/${VARIANT}/app-${VARIANT}.apk"
+              if [ -f "$expected" ]; then
+                 apk="$expected"
+              else
+                 apk="$(find app/build/outputs -name '*.apk' -print -quit)"
+              fi
+              if [ -z "$apk" ] || [ ! -f "$apk" ]; then
+                 echo "::error::No APK under app/build/outputs for variant ${VARIANT}"
+                 find app/build/outputs -name '*.apk' -print || true
+                 exit 1
+              fi
+              echo "path=$apk" >> "$GITHUB_OUTPUT"
+              echo "::notice::APK at ${apk} ($(du -h "$apk" | cut -f1))"
+
+         # `::error::` on every branch so a failure explains itself in the
+         # annotations — the run log itself needs a signed-in browser.
+         - name: Verify APK
+           working-directory: apps/mobile/android
+           env:
+              APK: ${{ steps.apk.outputs.path }}
+           run: |
+              set -euo pipefail
+              sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+              if [ -z "$sdk" ]; then
+                 echo "::error::Neither ANDROID_HOME nor ANDROID_SDK_ROOT is set"
+                 exit 1
+              fi
+              build_tools="$(ls -d "$sdk"/build-tools/* | sort -V | tail -1)"
+              echo "::notice::build-tools ${build_tools}"
+
+              if ! "$build_tools/aapt2" dump badging "$APK" > badging.txt 2>&1; then
+                 echo "::error::aapt2 dump badging failed: $(head -3 badging.txt | tr '\n' ' ')"
+                 exit 1
+              fi
+              grep -E '^package:|^sdkVersion|^targetSdkVersion|^application-label:' badging.txt \
+                 | sed 's/^/::notice::/' || true
+
+              if ! "$build_tools/apksigner" verify --print-certs "$APK" > certs.txt 2>&1; then
+                 echo "::error::apksigner verify failed — the APK is not correctly signed: $(head -3 certs.txt | tr '\n' ' ')"
+                 exit 1
+              fi
+              grep -E 'Signer #1 certificate (DN|SHA-256)' certs.txt | sed 's/^/::notice::/' || true
+
+              {
+                 echo "#### Badging"
+                 echo '```'
+                 grep -E '^package:|^sdkVersion|^targetSdkVersion|^application-label:' badging.txt || cat badging.txt
+                 echo '```'
+                 echo "#### Signing"
+                 echo '```'
+                 grep -E 'Signer #1 certificate (DN|SHA-256)' certs.txt || cat certs.txt
+                 echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
 
          - name: Collect artifact
            id: collect
            working-directory: apps/mobile
+           env:
+              APK: ${{ steps.apk.outputs.path }}
            run: |
               set -euo pipefail
               version="$(node -p "require('./app.json').expo.version")"
               code="$(sed -n 's/.*versionCode \([0-9]\+\)/\1/p' android/app/build.gradle | head -1)"
               if [ -n "${RHEOSON_KEYSTORE_PATH:-}" ]; then signing=release-signed; else signing=debug-key; fi
               out="Rheoson-${version}-${code}-${VARIANT}-${signing}.apk"
-              cp "android/app/build/outputs/apk/${VARIANT}/app-${VARIANT}.apk" "$out"
+              # `path` came from a step whose cwd was apps/mobile/android.
+              cp "android/$APK" "$out"
               echo "path=$out" >> "$GITHUB_OUTPUT"
               {
                  echo ""
