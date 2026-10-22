@@ -95,11 +95,47 @@ NewzCrime mobile setup: the same `cli.version`/`appVersionSource: local` in `eas
 remote Android credentials.
 
 `eas.json` defines `development`, `preview` (internal-distribution APK) and `production`
-(app-bundle). `app.json` carries `com.lethabo.rheoson`, `versionCode 22500`, and the Android
+(app-bundle). `app.json` carries `com.lethabo.rheoson`, `versionCode 22600`, and the Android
 permissions the player needs (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`,
 `WAKE_LOCK`, `POST_NOTIFICATIONS`).
 
 Build status and logs: <https://expo.dev/accounts/the_devi/projects/rheoson/builds>.
+
+### Build on GitHub Actions (no EAS build credits)
+
+`.github/workflows/mobile-apk.yml` builds the APK on a GitHub runner, so a build does not have to
+wait on EAS build credit or sit in the EAS queue at all.
+
+- On demand (Actions → **Mobile APK** → *Run workflow*, with optional `api_url`, `version_code` and
+  `variant` inputs) and on any push that touches `apps/mobile/**`.
+- Steps: `pnpm install --frozen-lockfile` → typecheck → Vitest → lint → `expo prebuild --platform
+  android --clean` → `./gradlew assembleRelease`. The APK is then verified before upload —
+  `aapt2 dump badging` for the versionCode, `apksigner verify --print-certs` for the certificate —
+  and uploaded as the `rheoson-release-apk` artifact (30-day retention).
+- `EXPO_PUBLIC_API_URL` defaults to the Render origin, so a normal build needs no configuration.
+
+Signing is the part worth setting up, because Android refuses an update whose signature changed.
+With no secrets the run still produces an installable APK, but it carries Gradle's debug key: it
+installs on a phone with no Rheoson app, or after uninstalling the EAS build. To make CI builds
+in-place upgrades, export the EAS-managed keystore once and store four repository secrets:
+
+```bash
+cd apps/mobile && npx eas-cli credentials --platform android   # Download existing keystore
+base64 -w0 keystore.jks                                        # paste the output into the secret
+```
+
+| Secret | Value |
+| --- | --- |
+| `RHEOSON_KEYSTORE_B64` | the keystore file, base64-encoded |
+| `RHEOSON_KEYSTORE_PASSWORD` | keystore password |
+| `RHEOSON_KEY_ALIAS` | key alias |
+| `RHEOSON_KEY_PASSWORD` | key password |
+
+`plugins/withReleaseSigning.js` reads those variables during `expo prebuild` and appends a `release`
+signing config to the generated `app/build.gradle`, the same append-a-block approach
+`withAndroidBuildArchs` uses. With none of them set it is a no-op and the template's debug key
+stays, so a laptop prebuild still works with no keystore. All four or none — a partial set fails
+prebuild on purpose rather than generating a `build.gradle` that cannot sign.
 
 ### Local build instead of EAS
 
@@ -137,7 +173,9 @@ an empty project the first time this was bundled.
 EAS generated and stores the Android keystore for `preview` builds (`eas credentials` to inspect or
 replace it). The APK signed by a *different* key cannot install over an existing install —
 uninstall once when moving from an older Capacitor build. `credentials/rheoson-release.keystore`
-is a leftover from the Capacitor era and is not used by EAS.
+is a leftover from the Capacitor era and is not used by EAS, and it is not the key the GitHub
+workflow signs with either (see above). The signing identity of every artifact is printed in the
+workflow's run summary, so which key produced an APK is never a guess.
 
 ## Verification status
 

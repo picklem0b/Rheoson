@@ -63,7 +63,8 @@
 				{
 					"archs": ["arm64-v8a"]
 				}
-			]
+			],
+			"./plugins/withReleaseSigning"
 		],
 		"experiments": {
 			"typedRoutes": true

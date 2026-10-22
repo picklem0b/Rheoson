@@ -1,0 +1,214 @@
+name: Mobile APK
+
+# Builds the Expo app's APK on a GitHub runner instead of EAS.
+#
+# EAS still owns the release channel — the `preview` profile is what the phone
+# installs, and the keystore EAS manages is what signed the installed app. This
+# workflow exists so a build does not have to wait on EAS build credits.
+#
+# What it produces is an ordinary release APK. Whether it can install *over*
+# the app already on the phone is a signing question, not a build one:
+#
+#   * `RHEOSON_KEYSTORE_B64` (+ password / alias / key password) secrets set:
+#     the APK is signed with that key. Export the EAS-managed keystore once
+#     (`eas credentials` → Android → Download keystore) and CI builds become
+#     in-place upgrades.
+#   * secrets absent: Gradle's default debug key. That installs on a phone with
+#     no Rheoson app, or after uninstalling the EAS one — Android refuses a
+#     signature change as an update.
+
+on:
+   workflow_dispatch:
+      inputs:
+         api_url:
+            description: 'API origin baked into the bundle (blank = Render backend)'
+            required: false
+            default: ''
+         version_code:
+            description: 'Android versionCode override — must be >= the installed build'
+            required: false
+            default: ''
+         variant:
+            description: 'Build variant'
+            type: choice
+            options: [release, debug]
+            default: release
+   push:
+      branches: [main, experiment/mobile]
+      paths:
+         - 'apps/mobile/**'
+         - 'packages/api-types/**'
+         - 'pnpm-lock.yaml'
+         - 'pnpm-workspace.yaml'
+         - '.github/workflows/mobile-apk.yml'
+
+concurrency:
+   group: mobile-apk-${{ github.ref }}
+   cancel-in-progress: true
+
+permissions:
+   contents: read
+
+jobs:
+   apk:
+      name: Build ${{ inputs.variant || 'release' }} APK
+      runs-on: ubuntu-latest
+      timeout-minutes: 60
+
+      env:
+         CI: 'true'
+         EXPO_NO_TELEMETRY: '1'
+         VARIANT: ${{ inputs.variant || 'release' }}
+         EXPO_PUBLIC_API_URL: ${{ inputs.api_url || 'https://rheoson-api-9e4c.onrender.com' }}
+         RHEOSON_VERSION_CODE: ${{ inputs.version_code }}
+         RHEOSON_KEYSTORE_B64: ${{ secrets.RHEOSON_KEYSTORE_B64 }}
+         RHEOSON_KEYSTORE_PASSWORD: ${{ secrets.RHEOSON_KEYSTORE_PASSWORD }}
+         RHEOSON_KEY_ALIAS: ${{ secrets.RHEOSON_KEY_ALIAS }}
+         RHEOSON_KEY_PASSWORD: ${{ secrets.RHEOSON_KEY_PASSWORD }}
+
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+
+         - name: Set up pnpm
+           uses: pnpm/action-setup@v4
+           with:
+              version: 9.12.0
+              run_install: false
+
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 22
+              cache: pnpm
+
+         - name: Install dependencies
+           run: pnpm install --frozen-lockfile
+
+         # The same three gates the branch has to pass anyway. They run first so
+         # a broken TypeScript build never spends 20 minutes in Gradle.
+         - name: Typecheck
+           run: pnpm --filter @rheoson/mobile typecheck
+
+         - name: Unit tests
+           run: pnpm --filter @rheoson/mobile test
+
+         - name: Lint
+           run: pnpm --filter @rheoson/mobile lint
+
+         # React Native 0.76 / AGP 8.6 targets JDK 17. Java 21 works for AGP but
+         # not reliably for the Kotlin 1.9.24 this app pins.
+         - name: Set up Java 17
+           uses: actions/setup-java@v4
+           with:
+              distribution: temurin
+              java-version: '17'
+
+         # NDK 26.1.10909125 is the one `expo prebuild` writes into the root
+         # build.gradle; leaving it out makes the runner download it mid-build
+         # (or fail outright when the licences are not accepted).
+         - name: Set up Android SDK
+           uses: android-actions/setup-android@v3
+           with:
+              packages: 'platforms;android-35 build-tools;35.0.0 ndk;26.1.10909125 cmake;3.22.1'
+
+         # Must run before prebuild: `plugins/withReleaseSigning` reads these
+         # variables while the native project is generated.
+         - name: Stage release keystore
+           if: env.RHEOSON_KEYSTORE_B64 != ''
+           run: |
+              set -euo pipefail
+              printf '%s' "$RHEOSON_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/rheoson-release.keystore"
+              echo "RHEOSON_KEYSTORE_PATH=$RUNNER_TEMP/rheoson-release.keystore" >> "$GITHUB_ENV"
+              echo "Release signing: **on** (keystore from secrets)." >> "$GITHUB_STEP_SUMMARY"
+
+         - name: No signing keystore
+           if: env.RHEOSON_KEYSTORE_B64 == ''
+           run: |
+              echo "Release signing: **off** — the APK will carry Gradle's debug key." >> "$GITHUB_STEP_SUMMARY"
+              echo "Set RHEOSON_KEYSTORE_B64 / _PASSWORD / _KEY_ALIAS / _KEY_PASSWORD to sign it instead." >> "$GITHUB_STEP_SUMMARY"
+
+         - name: Prebuild Android project
+           working-directory: apps/mobile
+           run: npx expo prebuild --platform android --no-install --clean
+
+         - name: Apply versionCode override
+           if: env.RHEOSON_VERSION_CODE != ''
+           working-directory: apps/mobile
+           run: |
+              set -euo pipefail
+              sed -i "s/versionCode [0-9]\+/versionCode ${RHEOSON_VERSION_CODE}/" android/app/build.gradle
+              grep -q "versionCode ${RHEOSON_VERSION_CODE}" android/app/build.gradle
+              echo "versionCode → ${RHEOSON_VERSION_CODE}" >> "$GITHUB_STEP_SUMMARY"
+
+         # Cached after prebuild, so the key hashes the generated Gradle files.
+         - name: Cache Gradle
+           uses: actions/cache@v4
+           with:
+              path: |
+                 ~/.gradle/caches
+                 ~/.gradle/wrapper
+                 ~/.gradle/native
+              key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/android/gradle/wrapper/gradle-wrapper.properties', 'apps/mobile/android/build.gradle', 'apps/mobile/android/app/build.gradle') }}
+              restore-keys: |
+                 gradle-${{ runner.os }}-
+
+         - name: Build APK
+           working-directory: apps/mobile/android
+           run: |
+              set -euo pipefail
+              # The template ships a 2 GB heap. R8 + dex over expo-modules needs
+              # more than that, and an OOM here reads as a mystifying Kotlin DAC.
+              sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+              chmod +x gradlew
+              task=assembleRelease
+              if [ "$VARIANT" = "debug" ]; then task=assembleDebug; fi
+              ./gradlew --no-daemon "$task"
+
+         # Proves the artifact is what it claims to be: the versionCode Android
+         # will compare against the installed build, and the certificate inside.
+         - name: Verify APK
+           working-directory: apps/mobile/android
+           run: |
+              set -euo pipefail
+              apk="app/build/outputs/apk/${VARIANT}/app-${VARIANT}.apk"
+              test -f "$apk"
+              build_tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+              "$build_tools/aapt2" dump badging "$apk" | grep -E "^package:|^application-label:" | tee -a "$GITHUB_STEP_SUMMARY"
+              "$build_tools/apksigner" verify --print-certs "$apk" | grep -E "Signer #1 certificate (DN|SHA-256)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+         - name: Collect artifact
+           id: collect
+           working-directory: apps/mobile
+           run: |
+              set -euo pipefail
+              version="$(node -p "require('./app.json').expo.version")"
+              code="$(sed -n 's/.*versionCode \([0-9]\+\)/\1/p' android/app/build.gradle | head -1)"
+              if [ -n "${RHEOSON_KEYSTORE_PATH:-}" ]; then signing=release-signed; else signing=debug-key; fi
+              out="Rheoson-${version}-${code}-${VARIANT}-${signing}.apk"
+              cp "android/app/build/outputs/apk/${VARIANT}/app-${VARIANT}.apk" "$out"
+              echo "path=$out" >> "$GITHUB_OUTPUT"
+              {
+                 echo ""
+                 echo "| | |"
+                 echo "| --- | --- |"
+                 echo "| file | \`${out}\` |"
+                 echo "| version | ${version} |"
+                 echo "| versionCode | ${code} |"
+                 echo "| signing | ${signing} |"
+                 echo "| API origin | ${EXPO_PUBLIC_API_URL} |"
+                 echo "| size | $(du -h "$out" | cut -f1) |"
+                 echo ""
+                 if [ "$signing" = debug-key ]; then
+                    echo "Debug-key signed: uninstall the EAS build first, Android will not accept a"
+                    echo "changed signature as an update."
+                 fi
+              } >> "$GITHUB_STEP_SUMMARY"
+
+         - name: Upload APK
+           uses: actions/upload-artifact@v4
+           with:
+              name: rheoson-${{ env.VARIANT }}-apk
+              path: ${{ steps.collect.outputs.path }}
+              if-no-files-found: error
+              retention-days: 30
