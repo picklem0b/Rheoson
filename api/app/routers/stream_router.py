@@ -126,6 +126,17 @@ async def _ensure_cache() -> None:
         await loop.run_in_executor(None, _build_cache_sync)
 
 
+async def local_path_for(track_id: str) -> Optional[Path]:
+    """The file this track is stored in, when it is on this machine.
+
+    Public because a caller outside the streaming path needs the same answer:
+    the lyrics service reads the `.lrc` sitting beside the audio, and resolving
+    that by rebuilding the index again would double the scan cost.
+    """
+    await _ensure_cache()
+    return _find_local(track_id)
+
+
 def _find_local(track_id: str) -> Optional[Path]:
     if track_id in _local_cache:
         p = _local_cache[track_id]

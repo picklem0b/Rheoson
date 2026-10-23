@@ -77,3 +77,6 @@ music/**/*.flac
 music/**/*.wav
 music/.track_map.sqlite
 music/.cache/
+
+# APKs downloaded from CI for sideloading — never commit a binary build
+/builds/

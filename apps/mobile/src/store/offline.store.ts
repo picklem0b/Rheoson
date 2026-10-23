@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 
+import { lyricsApi } from '@/api/lyrics.api';
 import {
 	clearSavedAudio,
 	listSavedAudio,
 	removeAudio,
 	saveAudio
 } from '@/lib/audioCache';
+import { clearSavedLyrics, removeLyricsFor } from '@/lib/lyricsCache';
 import { toast } from '@/store/toast.store';
 import type { Track } from '@rheoson/api-types';
 
@@ -19,6 +21,11 @@ import type { Track } from '@rheoson/api-types';
  *
  * `inFlight` prevents a double tap from starting two downloads of the same
  * file, which would race on the same `.part` path.
+ *
+ * Saving a track also pulls its lyrics down and keeps them: an offline song
+ * whose words only exist on the server is a song that loses its lyrics exactly
+ * when they are needed. The fetch is fire-and-forget — a track is worth keeping
+ * whether or not its lyrics can be found.
  */
 interface OfflineStore {
 	/** trackId → bytes. */
@@ -54,9 +61,8 @@ export const useOfflineStore = create<OfflineStore>((set, get) => ({
 
 		const bytes = await saveAudio(track.id, fraction => {
 			set(state => ({ progress: { ...state.progress, [track.id]: fraction } }));
-		});
-
-		inFlight.delete(track.id);
+		}); 		inFlight.delete(track.id);
+		if (bytes !== null) void lyricsApi.forTrack(track.id);
 		set(state => {
 			const progress = { ...state.progress };
 			delete progress[track.id];
@@ -69,6 +75,7 @@ export const useOfflineStore = create<OfflineStore>((set, get) => ({
 
 	remove: async trackId => {
 		await removeAudio(trackId);
+		await removeLyricsFor(trackId);
 		set(state => {
 			const saved = { ...state.saved };
 			delete saved[trackId];
@@ -79,8 +86,9 @@ export const useOfflineStore = create<OfflineStore>((set, get) => ({
 
 	clearAll: async () => {
 		await clearSavedAudio();
+		await clearSavedLyrics();
 		set({ saved: {}, progress: {} });
-		toast('Saved audio cleared');
+		toast('Saved audio and lyrics cleared');
 	}
 }));
 

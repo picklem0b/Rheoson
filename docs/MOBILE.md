@@ -59,6 +59,7 @@ a migration problem (which side wins) and is deliberately not implemented yet.
 | Full player: drag-to-seek, transport, repeat all/one, shuffle, like, share | done |
 | Queue sheet: jump to an upcoming track, remove one, clear | done |
 | Lyrics sheet: synced line highlighting, tap a line to seek | done |
+| Lyrics prefer the `.lrc` beside a downloaded file, and are cached on the phone for offline playback | done |
 | Track sheet from any row (long press): play next, queue, like, playlists, downloads, artist/album, share | done |
 | Album page: ordered track list, play, shuffle, download the whole album to the server | done |
 | Artist page: popular tracks, albums, singles, related, follow/unfollow | done |
@@ -67,6 +68,7 @@ a migration problem (which side wins) and is deliberately not implemented yet.
 | Settings: theme, playback switches, Wi-Fi-only downloads, saved audio, server health, reset guest | done |
 | Listening stats: play counts, estimated hours, streaks, top tracks/artists, day/hour bars | done |
 | Offline audio: save a track to the phone, played from `file://` with no connection | done |
+| Offline lyrics: saving a track also keeps its lyrics, so the sheet works with no connection | done |
 | Offline metadata mirror (likes, history, playlists, follows) | done |
 | Crash reporting to `/api/diagnostics/crash` | done |
 | Account sign-in and guest-to-account linking | not implemented |
@@ -77,6 +79,13 @@ Downloads in the **Downloads** tab are server-side jobs (yt-dlp writes into the 
 folder). "Keep on this device" in a track's sheet is the separate, on-device copy: it downloads the
 stream into `documentDirectory/offline-audio/`, and the player prefers that file over the network.
 Saving is per track; the album action queues the whole record on the server.
+
+Both on-device caches live in the app's private documents directory
+(`/data/data/com.lethabo.rheoson/files/` — `offline-audio/` and `offline-lyrics/`), not in a
+user-visible `Rheoson/` folder at the root of shared storage. That is deliberate: Android 10+ scopes
+shared storage, so a visible folder would need `MANAGE_EXTERNAL_STORAGE` or a Storage Access
+Framework picker, and nothing in the app reads other apps' files. The private directory is wiped by
+uninstall and included in Android's own backup rules, which is the behaviour a cache wants.
 
 ## Building the APK
 

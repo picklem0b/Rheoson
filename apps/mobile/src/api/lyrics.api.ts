@@ -1,45 +1,36 @@
 import { api } from './client';
+import { hasLyrics, parseLyrics, type Lyrics } from '@/lib/lyrics';
+import { readLyricsFromDevice, saveLyricsToDevice } from '@/lib/lyricsCache';
 
-export interface LyricLine {
-	/** Seconds into the track, when the provider supplies timing. */
-	startTime?: number;
-	text: string;
-}
-
-export interface Lyrics {
-	/** Plain lyric text, or null when nothing was found. */
-	plain: string | null;
-	/** Timed lines, when the provider had them. */
-	synced: LyricLine[] | null;
-	source?: string;
-}
+export type { LyricLine, Lyrics } from '@/lib/lyrics';
 
 const EMPTY: Lyrics = { plain: null, synced: null };
 
 /**
- * Lyrics.
+ * Lyrics for a track, from the server when it answers and from the phone when
+ * it cannot.
  *
- * The server fetches from a provider and caches the result, so this is a
- * cheap call to repeat. Failure is not an error state: a track whose lyrics
- * simply do not exist returns empty, and the UI says "no lyrics yet" instead
- * of showing a retry button for something that will never succeed.
+ * The server reads a `.lrc` sidecar next to a downloaded file before it asks a
+ * provider, so the words on the phone are the same ones a CLI download wrote —
+ * and once fetched they are cached, which is what makes them available with no
+ * connection at all.
+ *
+ * Failure is not an error state: a track whose lyrics do not exist returns
+ * empty, and the UI says so plainly instead of offering a retry that will never
+ * succeed.
  */
 export const lyricsApi = {
 	forTrack: async (trackId: string): Promise<Lyrics> => {
+		if (!trackId) return EMPTY;
 		try {
-			const raw = await api.get<{
-				plain?: string | null;
-				synced?: LyricLine[] | null;
-				source?: string;
-				lyrics?: string | null;
-			}>(`/lyrics/${trackId}`);
-			return {
-				plain: raw?.plain ?? raw?.lyrics ?? null,
-				synced: Array.isArray(raw?.synced) ? raw.synced : null,
-				source: raw?.source
-			};
+			const raw = await api.get<unknown>(`/lyrics/${trackId}`);
+			const lyrics = parseLyrics(raw);
+			if (hasLyrics(lyrics)) void saveLyricsToDevice(trackId, lyrics);
+			return lyrics;
 		} catch {
-			return EMPTY;
+			// Offline, or the server is asleep. A saved track should still show
+			// its words, and the cache is the only copy that exists down here.
+			return (await readLyricsFromDevice(trackId)) ?? EMPTY;
 		}
 	}
 };
