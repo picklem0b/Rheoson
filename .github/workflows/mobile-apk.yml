@@ -214,14 +214,18 @@ jobs:
                  echo "::error::apksigner verify failed — the APK is not correctly signed: $(head -3 certs.txt | tr '\n' ' ')"
                  exit 1
               fi
-              grep -E 'Signer #1 certificate (DN|SHA-256)' certs.txt | sed 's/^/::notice::/' || true
+              grep -E 'certificate (DN|SHA-256 digest):' certs.txt | sed 's/^/::notice::/' || true
 
               # A signing config that prebuild silently dropped builds and
               # verifies fine — it just carries the debug key, and the phone
               # refuses the install. When a keystore was staged, prove the APK
               # actually used it instead of trusting the generated Gradle file.
-              cert_dn="$(sed -n 's/^Signer #1 certificate DN: *//p' certs.txt | head -1)"
-              cert_sha="$(sed -n 's/^Signer #1 certificate SHA-256 digest: *//p' certs.txt | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
+              # apksigner's wording moves with the build-tools version:
+              # `Signer #1 certificate DN:` on older ones, `V2 Signer:
+              # certificate DN:` on newer. Match whatever precedes the label
+              # rather than pinning one prefix.
+              cert_dn="$(sed -n 's/.*certificate DN: *//p' certs.txt | head -1)"
+              cert_sha="$(sed -n 's/.*certificate SHA-256 digest: *//p' certs.txt | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
               if [ -z "$cert_dn" ]; then
                  # apksigner's wording is not a contract; an unreadable
                  # certificate is a warning, not a failed build. The full output
@@ -263,7 +267,7 @@ jobs:
                  echo '```'
                  echo "#### Signing"
                  echo '```'
-                 grep -E 'Signer #1 certificate (DN|SHA-256)' certs.txt || cat certs.txt
+                 grep -E 'certificate (DN|SHA-256 digest):' certs.txt || cat certs.txt
                  echo '```'
               } >> "$GITHUB_STEP_SUMMARY"
 
