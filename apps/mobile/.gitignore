@@ -11,3 +11,9 @@ expo-env.d.ts
 # Build output.
 /dist
 /Rheoson-*.apk
+
+# Release signing material. `eas credentials` downloads these here; this
+# repository is public, so a committed keystore would be a leaked key.
+*.jks
+*.keystore
+*.b64
