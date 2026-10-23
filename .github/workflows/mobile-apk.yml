@@ -240,7 +240,10 @@ jobs:
               out="Rheoson-${version}-${code}-${VARIANT}-${signing}.apk"
               # `path` came from a step whose cwd was apps/mobile/android.
               cp "android/$APK" "$out"
-              echo "path=$out" >> "$GITHUB_OUTPUT"
+              # upload-artifact resolves `path` from the workspace root, not this
+              # step's cwd, so the output has to be workspace-relative.
+              echo "path=apps/mobile/$out" >> "$GITHUB_OUTPUT"
+              echo "name=$out" >> "$GITHUB_OUTPUT"
               {
                  echo ""
                  echo "| | |"
@@ -265,3 +268,12 @@ jobs:
               path: ${{ steps.collect.outputs.path }}
               if-no-files-found: error
               retention-days: 30
+
+         # `upload-artifact` does not expose a stable download URL, so the run
+         # page is where the file is collected. Linking it saves hunting.
+         - name: Point at the artifact
+           if: always()
+           run: |
+              echo "Download: \`${{ steps.collect.outputs.name }}\` from" \
+                 "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+                 >> "$GITHUB_STEP_SUMMARY"
