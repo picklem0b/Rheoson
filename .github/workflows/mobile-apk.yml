@@ -120,7 +120,7 @@ jobs:
               set -euo pipefail
               printf '%s' "$RHEOSON_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/rheoson-release.keystore"
               echo "RHEOSON_KEYSTORE_PATH=$RUNNER_TEMP/rheoson-release.keystore" >> "$GITHUB_ENV"
-              echo "Release signing: **on** (keystore from secrets)." >> "$GITHUB_STEP_SUMMARY"
+              echo "Release signing: **on** (alias \`${RHEOSON_KEY_ALIAS}\`, checked against the APK certificate)." >> "$GITHUB_STEP_SUMMARY"
 
          - name: No signing keystore
            if: env.RHEOSON_KEYSTORE_B64 == ''
@@ -215,6 +215,46 @@ jobs:
                  exit 1
               fi
               grep -E 'Signer #1 certificate (DN|SHA-256)' certs.txt | sed 's/^/::notice::/' || true
+
+              # A signing config that prebuild silently dropped builds and
+              # verifies fine — it just carries the debug key, and the phone
+              # refuses the install. When a keystore was staged, prove the APK
+              # actually used it instead of trusting the generated Gradle file.
+              cert_dn="$(sed -n 's/^Signer #1 certificate DN: *//p' certs.txt | head -1)"
+              cert_sha="$(sed -n 's/^Signer #1 certificate SHA-256 digest: *//p' certs.txt | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
+              if [ -z "$cert_dn" ]; then
+                 # apksigner's wording is not a contract; an unreadable
+                 # certificate is a warning, not a failed build. The full output
+                 # is copied into the annotations so the format is visible
+                 # without opening the log.
+                 echo "::warning::Could not parse a signer certificate from apksigner output"
+                 head -8 certs.txt | sed 's/^/::notice::/'
+              elif [ -n "${RHEOSON_KEYSTORE_PATH:-}" ]; then
+                 case "$cert_dn" in
+                    *'Android Debug'*)
+                       echo "::error::APK is signed with Gradle's debug key although a keystore was staged — the release signing config was not applied"
+                       exit 1
+                       ;;
+                 esac
+                 # `SHA256:` on some JDKs, `SHA-256:` on others; `|| true` so a
+                 # bad alias or password reaches the readable error below
+                 # instead of dying silently under `set -e`.
+                 expected="$({ keytool -list -v -keystore "$RHEOSON_KEYSTORE_PATH" -alias "${RHEOSON_KEY_ALIAS:-}" -storepass "${RHEOSON_KEYSTORE_PASSWORD:-}" 2>&1 || true; } | sed -n 's/.*SHA-\{0,1\}256: *//p' | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
+                 if [ -z "$expected" ]; then
+                    echo "::error::Could not read a SHA-256 from the staged keystore (wrong alias or keystore password?)"
+                    { keytool -list -v -keystore "$RHEOSON_KEYSTORE_PATH" -alias "${RHEOSON_KEY_ALIAS:-}" -storepass "${RHEOSON_KEYSTORE_PASSWORD:-}" 2>&1 || true; } | head -5 | sed 's/^/::error::/'
+                    exit 1
+                 fi
+                 if [ -z "$cert_sha" ]; then
+                    echo "::warning::Could not parse the APK certificate digest; skipped the keystore comparison"
+                    head -8 certs.txt | sed 's/^/::notice::/'
+                 elif [ "$expected" != "$cert_sha" ]; then
+                    echo "::error::APK certificate ${cert_sha} does not match the keystore's ${expected}"
+                    exit 1
+                 else
+                    echo "::notice::APK signed by the staged keystore (SHA-256 ${cert_sha})"
+                 fi
+              fi
 
               {
                  echo "#### Badging"
