@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { applyRouteSeo } from '@/lib/seo'
 import RootLayout from '@/components/layout/RootLayout'
-import AuthGuard from '@/components/layout/AuthGuard'
+import WelcomeGate from '@/components/onboarding/WelcomeGate'
 import Home from '@/pages/home/Home'
 import Search from '@/pages/search/Search'
 import Library from '@/pages/library/Library'
@@ -20,6 +20,7 @@ import NotFound from '@/pages/errors/NotFound'
 import ErrorRedirect from '@/pages/errors/ErrorRedirect'
 import Landing from '@/pages/landing/Landing'
 import AuthPage from '@/pages/auth/AuthPage'
+import SsoCallback from '@/pages/auth/SsoCallback'
 import Account from '@/pages/account/Account'
 
 // Home section "See all" pages — these live under pages/home/components/
@@ -35,9 +36,9 @@ export const routes = [
   {
     path: '/',
     element: (
-      <AuthGuard>
+      <WelcomeGate>
         <RootLayout />
-      </AuthGuard>
+      </WelcomeGate>
     ),
     children: [
       { index: true,              element: <Home /> },
@@ -95,6 +96,7 @@ export const routes = [
   // and reaching Home.
   { path: '/auth/*',      element: <AuthPage /> },
   { path: '/auth',        element: <AuthPage /> },
+  { path: '/sso-callback', element: <SsoCallback /> },
   { path: '/landing',     element: <Landing /> },
   // 404 for the full-player catch-all
   { path: '*',            element: <NotFound /> },

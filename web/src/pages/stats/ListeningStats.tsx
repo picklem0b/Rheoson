@@ -8,6 +8,8 @@ import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 import { formatCount } from '@/lib/formatters'
+import { useIsGuest } from '@/hooks/useIsGuest'
+import { requestAuth } from '@/lib/authGate'
 import { cn } from '@/lib/utils'
 
 function StatCard({ icon: Icon, label, value, color }: {
@@ -53,9 +55,11 @@ function BarChart({ data, maxValue }: { data: { label: string; value: number }[]
 
 export default function ListeningStats() {
   const navigate = useNavigate()
+  const guest = useIsGuest()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
-  const enabled = isAuthenticated
+  // Local mode has no accounts, so its stats are not behind a sign-in wall.
+  const enabled = isAuthenticated || !guest
 
   const { data: stats, isLoading: loadingStats } = useQuery({
     queryKey: ['analytics', 'stats'],
@@ -109,7 +113,7 @@ export default function ListeningStats() {
     (topArtists?.artists.length ?? 0) > 0
 
   // ── Guest gate: analytics are account-scoped by policy ──────
-  if (!isAuthenticated) {
+  if (guest) {
     return (
       <ScrollArea className="h-full">
         <div className="px-4 lg:px-8 pt-6 pb-10 space-y-6">
@@ -132,7 +136,7 @@ export default function ListeningStats() {
                 trends — every play counts from the moment you do.
               </p>
             </div>
-            <Button variant="primary" size="md" onClick={() => navigate('/auth')}>
+            <Button variant="primary" size="md" onClick={() => void requestAuth('Sign in to see your listening stats')}>
               Sign in
             </Button>
           </motion.div>

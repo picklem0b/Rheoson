@@ -55,7 +55,7 @@ describe('auth route table', () => {
   it('keeps the guarded app routes nested under the layout', () => {
     for (const path of ['/', '/home', '/search', '/library']) {
       const matches = matchRoutes(routes, path)!
-      // The first match must be the AuthGuard/RootLayout parent route.
+      // The first match must be the WelcomeGate/RootLayout parent route.
       expect(matches[0].route.element, `${path} lost its guarded layout`).toBeDefined()
       expect(matches.length).toBeGreaterThan(1)
     }

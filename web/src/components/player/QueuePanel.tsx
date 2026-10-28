@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toaster'
 import { useTrackContextMenu } from '@/hooks/useTrackContextMenu'
+import { useBackButton } from '@/hooks/useBackButton'
 import { searchApi } from '@/api/search.api'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/formatters'
@@ -22,6 +23,7 @@ export default function QueuePanel() {
   const { queue, clearQueue } = useQueueStore()
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const contextMenu = useTrackContextMenu(currentTrack)
+  useBackButton(showQueue, toggleQueue)
 
   // No track = no panel
   if (!currentTrack) return null

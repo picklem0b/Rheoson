@@ -2,6 +2,7 @@ import { API_BASE, isClerkEnabled } from "@/lib/constants";
 import { isOnline } from "@/lib/network";
 import { queueMutation, initAutoSync } from "@/lib/offlineQueue";
 import { reportFatalApiError } from "@/lib/fatalApiError";
+import { guestVerdict, isGuestNow, reasonForEndpoint, requestAuth } from "@/lib/authGate";
 
 export interface ApiError extends Error {
    status: number;
@@ -160,6 +161,25 @@ async function request<T>(
    };
    if (!BODY_FREE.has(method) && init.body != null) {
       headers["Content-Type"] = "application/json";
+   }
+
+   // ── Guest gate ─────────────────────────────────────────
+   // Signed-out visitors can browse, search and stream. Account actions open
+   // the sign-in card and, once signed in, simply carry on with this request.
+   if (isClerkEnabled() && isGuestNow()) {
+      const verdict = guestVerdict(method, endpoint);
+      if (verdict === "silent") return undefined as T;
+      if (verdict === "read-blocked") {
+         throw makeError(401, "Sign in required", "GUEST");
+      }
+      if (verdict === "prompt") {
+         const ok = await requestAuth(reasonForEndpoint(endpoint));
+         if (!ok) throw makeError(401, "Sign in required", "GUEST");
+         // ClerkUserSync registers the token provider a tick after sign-in.
+         for (let i = 0; i < 20 && !(await resolveAuthToken(true)); i++) {
+            await new Promise((r) => setTimeout(r, 150));
+         }
+      }
    }
 
    // Inject a fresh auth token if present

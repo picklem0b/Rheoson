@@ -28,7 +28,7 @@ function ClerkGate() {
   const authed = isLoaded && isSignedIn
 
   // One-way escape so /landing never traps an already signed-in user:
-  // at "/" the AuthGuard already routes them into the app.
+  // at "/" the app shell is already open to them.
   useEffect(() => {
     if (authed && location.pathname === '/landing') {
       navigate('/', { replace: true })

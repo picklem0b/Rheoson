@@ -1,9 +1,10 @@
-"""Track router — fully auth-enforced, per-user scoping.
+"""Track router — account state is auth-enforced and per-user.
 
-Guest mode was removed (v2.14.19): every route requires a verified Clerk
-session.  Likes, history, play signals, and stats are keyed by the JWT
-``sub`` claim.  The library file index is intentionally instance-global
-(shared downloaded music), but all user state is per-account.
+Signed-out visitors may read a track's public metadata (``GET /{track_id}``),
+the library list and the public charts; everything that touches an account —
+likes, history, play signals, stats — requires a verified Clerk session and
+is keyed by the JWT ``sub`` claim.  The library file index is intentionally
+instance-global (shared downloaded music), but all user state is per-account.
 """
 
 from __future__ import annotations
@@ -369,7 +370,7 @@ async def get_track_stats(
 
 
 @router.get("/{track_id}", response_model=TrackSchema)
-async def get_track(track_id: str, _user: dict = Depends(get_current_user)):
+async def get_track(track_id: str, _user: dict | None = Depends(get_optional_user)):
     t = await _hydrate_track(track_id)
     if not t:
         raise error_codes.fail(error_codes.TRACK.NOT_FOUND, 404, append=f": {track_id}")

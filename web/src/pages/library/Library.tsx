@@ -1,4 +1,6 @@
 import type { Artist, Track, Playlist } from '@/types';
+import GuestPrompt from '@/components/auth/GuestPrompt'
+import { useIsGuest } from '@/hooks/useIsGuest'
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,7 +21,8 @@ import {
    DownloadSimple,
    HardDrives,
    SpinnerGap,
-   Users
+   Users,
+   Books,
 } from '@phosphor-icons/react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -668,7 +671,7 @@ function LikedTrackRow({
    );
 }
 
-export default function Library() {
+function LibraryMember() {
    const navigate = useNavigate();
    const { toast } = useToast();
 
@@ -1205,4 +1208,19 @@ function LocalTrackRow({ track, onPlay }: { track: Track; onPlay: () => void }) 
          </span>
       </motion.button>
    );
+}
+
+export default function Library() {
+  const guest = useIsGuest()
+  if (guest) {
+    return (
+      <GuestPrompt
+        icon={Books}
+        title="Your library lives with your account"
+        body="Sign in to keep playlists, saved songs and blends across all your devices."
+        reason="Sign in to build your library"
+      />
+    )
+  }
+  return <LibraryMember />
 }

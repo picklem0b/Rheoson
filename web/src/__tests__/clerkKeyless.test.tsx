@@ -79,6 +79,8 @@ describe('keyless bundle renders the shell without a ClerkProvider', () => {
 
   it('profile page renders its body, no crash', () => {
     renderShell(<Profile />)
-    expect(screen.getByText(/Your Rheoson account/i)).toBeTruthy()
+    // The header is the TikTok-style identity block now; "Quick access" is a
+    // stable anchor for "the body rendered" in both modes.
+    expect(screen.getByText(/Quick access/i)).toBeTruthy()
   })
 })

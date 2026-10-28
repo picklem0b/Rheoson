@@ -18,7 +18,9 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST = 'dist';
-const CANONICAL = 'https://rheoson-api-9e4c.onrender.com';
+// Keep in step with web/.env.production and api/app/core/config.py — the
+// only host the shipped bundle should ever call.
+const CANONICAL = 'https://rheoson-api.onrender.com';
 
 /** Same-origin deployments (nginx / the VPS stack) are a real configuration. */
 const configured = process.env.VITE_API_URL;

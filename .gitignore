@@ -27,6 +27,11 @@ __pycache__/
 *.pyo
 dump.rdb
 
+# Signed release artifacts and signing material — build output, never source
+builds/
+*.jks
+*.keystore
+
 # Logs
 *.log
 *.logs

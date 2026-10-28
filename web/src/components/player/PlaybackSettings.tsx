@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { usePlayerStore } from '@/store/player.store'
 import { useUIStore } from '@/store/ui.store'
 import { getPlaybackRate, setPlaybackRate } from '@/hooks/player.hook'
+import { useBackButton } from '@/hooks/useBackButton'
 import { cn } from '@/lib/utils'
 
 /**
@@ -105,6 +106,8 @@ export default function PlaybackSettings({ trigger = true }: { trigger?: boolean
     window.addEventListener('rheoson:playback-settings', open2)
     return () => window.removeEventListener('rheoson:playback-settings', open2)
   }, [])
+
+  useBackButton(open, () => setOpen(false))
 
   const chooseSpeed = (v: number) => {
     setSpeed(v)

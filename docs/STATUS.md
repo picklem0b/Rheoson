@@ -42,7 +42,7 @@ One row per user-visible feature. Labels: **Implemented** (shipped, tested), **P
 | Federation (multi-server) | Planned | — | — |
 | Background audio sync (PWA) | Planned | Depends on Workbox periodicsync adoption | — |
 | Release-signed APK channel | Planned | Keystore required | — |
-| Guest mode | Deprecated | Removed for security (v2.14.19); every endpoint requires a session | — |
+| Guest browsing | Implemented | Public reads (search, stream, lyrics, charts, track metadata) open; account routes need a session | — |
 | Legacy JWT auth (passlib/jose login) | Deprecated | Replaced by Clerk; the register/login proxy routes were removed (they minted a session from an email alone) | v2.15.1 |
 
 ---

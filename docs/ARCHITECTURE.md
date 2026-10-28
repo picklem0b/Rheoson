@@ -174,7 +174,7 @@ Tunable values live in `api/app/core/config.py`:
 ## The pieces that changed recently
 
 - **Clerk auth** — prebuilt Clerk components replace custom login/register; JWT injection on API requests; webhook syncs users to MongoDB. See [Auth & Security](AUTH.md).
-- **Per-user isolation** — likes, history, playlists, and taste are now user-scoped; guest mode removed.
+- **Per-user isolation** — likes, history, playlists, and taste are user-scoped. Signed-out visitors browse, search and stream; the web client's `lib/authGate.ts` opens one sign-in card for the first account action and retries it after sign-in.
 - **Streaming hardening** — shared, bounded, disconnect-proof background fills; cancellation kills the fill; rate limits on stream/audio.
 - **Downloads hardening** — per-job staging dir, sanitization, path containment, dedupe counters, retries, speed-limit slider, concurrency limiter.
 - **Track identity** — SQLite sidecar (`track_identity.py`) so `isDownloaded` is reliable and liked/history/playlist entries resolve to local playback.

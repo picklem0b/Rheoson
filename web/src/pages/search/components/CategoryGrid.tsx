@@ -62,7 +62,7 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
 
    return (
       <div className="pb-6">
-         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+         <div className="flex flex-col gap-3">
             {categories.map((cat, i) => {
                const isOpen = expanded === cat.slug
                return (
@@ -82,7 +82,7 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                      }
                      aria-expanded={isOpen}
                      className={cn(
-                        'group relative h-[124px] overflow-hidden rounded-2xl bg-gradient-to-br sm:h-[140px]',
+                        'group relative h-[96px] w-full overflow-hidden rounded-2xl bg-gradient-to-br sm:h-[110px]',
                         cat.gradient,
                         'border shadow-md transition-all active:brightness-110',
                         isOpen
