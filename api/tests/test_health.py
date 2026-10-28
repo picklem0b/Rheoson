@@ -8,12 +8,22 @@ STATUSES = {"passing", "degraded", "failing", "skipped", "not_tested"}
 
 
 @pytest.mark.asyncio
-async def test_root_redirects_to_docs(client):
-    """Root should redirect to the API documentation, not a generic body."""
+async def test_root_answers_json_not_a_redirect(client):
+    """Root says what this service is, and still points at the docs.
+
+    It used to 307 to the Swagger UI. A bare API URL is usually typed to answer
+    "is this the API, and which build?", which a redirected HTML page cannot —
+    and the SPA host's catch-all made an HTML answer look normal. The JSON card
+    carries the docs link instead, so nothing is lost.
+    """
     resp = await client.get("/")
-    assert resp.status_code == 200  # client follows redirects
-    assert resp.url.path == "/api/docs"
-    assert "swagger" in resp.text.lower() or "docs" in resp.text.lower()
+
+    assert resp.status_code == 200
+    assert resp.url.path == "/"
+    body = resp.json()
+    assert body["service"] == "rheoson-api"
+    assert body["docs"] == "/api/docs"
+    assert body["health"] == "/api/health"
 
 
 @pytest.mark.asyncio
