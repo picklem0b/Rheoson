@@ -251,7 +251,7 @@ export function SpotifyImportCard() {
                   </h2>
                   <p className='mt-0.5 text-sm text-[var(--text-secondary)]'>
                      Song, album, playlist or artist — anything you can copy from Spotify. The songs are
-                     matched on YouTube Music and downloaded; Spotify's own audio is DRM-locked.
+                     matched on YouTube Music and downloaded; Spotify&apos;s own audio is DRM-locked.
                   </p>
                </div>
                <button
