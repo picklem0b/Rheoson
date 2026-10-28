@@ -395,6 +395,15 @@ def _clean_state():
         toolchain.refresh()
     except Exception:
         pass
+    # Spotify imports and the Spotify token cache are process-global, exactly
+    # like download jobs: without this a polling test can read a previous
+    # test's import, and a cached token can outlive a monkeypatched client.
+    try:
+        from app.services import spotify_import, spotify_service
+        spotify_import.reset()
+        spotify_service._reset_caches()
+    except Exception:
+        pass
     # The shared mock DB is session-scoped: clear its collections too, so
     # per-user DB state (users, signals, profiles) can't leak between tests
     # any more than the file-backed stores above can.

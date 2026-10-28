@@ -540,6 +540,26 @@ async def search_one(query: str) -> dict | None:
         return None
 
 
+async def search_candidates(query: str, limit: int = 5) -> list[dict]:
+    """Several song candidates for a matcher, not just the first hit.
+
+    `search_one` answers "the best guess"; importing a playlist needs to compare
+    guesses, because YouTube Music's first result for a title is regularly a
+    live take, a medley or a cover. Raises on failure so the caller can record
+    *why* a track was not matched instead of calling it "not found".
+    """
+    await _get_ytm_async()
+    loop = asyncio.get_event_loop()
+    try:
+        results = await loop.run_in_executor(
+            None, lambda: _get_ytm().search(query, filter="songs", limit=limit),
+        )
+        return [_parse_track(r) for r in results if r.get("videoId")]
+    except Exception:
+        _record_ytm_failure()
+        raise
+
+
 async def resolve_youtube_url(url: str) -> dict | None:
     patterns = [
         r'(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})',
