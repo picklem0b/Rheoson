@@ -17,7 +17,7 @@
  * the static site's catch-all route answers `/api/*` with `index.html` and
  * HTTP 200, which is the bug this whole module exists to prevent.
  */
-export const CANONICAL_API_ORIGIN = 'https://rheoson-api-9e4c.onrender.com'
+export const CANONICAL_API_ORIGIN = 'https://rheoson-api.onrender.com'
 
 /** How the origin was decided — surfaced in Settings → Doctor. */
 export type ApiTargetSource = 'dev-proxy' | 'env' | 'same-origin' | 'canonical-fallback'

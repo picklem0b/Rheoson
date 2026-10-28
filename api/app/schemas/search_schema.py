@@ -32,6 +32,17 @@ class SearchResultsSchema(BaseModel):
     playlists: list[PlaylistResultSchema] = Field(default_factory=list)
 
 
+class UnmatchedTrackSchema(BaseModel):
+    """One song a Spotify link named that YouTube Music could not be trusted
+    with — named, not dropped, so the import can be honest about the gap."""
+
+    title:      str = ""
+    artist:     str = ""
+    spotifyId:  str = ""
+    reason:     str = ""
+    score:      float = 0.0
+
+
 class ResolveResponseSchema(BaseModel):
     """Returned when the user pastes a Spotify or YouTube URL."""
 
@@ -42,3 +53,11 @@ class ResolveResponseSchema(BaseModel):
     albums:    list[AlbumSchema]          = Field(default_factory=list)
     artists:   list[ArtistSchema]         = Field(default_factory=list)
     playlists: list[PlaylistResultSchema] = Field(default_factory=list)
+
+    # Totals for the collection behind the link. `total` is what the link
+    # contains (including items that can never play, like local files), so the
+    # UI can say "184 of 205" instead of pretending it found everything.
+    total:     int = 0
+    matched:   int = 0
+    skipped:   int = 0
+    unmatched: list[UnmatchedTrackSchema] = Field(default_factory=list)

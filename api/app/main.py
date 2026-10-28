@@ -16,7 +16,7 @@ import socketio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 
 from app.core.deps import get_current_user, get_optional_user
 from app.core import health as healthmod
@@ -508,10 +508,41 @@ app.include_router(clerk_webhook_router.router, prefix="/api", tags=["webhooks"]
 
 # ── Root ──────────────────────────────────────────────────────
 
-@app.get("/", include_in_schema=False, status_code=307)
+@app.get("/", include_in_schema=False)
+@app.get("/api", include_in_schema=False)
 async def root():
-    """API entry point → interactive documentation."""
-    return RedirectResponse(url="/api/docs", status_code=307)
+    """What this host is, as JSON.
+
+    This used to redirect to the Swagger UI. That is the wrong answer for the
+    question a bare URL asks — and worse, the SPA host's catch-all route
+    answered `/api/*` with `index.html`, so a typed API URL looked like a
+    working page returning the wrong thing. A JSON card says exactly which
+    service answered, which build it is, and where the rest lives; a browser
+    still finds the docs from `docs` below.
+    """
+    return JSONResponse(
+        {
+            "service": "rheoson-api",
+            "name": "Rheoson",
+            "version": VERSION,
+            "status": "ok",
+            "env": settings.ENV,
+            "docs": "/api/docs",
+            "openapi": "/api/openapi.json",
+            "health": "/api/health",
+            "websocket": "/socket.io",
+            "frontend": "https://rheoson.onrender.com",
+            "endpoints": {
+                "search": "/api/search?q=",
+                "resolve": "/api/search/resolve",
+                "tracks": "/api/tracks",
+                "playlists": "/api/playlists",
+                "downloads": "/api/downloads",
+                "spotify_import": "/api/downloads/spotify",
+                "stream": "/api/stream/{id}/audio",
+            },
+        }
+    )
 
 
 # ── Health & diagnostics ─────────────────────────────────────

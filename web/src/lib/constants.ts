@@ -9,7 +9,7 @@
 //                               bundled assets and return index.html.
 //
 // VITE_API_URL must be the bare origin with no trailing slash:
-//   https://rheoson-api-9e4c.onrender.com
+//   https://rheoson-api.onrender.com
 // Special value "" (explicitly empty) = same-origin deployment: nginx
 // reverse-proxies /api and /socket.io on the same domain that serves the
 // SPA (see docker-compose.vps.yml). That only makes sense in a browser —
@@ -67,7 +67,7 @@ if (TARGET.source === "canonical-fallback" && typeof console !== "undefined") {
 // Used by the api client (client.api.ts) for all REST requests.
 //
 // Dev:      /api          → Vite proxy → http://127.0.0.1:8000/api
-// Prod/APK: https://rheoson-api-9e4c.onrender.com/api
+// Prod/APK: https://rheoson-api.onrender.com/api
 export const API_BASE = apiBaseFor(TARGET);
 
 // ── WS_URL ────────────────────────────────────────────────────

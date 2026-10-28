@@ -2,6 +2,8 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
+from app.schemas.search_schema import UnmatchedTrackSchema
+
 
 AudioFormat  = Literal["mp3", "flac", "opus", "m4a", "wav"]
 AudioQuality = Literal["128", "192", "256", "320", "best"]
@@ -33,6 +35,40 @@ class DownloadRequestSchema(BaseModel):
     # Output location / file naming
     fileNaming: FileNaming = "artist-title"
     customPath: Optional[str] = Field(None, max_length=1024)  # overrides MUSIC_DIR
+
+
+class SpotifyImportRequest(DownloadRequestSchema):
+    """A Spotify collection link, plus how many of it to queue.
+
+    Inherits every audio option from a single download so the import produces
+    the same files a one-track download would. `limit` exists because a 2 000
+    track playlist is a deliberate act, not something a paste should start.
+    """
+
+    url: str
+    limit: int = Field(200, ge=1, le=500)
+    skipExisting: bool = True
+
+
+class SpotifyImportSchema(BaseModel):
+    """Poll state for one import: what the link held, what was matched, what
+    is queued, and the songs that could not be trusted to a match."""
+
+    id: str
+    status: Literal["resolving", "queueing", "done", "error"] = "resolving"
+    url: str = ""
+    kind: str = ""
+    title: str = ""
+    artworkUrl: str = ""
+    total: int = 0
+    matched: int = 0
+    queued: int = 0
+    skipped: int = 0
+    skippedExisting: int = 0
+    unmatched: list[UnmatchedTrackSchema] = Field(default_factory=list)
+    error: Optional[str] = None
+    createdAt: str = ""
+    finishedAt: Optional[str] = None
 
 
 class DownloadJobSchema(BaseModel):

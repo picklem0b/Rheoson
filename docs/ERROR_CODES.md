@@ -75,6 +75,7 @@ or grep the API source for it — to land on the single raise site.
 | Code | Meaning |
 | --- | --- |
 | [ERROR_CODE: DNF01] | Download job not found |
+| [ERROR_CODE: DNF02] | Spotify import not found |
 | [ERROR_CODE: DVA01] | Invalid URL format |
 | [ERROR_CODE: DVA02] | URL too long |
 | [ERROR_CODE: DVA03] | Track id or URL is required |

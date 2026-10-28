@@ -16,7 +16,6 @@ import {
    Shuffle,
    X,
    MagnifyingGlass,
-   Link as LinkIcon,
    DownloadSimple,
    HardDrives,
    SpinnerGap,
@@ -40,6 +39,7 @@ import { playlistsApi } from "@/api/playlists.api";
 import { blendsApi } from "@/api/blends.api";
 import { useDownloads } from "@/hooks/downloads.hook";
 import { useQueue } from "@/hooks/queue.hook";
+import { SpotifyImportCard } from "./components/SpotifyImportCard";
 import { useTrackContextMenu } from "@/hooks/useTrackContextMenu";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils";
@@ -520,8 +520,6 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
    const queryClient = useQueryClient();
    const { toast } = useToast();
    const [title, setTitle] = useState("");
-   const [importUrl, setImportUrl] = useState("");
-   const [mode, setMode] = useState<"create" | "import">("create");
 
    const createMutation = useMutation({
       mutationFn: () => playlistsApi.createPlaylist({ title: title.trim() }),
@@ -533,24 +531,12 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
       onError: () => toast("Could not create playlist", "error")
    });
 
-   const importMutation = useMutation({
-      mutationFn: () => playlistsApi.importSpotify(importUrl.trim()),
-      onSuccess: () => {
-         invalidatePlaylistSurfaces(queryClient);
-         toast("Playlist imported!", "success");
-         onClose();
-      },
-      onError: () => toast("Could not import playlist", "error")
-   });
-
+   // Importing moved to the Spotify card on the Library page. A modal closes on
+   // success, which is exactly the wrong shape for an import that needs to say
+   // what matched, what did not, and where the songs went.
    const handleSubmit = () => {
-      if (mode === "create") {
-         if (!title.trim()) return;
-         createMutation.mutate();
-      } else {
-         if (!importUrl.trim()) return;
-         importMutation.mutate();
-      }
+      if (!title.trim()) return;
+      createMutation.mutate();
    };
 
    return (
@@ -572,7 +558,7 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
             {/* Header */}
             <div className='flex items-center justify-between px-6 py-4 border-b border-[var(--border)]'>
                <h2 className='text-lg font-bold text-[var(--text-primary)]'>
-                  {mode === "create" ? "New Playlist" : "Import Playlist"}
+                  New Playlist
                </h2>
                <motion.button
                   whileTap={{ scale: 0.9 }}
@@ -582,57 +568,17 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
                </motion.button>
             </div>
 
-            {/* Mode switcher */}
-            <div className='flex gap-2 px-6 pt-4'>
-               {(["create", "import"] as const).map(m => (
-                  <button
-                     key={m}
-                     onClick={() => setMode(m)}
-                     className={cn(
-                        "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all",
-                        mode === m
-                           ? "bg-[var(--text-primary)] text-[var(--bg-base)]"
-                           : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)]"
-                     )}>
-                     {m === "create" ? (
-                        <Plus className='w-3.5 h-3.5' />
-                     ) : (
-                        <LinkIcon className='w-3.5 h-3.5' />
-                     )}
-                     {m === "create" ? "Create" : "Import"}
-                  </button>
-               ))}
-            </div>
-
             {/* Form */}
             <div className='px-6 py-4 space-y-3'>
-               {mode === "create" ? (
-                  <div>
-                     <input
-                        autoFocus
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                        placeholder='Playlist name'
-                        maxLength={80}
-                        className='w-full px-4 py-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] placeholder:font-normal outline-none focus:border-[var(--accent)] transition-colors'
-                     />
-                  </div>
-               ) : (
-                  <div>
-                     <label className='text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider'>
-                        Spotify / YouTube URL
-                     </label>
-                     <input
-                        autoFocus
-                        value={importUrl}
-                        onChange={e => setImportUrl(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                        placeholder='https://open.spotify.com/playlist/...'
-                        className='w-full mt-1.5 px-4 py-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)]'
-                     />
-                  </div>
-               )}
+               <input
+                  autoFocus
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                  placeholder='Playlist name'
+                  maxLength={80}
+                  className='w-full px-4 py-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] placeholder:font-normal outline-none focus:border-[var(--accent)] transition-colors'
+               />
             </div>
 
             {/* Actions */}
@@ -643,12 +589,10 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
                <Button
                   variant='primary'
                   onClick={handleSubmit}
-                  loading={createMutation.isPending || importMutation.isPending}
-                  disabled={
-                     mode === "create" ? !title.trim() : !importUrl.trim()
-                  }
+                  loading={createMutation.isPending}
+                  disabled={!title.trim()}
                   className='flex-1'>
-                  {mode === "create" ? "Create" : "Import"}
+                  Create
                </Button>
             </div>
          </motion.div>
@@ -847,6 +791,9 @@ export default function Library() {
 
          <ScrollArea className='flex-1 px-4 lg:px-8 pb-10'>
             <div className='space-y-10 lg:mx-auto lg:max-w-6xl'>
+               {/* ── Spotify import ─────────────────────────── */}
+               <SpotifyImportCard />
+
                {/* ── Blends — collaborative playlists ───────── */}
                <BlendsSection query={query} />
 

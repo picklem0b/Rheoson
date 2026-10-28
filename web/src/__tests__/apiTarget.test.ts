@@ -8,7 +8,7 @@ import {
 } from '@/lib/apiTarget'
 
 const ANDROID_ORIGIN = 'https://localhost'
-const WEB_ORIGIN = 'https://rheoson-9e4c.onrender.com'
+const WEB_ORIGIN = 'https://rheoson.onrender.com'
 
 function target(overrides: Partial<ApiTargetInput> = {}) {
    return resolveApiTarget({
