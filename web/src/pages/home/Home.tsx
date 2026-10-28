@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
 import { formatDuration } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
+import { useIsGuest } from '@/hooks/useIsGuest'
 import type { Track } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -442,6 +443,25 @@ function EmptyHome() {
 // ── Page ──────────────────────────────────────────────────────
 
 export default function Home() {
+  // Decide before anything mounts: a guest has no history, mixes or taste, so
+  // none of the queries below should even be created for them.
+  const guest = useIsGuest()
+  return guest ? <GuestHome /> : <MemberHome />
+}
+
+function GuestHome() {
+  return (
+    <ScrollArea className="h-full">
+      <div className="px-4 lg:px-8 pt-6 pb-10 lg:max-w-6xl lg:mx-auto">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">{greeting()}</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-0.5">What do you want to hear?</p>
+        <EmptyHome />
+      </div>
+    </ScrollArea>
+  )
+}
+
+function MemberHome() {
   const navigate = useNavigate()
 
   const { data: recentRaw, isLoading: loadingRecent } = useQuery({

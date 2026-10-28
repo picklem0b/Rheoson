@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Palette, SpeakerHigh, DownloadSimple, Keyboard, Info, CaretRight, CaretLeft, Bell, HardDrives, ChartLineUp, Stethoscope, SlidersHorizontal, WifiHigh, Shield, UserCircle } from '@phosphor-icons/react'
+import { Palette, SpeakerHigh, DownloadSimple, Keyboard, Info, CaretRight, CaretLeft, ArrowLeft, Bell, HardDrives, ChartLineUp, Stethoscope, SlidersHorizontal, WifiHigh, Shield } from '@phosphor-icons/react'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { ProfileRow } from '@/components/ui/ProfileRow'
 import { APP_VERSION } from '@/lib/constants'
@@ -68,7 +69,6 @@ const GROUPS: { label: string; items: SectionMeta[] }[] = [
     label: 'Your data',
     items: [
       { id: 'privacy', label: 'Privacy', desc: 'History toggles, backups, policy', Icon: Shield },
-      { id: 'account', label: 'Account', desc: 'Profile, credentials, danger zone', Icon: UserCircle },
       { id: 'stats',   label: 'Stats',   desc: 'Listening analytics & charts',     Icon: ChartLineUp },
     ],
   },
@@ -104,7 +104,8 @@ function SectionContent({ id }: { id: Section }) {
 
 const DETAIL_SPRING = { type: 'spring' as const, damping: 28, stiffness: 300 }
 
-export default function GearSix() {
+export default function Settings() {
+  const navigate = useNavigate()
   const [active, setActive] = useState<Section | null>(() => {
     // Deep link: /settings?section=privacy opens that section directly —
     // the profile sheet's Privacy and Account entries land here.
@@ -139,9 +140,19 @@ export default function GearSix() {
         {/* pt-12 clears the mobile status bar; on desktop there is no status
             bar to clear, so it collapses back to normal padding. */}
         <div className="px-5 pt-12 lg:pt-8 pb-3 flex-shrink-0 space-y-4">
-          <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[var(--text-primary)] leading-tight">
-            GearSix
-          </h1>
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => navigate(-1)}
+              aria-label="Back"
+              className="lg:hidden -ml-1 flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </motion.button>
+            <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+              Settings
+            </h1>
+          </div>
           <ProfileRow />
         </div>
 
@@ -224,7 +235,7 @@ export default function GearSix() {
                   className="lg:hidden flex items-center gap-1 text-[var(--accent)] mr-1"
                 >
                   <CaretLeft className="w-5 h-5" />
-                  <span className="text-[17px]">GearSix</span>
+                  <span className="text-[17px]">Settings</span>
                 </motion.button>
                 <div className="flex-1 flex items-center gap-3 min-w-0">
                 <div className="hidden lg:flex w-9 h-9 rounded-[10px] items-center justify-center flex-shrink-0 bg-brand/15 text-[var(--accent)]">

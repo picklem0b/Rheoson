@@ -94,7 +94,8 @@ services:
       # to bake the correct API_BASE into the JS bundle.
       - key: VITE_API_URL
         value: https://rheoson-api.onrender.com
-      # Prompted at deploy time; without it the bundle ships in local mode
-      # (no Clerk provider, every account feature silently unavailable).
+      # Publishable keys are public by design (they ship in the bundle), so
+      # it is set here rather than prompted: a missing value silently builds
+      # local mode (no Clerk provider, accounts unavailable).
       - key: VITE_CLERK_PUBLISHABLE_KEY
-        sync: false
+        value: pk_test_Z2xhZC10dW5hLTkwMDQuY2xlcmsuYWNjb3VudHMuZGV2JA

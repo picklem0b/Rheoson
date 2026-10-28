@@ -5,23 +5,24 @@ import {
   ChartLineUp,
   Info,
   Shield,
-  UserCircle,
   CaretRight,
   X,
 } from '@phosphor-icons/react'
 import { ProfileRow } from '@/components/ui/ProfileRow'
+import { useBackButton } from '@/hooks/useBackButton'
 
 /**
  * ProfileSheet — the card that opens from the nav bar's profile picture.
  *
  * Replaces the old gear-icon entry: your face is the way into everything
- * personal. Settings and Listening stats are full pages; About, Privacy
- * and Account land directly on their settings sections via ?section=
- * (and the settings-section event, so an already-open Settings page
- * follows along).
+ * personal. Settings and Listening stats are full pages; About and Privacy
+ * land directly on their settings sections via ?section= (and the
+ * settings-section event, so an already-open Settings page follows along).
+ * Guests see "Guest" here and the header row opens the sign-in card.
  */
 export default function ProfileSheet({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
+  useBackButton(true, onClose)
 
   const go = (to: string, section?: string) => {
     if (section) {
@@ -38,7 +39,6 @@ export default function ProfileSheet({ onClose }: { onClose: () => void }) {
     { icon: ChartLineUp, label: 'Listening stats', desc: 'Top songs, artists and hours', go: () => go('/stats') },
     { icon: Info, label: 'About', desc: 'Version, changelog, community', go: () => go('/settings', 'about') },
     { icon: Shield, label: 'Privacy', desc: 'History, backups, your data', go: () => go('/settings', 'privacy') },
-    { icon: UserCircle, label: 'Account', desc: 'Profile and credentials', go: () => go('/account') },
   ]
 
   return (
@@ -62,7 +62,7 @@ export default function ProfileSheet({ onClose }: { onClose: () => void }) {
         <div className="glass-strong rounded-3xl border border-[var(--border)] overflow-hidden shadow-2xl">
           {/* Header — your identity */}
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <ProfileRow />
+            <ProfileRow onNavigate={onClose} />
             <button
               onClick={onClose}
               aria-label="Close"

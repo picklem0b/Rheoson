@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { UserProfile } from '@clerk/clerk-react'
 import { isClerkEnabled } from '@/lib/constants'
 import { ScrollArea } from '@/components/ui/ScrollArea'
+import { useIsGuest } from '@/hooks/useIsGuest'
+import { requestAuth } from '@/lib/authGate'
 
 /**
  * /account — Clerk's full account manager.
@@ -13,6 +15,28 @@ import { ScrollArea } from '@/components/ui/ScrollArea'
 export default function Account() {
   const navigate = useNavigate()
   const clerk = isClerkEnabled()
+  const guest = useIsGuest()
+
+  if (guest) {
+    return (
+      <div className="flex h-full items-center justify-center px-6">
+        <div className="max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 text-center">
+          <p className="text-[15px] font-semibold text-[var(--text-primary)]">
+            Account management unavailable
+          </p>
+          <p className="mt-2 text-[13px] text-[var(--text-muted)] leading-relaxed">
+            You are browsing as a guest. Sign in to manage your profile, email and connected accounts.
+          </p>
+          <button
+            onClick={() => void requestAuth('Sign in to manage your account')}
+            className="mt-4 rounded-xl bg-[var(--accent)] px-5 py-2 text-sm font-bold text-white"
+          >
+            Sign in
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (!clerk) {
     return (

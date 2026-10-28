@@ -6,6 +6,7 @@ import ProfileSheet from '@/components/layout/ProfileSheet'
 import { useUser } from '@clerk/clerk-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
+import { useIsGuest } from '@/hooks/useIsGuest'
 import { isClerkEnabled } from '@/lib/constants'
 import UserAvatar from '@/components/ui/UserAvatar'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
@@ -37,10 +38,20 @@ function ProfileButton({ onOpen }: { onOpen: () => void }) {
 function ClerkProfileButton({ onOpen }: { onOpen: () => void }) {
   const { user: clerkUser } = useUser()
   const localUser = useAuthStore((s) => s.user)
+  const guest = useIsGuest()
 
-  const name = clerkUser?.username ?? localUser?.username ?? 'Your account'
-  const imageUrl = clerkUser?.imageUrl ?? localUser?.image_url
-  return <ProfileButtonBody onOpen={onOpen} name={name} imageUrl={imageUrl} />
+  // Same identity wording as the mobile sheet: guests are "Guest" and the
+  // profile row is the way into the sign-in card.
+  const name = guest ? 'Guest' : (clerkUser?.username ?? localUser?.username ?? 'Your account')
+  const imageUrl = guest ? undefined : (clerkUser?.imageUrl ?? localUser?.image_url)
+  return (
+    <ProfileButtonBody
+      onOpen={onOpen}
+      name={name}
+      imageUrl={imageUrl}
+      hint={guest ? 'Sign in to save your music' : 'Settings, stats, more'}
+    />
+  )
 }
 
 function LocalProfileButton({ onOpen }: { onOpen: () => void }) {
@@ -58,10 +69,12 @@ function ProfileButtonBody({
   onOpen,
   name,
   imageUrl,
+  hint = 'Settings, stats, more',
 }: {
   onOpen: () => void
   name: string
   imageUrl?: string
+  hint?: string
 }) {
   return (
     <motion.button
@@ -73,7 +86,7 @@ function ProfileButtonBody({
       <UserAvatar size="sm" shape="rounded" interactive={false} name={name} imageUrl={imageUrl} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-[var(--text-primary)] truncate">{name}</p>
-        <p className="text-[10px] text-[var(--text-muted)] truncate">Settings, stats, more</p>
+        <p className="text-[10px] text-[var(--text-muted)] truncate">{hint}</p>
       </div>
       <UserCircle size={16} className="text-[var(--text-muted)] flex-shrink-0" aria-hidden />
     </motion.button>

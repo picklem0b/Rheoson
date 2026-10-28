@@ -25,6 +25,7 @@ import {
   disableClerkRuntime,
 } from '@/lib/constants'
 import ClerkUserSync, { ClerkCrashGuard } from '@/components/auth/ClerkUserSync'
+import AuthCard from '@/components/auth/AuthCard'
 import { useAuthStore } from '@/store/auth.store'
 import { usePreferenceSync } from '@/hooks/preferenceSync.hook'
 
@@ -135,6 +136,7 @@ export default function App() {
         {show && <SplashScreen onDone={dismiss} />}
       </AnimatePresence>
       {!show && <AppInner />}
+      <AuthCard />
     </ErrorBoundary>
   )
 

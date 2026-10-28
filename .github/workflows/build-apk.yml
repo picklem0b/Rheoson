@@ -44,12 +44,15 @@ jobs:
               env:
                   # Fix: was "${{ secrets.VITE_API_URL }} }}" — double closing brace
                   # caused the env block to be silently ignored in GitHub Actions.
-                  VITE_API_URL: ${{ secrets.VITE_API_URL }}
+                  VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://rheoson-api.onrender.com' }}
                   # Baked into the bundle at build time. Without it the APK ships
                   # a local-mode bundle: no ClerkProvider mounts, and every
                   # useUser()/useAuth() call crashes with "can only be used
                   # within <ClerkProvider />" (the web/app.err crash).
-                  VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+                  # An unset secret expands to '' and an empty process env var beats
+                  # web/.env.production in Vite, silently shipping local mode — so
+                  # fall back to the (public) key committed in .env.production.
+                  VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_Z2xhZC10dW5hLTkwMDQuY2xlcmsuYWNjb3VudHMuZGV2JA' }}
                   # NODE_ENV=production keeps the bundle out of dev mode so the
                   # API base is resolved from the origin instead of the Vite
                   # proxy path.
@@ -65,7 +68,7 @@ jobs:
             - name: Verify API origin was baked in
               working-directory: web
               env:
-                  VITE_API_URL: ${{ secrets.VITE_API_URL }}
+                  VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://rheoson-api.onrender.com' }}
               run: npm run verify:api-base
 
             - name: Sync Capacitor

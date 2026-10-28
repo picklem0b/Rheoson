@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { messagesApi, type PeerInfo } from '@/api/messages.api'
 import { qk } from '@/lib/queryKeys'
 import { useToast } from '@/components/ui/Toaster'
+import { useBackButton } from '@/hooks/useBackButton'
 import { splitErrorCode } from '@/api/client.api'
 import { cn } from '@/lib/utils'
 
@@ -28,6 +29,7 @@ export default function ShareToChatModal() {
    const closeShare = useShareStore((s) => s.closeShare)
    const meId = useAuthStore((s) => s.user?.id ?? null)
    const { toast } = useToast()
+   useBackButton(open, closeShare)
 
    const [query, setQuery] = useState('')
    const [selected, setSelected] = useState<PeerInfo | null>(null)

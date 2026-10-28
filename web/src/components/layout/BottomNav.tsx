@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { House, MagnifyingGlass, Books, ChatCircleDots } from '@phosphor-icons/react'
+import { House, MagnifyingGlass, Books, ChatCircleDots, UserCircle } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
 import ProfileSheet from '@/components/layout/ProfileSheet'
+import { useIsGuest } from '@/hooks/useIsGuest'
 
 const NAV_ITEMS = [
   { to: '/', icon: House, label: 'Home' },
@@ -19,7 +20,22 @@ const ICON_SIZE = 22
 
 function AvatarButton({ onClick }: { onClick: () => void }) {
   const user = useAuthStore((s) => s.user)
-  const name = user?.username ?? 'You'
+  const guest = useIsGuest()
+  const name = user?.username ?? user?.email?.split('@')[0] ?? 'You'
+
+  // Guests get a plain profile icon — initials of a made-up name were
+  // confusing ("YO").
+  if (guest || !user) {
+    return (
+      <button
+        onClick={onClick}
+        aria-label='Profile and settings'
+        className='relative z-10 w-8 h-8 flex-shrink-0 flex items-center justify-center
+                   text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors'>
+        <UserCircle size={28} weight='regular' aria-hidden />
+      </button>
+    )
+  }
 
   if (user?.image_url) {
     return (

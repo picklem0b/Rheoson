@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import GuestPrompt from '@/components/auth/GuestPrompt'
+import { useIsGuest } from '@/hooks/useIsGuest'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -11,6 +13,7 @@ import {
    Quotes,
    Play,
    X,
+   ChatCircleDots,
 } from '@phosphor-icons/react'
 import { messagesApi, type ChatMessage, type Conversation, type PresenceUser } from '@/api/messages.api'
 import { tracksApi } from '@/api/tracks.api'
@@ -57,7 +60,7 @@ function sharePayload(msg: ChatMessage): SharePayload {
 
 // ── Page ──────────────────────────────────────────────────────
 
-export default function Messages() {
+function MessagesMember() {
    const [activePeer, setActivePeer] = useState<string | null>(null)
 
    return (
@@ -974,4 +977,19 @@ function formatDay(iso: string): string {
       return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
    }
    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+}
+
+export default function Messages() {
+  const guest = useIsGuest()
+  if (guest) {
+    return (
+      <GuestPrompt
+        icon={ChatCircleDots}
+        title="Chat about music with friends"
+        body="Sign in to message friends and share songs, lyrics and playlists."
+        reason="Sign in to chat with friends"
+      />
+    )
+  }
+  return <MessagesMember />
 }

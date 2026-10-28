@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
+import { useBackButton } from '@/hooks/useBackButton'
 import { IconButton } from './IconButton'
 
 interface ModalProps {
@@ -20,6 +21,9 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [open, onClose])
+
+  // Android back closes the sheet instead of walking the page behind it.
+  useBackButton(open, onClose)
 
   const sizes = {
     sm: 'max-w-sm',

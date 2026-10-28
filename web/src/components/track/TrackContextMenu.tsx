@@ -11,6 +11,7 @@ import { usePlayerStore } from '@/store/player.store'
 import { usePlaylistMenuStore } from '@/store/playlistMenu.store'
 import { useUIStore } from '@/store/ui.store'
 import { useToast } from '@/components/ui/Toaster'
+import { useBackButton } from '@/hooks/useBackButton'
 import { tracksApi } from '@/api/tracks.api'
 import { recommendationsApi } from '@/api/recommendations.api'
 import { ArtworkImage } from '@/components/ui/ArtworkImage'
@@ -37,6 +38,9 @@ export function TrackContextMenu() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [open, close])
+
+  // Android back dismisses the menu too.
+  useBackButton(open, close)
 
   if (!track) return null
   if (mode === 'sheet') return <SheetMenu track={track} onClose={close} />

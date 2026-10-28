@@ -18,7 +18,7 @@ const EMPTY_GAINS = EQ_BANDS.map(() => 0)
 /**
  * Equalizer panel — drives the persistent effects engine in lib/audioEffects,
  * so adjustments apply immediately, survive closing this panel, and stay in
- * sync with GearSix → Audio → "Equaliser preset".
+ * sync with Settings → Audio → "Equaliser preset".
  */
 export default function EqualizerPanel() {
   const { showEqualizer, toggleEqualizer } = useUIStore()

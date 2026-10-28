@@ -27,7 +27,7 @@ const FORMAT_OPTIONS: { value: AudioFormat; label: string; lossless: boolean }[]
 
 const QUALITY_OPTIONS: AudioQuality[] = ['128', '192', '256', '320', 'best']
 
-// Read a preference persisted by the GearSix → Downloads section.
+// Read a preference persisted by the Settings → Downloads section.
 // Keys are stored as JSON under a "rheoson-" prefix (see persisted.hook).
 function readPref<T>(key: string, fallback: T): T {
   try {
@@ -71,7 +71,7 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
  * Download options modal — opened from the PlayerBar menu, Now Playing,
  * and search results via uiStore.openDownloadModal(trackId).
  *
- * Lets the user pick format/quality (defaults come from GearSix →
+ * Lets the user pick format/quality (defaults come from Settings →
  * Downloads) and queues the job through the same optimistic download
  * store used by the rest of the app.
  */
