@@ -70,9 +70,21 @@ services:
     buildCommand: npm ci && npm run build && npm run verify:api-base
     staticPublishPath: dist
 
-    # Redirect all routes to index.html so react-router handles
-    # client-side routing correctly when refreshing on /library, etc.
     routes:
+      # A typed API URL must answer JSON, not the SPA's index.html. Without
+      # these two redirects the catch-all below serves HTML with HTTP 200 for
+      # `/api/health`, which is indistinguishable from a working page and was
+      # exactly how "the API works" got misread once already. The app itself
+      # calls the API origin directly; this is for humans with a URL bar.
+      - type: redirect
+        source: /api/*
+        destination: https://rheoson-api.onrender.com/api/:splat
+        permanent: false
+      - type: redirect
+        source: /health/*
+        destination: https://rheoson-api.onrender.com/health/:splat
+        permanent: false
+      # Everything else is the SPA, so a refresh on /library still routes.
       - type: rewrite
         source: /*
         destination: /index.html
@@ -81,7 +93,7 @@ services:
       # Must match the actual API service URL — used at build time by Vite
       # to bake the correct API_BASE into the JS bundle.
       - key: VITE_API_URL
-        value: https://rheoson-api-9e4c.onrender.com
+        value: https://rheoson-api.onrender.com
       # Prompted at deploy time; without it the bundle ships in local mode
       # (no Clerk provider, every account feature silently unavailable).
       - key: VITE_CLERK_PUBLISHABLE_KEY

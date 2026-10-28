@@ -44,7 +44,11 @@ def _friendly_url_error(e: Exception) -> str:
     Shared with the search resolve route, which wraps the same service call.
     """
     from app.services import stream_service
-    if isinstance(e, ValueError):
+    from app.core.exceptions import SpotifyError
+    # SpotifyError is written for the user already: "add a Client ID and
+    # Secret", "that playlist is private". The generic copy below would throw
+    # away the only sentence that tells them what to do.
+    if isinstance(e, (ValueError, SpotifyError)):
         return str(e)
     text = str(e)
     low = text.lower()

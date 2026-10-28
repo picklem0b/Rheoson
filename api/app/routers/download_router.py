@@ -5,7 +5,12 @@ from pydantic import BaseModel
 from typing import Optional
 from app.core.deps import get_current_user
 from app.core import error_codes
-from app.schemas.download_schema import DownloadRequestSchema, DownloadJobSchema
+from app.schemas.download_schema import (
+    DownloadRequestSchema,
+    DownloadJobSchema,
+    SpotifyImportRequest,
+    SpotifyImportSchema,
+)
 from app.services.download_service import (
     enqueue_download, get_all_jobs, get_job,
     cancel_job, retry_job, delete_job,
@@ -99,6 +104,83 @@ async def start_download(req: DownloadRequestSchema, user: dict = Depends(get_cu
         owner=user.get("sub"),
     )
     return job
+
+
+# ── Spotify collections ───────────────────────────────────────
+# These two routes are registered before the `/{job_id}` routes that follow
+# on purpose: a static path must never be shadowed by the dynamic one.
+
+
+@router.post("/spotify", response_model=SpotifyImportSchema, status_code=202)
+async def start_spotify_import(
+    req: SpotifyImportRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Adopt a Spotify link: match it, then queue the songs that matched.
+
+    Returns immediately with an import the client polls. Matching hundreds of
+    songs is tens of seconds of YouTube Music searches — far past any sane HTTP
+    timeout — and the songs themselves then download as ordinary jobs with
+    their own progress, retries and cancel button.
+    """
+    from app.services import spotify_import, spotify_service
+    from app.services.netguard import ensure_safe_media_url
+
+    url = (req.url or "").strip()
+    if not url:
+        raise error_codes.fail(error_codes.DOWNLOAD.TARGET_REQUIRED, 400, append=" (url)")
+    if len(url) > 2048:
+        raise error_codes.fail(error_codes.DOWNLOAD.URL_TOO_LONG, 400)
+    if not re.match(r'^https?://', url, re.IGNORECASE):
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400)
+    if not spotify_service.detect_spotify_type(url):
+        raise error_codes.fail(
+            error_codes.DOWNLOAD.INVALID_URL,
+            400,
+            append=" — paste a Spotify track, album, playlist or artist link",
+        )
+    try:
+        ensure_safe_media_url(url)
+    except ValueError as e:
+        raise error_codes.fail(error_codes.DOWNLOAD.INVALID_URL, 400, append=f": {e}")
+
+    _validate_custom_path(req.customPath)
+
+    state = spotify_import.start_import(
+        url,
+        user.get("sub"),
+        {
+            "format": req.format,
+            "quality": req.quality,
+            "embedArtwork": req.embedArtwork,
+            "embedLyrics": req.embedLyrics,
+            "embedMetadata": req.embedMetadata,
+            "fileNaming": req.fileNaming,
+            "customPath": req.customPath,
+            "retries": req.retries,
+            "speedLimit": req.speedLimit,
+            "concurrency": req.concurrency,
+            "limit": req.limit,
+            "skipExisting": req.skipExisting,
+        },
+    )
+    return state
+
+
+@router.get("/spotify/{import_id}", response_model=SpotifyImportSchema)
+async def get_spotify_import(
+    import_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Poll one import. Scoped to the account that started it."""
+    from app.services import spotify_import
+
+    if not import_id or len(import_id) > 64:
+        raise error_codes.fail(error_codes.DOWNLOAD.IMPORT_NOT_FOUND, 404)
+    state = spotify_import.get_import(import_id, user.get("sub"))
+    if state is None:
+        raise error_codes.fail(error_codes.DOWNLOAD.IMPORT_NOT_FOUND, 404)
+    return state
 
 
 @router.get("", response_model=list[DownloadJobSchema])

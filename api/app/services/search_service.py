@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 import asyncio
+import unicodedata
 import structlog
 from pathlib import Path
 from app.core.config import settings
@@ -91,13 +92,15 @@ async def resolve_url(url: str) -> dict:
     kind = _detect_url_type(url)
 
     if kind == "spotify":
-        # If Spotify credentials are available, use the Spotify API
-        # Otherwise fall back to yt-dlp which can also extract Spotify URLs
-        if settings.has_spotify:
-            return await _resolve_spotify(url)
-        else:
-            log.info("search.spotify.fallback_to_ytdlp", url=url)
-            return await _resolve_ytdlp(url)
+        # yt-dlp has no Spotify extractor, so the old "fall back to yt-dlp"
+        # branch could only ever fail with an extractor error. Say what is
+        # actually missing instead: the credentials that read the link.
+        if not settings.has_spotify:
+            from app.core.exceptions import SpotifyError
+            raise SpotifyError(
+                "Spotify links need a Client ID and Secret — add them in Settings → Account"
+            )
+        return await _resolve_spotify(url)
 
     if kind == "youtube":
         track  = await ytmusic_service.resolve_youtube_url(url)
@@ -121,60 +124,208 @@ async def _resolve_spotify(url: str) -> dict:
 
     if sp_type == "track":
         sp_track = await spotify_service.get_track(sid)
-        query    = f"{sp_track['title']} {sp_track['artist']['name']}"
-        yt_track = await ytmusic_service.search_one(query)
-        if yt_track:
-            yt_track["artworkUrl"]          = sp_track.get("artworkUrl") or yt_track["artworkUrl"]
-            yt_track["spotifyId"]           = sp_track.get("spotifyId")
-            yt_track["duration"]            = sp_track.get("duration") or yt_track["duration"]
-            yt_track["album"]["artworkUrl"] = sp_track.get("artworkUrl") or yt_track["album"]["artworkUrl"]
-        result = {"query": url, "type": "track", "tracks": [yt_track] if yt_track else [], "albums": [], "artists": [], "playlists": []}
-        _finalize(result["tracks"])
-        return result
+        matched, unmatched = await _match_tracks_concurrent([sp_track])
+        return _collection_result(
+            url, "track", matched, unmatched,
+            total=1, skipped=0, extra={"playlists": [], "albums": []},
+        )
 
     if sp_type == "album":
-        album   = await spotify_service.get_album(sid)
-        tracks  = album.pop("tracks", [])
-        matched = await _match_tracks_concurrent(tracks[:30], album.get("artworkUrl"))
-        result  = {"query": url, "type": "album", "tracks": matched, "albums": [album], "artists": [], "playlists": []}
-        _finalize(result["tracks"])
-        return result
+        album = await spotify_service.get_album(sid)
+        tracks = album.pop("tracks", [])
+        skipped = int(album.pop("skipped", 0) or 0)
+        matched, unmatched = await _match_tracks_concurrent(
+            tracks, album.get("artworkUrl")
+        )
+        album["trackCount"] = len(tracks)
+        return _collection_result(
+            url, "album", matched, unmatched,
+            total=len(tracks) + skipped, skipped=skipped,
+            extra={"albums": [album], "playlists": []},
+        )
 
     if sp_type == "playlist":
-        pl      = await spotify_service.get_playlist(sid)
-        tracks  = pl.pop("tracks", [])
-        matched = await _match_tracks_concurrent(tracks[:50])
-        result  = {"query": url, "type": "playlist", "tracks": matched, "albums": [], "artists": [], "playlists": [pl]}
-        _finalize(result["tracks"])
-        return result
+        pl = await spotify_service.get_playlist(sid)
+        tracks = pl.pop("tracks", [])
+        skipped_map = pl.pop("skipped", {}) or {}
+        skipped = sum(v for v in skipped_map.values() if isinstance(v, int))
+        matched, unmatched = await _match_tracks_concurrent(tracks)
+        pl["trackCount"] = len(tracks) + skipped
+        return _collection_result(
+            url, "playlist", matched, unmatched,
+            total=len(tracks) + skipped, skipped=skipped,
+            extra={"playlists": [pl], "albums": []},
+        )
 
     if sp_type == "artist":
-        artist  = await spotify_service.get_artist(sid)
-        tracks  = artist.pop("topTracks", [])
-        albums  = artist.pop("albums", [])
-        matched = await _match_tracks_concurrent(tracks[:10])
-        result  = {"query": url, "type": "artist", "tracks": matched, "albums": albums, "artists": [artist], "playlists": []}
-        _finalize(result["tracks"])
-        return result
+        artist = await spotify_service.get_artist(sid)
+        tracks = artist.pop("topTracks", [])
+        albums = artist.pop("albums", [])
+        matched, unmatched = await _match_tracks_concurrent(tracks)
+        return _collection_result(
+            url, "artist", matched, unmatched,
+            total=len(tracks), skipped=0,
+            extra={"artists": [artist], "albums": albums, "playlists": []},
+        )
 
     raise UnsupportedURLError(url)
+
+
+def _collection_result(
+    url: str,
+    kind: str,
+    matched: list[dict],
+    unmatched: list[dict],
+    *,
+    total: int,
+    skipped: int,
+    extra: dict,
+) -> dict:
+    """One shape for every Spotify link, so the UI never has to guess.
+
+    `total` is what the link contains, `matched` is what YouTube Music could
+    be trusted with, and `unmatched` names the rest with a reason — a playlist
+    that silently arrives 20 tracks short is worse than one that says so.
+    """
+    result = {
+        "query": url,
+        "type": kind,
+        "tracks": matched,
+        "albums": extra.get("albums", []),
+        "artists": extra.get("artists", []),
+        "playlists": extra.get("playlists", []),
+        "total": total,
+        "matched": len(matched),
+        "skipped": skipped,
+        "unmatched": unmatched,
+    }
+    _finalize(result["tracks"])
+    return result
+
+
+# ── Spotify matching ──────────────────────────────────────────
+#
+# A playlist import is a matching problem, not a search one. The first result
+# for "Title Artist" is regularly a live take, a medley, a karaoke version or
+# a cover, and every one of those that slips through is a wrong file in the
+# user's library that they only notice weeks later. So: compare the five best
+# candidates, score title + artist + duration, and refuse anything that does
+# not clear the floor.
+
+_MATCH_FLOOR = 0.70
+_SKIP_WORDS = {
+    "the", "a", "an", "and", "with", "feat", "ft", "featuring",
+    "official", "video", "audio", "lyric", "lyrics", "hd", "hq",
+    "remaster", "remastered", "version", "edit", "explicit", "new",
+}
+_BRACKETED = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
+
+
+def _norm(value: str) -> str:
+    """Lowercase, unaccented, punctuation-free, version tags removed."""
+    text = unicodedata.normalize("NFKD", value or "")
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = _BRACKETED.sub(" ", text.lower())
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return " ".join(text.split())
+
+
+def _tokens(value: str) -> set[str]:
+    return {w for w in _norm(value).split() if w and w not in _SKIP_WORDS}
+
+
+def _text_score(want: str, got: str) -> float:
+    a, b = _norm(want), _norm(got)
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    ta, tb = _tokens(want), _tokens(got)
+    if not ta or not tb:
+        return 0.0
+    if ta <= tb or tb <= ta:
+        return 0.9
+    return len(ta & tb) / len(ta | tb)
+
+
+def _score_candidate(candidate: dict, want: dict) -> float:
+    title = _text_score(want.get("title", ""), candidate.get("title", ""))
+    artist = _text_score(
+        (want.get("artist") or {}).get("name", ""),
+        (candidate.get("artist") or {}).get("name", ""),
+    )
+    score = 0.72 * title + 0.28 * artist
+
+    # Right title, wrong act is a cover; never let it clear the floor on
+    # title alone.
+    if artist < 0.5:
+        score = min(score, _MATCH_FLOOR - 0.02)
+
+    want_d, got_d = float(want.get("duration") or 0), float(candidate.get("duration") or 0)
+    if want_d and got_d:
+        if abs(want_d - got_d) > max(20.0, want_d * 0.2):
+            score *= 0.75
+        # A candidate several times longer is a full album or a looped upload.
+        if got_d > want_d * 1.8 + 30:
+            score *= 0.5
+    return round(score, 3)
+
 
 async def _match_tracks_concurrent(
     tracks: list[dict],
     album_artwork: str | None = None,
-    concurrency: int = 5,
-) -> list[dict]:
+    concurrency: int = 4,
+) -> tuple[list[dict], list[dict]]:
+    """Match Spotify tracks to YouTube Music, in order, with the failures."""
     sem = asyncio.Semaphore(concurrency)
-    async def _match(t: dict) -> dict | None:
+
+    async def _match(t: dict) -> tuple[dict | None, dict | None]:
+        title = t.get("title", "")
+        artist = (t.get("artist") or {}).get("name", "")
+        query = f"{title} {artist}".strip()
         async with sem:
-            q  = f"{t['title']} {t['artist']['name']}"
-            yt = await ytmusic_service.search_one(q)
-            if not yt: return None
-            yt["artworkUrl"] = album_artwork or t.get("artworkUrl") or yt["artworkUrl"]
-            yt["spotifyId"]  = t.get("spotifyId")
-            return yt
+            try:
+                candidates = await ytmusic_service.search_candidates(query, limit=5)
+            except Exception as e:
+                log.warning("search.spotify.match.failed", query=query, error=str(e))
+                return None, {
+                    "title": title, "artist": artist,
+                    "spotifyId": t.get("spotifyId"),
+                    "reason": "YouTube Music search failed",
+                }
+
+        best, best_score = None, 0.0
+        for candidate in candidates:
+            score = _score_candidate(candidate, t)
+            if score > best_score:
+                best, best_score = candidate, score
+
+        if best is None or best_score < _MATCH_FLOOR:
+            return None, {
+                "title": title, "artist": artist,
+                "spotifyId": t.get("spotifyId"),
+                "reason": "no close match on YouTube Music",
+                "score": best_score,
+            }
+
+        best["artworkUrl"] = album_artwork or t.get("artworkUrl") or best.get("artworkUrl")
+        best["spotifyId"] = t.get("spotifyId")
+        best["matchScore"] = best_score
+        return best, None
+
     results = await asyncio.gather(*[_match(t) for t in tracks], return_exceptions=True)
-    return [r for r in results if isinstance(r, dict)]
+    matched: list[dict] = []
+    unmatched: list[dict] = []
+    for r in results:
+        if isinstance(r, Exception):
+            unmatched.append({"title": "", "artist": "", "reason": "matching failed"})
+            continue
+        ok, bad = r
+        if ok:
+            matched.append(ok)
+        elif bad:
+            unmatched.append(bad)
+    return matched, unmatched
 
 # ── yt-dlp URL ────────────────────────────────────────────────
 

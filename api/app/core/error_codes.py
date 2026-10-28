@@ -99,6 +99,7 @@ DOWNLOAD = _Section(
     "D",
     {
         "JOB_NOT_FOUND": "DNF01",
+        "IMPORT_NOT_FOUND": "DNF02",
         "INVALID_URL": "DVA01",
         "URL_TOO_LONG": "DVA02",
         "TARGET_REQUIRED": "DVA03",
@@ -238,6 +239,7 @@ _REGISTRY: dict[str, str] = {
     "TVA02": "Unknown listening signal",
     # ── Downloads ─────────────────────────────────────────────
     "DNF01": "Download job not found",
+    "DNF02": "Spotify import not found",
     "DVA01": "Invalid URL format",
     "DVA02": "URL too long",
     "DVA03": "Track id or URL is required",

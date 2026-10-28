@@ -72,6 +72,9 @@ class TrackSchema(BaseModel):
     # Chart position (1-based) when the track came from a chart/category rail.
     # 0 means "not ranked" — search results and library tracks leave it at 0.
     rank:         int = 0
+    # How sure the Spotify importer is that this is the right recording, 0–1.
+    # 0 means "not a matched import" (every non-Spotify result).
+    matchScore:   float = 0.0
 
     model_config = {"from_attributes": True}
 
