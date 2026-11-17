@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Brand black, matching the app background and the native splash so the
-         icon, splash and app do not flash three different colours on launch. -->
-    <color name="ic_launcher_background">#0A0A0A</color>
-</resources>

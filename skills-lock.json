@@ -1,0 +1,187 @@
+{
+  "version": 2,
+  "skills": {
+    "accessibility": {
+      "source": "addyosmani/web-quality-skills",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
+      "sourceType": "github",
+      "skillPath": "skills/accessibility/SKILL.md",
+      "computedHash": "c668809f5df57feb87cc06f1bc37fb340d1d92e26bacb6edbeab9258d22e76a5"
+    },
+    "animation-performance": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/animation-performance/SKILL.md",
+      "computedHash": "1ff92f577fc2b7781ed622fd4eb5e514c252cf5cb95c3661743cd127ee01290a"
+    },
+    "animation-vocabulary": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/animation-vocabulary/SKILL.md",
+      "computedHash": "e1d19134dc63dfb09379f7b42557b63b6123becdd36d15bae991d0b6ca5b2110"
+    },
+    "apple-design": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/apple-design/SKILL.md",
+      "computedHash": "163ba8b42c7d9d5ccb08674266d4727c9ec610b9d876c906b1f29ce5e0d933da"
+    },
+    "ci-cd-and-automation": {
+      "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "sourceType": "github",
+      "skillPath": "skills/ci-cd-and-automation/SKILL.md",
+      "computedHash": "fbffe27b3bc3df30ba2895a71b87b2f032bb7b163de762bc8900f2673631c96d"
+    },
+    "clerk-backend-api": {
+      "source": "clerk/skills",
+      "commit": "e131b19b06dd3fae68ab5900abe5fb1285ec0e08",
+      "sourceType": "github",
+      "skillPath": "skills/clerk-backend-api/SKILL.md",
+      "computedHash": "9ee9a2c33cc481b01e89b1b91b4b6d210b207927353d87d6858dc96f39a23527"
+    },
+    "code-review": {
+      "source": "mattpocock/skills",
+      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/code-review/SKILL.md",
+      "computedHash": "ce86b40a3d1648a0018b712f0c70704e6c2316b2a9b9e915ab116916a31273dc"
+    },
+    "design-system": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "commit": "e59ff376a41f7ca47b7541ad5c116495cbade3ee",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/design-system/SKILL.md",
+      "computedHash": "9efdc106c73d8d298b5a90d55c56995840a37f754fb9d498d14e6562bdaadc23"
+    },
+    "documentation-and-adrs": {
+      "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "sourceType": "github",
+      "skillPath": "skills/documentation-and-adrs/SKILL.md",
+      "computedHash": "deb39d7c8157563bc14a48f0d22003c82f4d8370b69c96efde476fe12318d188"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "e1b377ccde1d32743d1d3f7d8626629deb8055c9114d180c184697928cc66cc6"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "commit": "1780c5e5a552fd4d1c9d6a7b0cab26b0c2bef064",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "83485963700bcf11d5bf78118facb301676b69d918fee2e45a95e7f1a2840f6c"
+    },
+    "gestures": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/gestures/SKILL.md",
+      "computedHash": "f17aa90d244bed37d09a608f9b8f58cd7a8dd6b9ff1a06fe2217f6f242c624f7"
+    },
+    "mobile-native": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/mobile-native/SKILL.md",
+      "computedHash": "2f55a258f185314d585cb6a3514a66c15e9cfc8cd45c936284c4fb7374603d7e"
+    },
+    "neon-drizzle": {
+      "source": "neondatabase/ai-rules",
+      "commit": "1ceaf89a4e0acfbaf152ac2e85d45afd55f49c0f",
+      "sourceType": "github",
+      "skillPath": "neon-plugin/skills/neon-drizzle/SKILL.md",
+      "computedHash": "de8b157bf296904d6ad5ce956a208b8d22ad37f03f178ee1e37973a545b9d5a8"
+    },
+    "nodejs-backend-patterns": {
+      "source": "wshobson/agents",
+      "commit": "9c61ab243def98f72da12abd41cfcf5bcd91af9d",
+      "sourceType": "github",
+      "skillPath": "plugins/javascript-typescript/skills/nodejs-backend-patterns/SKILL.md",
+      "computedHash": "e478380e9c9d245d0c4caf6574d00934aca71fc62101e571262cdd26f958f4f1"
+    },
+    "performance": {
+      "source": "addyosmani/web-quality-skills",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
+      "sourceType": "github",
+      "skillPath": "skills/performance/SKILL.md",
+      "computedHash": "06902ebc4a8b91bfb8d1a99a03f186f0535b03d1a776ef751206104ef9b86c4c"
+    },
+    "playwright-best-practices": {
+      "source": "currents-dev/playwright-best-practices-skill",
+      "commit": "0b75b5835a87de1fdd202ba965f3bc5a27738fdf",
+      "sourceType": "github",
+      "skillPath": "playwright-best-practices/SKILL.md",
+      "computedHash": "111e9d3e9d63dea34814120fb6583c0b28ee45371662801d8e8d8bdf4b05dcb0"
+    },
+    "security-review": {
+      "source": "getsentry/skills",
+      "commit": "a582c51ee29d0f35e6ac321340796f77d43da733",
+      "sourceType": "github",
+      "skillPath": "skills/security-review/SKILL.md",
+      "computedHash": "4af8c6b37142b46cbbca40d5f5e6c505699b8785486a7306faf1b79dcce7ff47"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "commit": "c9be0e931b7930f7d02126d04774d904c381e7d7",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "3eb972c2d7c818e544e35cc33ea8d7147d4d78ae08142ef40037b0fbac7a2505"
+    },
+    "tailwind-css-patterns": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "commit": "fe73fb33a09ee6562eeec7415a3f9a3bcf795177",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-kit-typescript/skills/tailwind-css-patterns/SKILL.md",
+      "computedHash": "9f84955f461d236a7ec7adf52934ce8389406f2d28e63b7e25bd2d134d5e50d2"
+    },
+    "typescript-advanced-types": {
+      "source": "wshobson/agents",
+      "commit": "9c61ab243def98f72da12abd41cfcf5bcd91af9d",
+      "sourceType": "github",
+      "skillPath": "plugins/javascript-typescript/skills/typescript-advanced-types/SKILL.md",
+      "computedHash": "34c5b3863fde1fc85981ac583ecaf0140471b374d0b7002ac5bc0bea2cf38b24"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "commit": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "7991ed4fbecdac23f47c1a40c243e00a212a9e7f3604db93959b3ae11dffe299"
+    },
+    "vitest": {
+      "source": "antfu/skills",
+      "commit": "4a6bb39e7b45e26402eb215393c51ccf5df1ca4c",
+      "sourceType": "github",
+      "skillPath": "skills/vitest/SKILL.md",
+      "computedHash": "bd95e41d66d76da9008893c9bc48c30f0a68f352cd2b00017767f5e4c129501d"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "commit": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "4f68ae07187fb0d1fb78c88b503d089da4cf5a9d9625d1f2e425b1590bf96d92"
+    },
+    "workers-best-practices": {
+      "source": "cloudflare/skills",
+      "commit": "cbf893b954222276bf1af57e5f23379231e0efb9",
+      "sourceType": "github",
+      "skillPath": "skills/workers-best-practices/SKILL.md",
+      "computedHash": "7f941bbc549454872a4c7c261bf75a1ef7aaa69666bc85cec91e97cf40c11cc6"
+    },
+    "workers-development": {
+      "source": "cloudflare/skills",
+      "commit": "5108325ecceabc899c761e07aa617b09c02445ee",
+      "sourceType": "github",
+      "skillPath": "skills/workers-development/SKILL.md",
+      "computedHash": "a5b7dd748116d8b83db7d198867badcdde53c9eb13bf884c7557d40d0c965e38"
+    }
+  }
+}
