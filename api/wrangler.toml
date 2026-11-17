@@ -1,0 +1,14 @@
+name = "rheoson-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+# Secrets are never committed; local values go in .dev.vars, whose example is
+# .dev.vars.example. DATABASE_URL arrives as `wrangler secret put DATABASE_URL`,
+# and APP_ORIGINS must list the Vercel origin the app actually ships on.
+
+[vars]
+ENVIRONMENT = "development"
+RATE_LIMIT_PER_MINUTE = "120"
+
+[observability]
+enabled = true
