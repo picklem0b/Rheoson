@@ -1,6 +1,10 @@
 import { healthReportSchema } from '@rheoson/shared'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { ErrorCodeChip } from '@/components/feedback/errorCodeChip'
+import { TrackSearch } from '@/components/music/trackSearch'
+import { AudioPlayer } from '@/components/player/audioPlayer'
+import type { Playback } from '@/components/player/audioPlayer'
 import { Button } from '@/components/ui/button'
 import { ApiFailure } from '@/lib/api/apiError'
 import { apiBaseUrl, apiGet } from '@/lib/api/httpClient'
@@ -13,6 +17,8 @@ import { apiBaseUrl, apiGet } from '@/lib/api/httpClient'
  * arrives with the milestones in the roadmap.
  */
 export function HomePage() {
+  const [playback, setPlayback] = useState<Playback | null>(null)
+
   const health = useQuery({
     queryKey: ['health'],
     queryFn: ({ signal }) => apiGet('/health', { schema: healthReportSchema, signal }),
@@ -21,17 +27,19 @@ export function HomePage() {
   const failure = health.error instanceof ApiFailure ? health.error : null
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-10 px-6 py-16">
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-10 px-6 pt-16 pb-32">
       <header className="flex flex-col gap-3">
         <p className="text-2xs uppercase tracking-[0.18em] text-muted-foreground">
-          v3.0.0 · environment
+          v3.1.0 · listening
         </p>
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Rheoson</h1>
         <p className="max-w-prose text-sm leading-6 text-muted-foreground">
-          The branch, the contracts and the two runtimes are wired. Search, playback and the library
-          land in the milestones after this one; the roadmap is the honest list.
+          Search the open catalogue and play it. Accounts, the library and the shell land in the
+          milestones after this one; the roadmap is the honest list.
         </p>
       </header>
+
+      <TrackSearch onPlay={(tracks, index) => setPlayback({ tracks, index })} />
 
       <section
         aria-labelledby="status-heading"
@@ -81,6 +89,8 @@ export function HomePage() {
         The API answers even with no database and no account provider configured. That is the point
         of this page.
       </footer>
+
+      <AudioPlayer playback={playback} />
     </main>
   )
 }
