@@ -80,8 +80,15 @@ const USER = defineDomain('U', {
   UPDATE_FAILED: ['UEX01', 500, 'Could not save your profile'],
 })
 
+const PROVIDER = defineDomain('P', {
+  NOT_FOUND: ['PNF01', 404, 'That track is not available from the provider'],
+  UNSUPPORTED: ['PNF02', 404, 'That music provider is not wired up on this deployment'],
+  UNAVAILABLE: ['PEX01', 503, 'The music provider is not answering right now'],
+})
+
 const CORE = defineDomain('C', {
   NOT_FOUND: ['CNF01', 404, 'No such endpoint'],
+  INVALID_REQUEST: ['CVA01', 400, 'That request is not valid'],
   DB_UNAVAILABLE: ['CEN01', 503, 'The database is not configured on this deployment'],
   RATE_LIMITED: ['CLM01', 429, 'Too many requests, slow down a moment'],
   UNEXPECTED: ['CEX01', 500, 'Something went wrong on our side'],
@@ -91,10 +98,11 @@ const CORE = defineDomain('C', {
 export const ERRORS = {
   AUTH: AUTH.codes,
   USER: USER.codes,
+  PROVIDER: PROVIDER.codes,
   CORE: CORE.codes,
 } as const
 
-const DOMAIN_LIST = [AUTH, USER, CORE] as const
+const DOMAIN_LIST = [AUTH, USER, PROVIDER, CORE] as const
 
 const SPEC_BY_CODE = new Map<string, { status: number; message: string }>()
 

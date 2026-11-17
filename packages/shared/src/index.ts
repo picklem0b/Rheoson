@@ -1,3 +1,4 @@
+export * from './catalogue'
 export * from './envelope'
 export * from './errors'
 export * from './health'
