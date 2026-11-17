@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [development, dev, main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Migrations match the schema
+        run: |
+          pnpm db:generate
+          git diff --exit-code -- api/drizzle
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build the web app
+        run: pnpm --filter web build
+
+      - name: Build the worker without deploying
+        run: pnpm --filter api exec wrangler deploy --dry-run --outdir dist
