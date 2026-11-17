@@ -12,6 +12,8 @@ export interface Bindings {
   CLERK_JWKS_URL?: string
   CLERK_ISSUER?: string
   RATE_LIMIT_PER_MINUTE?: string
+  /** Audius asks every client to name itself. A courtesy id, not a key. */
+  AUDIUS_APP_NAME?: string
 }
 
 export interface Variables {

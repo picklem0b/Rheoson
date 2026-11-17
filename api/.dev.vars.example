@@ -2,6 +2,8 @@
 
 ENVIRONMENT=development
 RATE_LIMIT_PER_MINUTE=120
+# The name Audius attributes traffic to. Not a key; any unique string works.
+AUDIUS_APP_NAME=Rheoson
 
 # The Vite dev origin, so the allowlist is exercised locally the way it is in
 # production. Localhost is also allowed by shape outside production.

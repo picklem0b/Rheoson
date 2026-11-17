@@ -9,6 +9,7 @@ compatibility_date = "2026-11-01"
 [vars]
 ENVIRONMENT = "development"
 RATE_LIMIT_PER_MINUTE = "120"
+AUDIUS_APP_NAME = "Rheoson"
 
 [observability]
 enabled = true
