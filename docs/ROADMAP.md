@@ -10,17 +10,27 @@ The numbering is Vstore's, unchanged: `v3.[phase].[step]`.
 - **The next number is the highest existing plus one.** A phase that was never cut is never inserted between two that were.
 - **A phase that changes the plan updates this file in the same commit.**
 
+## The order, and why
+
+The product is a music player. Everything that stands between a person and a song being audible is ordered before everything that is polish, so the order below puts the provider and the audio element in phase 1 and 2, not in phase 4 and 5.
+
+What that moved, and what it did not:
+
+- **The shell and the design system move back to phase 6.** The web is not being redesigned now: the status page stays, the search and the player are added to it in the tokens it already has. The phase is deferred, not deleted; it is the pass that makes the result feel deliberate.
+- **The data spine moves to phase 3.** Nothing about playing one searched track needs Postgres. Saving a favourite, resuming a queue and remembering a play all do, and those come after the music works.
+- **Accounts move to phase 4.** Guest-first was already the rule, so a signed-out listener is the first case rather than the edge case.
+
 ## Where V3 stands
 
 | Phase | Tag range | Theme | Branch | State |
 | --- | --- | --- | --- | --- |
-| 0 | `v3.0.1` to `v3.0.9` | Environment | `development` | built |
-| 1 | `v3.1.x` | Data spine | `development` | next |
-| 2 | `v3.2.x` | Accounts | `development` | not started |
-| 3 | `v3.3.x` | Shell and design system | `development` | not started |
-| 4 | `v3.4.x` | Catalogue | `development` | not started |
-| 5 | `v3.5.x` | Player | `development` | not started |
-| 6 | `v3.6.x` | Library | `development` | not started |
+| 0 | `v3.0.1` to `v3.0.10` | Environment | `development` | built |
+| 1 | `v3.1.x` | Listening | `development` | built |
+| 2 | `v3.2.x` | Player | `development` | next |
+| 3 | `v3.3.x` | Data spine | `development` | not started |
+| 4 | `v3.4.x` | Accounts | `development` | not started |
+| 5 | `v3.5.x` | Library | `development` | not started |
+| 6 | `v3.6.x` | Shell and design system | `development` | deferred |
 | 7 | `v3.7.x` | Offline and mobile | `development` | not started |
 | 8 | `v3.8.x` | Hardening | `development` | not started |
 | 9 | `v3.9.x` | Release candidate | `dev` | not started |
@@ -41,12 +51,30 @@ The branch, the contracts and the two runtimes, wired so every later phase adds 
 | `v3.0.7` | web shell: Vite, design tokens, the env-driven API client, a status page reading `/health` |
 | `v3.0.8` | gates: typecheck, lint, build and a worker dry run on every push |
 | `v3.0.9` | documentation: PRD, ARCHITECTURE, DESIGN, this roadmap, the git system |
-
-Phase 0 deliberately excludes: a player, any provider, any screen beyond the status page, and a database with more than one table. Each has a phase below, and each lands in the layer this phase created.
+| `v3.0.10` | plan: listening before the shell, the deferred design phase, the renumbered phases |
 
 **Exit criteria:** a fresh clone installs, typechecks, lints, builds and deploys a worker that answers `/health` with and without a database configured.
 
-## Phase 1: Data spine
+## Phase 1: Listening
+
+The shortest honest route from a query to sound. One provider, one search, one audio element, and no database in the path.
+
+- `v3.1.1` the provider interface and the Audius adapter: host discovery, search, single track, signed stream URL
+- `v3.1.2` the search and stream endpoints, validated, cached for a minute per isolate, resolved per play
+- `v3.1.3` the search surface: a term, a result list, the list as the queue
+- `v3.1.4` the audio element: play, pause, seek, next, previous, and a failure that says why
+
+**Exit criteria:** a query returns real Audius tracks and pressing one plays it in the browser, with the URL asked for at play time and never stored.
+
+Phase 1 deliberately excludes: accounts, a persisted queue, a stored library, offline audio and any visual redesign. The page keeps the tokens and the layout it has.
+
+## Phase 2: Player
+
+The player as a thing that survives the app rather than a button on a list: one audio element that no navigation can tear down, a persisted queue, resume after a reload, Media Session metadata and hardware keys, and a stream failure that skips, says why and keeps the queue.
+
+**Exit criteria:** a track plays across a navigation, a lock screen and a reload.
+
+## Phase 3: Data spine
 
 Everything the product remembers, in Postgres, reachable through repositories and never from a route.
 
@@ -60,35 +88,25 @@ Everything the product remembers, in Postgres, reachable through repositories an
 
 **Exit criteria:** a webhook writes a row, removing the secret changes a status string rather than breaking the app.
 
-## Phase 2: Accounts
+## Phase 4: Accounts
 
 Clerk provider and session bridge, guest-first use, one in-context sign-in surface, a gated action that returns to what it gated, sign-out, account deletion that is honest about the library, and auth failure surfaces for an expired session or a deployment missing its config.
 
 **Exit criteria:** two accounts see two libraries, and a signed-out visitor can still search and play.
 
-## Phase 3: Shell and design system
-
-Token audit, desktop shell with a pinned player bar, mobile shell with bottom nav above it, navigation, primitives, the four states on every surface, frequency-gated motion, accent themes through one attribute, and an accessibility pass over focus, labels, contrast and keyboard order.
-
-**Exit criteria:** every screen looks native on a phone and deliberate on a desktop, and no component reads a raw colour.
-
-## Phase 4: Catalogue
-
-The provider interface, the Audius adapter with its terms recorded and dated, search and browse endpoints, a short cache so one page is one upstream call, provider health, the search screen, and a missing track reported as missing rather than substituted.
-
-**Exit criteria:** a query returns real results, and a dead provider empties one rail instead of the page.
-
-## Phase 5: Player
-
-One audio element that no page can tear down, a persisted queue, transport, seek and volume that are thumb-first, Media Session metadata and hardware keys, resume after a reload, and a stream failure that skips, says why and keeps the queue.
-
-**Exit criteria:** a track plays across a navigation, a lock screen and a reload.
-
-## Phase 6: Library
+## Phase 5: Library
 
 Favourites end to end replacing the local store, playlist read and write, playlist screens, reorder in one transaction, listening history, recently played, and a guest's local library offered once at sign-in.
 
 **Exit criteria:** a playlist survives a week and a second device.
+
+## Phase 6: Shell and design system
+
+Deferred while the product is being made playable, and unchanged in scope.
+
+Token audit, desktop shell with a pinned player bar, mobile shell with bottom nav above it, navigation, primitives, the four states on every surface, frequency-gated motion, accent themes through one attribute, and an accessibility pass over focus, labels, contrast and keyboard order.
+
+**Exit criteria:** every screen looks native on a phone and deliberate on a desktop, and no component reads a raw colour.
 
 ## Phase 7: Offline and mobile
 
