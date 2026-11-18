@@ -295,9 +295,41 @@ webRoutes.get('/stream/:id/artwork-proxy', async (c) => {
   }
 })
 
+/**
+ * No provider in the catalogue ships lyrics yet, so the answer is an empty
+ * lyric sheet rather than a 404: the player already renders "no lyrics for
+ * this track", and a failed request on every track would be console noise
+ * that hides real failures.
+ */
 webRoutes.get('/lyrics/:id', (c) =>
-  c.json(failedBody('Lyrics are not part of the provider catalogue yet.'), 404),
+  c.json({
+    trackId: c.req.param('id'),
+    synced: false,
+    lines: [],
+    source: 'none',
+  }),
 )
+
+/**
+ * Stream warm-up. The V2 client calls this before a track starts to pay the
+ * provider handshake early; resolving the ticket is exactly that work.
+ */
+webRoutes.post('/stream/:id/warm', async (c) => {
+  const parsed = parseTrackId(c.req.param('id'))
+  if (!parsed) return c.json({ ok: false })
+
+  try {
+    await resolveStream(
+      c.env as Bindings,
+      parsed.provider,
+      parsed.providerTrackId,
+      c.req.raw.signal,
+    )
+    return c.json({ ok: true })
+  } catch {
+    return c.json({ ok: false })
+  }
+})
 
 // ── Recommendations ───────────────────────────────────────────
 
