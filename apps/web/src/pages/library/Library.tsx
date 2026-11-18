@@ -264,46 +264,39 @@ function ArtistGrid({
 function EmptyState({ tab, onCreate }: { tab: LibTab; onCreate: () => void }) {
    const messages = {
       playlists: {
-         icon: <MusicNotes className='w-8 h-8 text-[var(--text-muted)]' />,
+         icon: <MusicNotes className='w-5 h-5' />,
          text: "No playlists yet",
-         sub: "Create your first playlist"
+         sub: "Create your first one"
       },
       albums: {
-         icon: <VinylRecord className='w-8 h-8 text-[var(--text-muted)]' />,
+         icon: <VinylRecord className='w-5 h-5' />,
          text: "No albums saved",
-         sub: "Albums from your downloads appear here"
+         sub: "Albums you download appear here"
       },
       artists: {
-         icon: <User className='w-8 h-8 text-[var(--text-muted)]' />,
+         icon: <User className='w-5 h-5' />,
          text: "No artists saved",
-         sub: "Artists from your downloads appear here"
+         sub: "Artists you play appear here"
       }
    };
    const m = messages[tab];
 
    return (
-      <motion.div
-         initial={{ opacity: 0, y: 10 }}
-         animate={{ opacity: 1, y: 0 }}
-         className='flex flex-col items-center justify-center py-20 gap-4 text-center'>
-         <div className='w-16 h-16 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center'>
-            {m.icon}
-         </div>
-         <div>
-            <p className='font-semibold text-[var(--text-primary)]'>{m.text}</p>
-            <p className='text-sm text-[var(--text-muted)] mt-1'>{m.sub}</p>
-         </div>
-         {tab === "playlists" && (
-            <motion.button
-               whileTap={{ scale: 0.95 }}
-               onClick={onCreate}
-               className='flex items-center gap-2 px-5 py-2.5 rounded-full
-                     bg-[var(--accent)] text-white text-sm font-bold shadow-lg'>
-               <Plus className='w-4 h-4' />
-               New Playlist
-            </motion.button>
-         )}
-      </motion.div>
+      <EmptySection
+         icon={m.icon}
+         title={m.text}
+         note={m.sub}
+         action={
+            tab === 'playlists' ? (
+               <button
+                  onClick={onCreate}
+                  className='flex flex-shrink-0 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3.5 py-1.5 text-xs font-bold text-white active:scale-95'>
+                  <Plus className='h-3.5 w-3.5' />
+                  Create
+               </button>
+            ) : undefined
+         }
+      />
    );
 }
 
@@ -314,39 +307,26 @@ function EmptyState({ tab, onCreate }: { tab: LibTab; onCreate: () => void }) {
 // heading and a divider that reads as structure rather than a stray line.
 
 function SectionHeading({
-   icon,
    title,
    count,
    actions
 }: {
-   icon: React.ReactNode;
    title: string;
    count?: number;
    actions?: React.ReactNode;
 }) {
    return (
-      <div className='mb-4'>
-         <div className='flex items-center gap-3'>
-            <span className='flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--accent)]'>
-               {icon}
+      <div className='mb-3 flex items-center gap-2.5'>
+         <h2 className='text-[17px] font-bold leading-none tracking-tight text-[var(--text-primary)]'>
+            {title}
+         </h2>
+         {count !== undefined && count > 0 && (
+            <span className='rounded-full bg-[var(--bg-elevated)] px-2 py-[3px] text-[11px] font-semibold leading-none tabular-nums text-[var(--text-muted)]'>
+               {count}
             </span>
-            <h2 className='text-xl font-bold text-[var(--text-primary)]'>
-               {title}
-            </h2>
-            {count !== undefined && count > 0 && (
-               <span className='text-[13px] font-semibold tabular-nums text-[var(--text-muted)]'>
-                  {count}
-               </span>
-            )}
-            <span className='min-w-2 flex-1' />
-            {actions}
-         </div>
-         {/* A rule that fades out rather than a hard line: it separates the
-             sections without drawing a box around each one. */}
-         <div
-            aria-hidden
-            className='mt-3 h-px w-full bg-gradient-to-r from-[var(--border-strong)] via-[var(--border)] to-transparent'
-         />
+         )}
+         <span className='min-w-2 flex-1' />
+         {actions}
       </div>
    );
 }
@@ -354,22 +334,111 @@ function SectionHeading({
 function EmptySection({
    icon,
    title,
-   note
+   note,
+   action
 }: {
    icon: React.ReactNode;
    title: string;
    note: string;
+   action?: React.ReactNode;
 }) {
    return (
-      <div className='flex flex-col items-center justify-center gap-3 py-14'>
-         <div className='flex h-16 w-16 items-center justify-center rounded-[1.75rem] border border-[var(--border)] bg-[var(--bg-elevated)]'>
+      <div className='flex items-center gap-3 rounded-2xl border border-dashed border-[var(--border-strong)] px-3.5 py-3'>
+         <span className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-muted)]'>
             {icon}
+         </span>
+         <div className='min-w-0 flex-1'>
+            <p className='text-sm font-semibold text-[var(--text-primary)]'>{title}</p>
+            <p className='truncate text-xs text-[var(--text-muted)]'>{note}</p>
          </div>
-         <div className='text-center'>
-            <p className='text-base font-bold text-[var(--text-primary)]'>{title}</p>
-            <p className='mt-1 text-sm text-[var(--text-muted)]'>{note}</p>
-         </div>
+         {action}
       </div>
+   );
+}
+
+// ── Saved songs hero ─────────────────────────────────────────
+//
+// The saved list is the one thing every account has something in, so it
+// leads the page: a playable summary with artwork, and the songs under it.
+
+function SavedHero({
+   tracks,
+   loading,
+   query,
+   onPlayAll
+}: {
+   tracks: Track[];
+   loading: boolean;
+   query: string;
+   onPlayAll: (shuffled?: boolean) => void;
+}) {
+   const artwork = tracks.filter(t => t.artworkUrl).slice(0, 4);
+   const hasTracks = tracks.length > 0;
+
+   return (
+      <section className='relative overflow-hidden rounded-[26px] border border-[var(--border)] bg-[var(--bg-surface)]'>
+         <div
+            aria-hidden
+            className='pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--accent-subtle)] via-transparent to-transparent'
+         />
+         <div className='relative flex items-center gap-4 p-4'>
+            {/* Artwork stack, or the heart when there is nothing to show */}
+            <div className='grid h-[76px] w-[76px] flex-shrink-0 grid-cols-2 grid-rows-2 overflow-hidden rounded-2xl bg-[var(--bg-elevated)]'>
+               {artwork.length > 0 ? (
+                  artwork.map(t => (
+                     <img
+                        key={t.id}
+                        src={t.artworkUrl}
+                        alt=''
+                        loading='lazy'
+                        className='h-full w-full object-cover'
+                     />
+                  ))
+               ) : (
+                  <span className='col-span-2 row-span-2 flex items-center justify-center'>
+                     <Heart className='h-7 w-7 text-[var(--accent)]' weight='fill' />
+                  </span>
+               )}
+            </div>
+
+            <div className='min-w-0 flex-1'>
+               <p className='text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]'>
+                  Saved songs
+               </p>
+               <h2 className='mt-1 truncate text-[22px] font-bold leading-none text-[var(--text-primary)]'>
+                  {loading
+                     ? 'Loading…'
+                     : hasTracks
+                       ? `${tracks.length} song${tracks.length === 1 ? '' : 's'}`
+                       : 'Nothing saved yet'}
+               </h2>
+               <p className='mt-1 truncate text-xs text-[var(--text-muted)]'>
+                  {query
+                     ? `${tracks.length} match${tracks.length === 1 ? '' : 'es'} for “${query}”`
+                     : hasTracks
+                       ? 'Everything you hearted, in one queue'
+                       : 'Tap the heart on any song to keep it here'}
+               </p>
+            </div>
+
+            {hasTracks && (
+               <div className='flex flex-shrink-0 items-center gap-2'>
+                  <button
+                     onClick={() => onPlayAll(true)}
+                     aria-label='Shuffle saved songs'
+                     className='flex h-10 w-10 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] active:scale-95'>
+                     <Shuffle className='h-[18px] w-[18px]' />
+                  </button>
+                  <button
+                     onClick={() => onPlayAll(false)}
+                     aria-label='Play saved songs'
+                     className='flex h-11 w-11 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-lg active:scale-95'>
+                     <Play className='h-5 w-5 translate-x-[1px] fill-current' />
+                  </button>
+               </div>
+            )}
+         </div>
+      </section>
    );
 }
 
@@ -580,7 +649,7 @@ function CreatePlaylistModal({ onClose }: { onClose: () => void }) {
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
                   placeholder='Playlist name'
                   maxLength={80}
-                  className='w-full px-4 py-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] placeholder:font-normal outline-none focus:border-[var(--accent)] transition-colors'
+                  className='w-full px-4 py-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[16px] font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] placeholder:font-normal outline-none focus:border-[var(--accent)] transition-colors'
                />
             </div>
 
@@ -677,6 +746,9 @@ function LibraryMember() {
 
    const [grid, setGrid] = useState(true);
    const [showCreate, setShowCreate] = useState(false);
+   // A long saved list is a wall, so the page shows the first rows and
+   // opens the rest on request.
+   const [showAllLiked, setShowAllLiked] = useState(false);
    // Library-wide search: one query filters every section live.
    const [query, setQuery] = useState('');
    const q = query.trim().toLowerCase();
@@ -760,14 +832,37 @@ function LibraryMember() {
       }
    };
 
+   const summary =
+      [
+         likedTracks?.length
+            ? `${likedTracks.length} saved`
+            : null,
+         playlists?.length
+            ? `${playlists.length} playlist${playlists.length === 1 ? '' : 's'}`
+            : null,
+         albums?.length
+            ? `${albums.length} album${albums.length === 1 ? '' : 's'}`
+            : null,
+         localTracks?.filter(t => t.isDownloaded).length
+            ? `${localTracks.filter(t => t.isDownloaded).length} on device`
+            : null
+      ]
+         .filter(Boolean)
+         .join(' · ') || 'Everything you keep, in one place';
+
    return (
-      <div className='flex flex-col h-full'>
+      <div className='flex h-full flex-col'>
          {/* ── Header ──────────────────────────────────────────── */}
-         <div className='flex flex-shrink-0 items-center justify-between px-4 pt-6 pb-4 lg:px-8'>
-            <h1 className='text-2xl font-bold text-[var(--text-primary)]'>
-               Library
-            </h1>
-            <div className='flex items-center gap-1'>
+         <div className='flex flex-shrink-0 items-center justify-between gap-3 px-4 pt-6 pb-3 lg:px-8'>
+            <div className='min-w-0'>
+               <h1 className='text-[26px] font-bold leading-none text-[var(--text-primary)]'>
+                  Library
+               </h1>
+               <p className='mt-1.5 truncate text-xs text-[var(--text-muted)]'>
+                  {summary}
+               </p>
+            </div>
+            <div className='flex flex-shrink-0 items-center gap-1.5'>
                <IconButton
                   size='sm'
                   variant='ghost'
@@ -775,13 +870,12 @@ function LibraryMember() {
                   title={grid ? "List view" : "Grid view"}>
                   {grid ? <List /> : <SquaresFour />}
                </IconButton>
-               <IconButton
-                  size='sm'
-                  variant='accent'
+               <button
                   onClick={handleCreate}
-                  title='New playlist'>
-                  <Plus />
-               </IconButton>
+                  className='flex h-9 items-center gap-1.5 rounded-full bg-[var(--accent)] pl-3 pr-3.5 text-xs font-bold text-white shadow-lg active:scale-95'>
+                  <Plus className='h-4 w-4' weight='bold' />
+                  New
+               </button>
             </div>
          </div>
 
@@ -792,78 +886,52 @@ function LibraryMember() {
             </div>
          </div>
 
-         <ScrollArea className='flex-1 px-4 lg:px-8 pb-10'>
-            <div className='space-y-10 lg:mx-auto lg:max-w-6xl'>
-               {/* ── Spotify import ─────────────────────────── */}
-               <SpotifyImportCard />
-
-               {/* ── Blends — collaborative playlists ───────── */}
-               <BlendsSection query={query} />
-
-               {/* ── Liked Songs ─────────────────────────────── */}
+         <ScrollArea className='flex-1 px-4 pb-32 lg:px-8'>
+            <div className='space-y-9 lg:mx-auto lg:max-w-6xl'>
+               {/* ── Saved — the one list every account has ───── */}
                <section>
-                  <SectionHeading
-                     icon={<Heart className='h-4 w-4 fill-current' />}
-                     title='Saved'
-                     count={likedTracks?.length}
-                     actions={
-                        <div className='flex items-center gap-2'>
-                           <Button
-                              variant='primary'
-                              size='sm'
-                              disabled={!likedTracks?.length}
-                              onClick={() =>
-                                 likedTracks && handlePlayAll(likedTracks)
-                              }>
-                              <Play className='h-4 w-4 fill-current' />
-                              Play
-                           </Button>
-                           <Button
-                              variant='secondary'
-                              size='sm'
-                              disabled={!likedTracks?.length}
-                              onClick={() =>
-                                 likedTracks && handlePlayAll(likedTracks, true)
-                              }
-                              title='Shuffle saved'>
-                              <Shuffle className='h-4 w-4' />
-                           </Button>
-                        </div>
-                     }
+                  <SavedHero
+                     tracks={visibleLiked}
+                     loading={loadingLiked}
+                     query={query}
+                     onPlayAll={shuffled => handlePlayAll(visibleLiked, shuffled)}
                   />
-                  <div className='space-y-1'>
+                  <div className='mt-2 space-y-1'>
                      {loadingLiked &&
-                        Array.from({ length: 8 }).map((_, i) => (
+                        Array.from({ length: 6 }).map((_, i) => (
                            <Skeleton key={i} className='h-14 rounded-2xl' />
                         ))}
-                     {visibleLiked.map((track, i) => (
-                        <LikedTrackRow
-                           key={track.id}
-                           track={track}
-                           index={i}
-                           onPlay={() => playTrack(track, visibleLiked)}
-                           onUnlike={e => handleUnlike(e, track.id)}
-                        />
-                     ))}
-                     {!loadingLiked &&
-                        visibleLiked.length === 0 && (
-                           q ? noMatches('saved', <Heart className='h-6 w-6 text-[var(--text-muted)]' />) : (
-                           <EmptySection
-                              icon={
-                                 <Heart className='h-6 w-6 text-[var(--text-muted)]' />
-                              }
-                              title='Nothing saved yet'
-                              note='Tap the heart on any song to save it here'
+                     {visibleLiked
+                        .slice(0, showAllLiked ? visibleLiked.length : 6)
+                        .map((track, i) => (
+                           <LikedTrackRow
+                              key={track.id}
+                              track={track}
+                              index={i}
+                              onPlay={() => playTrack(track, visibleLiked)}
+                              onUnlike={e => handleUnlike(e, track.id)}
                            />
-                           )
+                        ))}
+                     {!loadingLiked &&
+                        visibleLiked.length > 6 &&
+                        !showAllLiked && (
+                           <button
+                              onClick={() => setShowAllLiked(true)}
+                              className='mt-1 w-full rounded-2xl py-2.5 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'>
+                              Show all {visibleLiked.length} saved songs
+                           </button>
                         )}
+                     {/* The hero already says the list is empty, so only a
+                         search needs its own no-matches row. */}
+                     {!loadingLiked && q && visibleLiked.length === 0 && (
+                        noMatches('saved', <Heart className='h-5 w-5' />)
+                     )}
                   </div>
                </section>
 
                {/* ── Playlists ───────────────────────────────── */}
                <section>
                   <SectionHeading
-                     icon={<MusicNotes className='h-4 w-4' />}
                      title='Playlists'
                      count={playlists?.length}
                   />
@@ -892,10 +960,12 @@ function LibraryMember() {
                   )}
                </section>
 
+               {/* ── Blends — collaborative playlists ───────── */}
+               <BlendsSection query={query} />
+
                {/* ── Albums ──────────────────────────────────── */}
                <section>
                   <SectionHeading
-                     icon={<VinylRecord className='h-4 w-4' />}
                      title='Albums'
                      count={albums?.length}
                   />
@@ -915,7 +985,6 @@ function LibraryMember() {
                {/* ── Artists ─────────────────────────────────── */}
                <section>
                   <SectionHeading
-                     icon={<User className='h-4 w-4' />}
                      title='Artists'
                      count={artists?.length}
                   />
@@ -943,8 +1012,7 @@ function LibraryMember() {
                {/* ── My Music — on-device library + download jobs ── */}
                <section>
                   <SectionHeading
-                     icon={<DownloadSimple className='h-4 w-4' />}
-                     title='My Music'
+                     title='On this device'
                      count={localTracks?.filter(t => t.isDownloaded).length}
                      actions={
                         <Button
@@ -1011,6 +1079,12 @@ function LibraryMember() {
                      </button>
                  )}
                </section>
+
+               {/* ── Import — an entry point, not a banner ────── */}
+               <section>
+                  <SectionHeading title='Bring music in' />
+                  <SpotifyImportCard />
+               </section>
             </div>
          </ScrollArea>
 
@@ -1058,7 +1132,6 @@ function BlendsSection({ query }: { query: string }) {
    return (
       <section>
          <SectionHeading
-            icon={<Users className='h-4 w-4' />}
             title='Blends'
             count={blends?.length}
             actions={
@@ -1077,11 +1150,11 @@ function BlendsSection({ query }: { query: string }) {
          ) : filtered.length === 0 ? (
             query
                ? noMatchesSafe('blends')
-               : <EmptySection
-                    icon={<Users className='h-6 w-6 text-[var(--text-muted)]' />}
-                    title='No blends yet'
-                    note='Start one with a friend — everyone in it adds songs'
-                 />
+                                 : <EmptySection
+                       icon={<Users className='h-5 w-5' />}
+                       title='No blends yet'
+                       note='Start one and add songs together'
+                    />
          ) : (
             <div className='grid grid-cols-2 gap-4 pb-2 sm:grid-cols-3 lg:grid-cols-4'>
                {filtered.map((b, i) => (

@@ -9,6 +9,9 @@ import type { Track } from '@/types'
 // playTrack/playAll below. Falls back to the segment in a readable form.
 function sourceFromRoute(): string {
   const path = window.location.pathname
+  if (path === '/' || path.startsWith('/home')) return 'Home'
+  if (path.startsWith('/library')) return 'Library'
+  if (path.startsWith('/downloads')) return 'Downloads'
   if (path.startsWith('/search')) return 'Search'
   if (path.startsWith('/trending')) return 'Trending this week'
   if (path.startsWith('/recently-played')) return 'Last played'
@@ -16,7 +19,7 @@ function sourceFromRoute(): string {
   if (path.startsWith('/playlist')) return 'this playlist'
   if (path.startsWith('/album')) return 'this album'
   if (path.startsWith('/artist')) return 'this artist'
-  return 'Your library'
+  return 'Rheoson'
 }
 
 interface PlayAllOptions {

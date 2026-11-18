@@ -56,7 +56,7 @@ function TrendingRow({
          {/* Rank number — top 3 get the accent colour to stand out */}
          <span
             className={cn(
-               "text-base tabular-nums w-7 text-center font-black flex-shrink-0",
+               "text-[16px] tabular-nums w-7 text-center font-black flex-shrink-0",
                rank <= 3
                   ? "text-[var(--accent)]"
                   : active

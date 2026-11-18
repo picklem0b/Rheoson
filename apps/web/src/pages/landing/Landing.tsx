@@ -88,7 +88,7 @@ function GateBody({ clerkEnabled, authed = false }: GateBodyProps) {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate('/auth')}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--accent)] px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-brand/25 transition-shadow hover:shadow-xl hover:shadow-brand/35"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--accent)] px-6 py-3.5 text-[16px] font-bold text-white shadow-lg shadow-brand/25 transition-shadow hover:shadow-xl hover:shadow-brand/35"
         >
           Sign in
           <ArrowRight className="h-4 w-4" />

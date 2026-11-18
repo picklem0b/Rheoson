@@ -32,7 +32,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
     xs: 'h-7  px-3   text-xs  rounded-xl  gap-1.5',
     sm: 'h-9  px-4   text-sm  rounded-2xl gap-2',
     md: 'h-11 px-5   text-sm  rounded-2xl gap-2',
-    lg: 'h-13 px-7   text-base rounded-3xl gap-2.5',
+    lg: 'h-13 px-7   text-[16px] rounded-3xl gap-2.5',
   }
 
   return (

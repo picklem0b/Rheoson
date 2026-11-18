@@ -300,7 +300,7 @@ export default function Playlist() {
                      <div className='w-16 h-16 rounded-3xl bg-[var(--bg-elevated)] flex items-center justify-center mb-4'>
                         <MusicNotes className='w-7 h-7 text-[var(--text-muted)]' />
                      </div>
-                     <p className='text-base font-bold text-[var(--text-primary)]'>
+                     <p className='text-[16px] font-bold text-[var(--text-primary)]'>
                         Let&rsquo;s fill this one up
                      </p>
                      <p className='text-sm text-[var(--text-secondary)] mt-1 max-w-xs'>

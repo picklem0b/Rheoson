@@ -39,12 +39,13 @@ export default function ProgressBar({ compact = false, large = false }: Progress
         onChange={seek}
         onChangeEnd={seek}
         accent
+        persistentThumb={large}
         className={large ? 'h-7' : 'h-5'}
       />
       <div className="flex justify-between px-0.5">
         <span className={cn(
           'tabular-nums text-[var(--text-muted)] font-medium',
-          large ? 'text-xs' : 'text-[10px]'
+                      large ? 'text-xs' : 'text-[10px]'
         )}>
           {formatDuration(progress)}
         </span>
@@ -52,7 +53,7 @@ export default function ProgressBar({ compact = false, large = false }: Progress
           'tabular-nums text-[var(--text-muted)] font-medium',
           large ? 'text-xs' : 'text-[10px]'
         )}>
-          {formatDuration(duration)}
+          -{formatDuration(Math.max(0, duration - progress))}
         </span>
       </div>
     </div>

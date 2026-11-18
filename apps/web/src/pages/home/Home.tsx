@@ -48,7 +48,7 @@ function SectionHeader({ icon: Icon, title, subtitle, onSeeAll, onSeeAllLabel }:
           <Icon className="w-3.5 h-3.5 text-[var(--accent)]" />
         </div>
         <div>
-          <h2 className="text-base font-bold text-[var(--text-primary)] leading-none">{title}</h2>
+          <h2 className="text-[16px] font-bold text-[var(--text-primary)] leading-none">{title}</h2>
           {subtitle && <p className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</p>}
         </div>
       </div>

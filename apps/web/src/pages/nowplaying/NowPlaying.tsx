@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
    motion,
@@ -81,7 +81,7 @@ function ContextSheet({
       item.action === "like"
          ? {
               ...item,
-              label: liked ? "Removed from saved" : "Save",
+              label: liked ? "Saved" : "Save",
               icon: Heart
            }
          : item
@@ -90,6 +90,8 @@ function ContextSheet({
    return (
       <motion.div
          className='absolute inset-0 z-30 flex flex-col justify-end'
+         role='dialog'
+         aria-label='Track options'
          initial={{ opacity: 0 }}
          animate={{ opacity: 1 }}
          exit={{ opacity: 0 }}>
@@ -314,7 +316,7 @@ function LyricsTab({
                      transition={{ duration: 0.25 }}
                      className={cn(
                         "leading-relaxed text-center transition-all duration-300",
-                        lyricSize === 'sm' && "text-base",
+                        lyricSize === 'sm' && "text-[16px]",
                         lyricSize === 'md' && "text-lg",
                         lyricSize === 'lg' && "text-2xl",
                         seekable && onSeek && "cursor-pointer",
@@ -700,10 +702,13 @@ function CreatorTrackRow({
 
 function PlaylistTab({ currentTrack }: { currentTrack: Track }) {
    const { queue, history, playTrack } = useQueue();
-   // history's last entry IS the current track (queue.store semantics) —
-   // appending currentTrack again is what made the playing song show twice.
+   // What plays now leads, then what comes next, then what already played.
+   // History used to sit on top, which pushed the current song below the
+   // fold of its own queue. History's last entry IS the current track
+   // (queue.store semantics), so the dedupe below is what keeps it from
+   // showing twice.
    const seen = new Set<string>();
-   const all = [...history, currentTrack, ...queue].filter(t => {
+   const all = [currentTrack, ...queue, ...history].filter(t => {
       if (!t || seen.has(t.id)) return false;
       seen.add(t.id);
       return true;
@@ -846,6 +851,12 @@ export default function NowPlaying() {
    const [showMenu, setShowMenu] = useState(false);
    const [liked, setLiked] = useState(currentTrack?.isLiked ?? false);
    const playSource = usePlayerStore(s => s.playSource);
+
+   // The saved state belongs to the track, so it has to follow a skip —
+   // initialising it once left the heart lit (or dark) for the wrong song.
+   useEffect(() => {
+      setLiked(currentTrack?.isLiked ?? false);
+   }, [currentTrack?.id, currentTrack?.isLiked]);
    // (Lyrics for the current track are preloaded by construction: the
    // useLyrics query above runs unconditionally on mount — the Lyrics tab
    // reads the warmed cache.)
@@ -938,10 +949,14 @@ export default function NowPlaying() {
       }
    };
 
-   if (!currentTrack) {
-      navigate(-1);
-      return null;
-   }
+   // Closing the player leaves rather than steering during render, and a
+   // deep link has no history to go back to.
+   const closePlayer = () => {
+      if (window.history.length > 1) navigate(-1);
+      else navigate("/");
+   };
+
+   if (!currentTrack) return <Navigate to='/' replace />;
 
    return (
       <motion.div
@@ -960,40 +975,33 @@ export default function NowPlaying() {
          {/* Scrollable main content — desktop centers the player column */}
          <div className='relative z-10 flex flex-col h-full overflow-y-auto no-scrollbar lg:max-w-2xl lg:mx-auto lg:w-full'>
             {/* Top bar */}
-            <div className='flex items-center justify-between px-5 pt-10 pb-2 flex-shrink-0'>
+            <div
+               className='flex flex-shrink-0 items-center gap-3 px-4 pb-2'
+               style={{ paddingTop: 'calc(var(--safe-area-top) + 1.25rem)' }}>
                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => navigate(-1)}
-                  className='w-9 h-9 rounded-full bg-white/10 flex items-center justify-center'>
-                  <CaretDown className='w-5 h-5 text-white' />
+                  whileTap={{ scale: 0.92 }}
+                  onClick={closePlayer}
+                  aria-label='Close the player'
+                  className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-primary)]'>
+                  <CaretDown className='h-5 w-5' />
                </motion.button>
 
-               <div className='flex items-center gap-2'>
-                  {/* Offline badge — shown when track is downloaded */}
-                  {currentTrack.isDownloaded && (
-                     <div className='flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--accent-subtle)] border border-[var(--accent-border)]'>
-                        <WifiSlash className='w-3 h-3 text-[var(--accent)]' />
-                        <span className='text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider'>
-                           Offline
-                        </span>
-                     </div>
-                  )}
-                  <p className='text-[10px] font-bold uppercase tracking-widest text-white/50 truncate max-w-[180px]'>
-                     Playing from {playSource}
-                  </p>
-               </div>
+               <p className='min-w-0 flex-1 truncate text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]'>
+                  Playing from {playSource}
+               </p>
 
                <motion.button
-                  whileTap={{ scale: 0.9 }}
+                  whileTap={{ scale: 0.92 }}
                   onClick={() => setShowMenu(true)}
-                  className='w-9 h-9 rounded-full bg-white/10 flex items-center justify-center'>
-                  <DotsThreeOutline className='w-5 h-5 text-white' />
+                  aria-label='More options'
+                  className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-primary)]'>
+                  <DotsThreeOutline className='h-5 w-5' />
                </motion.button>
             </div>
 
             {/* Artwork */}
-            <div className='flex-shrink-0 flex items-center justify-center px-8 py-2'>
-               <div className='relative w-full max-w-[300px] aspect-square'>
+            <div className='flex flex-shrink-0 items-center justify-center px-8 py-3'>
+               <div className='relative aspect-square w-full max-w-[320px]'>
                   <motion.img
                      key={currentTrack.id}
                      src={currentTrack.artworkUrl || "/assets/logo.png"}
@@ -1045,74 +1053,87 @@ export default function NowPlaying() {
             </div>
 
             {/* Track info + like + download */}
-            <div className='flex items-center gap-3 px-6 pt-1 pb-2 flex-shrink-0'>
-               <div className='flex-1 min-w-0'>
+            <div className='flex flex-shrink-0 items-start gap-1 px-5 pt-2'>
+               <div className='min-w-0 flex-1'>
                   <motion.h2
                      key={currentTrack.id}
                      initial={{ opacity: 0, y: 6 }}
                      animate={{ opacity: 1, y: 0 }}
-                     className='text-xl font-bold text-white truncate'>
+                     className='line-clamp-2 text-[21px] font-bold leading-tight text-[var(--text-primary)]'>
                      {currentTrack.title}
                   </motion.h2>
-                  <button
-                     onClick={() =>
-                        currentTrack.artist?.id &&
-                        currentTrack.artist.id !== 'unknown'
-                           ? navigate(`/artist/${encodeURIComponent(currentTrack.artist.id)}`)
-                           : setTab('creator')
-                     }
-                     className='text-sm text-white/60 truncate mt-0.5 block max-w-full text-left'>
-                     {currentTrack.artist?.name ?? 'Unknown Artist'}
-                  </button>
+                  <div className='mt-1 flex min-w-0 items-center gap-2'>
+                     <button
+                        onClick={() =>
+                           currentTrack.artist?.id &&
+                           currentTrack.artist.id !== 'unknown'
+                              ? navigate(`/artist/${encodeURIComponent(currentTrack.artist.id)}`)
+                              : setTab('creator')
+                        }
+                        className='block max-w-full truncate text-left text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
+                        {currentTrack.artist?.name ?? 'Unknown Artist'}
+                     </button>
+                     {currentTrack.isDownloaded && (
+                        <span className='flex flex-shrink-0 items-center gap-1 rounded-full bg-[var(--accent-subtle)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]'>
+                           <WifiSlash className='h-3 w-3' />
+                           Offline
+                        </span>
+                     )}
+                  </div>
                </div>
 
-               <motion.button whileTap={{ scale: 0.85 }} onClick={handleLike}>
+               <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleLike}
+                  aria-label={liked ? 'Remove from saved' : 'Save song'}
+                  aria-pressed={liked}
+                  className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
                   <Heart
                      className={cn(
-                        "w-6 h-6 transition-colors",
-                        liked
-                           ? "text-[var(--accent)] fill-current"
-                           : "text-white/60"
+                        "h-6 w-6 transition-colors",
+                        liked && "fill-current text-[var(--accent)]"
                      )}
                   />
                </motion.button>
 
                <motion.button
-                  whileTap={{ scale: 0.85 }}
-                  onClick={() => openDownloadModal(currentTrack.id, currentTrack)}>
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => openDownloadModal(currentTrack.id, currentTrack)}
+                  aria-label='Download song'
+                  className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
                   <DownloadSimple
                      className={cn(
-                        "w-5 h-5 transition-colors",
-                        currentTrack.isDownloaded
-                           ? "text-[var(--accent)]"
-                           : "text-white/60"
+                        "h-6 w-6 transition-colors",
+                        currentTrack.isDownloaded && "text-[var(--accent)]"
                      )}
                   />
                </motion.button>
             </div>
 
             {/* Progress bar */}
-            <div className='px-6 flex-shrink-0'>
+            <div className='flex-shrink-0 px-5 pt-3'>
                <ProgressBar large />
             </div>
 
             {/* Controls */}
-            <div className='px-4 mt-2 flex-shrink-0 flex justify-center'>
+            <div className='mt-1 flex flex-shrink-0 justify-center px-4'>
                <PlayerControls large />
             </div>
 
             {/* Tabs — segmented pill control, active tab filled */}
-            <div className='flex-shrink-0 px-6 mt-4 flex justify-center'>
-               <div className='inline-flex gap-1 rounded-full bg-white/5 p-1'>
+            <div className='mt-5 flex flex-shrink-0 justify-center px-6'>
+               <div role='tablist' aria-label='Player panels' className='inline-flex gap-1 rounded-full bg-[var(--bg-elevated)] p-1'>
                   {(["queue", "lyric", "creator"] as Tab[]).map(t => (
                      <button
                         key={t}
+                        role='tab'
+                        aria-selected={tab === t}
                         onClick={() => setTab(t)}
                         className={cn(
-                           "px-4 py-1.5 rounded-full text-xs font-bold transition-colors",
+                           "rounded-full px-4 py-1.5 text-xs font-bold transition-colors",
                            tab === t
-                              ? "bg-white text-black"
-                              : "text-white/50 hover:text-white/80"
+                              ? "bg-[var(--text-primary)] text-[var(--bg-base)]"
+                              : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                         )}>
                         {t === "queue"
                            ? "Queue"
@@ -1124,8 +1145,9 @@ export default function NowPlaying() {
                </div>
             </div>
 
-            {/* Tab content */}
-            <div className='px-6 flex-1'>
+            {/* Tab content — the page scrolls, so the last row needs room
+                above the fold instead of ending under it. */}
+            <div className='flex-1 px-5 pb-24'>
                <AnimatePresence mode='wait'>
                   <motion.div
                      key={tab}

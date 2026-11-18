@@ -13,6 +13,8 @@ interface SliderProps {
   trackClassName?: string
   thumbClassName?: string
   showThumb?: boolean
+  /** Keep the thumb visible without hovering — touch has no hover state. */
+  persistentThumb?: boolean
   accent?: boolean
 }
 
@@ -25,6 +27,7 @@ export function Slider({
   onChangeEnd,
   className,
   showThumb = true,
+  persistentThumb = false,
   accent = false,
 }: SliderProps) {
   const track = useRef<HTMLDivElement>(null)
@@ -91,7 +94,9 @@ export function Slider({
         <div
           className={cn(
             'absolute w-3.5 h-3.5 rounded-full shadow-lg -translate-x-1/2',
-            'opacity-0 group-hover:opacity-100 transition-opacity duration-150',
+            persistentThumb
+              ? 'opacity-100'
+              : 'opacity-0 group-hover:opacity-100 transition-opacity duration-150',
             accent ? 'bg-[var(--accent)]' : 'bg-white'
           )}
           style={{ left: `${pct}%` }}

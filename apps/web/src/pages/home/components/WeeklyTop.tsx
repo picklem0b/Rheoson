@@ -122,7 +122,7 @@ export function WeeklyTopThree({ tracks, context, week }: WeeklyTopThreeProps) {
             <Trophy className='h-3.5 w-3.5 text-[var(--accent)]' />
           </div>
           <div>
-            <h2 className='text-base leading-none font-bold text-[var(--text-primary)]'>
+            <h2 className='text-[16px] leading-none font-bold text-[var(--text-primary)]'>
               Top 3 this week
             </h2>
             <p className='mt-0.5 text-xs text-[var(--text-muted)]'>

@@ -6,8 +6,8 @@
  * songs — leaving no way to tell a slow import from a broken one. Three things
  * make it honest instead:
  *
- *  * a **preview** before anything is queued, including the songs YouTube Music
- *    refused to match, with the reason;
+ *  * a **preview** before anything is queued, including the songs the
+ *    providers refused to match, with the reason;
  *  * a **live status** for the import (matching → queueing 42/184 → done),
  *    because the work genuinely takes minutes and pretending otherwise is how
  *    a user reloads mid-import;
@@ -250,8 +250,9 @@ export function SpotifyImportCard() {
                      Bring a Spotify link in
                   </h2>
                   <p className='mt-0.5 text-sm text-[var(--text-secondary)]'>
-                     Song, album, playlist or artist — anything you can copy from Spotify. The songs are
-                     matched on YouTube Music and downloaded; Spotify&apos;s own audio is DRM-locked.
+                     Song, album, playlist or artist — anything you can copy from Spotify. Rheoson
+                     matches each song on the providers it can stream from; Spotify&apos;s own audio
+                     stays DRM-locked.
                   </p>
                </div>
                <button

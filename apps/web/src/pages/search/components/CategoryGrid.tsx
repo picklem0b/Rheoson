@@ -20,6 +20,7 @@ import type { Track } from '@/types'
 const FALLBACK: CategoryMeta[] = [
    { slug: 'hip-hop',    label: 'Hip-Hop',    emoji: '🎤', gradient: 'from-yellow-900/90 to-orange-800/90',   hero: '2Pac',            heroUrl: 'https://cdn-images.dzcdn.net/images/artist/dc2743d871b5935004292eed2cd55f68/1000x1000-000000-80-0-0.jpg' },
    { slug: 'electronic', label: 'Electronic', emoji: '🎛️', gradient: 'from-cyan-900/90 to-blue-800/90',       hero: 'Daft Punk',       heroUrl: 'https://cdn-images.dzcdn.net/images/artist/638e69b9caaf9f9f3f8826febea7b543/1000x1000-000000-80-0-0.jpg' },
+   { slug: 'amapiano',   label: 'Amapiano',   emoji: '🎹', gradient: 'from-teal-900/90 to-cyan-700/90',        hero: '',                heroUrl: '' },
    { slug: 'r-and-b',    label: 'R&B',        emoji: '🎶', gradient: 'from-rose-900/90 to-pink-800/90',       hero: 'Frank Ocean',     heroUrl: 'https://cdn-images.dzcdn.net/images/artist/882155c08dc31d6464d6d580083c968c/1000x1000-000000-80-0-0.jpg' },
    { slug: 'rock',       label: 'Rock',       emoji: '🎸', gradient: 'from-zinc-900/90 to-zinc-700/90',       hero: 'Queen',           heroUrl: 'https://cdn-images.dzcdn.net/images/artist/71eeb9e2eeb375df35a3c0654a5a01ab/1000x1000-000000-80-0-0.jpg' },
    { slug: 'afrobeats',  label: 'Afrobeats',  emoji: '🪘', gradient: 'from-green-900/90 to-emerald-700/90',   hero: 'Burna Boy',       heroUrl: 'https://cdn-images.dzcdn.net/images/artist/ad15b7f03325752d60db9e4d39c079ae/1000x1000-000000-80-0-0.jpg' },
@@ -46,6 +47,24 @@ interface CategoryGridProps {
  */
 
 /** How many tracks a category chart asks for. */
+/**
+ * Visuals live here, not in the API payload.
+ *
+ * Tailwind compiles the class names it can find in source, so a gradient that
+ * only arrives at runtime generated no rule at all: Amapiano came back as a
+ * flat black tile beside nine coloured ones. The API still owns the list and
+ * the order; this only decides how each known genre is painted.
+ */
+const LOOK = Object.fromEntries(
+   FALLBACK.map((c) => [c.slug, { gradient: c.gradient, hero: c.hero, heroUrl: c.heroUrl }])
+) as Record<string, { gradient: string; hero: string; heroUrl: string }>
+
+const DEFAULT_LOOK = {
+   gradient: 'from-zinc-900/90 to-zinc-700/90',
+   hero: '',
+   heroUrl: '',
+}
+
 const CATEGORY_TRACKS = 10
 export function CategoryGrid({ onSelect }: CategoryGridProps) {
    const [expanded, setExpanded] = useState<string | null>(null)
@@ -65,6 +84,7 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
          <div className="flex flex-col gap-3">
             {categories.map((cat, i) => {
                const isOpen = expanded === cat.slug
+               const look = LOOK[cat.slug] ?? DEFAULT_LOOK
                return (
                   <Fragment key={cat.slug}>
                   <motion.button
@@ -83,7 +103,7 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                      aria-expanded={isOpen}
                      className={cn(
                         'group relative h-[96px] w-full overflow-hidden rounded-2xl bg-gradient-to-br sm:h-[110px]',
-                        cat.gradient,
+                        look.gradient,
                         'border shadow-md transition-all active:brightness-110',
                         isOpen
                            ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]'
@@ -94,9 +114,9 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                          gradient scrim keeps the label readable over any
                          photo; if the image is missing or slow, the genre
                          gradient alone still carries the tile. */}
-                     {cat.heroUrl && (
+                     {look.heroUrl && (
                         <img
-                           src={cat.heroUrl}
+                           src={look.heroUrl}
                            alt=""
                            aria-hidden
                            loading="lazy"
@@ -108,10 +128,12 @@ export function CategoryGrid({ onSelect }: CategoryGridProps) {
                         className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"
                         aria-hidden
                      />
-                     <span className="absolute top-2.5 left-3 text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow">
-                        {cat.hero}
-                     </span>
-                     <span className="absolute bottom-3 left-3 text-base font-bold text-white drop-shadow">
+                     {look.hero && (
+                        <span className="absolute top-2.5 left-3 text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow">
+                           {look.hero}
+                        </span>
+                     )}
+                     <span className="absolute bottom-3 left-3 text-[16px] font-bold text-white drop-shadow">
                         {cat.label}
                      </span>
                      <CaretRight
@@ -178,7 +200,7 @@ function CategoryTopSongs({
          <div className="flex items-center gap-2 border-b border-[var(--border)]/50 px-4 py-3.5">
             <Trophy className="h-4 w-4 flex-shrink-0 text-[var(--accent)]" />
             <div className="flex min-w-0 flex-1 items-center gap-1.5">
-               <p className="truncate text-base font-bold text-[var(--text-primary)]">
+               <p className="truncate text-[16px] font-bold text-[var(--text-primary)]">
                   {label}
                </p>
                <span className="flex-shrink-0 text-[10px] font-semibold tracking-widest text-[var(--text-muted)] uppercase">

@@ -60,7 +60,7 @@ function ProfileStat({ icon: Icon, label, value }: {
   value: string | number
 }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]/50">
+    <div className="flex flex-col items-center gap-1 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
       <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--accent-subtle)]">
         <Icon className="w-4 h-4 text-[var(--accent)]" />
       </div>
@@ -234,41 +234,47 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
 
   return (
     <ScrollArea className="h-full">
-      <div className="px-4 lg:px-8 pt-6 pb-10 space-y-6 max-w-2xl mx-auto">
+      <div className="mx-auto max-w-2xl space-y-6 px-4 pb-28 pt-6 lg:px-8">
 
-        {/* TikTok-style header: backdrop, centred avatar, @handle, key counts */}
+        {/* Profile card — identity, counts, and the two ways to change it */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[24px] overflow-hidden border border-[var(--border)]/30 bg-[var(--bg-surface)]"
+          className="overflow-hidden rounded-[26px] border border-[var(--border)] bg-[var(--bg-surface)]"
         >
-          {/* Backdrop — your own picture, kept on this device */}
+          {/* Backdrop — a band, not a canvas: the face leads the card */}
           <div
-            className="h-40 relative bg-[var(--accent-subtle)] bg-cover bg-center"
+            className="relative h-28 bg-[var(--bg-elevated)] bg-cover bg-center"
             style={backdrop ? { backgroundImage: `url(${backdrop})` } : undefined}
           >
             {!backdrop && (
-              <div className="absolute right-4 top-3 opacity-30">
-                <MusicNotes className="w-8 h-8 text-[var(--accent)]" />
-              </div>
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-br from-[var(--accent-subtle)] via-transparent to-transparent"
+              />
             )}
-            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[var(--bg-surface)] to-transparent" aria-hidden />
-            <button
-              onClick={() => backdropInput.current?.click()}
-              aria-label="Change backdrop"
-              className="absolute right-3 top-3 h-9 w-9 rounded-full bg-black/45 backdrop-blur flex items-center justify-center text-white active:scale-95"
-            >
-              <Camera className="w-[18px] h-[18px]" />
-            </button>
-            {backdrop && (
+            <div
+              aria-hidden
+              className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[var(--bg-surface)] to-transparent"
+            />
+            <div className="absolute right-3 top-3 flex items-center gap-2">
+              {backdrop && (
+                <button
+                  onClick={() => saveBackdrop(null)}
+                  aria-label="Remove backdrop"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-base)]/60 text-[var(--text-primary)] backdrop-blur active:scale-95"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
               <button
-                onClick={() => saveBackdrop(null)}
-                aria-label="Remove backdrop"
-                className="absolute right-14 top-3 h-9 w-9 rounded-full bg-black/45 backdrop-blur flex items-center justify-center text-white active:scale-95"
+                onClick={() => backdropInput.current?.click()}
+                aria-label="Change backdrop"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-base)]/60 text-[var(--text-primary)] backdrop-blur active:scale-95"
               >
-                <X className="w-4 h-4" />
+                <Camera className="h-[16px] w-[16px]" />
               </button>
-            )}
+            </div>
             <input
               ref={backdropInput}
               type="file"
@@ -282,26 +288,47 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
             />
           </div>
 
-          <div className="px-5 pb-5 -mt-12 relative flex flex-col items-center text-center">
-            {user?.image_url ? (
-              <img
-                src={user.image_url}
-                alt={displayUsername}
-                className="w-[96px] h-[96px] rounded-full object-cover border-4 border-[var(--bg-surface)] shadow-xl"
-              />
-            ) : (
-              <div
-                className={cn(
-                  'w-[96px] h-[96px] rounded-full flex items-center justify-center',
-                  'text-3xl font-black text-[var(--accent)] bg-[var(--accent-subtle)]',
-                  'border-4 border-[var(--bg-surface)] shadow-xl',
-                )}
-              >
-                {initials}
-              </div>
-            )}
+          {/* The band above is positioned, so the content has to be too —
+              otherwise it paints underneath and clips the avatar. */}
+          <div className="relative px-5 pb-5">
+            <div className="-mt-9 flex items-end justify-between gap-3">
+              {user?.image_url ? (
+                <img
+                  src={user.image_url}
+                  alt={displayUsername}
+                  className="h-[80px] w-[80px] rounded-full border-[3px] border-[var(--bg-surface)] object-cover shadow-lg"
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'flex h-[80px] w-[80px] items-center justify-center rounded-full',
+                    'border-[3px] border-[var(--bg-surface)] bg-[var(--accent-subtle)]',
+                    'text-[26px] font-black text-[var(--accent)] shadow-lg',
+                  )}
+                >
+                  {initials}
+                </div>
+              )}
 
-            <div className="mt-3 w-full">
+              <div className="flex items-center gap-2 pb-1">
+                <button
+                  onClick={startEditUsername}
+                  className="flex h-9 items-center gap-1.5 rounded-full bg-[var(--bg-elevated)] px-3.5 text-xs font-bold text-[var(--text-primary)] active:scale-95"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => navigate('/account')}
+                  aria-label="Account settings"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-primary)] active:scale-95"
+                >
+                  <GearSix className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3">
               <AnimatePresence mode="wait" initial={false}>
                 {editingUsername ? (
                   <motion.div
@@ -319,24 +346,24 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
                         if (e.key === 'Enter') saveUsername()
                         if (e.key === 'Escape') cancelEdit()
                       }}
-                      className="flex-1 h-10 px-3 text-lg font-bold rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)] text-[var(--text-primary)] outline-none"
+                      className="h-10 flex-1 rounded-xl border border-[var(--accent)] bg-[var(--bg-elevated)] px-3 text-lg font-bold text-[var(--text-primary)] outline-none"
                     />
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={saveUsername}
                       disabled={saving}
                       aria-label="Save username"
-                      className="w-10 h-10 rounded-xl bg-[var(--success)] flex items-center justify-center"
+                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--success)]"
                     >
-                      <Check className="w-5 h-5 text-white" />
+                      <Check className="h-5 w-5 text-white" />
                     </motion.button>
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={cancelEdit}
                       aria-label="Cancel"
-                      className="w-10 h-10 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center"
+                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-elevated)]"
                     >
-                      <X className="w-5 h-5 text-[var(--text-muted)]" />
+                      <X className="h-5 w-5 text-[var(--text-muted)]" />
                     </motion.button>
                   </motion.div>
                 ) : (
@@ -346,72 +373,56 @@ function ProfileBody({ signOut }: { signOut?: () => Promise<void> }) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                   >
-                    <h2 className="text-[22px] font-black text-[var(--text-primary)] truncate">
+                    <h2 className="truncate text-[21px] font-black leading-tight text-[var(--text-primary)]">
                       @{displayUsername}
                     </h2>
-                    {email && email !== displayUsername && (
-                      <p className="mt-0.5 flex items-center justify-center gap-1.5 text-[13px] text-[var(--text-muted)]">
-                        <EnvelopeSimple className="w-3.5 h-3.5" />
-                        {email}
-                      </p>
-                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--text-muted)]">
+                      {email && email !== displayUsername && (
+                        <span className="flex min-w-0 items-center gap-1">
+                          <EnvelopeSimple className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="truncate">{email}</span>
+                        </span>
+                      )}
+                      {memberSince && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                          Joined {memberSince}
+                        </span>
+                      )}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Counts row, TikTok-style */}
-            <div className="mt-4 flex items-stretch justify-center divide-x divide-[var(--border)]/50">
+            {/* Counts — the three numbers that describe the account */}
+            <div className="mt-4 grid grid-cols-3 divide-x divide-[var(--border)] rounded-2xl bg-[var(--bg-elevated)] py-2.5">
               {[
                 { v: formatCount(trackCount), l: 'Library' },
                 { v: formatCount(likedCount ?? 0), l: 'Saved' },
                 { v: formatCount(stats?.total_plays ?? 0), l: 'Plays' },
               ].map((c) => (
-                <div key={c.l} className="px-6">
-                  <p className="text-[18px] font-bold text-[var(--text-primary)] tabular-nums">{c.v}</p>
-                  <p className="text-[12px] text-[var(--text-muted)]">{c.l}</p>
+                <div key={c.l} className="px-2 text-center">
+                  <p className="text-[17px] font-bold leading-none tabular-nums text-[var(--text-primary)]">
+                    {c.v}
+                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--text-muted)]">{c.l}</p>
                 </div>
               ))}
             </div>
-
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                onClick={startEditUsername}
-                className="flex items-center gap-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] px-5 py-2 text-sm font-semibold text-[var(--text-primary)] active:scale-[0.98]"
-              >
-                <Pencil className="w-3.5 h-3.5" /> Edit profile
-              </button>
-              <button
-                onClick={() => navigate('/account')}
-                aria-label="Account settings"
-                className="rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] p-2.5 text-[var(--text-primary)] active:scale-[0.98]"
-              >
-                <GearSix className="w-4 h-4" />
-              </button>
-            </div>
-
-            {memberSince && (
-              <p className="mt-3 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
-                <Calendar className="w-3 h-3" />
-                Member since {memberSince}
-              </p>
-            )}
           </div>
         </motion.div>
 
-        {/* Stats grid */}
+        {/* Listening — the numbers the card above does not carry */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2 px-1">
-            Your stats
+          <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+            Listening
           </p>
-          <div className="grid grid-cols-3 gap-2">
-            <ProfileStat icon={MusicNotes} label="Library" value={formatCount(trackCount)} />
-            <ProfileStat icon={Heart} label="Saved" value={formatCount(likedCount ?? 0)} />
-            <ProfileStat icon={TrendUp} label="Plays" value={formatCount(stats?.total_plays ?? 0)} />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <ProfileStat icon={Clock} label="Hours" value={stats?.estimated_listening_hours ?? 0} />
             <ProfileStat icon={ChartLineUp} label="7-day plays" value={stats?.plays_7d ?? 0} />
             <ProfileStat icon={Calendar} label="Active days" value={stats?.active_days_30d ?? 0} />

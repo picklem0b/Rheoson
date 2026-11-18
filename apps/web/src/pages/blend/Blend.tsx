@@ -419,7 +419,7 @@ function MembersSheet({
          <div className='relative z-10 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-[var(--bg-surface)]
                          border border-[var(--border)] overflow-hidden'>
             <div className='px-5 py-4 border-b border-[var(--border)] flex items-center justify-between'>
-               <h2 className='text-base font-bold text-[var(--text-primary)]'>Members</h2>
+               <h2 className='text-[16px] font-bold text-[var(--text-primary)]'>Members</h2>
                <button onClick={onClose} aria-label='Close members'
                        className='w-8 h-8 rounded-full flex items-center justify-center
                                   text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'>

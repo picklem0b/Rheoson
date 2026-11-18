@@ -62,7 +62,7 @@ function PersonaCard({ persona }: { persona: NonNullable<TasteProfileInfo['perso
         </div>
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider font-bold text-[var(--accent)]">Your listener type</p>
-          <p className="text-base font-bold text-[var(--text-primary)] leading-tight mt-0.5">{persona.label}</p>
+          <p className="text-[16px] font-bold text-[var(--text-primary)] leading-tight mt-0.5">{persona.label}</p>
           <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{persona.description}</p>
         </div>
       </div>

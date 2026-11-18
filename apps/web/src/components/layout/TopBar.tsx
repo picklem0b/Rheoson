@@ -57,7 +57,7 @@ export default function TopBar({
             </IconButton>
           </div>
           {title ? (
-            <h1 className="flex-1 text-base font-semibold text-[var(--text-primary)] truncate">
+            <h1 className="flex-1 text-[16px] font-semibold text-[var(--text-primary)] truncate">
               {title}
             </h1>
           ) : (

@@ -54,12 +54,20 @@ export default function PlayerControls({
         active={isShuffled}
         onClick={toggleShuffle}
         title="Shuffle"
-        className={cn(!isShuffled && 'opacity-50')}
+        className={cn(!isShuffled && (large ? 'opacity-70' : 'opacity-50'))}
       >
         <Shuffle />
       </IconButton>
 
-      <IconButton size={skipSize} variant="ghost" onClick={skipPrev} title="Previous">
+      {/* The skips are the controls people reach for, so on the full player
+          they carry primary contrast instead of the muted ghost default. */}
+      <IconButton
+        size={skipSize}
+        variant="ghost"
+        onClick={skipPrev}
+        title="Previous"
+        className={cn(large && 'text-[var(--text-primary)]')}
+      >
         <SkipBack className="fill-current" />
       </IconButton>
 
@@ -71,7 +79,13 @@ export default function PlayerControls({
         large={large}
       />
 
-      <IconButton size={skipSize} variant="ghost" onClick={skipNext} title="Next">
+      <IconButton
+        size={skipSize}
+        variant="ghost"
+        onClick={skipNext}
+        title="Next"
+        className={cn(large && 'text-[var(--text-primary)]')}
+      >
         <SkipForward className="fill-current" />
       </IconButton>
 
@@ -84,7 +98,7 @@ export default function PlayerControls({
           repeatMode === 'one' ? 'Repeat one' :
           repeatMode === 'all' ? 'Repeat all' : 'Repeat off'
         }
-        className={cn(repeatMode === 'off' && 'opacity-50')}
+        className={cn(repeatMode === 'off' && (large ? 'opacity-70' : 'opacity-50'))}
       >
         {repeatMode === 'one' ? <RepeatOnce /> : <Repeat />}
       </IconButton>
