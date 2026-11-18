@@ -2,6 +2,7 @@ import type { TrackSummary } from '@rheoson/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ErrorCodeChip } from '@/components/feedback/errorCodeChip'
+import { ArtworkImage } from '@/components/ui/artworkImage'
 import { Button } from '@/components/ui/button'
 import { ApiFailure } from '@/lib/api/apiError'
 import { searchTracks } from '@/lib/api/catalogue'
@@ -49,19 +50,25 @@ export function TrackSearch({ onPlay }: { onPlay: (tracks: TrackSummary[], index
           placeholder="Search tracks and artists"
           autoComplete="off"
           spellCheck={false}
-          className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <Button type="submit" disabled={!term.trim()}>
+        <Button type="submit" className="shrink-0" disabled={!term.trim()}>
           Search
         </Button>
       </form>
+
+      {!query ? (
+        <p className="text-sm leading-6 text-muted-foreground">
+          Search a track, an artist or a mood. Everything the list returns becomes the queue.
+        </p>
+      ) : null}
 
       {query ? (
         <p className="text-2xs text-muted-foreground">
           {results.isPending
             ? 'Searching'
             : items.length === 0
-              ? `Nothing for “${query}”`
+              ? `Nothing for “${query}”. Try a different spelling or another artist.`
               : `${items.length} ${items.length === 1 ? 'track' : 'tracks'} for “${query}”`}
         </p>
       ) : null}
@@ -85,16 +92,7 @@ export function TrackSearch({ onPlay }: { onPlay: (tracks: TrackSummary[], index
                 onClick={() => onPlay(items, index)}
                 className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
               >
-                {track.artworkUrl ? (
-                  <img
-                    src={track.artworkUrl}
-                    alt=""
-                    loading="lazy"
-                    className="size-10 shrink-0 rounded-sm object-cover"
-                  />
-                ) : (
-                  <span aria-hidden className="size-10 shrink-0 rounded-sm bg-muted" />
-                )}
+                <ArtworkImage src={track.artworkUrl} className="size-10 shrink-0" />
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-sm">{track.title}</span>
                   <span className="truncate text-2xs text-muted-foreground">{track.artistName}</span>

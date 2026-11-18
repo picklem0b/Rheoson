@@ -63,10 +63,13 @@ The shortest honest route from a query to sound. One provider, one search, one a
 - `v3.1.2` the search and stream endpoints, validated, cached for a minute per isolate, resolved per play
 - `v3.1.3` the search surface: a term, a result list, the list as the queue
 - `v3.1.4` the audio element: play, pause, seek, next, previous, and a failure that says why
+- `v3.1.5` the plan: listening before the shell, the deferred design phase (this file)
+- `v3.1.6` the brand mark as an icon set: the mark cropped square, a real multi-size favicon, a touch icon, a logo asset
+- `v3.1.7` the listening screen: the mark in the header, search first, the deployment report demoted to a footer disclosure, a disabled button that stays readable
 
 **Exit criteria:** a query returns real Audius tracks and pressing one plays it in the browser, with the URL asked for at play time and never stored.
 
-Phase 1 deliberately excludes: accounts, a persisted queue, a stored library, offline audio and any visual redesign. The page keeps the tokens and the layout it has.
+Phase 1 deliberately excludes: accounts, a persisted queue, a stored library, offline audio and any visual redesign. The screens keep the tokens they have; `v3.1.6` and `v3.1.7` fix the icon set and the arrangement of the parts already there, they do not draw a new design.
 
 ## Phase 2: Player
 

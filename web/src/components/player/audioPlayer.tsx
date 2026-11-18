@@ -1,5 +1,6 @@
 import type { TrackSummary } from '@rheoson/shared'
 import { useEffect, useRef, useState } from 'react'
+import { ArtworkImage } from '@/components/ui/artworkImage'
 import { Button } from '@/components/ui/button'
 import { ApiFailure } from '@/lib/api/apiError'
 import { resolveStream } from '@/lib/api/catalogue'
@@ -88,11 +89,7 @@ export function AudioPlayer({ playback }: { playback: Playback | null }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-card/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-2xl items-center gap-3 px-6 py-3">
-        {track.artworkUrl ? (
-          <img src={track.artworkUrl} alt="" className="size-12 shrink-0 rounded-sm object-cover" />
-        ) : (
-          <span aria-hidden className="size-12 shrink-0 rounded-sm bg-muted" />
-        )}
+        <ArtworkImage src={track.artworkUrl} className="size-12 shrink-0" />
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex items-baseline gap-2">
