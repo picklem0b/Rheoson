@@ -1,0 +1,4 @@
+android/app/rheoson-release.keystore
+
+# Generated per chat so the cloud preview host is allowed. Never committed.
+vite.preview.config.ts
