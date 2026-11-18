@@ -173,10 +173,12 @@ export default function RootLayout() {
                   <BottomNav />
                </motion.nav>
 
-               {/* Playback settings drawer — mounted once at shell level; opens
-                   from the PlayerBar overflow menu via rheoson:playback-settings */}
-               <PlaybackSettings trigger={false} />
             </div>
+
+            {/* ── Playback settings sheet — shell level, not inside the
+                   mobile-only wrapper: mounting it there made it invisible on
+                   desktop, where the player's overflow still opens it ── */}
+            <PlaybackSettings trigger={false} />
 
             {/* ── Global download progress pill ─────────────── */}
             <DownloadProgressBar />

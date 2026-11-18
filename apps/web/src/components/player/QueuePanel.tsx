@@ -58,7 +58,9 @@ export default function QueuePanel() {
               className={cn(
                 'fixed inset-x-0 bottom-0 z-50 max-h-[82vh] flex flex-col',
                 'rounded-t-3xl glass-strong border-t border-[var(--border)]',
-                'pb-[calc(var(--player-height,72px)+var(--nav-height,64px))]',
+                // No player/nav padding here: the sheet paints above both, so
+                // the padding was a 144px empty band that hid the mini player
+                // and pushed the list up without revealing anything.
                 'sm:left-auto sm:right-4 sm:w-96 sm:max-w-[92vw] sm:rounded-3xl sm:mb-4'
               )}
             >
@@ -91,7 +93,7 @@ export default function QueuePanel() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 px-3 py-3">
+              <ScrollArea className="flex-1 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] overscroll-contain">
                 {/* Now playing */}
                 <div className="mb-4">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] px-3 mb-2">
@@ -221,7 +223,6 @@ function AddToQueueModal({ onClose }: { onClose: () => void }) {
       <div className="relative mb-4 flex-shrink-0">
         <MagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
         <input
-          autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search songs to queue…"

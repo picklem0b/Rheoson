@@ -50,6 +50,9 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
             animate={{ opacity: 1, y: 0,  scale: 1 }}
             exit={{   opacity: 0, y: 40, scale: 0.96 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title ?? 'Dialog'}
             className={cn(
               'relative z-10 w-full glass-strong rounded-3xl p-6 shadow-2xl',
               sizes[size],

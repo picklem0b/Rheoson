@@ -8,10 +8,10 @@ import {
   Repeat,
   Gauge,
   ArrowsOutSimple,
+  CaretRight,
 } from '@phosphor-icons/react'
 import SleepTimer from './SleepTimer'
 import { IconButton } from '@/components/ui/IconButton'
-import { Button } from '@/components/ui/Button'
 import { usePlayerStore } from '@/store/player.store'
 import { useUIStore } from '@/store/ui.store'
 import { getPlaybackRate, setPlaybackRate } from '@/hooks/player.hook'
@@ -41,8 +41,8 @@ function Row({ label, hint, children }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-3">
-      <div className="min-w-0">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
+      <div className="min-w-[8rem] flex-1">
         <p className="text-sm font-semibold text-[var(--text-primary)]">{label}</p>
         {hint && <p className="text-xs text-[var(--text-muted)] mt-0.5">{hint}</p>}
       </div>
@@ -58,7 +58,7 @@ function Segmented({ options, value, onChange, ariaLabel }: {
   ariaLabel: string
 }) {
   return (
-    <div className="inline-flex rounded-full bg-[var(--bg-elevated)] p-0.5 flex-shrink-0" role="radiogroup" aria-label={ariaLabel}>
+    <div className="inline-flex max-w-full rounded-full bg-[var(--bg-elevated)] p-0.5 flex-shrink-0" role="radiogroup" aria-label={ariaLabel}>
       {options.map(o => (
         <button
           key={o.id}
@@ -107,6 +107,16 @@ export default function PlaybackSettings({ trigger = true }: { trigger?: boolean
     return () => window.removeEventListener('rheoson:playback-settings', open2)
   }, [])
 
+  // Escape closes the sheet, matching every other dialog in the shell.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
   useBackButton(open, () => setOpen(false))
 
   const chooseSpeed = (v: number) => {
@@ -154,19 +164,30 @@ export default function PlaybackSettings({ trigger = true }: { trigger?: boolean
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed inset-x-0 bottom-0 z-[61] p-4 max-h-[70vh]"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Playback settings"
+              className="fixed inset-x-0 bottom-0 z-[61] px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 sm:mx-auto sm:max-w-lg sm:px-0 sm:pb-6"
             >
-              <div className="glass-strong rounded-3xl border border-[var(--border)] overflow-hidden flex flex-col">
+              {/* The card, not the wrapper, owns the height: a max height on
+                  the wrapper alone let the card grow past the screen edge and
+                  the last rows (Equalizer, Sleep timer) became unreachable. */}
+              <div className="glass-strong rounded-3xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[calc(85dvh-1.5rem)]">
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] flex-shrink-0">
                   <h3 className="font-bold text-[var(--text-primary)]">Playback settings</h3>
-                  <IconButton size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setOpen(false)}
+                    aria-label="Close playback settings"
+                  >
                     <X className="w-4 h-4" />
                   </IconButton>
                 </div>
 
                 {/* Content */}
-                <div className="overflow-y-auto flex-1 px-5 py-2 divide-y divide-[var(--border)]">
+                <div className="overflow-y-auto overscroll-contain flex-1 min-h-0 px-5 py-2 pb-4 divide-y divide-[var(--border)]">
                   {/* Speed */}
                   <Row label="Speed" hint="Tempo of playback">
                     <Segmented
@@ -230,27 +251,31 @@ export default function PlaybackSettings({ trigger = true }: { trigger?: boolean
                   </Row>
 
                   {/* EQ + Sleep hand-offs */}
-                  <div className="py-3 space-y-2">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
+                  <div className="py-1">
+                    <button
+                      type="button"
                       onClick={() => {
                         toggleEqualizer()
                         setOpen(false)
                       }}
+                      className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                     >
-                      <SlidersHorizontal className="w-4 h-4" /> Equalizer
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
+                      <SlidersHorizontal className="w-4 h-4" />
+                      <span className="flex-1">Equalizer</span>
+                      <CaretRight className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
                         setSleepOpen(true)
                         setOpen(false)
                       }}
+                      className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                     >
-                      <Moon className="w-4 h-4" /> Sleep timer
-                    </Button>
+                      <Moon className="w-4 h-4" />
+                      <span className="flex-1">Sleep timer</span>
+                      <CaretRight className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
                     <div className="flex items-center gap-2 pt-1 text-xs text-[var(--text-muted)]">
                       <Gauge className="w-4 h-4" />
                       <span>Speed applies to the current track instantly</span>

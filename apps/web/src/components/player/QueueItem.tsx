@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { DotsSixVertical, ListPlus, X } from '@phosphor-icons/react'
+import { ListPlus, X } from '@phosphor-icons/react'
 import type { Track } from '@/types'
 import { usePlayerStore } from '@/store/player.store'
 import { useQueue } from '@/hooks/queue.hook'
@@ -40,9 +40,6 @@ export default function QueueItem({ track, index }: QueueItemProps) {
       {...contextMenu}
       {...intent}
     >
-      {/* Drag handle */}
-      <DotsSixVertical className="w-4 h-4 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 cursor-grab flex-shrink-0" />
-
       {/* Artwork */}
       <button
         onClick={() => playTrack(track)}
@@ -72,11 +69,16 @@ export default function QueueItem({ track, index }: QueueItemProps) {
 
       {/* Actions */}
       <div className="flex items-center flex-shrink-0">
+        {/* Visible on touch, revealed on hover where a pointer can hover.
+            Hiding them behind group-hover left phones with no way to remove
+            or re-file a queued track. */}
         <IconButton
           size="xs"
           variant="ghost"
           onClick={() => usePlaylistMenuStore.getState().openForTrack(track)}
-          className="opacity-0 group-hover:opacity-100"
+          title="Add to playlist"
+          aria-label="Add to playlist"
+          className="opacity-70 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
         >
           <ListPlus />
         </IconButton>
@@ -84,7 +86,9 @@ export default function QueueItem({ track, index }: QueueItemProps) {
           size="xs"
           variant="ghost"
           onClick={() => removeFromQueue(index)}
-          className="opacity-0 group-hover:opacity-100"
+          title="Remove from queue"
+          aria-label="Remove from queue"
+          className="opacity-70 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
         >
           <X />
         </IconButton>

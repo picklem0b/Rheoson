@@ -53,6 +53,16 @@ function TrackRow({
          initial={{ opacity: 0, y: 6 }}
          animate={{ opacity: 1, y: 0 }}
          transition={{ delay: index * 0.025, duration: 0.2 }}
+         role='button'
+         tabIndex={0}
+         onKeyDown={e => {
+            // Ignore keys aimed at the row's own action buttons.
+            if (e.target !== e.currentTarget) return
+            if (e.key === 'Enter' || e.key === ' ') {
+               e.preventDefault()
+               onPlay()
+            }
+         }}
          className='flex items-center gap-3 px-3 py-2.5 rounded-2xl
                  active:bg-[var(--bg-elevated)] hover:bg-[var(--bg-elevated)]
                  transition-colors cursor-pointer group'
@@ -243,50 +253,49 @@ function HistoryRow({
 
    return (
       <div
-         role='button'
-         tabIndex={0}
-         onClick={open}
-         onKeyDown={e => {
-            if (e.key === "Enter" || e.key === " ") {
-               e.preventDefault();
-               open();
-            }
-         }}
-         className='group flex items-center gap-3 px-3 py-2 rounded-2xl cursor-pointer
+         className='group flex items-center gap-2 px-3 py-2 rounded-2xl
                  transition-colors hover:bg-[var(--bg-elevated)] active:bg-[var(--bg-elevated)]'>
-         {/* Leading artwork — the song that was played, or a search glyph */}
-         {track ? (
-            <ArtworkImage
-               src={track.artworkUrl}
-               alt={track.title}
-               size={44}
-               radius='rounded-xl'
-               iconScale={0.4}
-               className='w-11 h-11'
-            />
-         ) : (
-            <div className='w-11 h-11 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0'>
-               <SearchIcon className='w-4 h-4 text-[var(--text-muted)]' />
-            </div>
-         )}
+         {/* The row and the remove button are siblings: nesting the remove
+             button inside a clickable row made one hit target inside another. */}
+         <button
+            type='button'
+            onClick={open}
+            aria-label={track ? `Play ${track.title}` : `Search for ${entry.query}`}
+            className='flex flex-1 min-w-0 items-center gap-3 text-left'>
+            {/* Leading artwork — the song that was played, or a search glyph */}
+            {track ? (
+               <ArtworkImage
+                  src={track.artworkUrl}
+                  alt={track.title}
+                  size={44}
+                  radius='rounded-xl'
+                  iconScale={0.4}
+                  className='w-11 h-11'
+               />
+            ) : (
+               <span className='w-11 h-11 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0'>
+                  <SearchIcon className='w-4 h-4 text-[var(--text-muted)]' />
+               </span>
+            )}
 
-         <div className='flex-1 min-w-0'>
-            <p className='text-sm font-semibold text-[var(--text-primary)] truncate leading-tight'>
-               {track ? track.title : entry.query}
-            </p>
-            <p className='flex items-center gap-1.5 text-xs text-[var(--text-muted)] truncate mt-0.5 leading-tight'>
-               {track ? (
-                  <>
-                     <SearchIcon className='w-3 h-3 flex-shrink-0' />
-                     <span className='truncate'>
-                        Searched &quot;{entry.query}&quot; · {track.artistName}
-                     </span>
-                  </>
-               ) : (
-                  <span className='truncate'>Recent search</span>
-               )}
-            </p>
-         </div>
+            <span className='flex-1 min-w-0 block'>
+               <span className='block text-sm font-semibold text-[var(--text-primary)] truncate leading-tight'>
+                  {track ? track.title : entry.query}
+               </span>
+               <span className='flex items-center gap-1.5 text-xs text-[var(--text-muted)] mt-0.5 leading-tight'>
+                  {track ? (
+                     <>
+                        <SearchIcon className='w-3 h-3 flex-shrink-0' />
+                        <span className='truncate'>
+                           Searched &quot;{entry.query}&quot; · {track.artistName}
+                        </span>
+                     </>
+                  ) : (
+                     <span className='truncate'>Recent search</span>
+                  )}
+               </span>
+            </span>
+         </button>
 
          <button
             onClick={e => {
