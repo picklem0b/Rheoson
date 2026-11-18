@@ -12,6 +12,8 @@ export default tseslint.config(
       // reference material, not source we lint.
       'skills/**',
       '.agents/**',
+      // main's web app still ships its own ESLint 8 config and lints itself.
+      'apps/web/**',
       'agent/**',
       '.claude/**',
     ],

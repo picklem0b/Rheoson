@@ -56,7 +56,7 @@ animate at all, because an animation on a key press reads as lag.
 
 From shadcn for the primitives a design system should not reinvent: button,
 sheet, dialog, toast, skeleton, slider, avatar, scroll area. The CLI config
-lands in `web/components.json`; the primitives arrive with M3.
+lands in `apps/web/components.json`; the primitives arrive with M3.
 
 Owned by us, because they carry product meaning:
 

@@ -26,7 +26,7 @@ jobs:
       - name: Migrations match the schema
         run: |
           pnpm db:generate
-          git diff --exit-code -- api/drizzle
+          git diff --exit-code -- apps/api/drizzle
 
       - name: Typecheck
         run: pnpm typecheck
@@ -35,7 +35,7 @@ jobs:
         run: pnpm lint
 
       - name: Build the web app
-        run: pnpm --filter web build
+        run: pnpm --filter @rheoson/web build
 
       - name: Build the worker without deploying
-        run: pnpm --filter api exec wrangler deploy --dry-run --outdir dist
+        run: pnpm --filter @rheoson/api exec wrangler deploy --dry-run --outdir dist

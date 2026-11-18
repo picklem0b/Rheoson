@@ -12,10 +12,10 @@ build/
 # once hid legacy/web-config/.env.production from the index.
 /.env
 /.env.local
-/web/.env
-/web/.env.local
-/api/.env
-/api/.dev.vars
+/apps/web/.env
+/apps/web/.env.local
+/apps/api/.env
+/apps/api/.dev.vars
 
 # Music and downloads were V2 assets and are never part of V3.
 /music/

@@ -1,0 +1,22 @@
+# Copy to .dev.vars, which Wrangler reads and git ignores.
+
+ENVIRONMENT=development
+RATE_LIMIT_PER_MINUTE=120
+# The name Audius attributes traffic to. Not a key; any unique string works.
+AUDIUS_APP_NAME=Rheoson
+
+# The Vite dev origin, so the allowlist is exercised locally the way it is in
+# production. Localhost is also allowed by shape outside production.
+APP_ORIGINS=http://localhost:3000
+
+# Provider keys. Missing keys are skipped, never fatal: Audius, Deezer and
+# iTunes work with none of these set.
+# JAMENDO_CLIENT_ID=your-client-id
+# SOUNDCLOUD_CLIENT_ID=your-client-id
+
+# Absent means the app runs without a database: accounts answer from the token.
+# DATABASE_URL=postgresql://user:password@host/db?sslmode=require
+
+# Absent means /me answers 401 rather than pretending a session is valid.
+# CLERK_JWKS_URL=https://your-instance.clerk.accounts.dev/.well-known/jwks.json
+# CLERK_ISSUER=https://your-instance.clerk.accounts.dev

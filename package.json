@@ -9,16 +9,17 @@
   },
   "packageManager": "pnpm@10.34.9",
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "dev:api": "pnpm --filter api dev",
-    "build": "pnpm --filter web build",
+    "dev": "pnpm --filter @rheoson/web dev",
+    "dev:api": "pnpm --filter @rheoson/api dev:bridge",
+    "build": "pnpm --filter @rheoson/web build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:generate": "pnpm --filter api db:generate",
-    "db:migrate": "pnpm --filter api db:migrate",
-    "db:studio": "pnpm --filter api db:studio"
+    "db:generate": "pnpm --filter @rheoson/api db:generate",
+    "db:migrate": "pnpm --filter @rheoson/api db:migrate",
+    "db:studio": "pnpm --filter @rheoson/api db:studio",
+    "dev:worker": "pnpm --filter @rheoson/api dev"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

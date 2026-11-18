@@ -14,7 +14,7 @@ import { z } from 'zod'
  * placeholder, never a merge key.
  */
 
-export const PROVIDERS = ['audius', 'jamendo', 'local'] as const
+export const PROVIDERS = ['audius', 'jamendo', 'soundcloud', 'deezer', 'itunes', 'local'] as const
 export const providerSchema = z.enum(PROVIDERS)
 export type Provider = z.infer<typeof providerSchema>
 

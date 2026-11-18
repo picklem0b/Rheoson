@@ -15,8 +15,8 @@ V3 is being rebuilt on `development` from `main`'s commit, and phase 0 (`v3.0.1`
 ## Layout
 
 ```
-web/                Vite + React SPA, static assets on Vercel
-api/                Hono on Cloudflare Workers, /api/v1, Drizzle over Neon
+apps/web/           Vite + React SPA, static assets on Vercel
+apps/api/           Hono on Cloudflare Workers, /api/v1, Drizzle over Neon
 packages/shared/    zod contracts, envelope, error registry, track identity
 docs/               PRD, ARCHITECTURE, DESIGN, ROADMAP
 skills/             agent skills the work is done with
@@ -37,7 +37,7 @@ Web and API are separate origins in production, so the client reads its base URL
 
 | Variable | Where | What it does |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | `web/.env` | API origin plus `/api/v1`; unset means same-origin |
+| `VITE_API_BASE_URL` | `apps/web/.env` | API origin plus `/api/v1`; unset means same-origin |
 | `APP_ORIGINS` | worker secret | comma-separated exact origins allowed to call the API |
 | `DATABASE_URL` | worker secret | Neon connection string; absent means the app runs without a database |
 | `CLERK_JWKS_URL` | worker secret | verifies session tokens |
@@ -45,7 +45,7 @@ Web and API are separate origins in production, so the client reads its base URL
 | `RATE_LIMIT_PER_MINUTE` | worker var | per-caller window, default 120 |
 | `ENVIRONMENT` | worker var | `development` or `production`; gates localhost CORS |
 
-`web/.env.example` and `api/.dev.vars.example` are the tracked examples. The real files are ignored.
+`apps/web/.env.example` and `apps/api/.dev.vars.example` are the tracked examples. The real files are ignored.
 
 ## Commands
 
@@ -54,7 +54,7 @@ Web and API are separate origins in production, so the client reads its base URL
 | `pnpm typecheck` | every package, `tsc --noEmit` |
 | `pnpm lint` | ESLint over the tree |
 | `pnpm build` | the web app, typechecked first |
-| `pnpm db:generate` | a migration from `api/src/db/schema.ts` |
+| `pnpm db:generate` | a migration from `apps/api/src/db/schema.ts` |
 | `pnpm db:migrate` | runs migrations against `DATABASE_URL` |
 
 ## Docs

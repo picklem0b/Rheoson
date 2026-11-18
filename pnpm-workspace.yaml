@@ -1,6 +1,5 @@
 packages:
-  - web
-  - api
+  - apps/*
   - packages/*
 
 # pnpm 10 blocks lifecycle scripts by default. esbuild and workerd need theirs

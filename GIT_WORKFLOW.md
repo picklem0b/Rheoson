@@ -80,8 +80,8 @@ A change is ready to tag when:
 
 - `pnpm typecheck` passes with zero errors
 - `pnpm lint` passes with zero errors
-- `pnpm --filter web build` succeeds
-- `pnpm --filter api exec wrangler deploy --dry-run` succeeds when the worker, its bindings or its dependencies changed
+- `pnpm --filter @rheoson/web build` succeeds
+- `pnpm --filter @rheoson/api exec wrangler deploy --dry-run` succeeds when the worker, its bindings or its dependencies changed
 - The stated behaviour has been manually or automatically verified
 - `docs/ROADMAP.md` reflects the tag that was cut
 

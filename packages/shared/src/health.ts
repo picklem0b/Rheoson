@@ -13,6 +13,9 @@ export const healthReportSchema = z.object({
   checks: z.object({
     database: z.enum(['configured', 'unconfigured']),
     accounts: z.enum(['configured', 'unconfigured']),
+    // A catalogue needs one working provider, not every one: `partial` is a
+    // healthy state, `unconfigured` is the one that means no music at all.
+    providers: z.enum(['configured', 'partial', 'unconfigured']),
   }),
 })
 

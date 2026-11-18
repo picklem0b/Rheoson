@@ -10,7 +10,7 @@ browser (Vite SPA on Vercel, static assets, free and uncounted)
 Worker: Hono /api/v1  ──────────►  Neon Postgres (Drizzle)
    |                                   accounts, library, playlists, history
    |
-   └──►  music providers (Audius, later others)
+   └──►  music providers (Audius, Jamendo, SoundCloud, Deezer, iTunes)
             search, metadata, and the audio stream itself
 ```
 
@@ -18,7 +18,7 @@ Three properties hold the design together:
 
 1. **The app is static.** Every route is a file. No Worker invocation renders a page, which is why the request budget is spent on data rather than on HTML.
 2. **The Worker is stateless.** It holds no session, no queue, no cache that must outlive a request. Anything that survives is in Postgres or in the client.
-3. **The provider serves its own audio.** We resolve a stream URL and hand it to the audio element. We never proxy bytes.
+3. **The provider serves its own audio.** We resolve a stream URL and hand it to the audio element. The deployed API never proxies bytes; only the local development bridge does, so the copied V2 client plays without asking a provider for CORS headers it may not send.
 
 ## Branches and deployment
 
@@ -28,19 +28,19 @@ Three properties hold the design together:
 | `dev` | the release candidate | staging, from `v3.9.0` |
 | `main` | production | production, from `v3.10.0` |
 
-Two deploy targets, because a static app and a Worker have nothing to gain from sharing a host. Vercel builds `web/` with the project root set to `web`. Workers builds `api/` with `wrangler deploy`. Each has its own environment variables and neither can see the other's secrets.
+Two deploy targets, because a static app and a Worker have nothing to gain from sharing a host. Vercel builds `apps/web/` with the project root set to `apps/web`. Workers builds `apps/api/` with `wrangler deploy`. Each has its own environment variables and neither can see the other's secrets.
 
 ## Packages
 
 | Path | Holds | Depends on |
 | --- | --- | --- |
-| `web/` | React app, stores, audio engine | `@rheoson/shared` |
-| `api/` | Hono routes, services, repositories, Drizzle | `@rheoson/shared` |
+| `apps/web/` | React app, stores, audio engine | `@rheoson/shared` |
+| `apps/api/` | Hono routes, services, repositories, Drizzle | `@rheoson/shared` |
 | `packages/shared/` | contracts: envelope, error registry, zod schemas, identity | nothing |
 
-`db/` lives inside `api/` because only the API touches Postgres. A package earns its place when it has two consumers, and today only `shared` does.
+`db/` lives inside `apps/api/` because only the API touches Postgres. A package earns its place when it has two consumers, and today only `shared` does.
 
-Inside `api/src` the request path is the folder path:
+Inside `apps/api/src` the request path is the folder path:
 
 | Path | Holds |
 | --- | --- |
@@ -83,12 +83,12 @@ The error registry is DCCNN: one domain letter, a two-letter category, two digit
 | Piece | Where | Note |
 | --- | --- | --- |
 | envelope, errors, primitives | `packages/shared` | the single source of every shape |
-| worker with middleware | `api/src` | context, CORS, rate limit, error handler |
-| `/health` and `/me` | `api/src/routes` | health reads bindings, `/me` reads the token |
-| `users` table and client | `api/src/db` | first migration is generated and committed |
-| accounts | `api/src/services/accounts.ts` | the only layer that chooses token or row |
-| tokens domain | `web/src` | primitives, semantic names, component bindings |
-| status page | `web/src/pages/homePage.tsx` | proves the env-driven base URL end to end |
+| worker with middleware | `apps/api/src` | context, CORS, rate limit, error handler |
+| `/health` and `/me` | `apps/api/src/routes` | health reads bindings, `/me` reads the token |
+| `users` table and client | `apps/api/src/db` | first migration is generated and committed |
+| accounts | `apps/api/src/services/accounts.ts` | the only layer that chooses token or row |
+| tokens domain | `apps/web/src` | primitives, semantic names, component bindings |
+| status page | `apps/web/src/pages/homePage.tsx` | proves the env-driven base URL end to end |
 
 ## Where state lives
 
@@ -109,9 +109,22 @@ One interface, one canonical model:
 search(query, opts) → ProviderTrack[]
 resolveTrack(providerId) → ProviderTrack
 streamUrl(providerId) → { url, expiresAt, mime }
+trending(limit)?       → ProviderTrack[]     (optional; not every provider has a chart)
 ```
 
 Adapters keep their own quirks and never leak them upward: a provider field with no canonical home stays inside the adapter. Canonical records merge only on ISRC or MusicBrainz id, per `packages/shared/src/track.ts`.
+
+Five adapters sit behind that interface, and the registry (`apps/api/src/providers/registry.ts`) decides which of them answer:
+
+| Provider | Key | Stream | Role |
+| --- | --- | --- | --- |
+| Audius | none | full | Primary open catalogue and the weekly chart |
+| Jamendo | `JAMENDO_CLIENT_ID` | full | Independent licensed music; 35,000 requests a month, so cached aggressively |
+| SoundCloud | `SOUNDCLOUD_CLIENT_ID` | full | Creator uploads, resolved through a progressive transcoding |
+| Deezer | none | preview | Metadata, artwork and a keyless chart; 30-second playback |
+| Apple iTunes | none | preview | Keyless first-run results with artwork and 30-second previews |
+
+An adapter with no key reports `configured: false` and is skipped, so a fresh checkout always has Audius, Deezer and iTunes. A search fans out to every configured provider and interleaves the answers, which keeps one catalogue from owning a page; a provider that fails costs its own results and nothing else. A stream is only ever resolved against the provider that produced the track, never substituted from another one.
 
 **Metadata fallback and playback fallback are different things.** A missing field may be filled from another provider. A missing stream may never be filled with a different recording.
 
